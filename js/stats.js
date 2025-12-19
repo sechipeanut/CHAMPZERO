@@ -74,6 +74,37 @@ async function calculateAndAnimateStats() {
             totalPrizes = Math.floor(totalPrizes / 1000) * 1000;
         }
 
+        // --- STEP B: Calculate "Real" Stats from Tournaments ---
+        // This connects to the exact same database your Tournament Page uses
+        const tournamentSnapshot = await getDocs(collection(db, "tournaments"));
+        
+        let calculatedPrize = 0;
+        let calculatedCount = 0;
+
+        tournamentSnapshot.forEach((doc) => {
+            const data = doc.data();
+            
+            // 1. Count the tournament
+            calculatedCount++; 
+
+            // 2. Add up the prize money
+            // We check both 'prizePool' and 'prize' in case you named it differently
+            const rawPrize = data.prizePool || data.prize || "0";
+            
+            // CLEANER: This removes "PHP", "$", commas, and spaces to get a pure number
+            // Example: "PHP 10,000" becomes 10000
+            const cleanString = String(rawPrize).replace(/[^0-9.]/g, '');
+            const prizeValue = parseFloat(cleanString);
+
+            if (!isNaN(prizeValue)) {
+                calculatedPrize += prizeValue;
+            }
+        });
+
+        // Update the stats object with the real calculated numbers
+        stats.tournaments = calculatedCount;
+        stats.prizes = calculatedPrize;
+
     } catch (error) {
         console.error("Error calculating stats:", error);
     }
