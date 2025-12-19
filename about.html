@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth"> 
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ChampZero — About Us</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <style>
+        :root { 
+            --gold: #FFD700;
+            --gold-darker: #C99700;
+            --dark-bg: #111115;
+            --dark-card: #1A1A1F;
+        }
+        body { font-family: 'Poppins', sans-serif; }
+        .text-glow { text-shadow: 0 0 8px rgba(255, 215, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.4); }
+        .futuristic-bg { background-color: var(--dark-bg); background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px); background-size: 30px 30px; }
+        .nav-link { position: relative; }
+        .nav-link::after { content: ''; position: absolute; width: 100%; transform: scaleX(0); height: 2px; bottom: -4px; left: 0; background-color: var(--gold); transform-origin: bottom right; transition: transform 0.25s ease-out; }
+        .nav-link:hover::after, .nav-link.active::after { transform: scaleX(1); transform-origin: bottom left; }
+    </style>
+</head>
+
+<body class="bg-[var(--dark-bg)] text-gray-200 antialiased">
+
+<header id="main-header" class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 transition-all duration-300">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
+    <a href="home.html" class="flex items-center gap-3">
+        <img src="pictures/cz_logo.png" alt="ChampZero Logo" width="40" height="40" class="w-10 h-10 rounded-md object-cover">
+        <span class="font-bold text-xl text-white">ChampZero</span>
+    </a>
+    <nav class="hidden md:flex items-center gap-8 text-sm">
+        <a href="home.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Home</a>
+        <a href="tournaments.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Tournaments</a>
+        <a href="events.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Events</a>
+        <a href="teams.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Teams & Recruitment</a>
+        <a href="rising.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Rising Champ</a>
+        <a href="partners.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Partners</a>
+        <a href="shop.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Shop</a>
+    </nav>
+    <div class="flex items-center gap-3">
+        <div id="auth-controls-wrapper" class="relative">
+            <div id="auth-controls" class="flex items-center gap-3">
+                <a href="login.html" class="text-sm px-3 py-1.5 rounded-md hover:bg-white/10 text-gray-300">Log In</a>
+                <a href="signup.html" class="hidden sm:inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
+            </div>
+        </div>
+        <button id="mobile-menu-button" aria-label="Toggle navigation menu" class="md:hidden p-2 rounded-md text-gray-300 hover:bg-white/10">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+        </button>
+    </div>
+  </div>
+</header>
+
+<div id="mobile-menu" class="hidden md:hidden fixed inset-0 bg-[var(--dark-bg)] z-40 p-6">
+    <nav class="flex flex-col items-center justify-center h-full gap-6 text-lg">
+        <a href="home.html" class="text-gray-300 hover:text-[var(--gold)]">Home</a>
+        <a href="tournaments.html" class="text-gray-300 hover:text-[var(--gold)]">Tournaments</a>
+        <a href="events.html" class="text-gray-300 hover:text-[var(--gold)]">Events</a>
+        <a href="teams.html" class="text-gray-300 hover:text-[var(--gold)]">Teams & Recruitment</a>
+        <a href="rising.html" class="text-gray-300 hover:text-[var(--gold)]">Rising Champ</a>
+        <a href="partners.html" class="text-gray-300 hover:text-[var(--gold)]">Partners</a>
+        <a href="shop.html" class="text-gray-300 hover:text-[var(--gold)]">Shop</a>
+        <div class="border-t border-white/20 mt-6 pt-6 flex gap-4">
+             <a href="login.html" class="text-sm px-4 py-2 rounded-md text-gray-300 ring-1 ring-gray-600">Log in</a>
+            <a href="signup.html" class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
+        </div>
+    </nav>
+</div>
+
+<main>
+    <section class="relative futuristic-bg text-white overflow-hidden">
+        <img src="https://images.unsplash.com/photo-1542751371-adc391834246?auto=format&fit=crop&w=1600&q=80" class="absolute inset-0 w-full h-full object-cover opacity-10" alt="Esports event crowd">
+        <div class="absolute inset-0 bg-gradient-to-t from-[var(--dark-bg)] to-transparent"></div> 
+        <div class="relative max-w-7xl mx-auto px-6 sm:px-8 py-40 text-center">
+            <h1 class="text-5xl md:text-7xl font-extrabold text-glow text-[var(--gold)]">About ChampZero</h1>
+            <p class="mt-4 text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">The premier esports hub built for the community, by the community.</p>
+        </div>
+    </section>
+
+    <div class="py-24 bg-[var(--dark-bg)]">
+        <div class="max-w-7xl mx-auto px-6 sm:px-8">
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+                <div class="lg:col-span-2 bg-[var(--dark-card)] border border-white/10 p-8 rounded-xl space-y-8">
+                  <div>
+                    <h2 class="text-3xl font-bold mb-4 text-white">Our Mission</h2>
+                    <p class="text-gray-300 leading-relaxed">To cultivate a safe, controlled, and positive environment that empowers passionate players, creators, and enthusiasts to thrive and contribute meaningfully to the esports community.</p>
+                  </div>
+                  <div>
+                    <h2 class="text-3xl font-bold mb-4 text-white">Our Vision</h2>
+                    <p class="text-gray-300 leading-relaxed">To be the leading force in esports entertainment and talent development, providing a premier platform for committed gamers to achieve professional excellence and maximize their potential.</p>
+                  </div>
+                </div>
+
+                <div class="lg:col-span-1">
+                  <div class="bg-[var(--dark-card)] border border-white/10 p-6 rounded-xl space-y-4">
+                    <div class="border-b border-white/10 pb-3">
+                      <p class="text-sm font-medium text-gray-400">Founded</p>
+                      <p class="font-bold text-white text-lg">2020</p>
+                    </div>
+                    <div class="border-b border-white/10 pb-3">
+                      <p class="text-sm font-medium text-gray-400">Headquarters</p>
+                      <p class="font-bold text-white text-lg">Batangas City, PH</p>
+                    </div>
+                    <div>
+                      <p class="text-sm font-medium text-gray-400">Core Games</p>
+                      <p class="font-bold text-white text-lg">Valorant, MLBB, HoK</p>
+                    </div>
+                  </div>
+                </div>
+            </div>
+
+            <div class="mt-20">
+                <h2 class="text-3xl font-bold text-center mb-12 text-white">What We Offer</h2>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="p-8 bg-[var(--dark-card)] rounded-xl border border-white/10 transform hover:-translate-y-2 transition-transform duration-300">
+                        <div class="text-4xl mb-4 text-[var(--gold)]"><svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z"/></svg></div>
+                        <h3 class="font-bold text-xl mb-2 text-white">Organized Tournaments</h3>
+                        <p class="text-sm text-gray-400">A robust platform for official and community-run tournaments with transparent brackets and prize pools.</p>
+                    </div>
+                    <div class="p-8 bg-[var(--dark-card)] rounded-xl border border-white/10 transform hover:-translate-y-2 transition-transform duration-300">
+                        <div class="text-4xl mb-4 text-[var(--gold)]"><svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg></div>
+                        <h3 class="font-bold text-xl mb-2 text-white">Talent Development</h3>
+                        <p class="text-sm text-gray-400">Our "Rising Champ" program nurtures the next generation of casters, streamers, and content creators.</p>
+                    </div>
+                    <div class="p-8 bg-[var(--dark-card)] rounded-xl border border-white/10 transform hover:-translate-y-2 transition-transform duration-300">
+                        <div class="text-4xl mb-4 text-[var(--gold)]"><svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg></div>
+                        <h3 class="font-bold text-xl mb-2 text-white">Esports Services</h3>
+                        <p class="text-sm text-gray-400">We work with brands and publishers, offering everything from event management to equipment rentals.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+<footer class="border-t border-white/10 bg-[var(--dark-bg)]">
+    <div class="max-w-7xl mx-auto px-6 sm:px-8 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div><div class="flex items-center gap-3"><img src="pictures/cz_logo.png" alt="ChampZero Logo" class="w-10 h-10 rounded-md object-cover"><div><div class="font-bold text-white text-lg">ChampZero</div><div class="text-sm text-gray-400">Esports Ecosystem</div></div></div><p class="mt-4 text-sm text-gray-400">Building community-driven tournaments, talent development, and esports services.</p><div class="mt-4 text-sm text-gray-500">© 2025 ChampZero. All rights reserved.</div></div>
+        <div><h4 class="font-semibold text-white">Quick Links</h4><ul class="mt-3 text-sm text-gray-400 space-y-2"><li><a href="about.html" class="text-[var(--gold)] font-semibold">About Us</a></li><li><a href="contact.html" class="hover:text-[var(--gold)]">Contact</a></li><li><a href="terms.html" class="hover:text-[var(--gold)]">Terms & Privacy</a></li><li><a href="careers.html" class="hover:text-[var(--gold)]">Careers</a></li></ul></div>
+        <div><h4 class="font-semibold text-white">Follow Us</h4><div class="mt-3 flex items-center gap-3"><a href="https://facebook.com/champzeroph" aria-label="facebook" class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">FB</a><a href="#" aria-label="youtube" class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">YT</a><a href="#" aria-label="twitter" class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">X</a></div></div>
+    </div>
+</footer>
+
+<script src="js/main.js"></script>
+<script>
+    // Highlight active nav link
+    document.addEventListener('DOMContentLoaded', () => {
+        const navLink = document.querySelector('a[href="about.html"]');
+        if (navLink) navLink.classList.add('active', 'text-[var(--gold)]');
+    });
+</script>
+
+</body>
+</html>
