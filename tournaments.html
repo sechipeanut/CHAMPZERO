@@ -179,6 +179,62 @@
 <script type="module" src="js/main.js"></script>
 <script type="module" src="js/auth.js"></script>
 <script type="module" src="js/tournaments.js"></script>
+<script type="module" src="js/notifications.js"></script>
+
+<script type="module">
+    import { db } from './js/firebase-config.js';
+    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+    document.addEventListener('DOMContentLoaded', async () => {
+        // 1. Check URL for "?id="
+        const params = new URLSearchParams(window.location.search);
+        const tournamentId = params.get('id');
+
+        if (tournamentId) {
+            console.log("Opening Tournament:", tournamentId);
+            const docRef = doc(db, "tournaments", tournamentId);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                
+                // 2. Populate Modal (Matching your HTML IDs)
+                const titleEl = document.getElementById('detailTitle');
+                const metaEl = document.getElementById('detailMeta');
+                const descEl = document.getElementById('detailDesc');
+                const bannerEl = document.getElementById('detailBanner');
+
+                if (titleEl) titleEl.textContent = data.name;
+                if (descEl) descEl.textContent = `Game: ${data.game} \nPrize: ${data.prize} \nStatus: ${data.status}`;
+                
+                // Meta Tags
+                if (metaEl) {
+                    metaEl.innerHTML = `
+                        <span class="bg-[var(--gold)] text-black px-2 py-0.5 rounded text-xs font-bold">${data.status || 'Upcoming'}</span>
+                        <span class="flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> ${data.date || 'TBA'}</span>
+                    `;
+                }
+
+                // Banner
+                if (bannerEl && data.banner) {
+                    bannerEl.innerHTML = `<img src="${data.banner}" class="w-full h-48 object-cover rounded-lg border border-white/10">`;
+                }
+
+                // 3. Show Modal
+                const modal = document.getElementById('detailsModal');
+                if (modal) {
+                    modal.classList.remove('hidden');
+                    modal.classList.add('flex');
+                }
+
+                // 4. Clean URL (Remove ID so refresh doesn't reopen it)
+                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+                window.history.pushState({path:newUrl},'',newUrl);
+            }
+        }
+    });
+</script>
+
 
 </body>
 </html>
