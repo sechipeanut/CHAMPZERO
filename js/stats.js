@@ -1,5 +1,5 @@
 import { db } from './firebase-config.js'; 
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { doc, getDoc, collection, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     initStats();
@@ -9,12 +9,12 @@ function initStats() {
     const statsSection = document.getElementById('stats-section');
     if (!statsSection) return;
 
-    // Trigger animation when section comes into view
+    // Only start counting when the user scrolls to the section
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
                 fetchAndAnimateStats();
-                observer.unobserve(entry.target); // Only run once
+                observer.unobserve(entry.target);
             }
         });
     }, { threshold: 0.5 });
@@ -23,42 +23,70 @@ function initStats() {
 }
 
 async function fetchAndAnimateStats() {
-    // Default "Starter" numbers (Used if DB is empty or fails)
+    // 1. Start with 0
     let stats = {
-        talents: 12,
-        followers: 1500,
-        prizes: 50000, // in pesos or currency
-        tournaments: 8,
-        players: 120
+        talents: 0,
+        followers: 0,
+        prizes: 0, // This will be calculated from tournaments
+        tournaments: 0, // This will be counted from tournaments
+        players: 0
     };
 
     try {
-        // 1. Try to fetch real stats from Firestore
-        // You need to create a collection named 'statistics' and a document named 'homepage'
-        const docRef = doc(db, "statistics", "homepage");
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            // Merge DB data with defaults (in case some fields are missing)
-            stats = { ...stats, ...data };
-        } else {
-            console.log("No stats document found. Using default starter values.");
+        // --- STEP A: Fetch "Manual" Stats (Followers/Talents) ---
+        // We still get these from your settings doc because counting followers one by one is slow
+        const summaryDoc = await getDoc(doc(db, "statistics", "homepage"));
+        if (summaryDoc.exists()) {
+            const summaryData = summaryDoc.data();
+            stats.talents = summaryData.talents || 0;
+            stats.followers = summaryData.followers || 0;
+            stats.players = summaryData.players || 0;
         }
 
+        // --- STEP B: Calculate "Real" Stats from Tournaments ---
+        // This connects to the exact same database your Tournament Page uses
+        const tournamentSnapshot = await getDocs(collection(db, "tournaments"));
+        
+        let calculatedPrize = 0;
+        let calculatedCount = 0;
+
+        tournamentSnapshot.forEach((doc) => {
+            const data = doc.data();
+            
+            // 1. Count the tournament
+            calculatedCount++; 
+
+            // 2. Add up the prize money
+            // We check both 'prizePool' and 'prize' in case you named it differently
+            const rawPrize = data.prizePool || data.prize || "0";
+            
+            // CLEANER: This removes "PHP", "$", commas, and spaces to get a pure number
+            // Example: "PHP 10,000" becomes 10000
+            const cleanString = String(rawPrize).replace(/[^0-9.]/g, '');
+            const prizeValue = parseFloat(cleanString);
+
+            if (!isNaN(prizeValue)) {
+                calculatedPrize += prizeValue;
+            }
+        });
+
+        // Update the stats object with the real calculated numbers
+        stats.tournaments = calculatedCount;
+        stats.prizes = calculatedPrize;
+
     } catch (error) {
-        console.error("Error fetching stats:", error);
+        console.error("Error calculating real stats:", error);
     }
 
-    // 2. Animate the numbers
+    // 3. Animate the final numbers on the screen
     animateValue("stat-talents", 0, stats.talents, 2000);
-    animateValue("stat-followers", 0, stats.followers, 2500, "+");
-    animateValue("stat-prizes", 0, stats.prizes, 3000, "₱");
+    animateValue("stat-followers", 0, stats.followers, 2500, "+"); // Adds '+' prefix
+    animateValue("stat-prizes", 0, stats.prizes, 3000, "₱");       // Adds '₱' prefix
     animateValue("stat-tournaments", 0, stats.tournaments, 1500);
     animateValue("stat-players", 0, stats.players, 2000);
 }
 
-// Animation Logic
+// Animation Logic (Makes numbers count up smoothly)
 function animateValue(id, start, end, duration, prefix = "") {
     const obj = document.getElementById(id);
     if (!obj) return;
@@ -67,16 +95,11 @@ function animateValue(id, start, end, duration, prefix = "") {
     const step = (timestamp) => {
         if (!startTimestamp) startTimestamp = timestamp;
         const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-        
-        // Easing function for smooth effect
         const easeOutQuad = 1 - (1 - progress) * (1 - progress); 
-        
         const current = Math.floor(easeOutQuad * (end - start) + start);
         
-        // Format numbers (e.g. 1,200 instead of 1200)
         let formatted = current.toLocaleString();
         
-        // Handle "k" formatting for large numbers if needed
         if(current > 10000 && id === "stat-followers") {
              formatted = (current / 1000).toFixed(1) + "k";
         }
@@ -86,7 +109,6 @@ function animateValue(id, start, end, duration, prefix = "") {
         if (progress < 1) {
             window.requestAnimationFrame(step);
         } else {
-            // Ensure final number is exact
             let final = end.toLocaleString();
             if(end > 10000 && id === "stat-followers") final = (end / 1000).toFixed(1) + "k";
             obj.innerHTML = prefix + final;
