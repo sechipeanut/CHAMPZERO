@@ -33,6 +33,7 @@ onAuthStateChanged(auth, async (user) => {
         const userRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userRef);
         const adminEmails = ["admin@champzero.com", "owner@champzero.com"];
+        // Check both Role and specific email whitelist
         const isAdminRole = userSnap.exists() && userSnap.data().role === 'admin';
         
         if (isAdminRole || adminEmails.includes(user.email)) {
@@ -112,6 +113,13 @@ window.editItem = async function(collectionName, docId) {
             qs('#tal-bio').value = data.bio;
             prepareEditMode('talents', docId, '#talentForm');
         }
+        else if (collectionName === 'notifications') {
+            switchTab('notifications');
+            qs('#n-title').value = data.title;
+            qs('#n-type').value = data.type;
+            qs('#n-message').value = data.message;
+            prepareEditMode('notifications', docId, '#notifForm');
+        }
 
         // Scroll to top to see the form
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -172,6 +180,7 @@ async function refreshAllLists() {
     fetchJobs();
     fetchMessages();
     fetchTalents();
+    fetchNotifications(); // Added Notification fetch
 }
 
 async function fetchTournaments() {
@@ -241,6 +250,36 @@ async function fetchTalents() {
                 <div class="flex gap-2">
                     <button onclick="editItem('talents', '${doc.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
                     <button onclick="deleteItem('talents', '${doc.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
+                </div>
+            </div>`;
+    });
+}
+
+// NEW: Fetch Notifications
+async function fetchNotifications() {
+    const list = qs('#notifications-list');
+    const q = query(collection(db, "notifications"));
+    const snapshot = await getDocs(q);
+    list.innerHTML = snapshot.empty ? '<p class="text-gray-500">No announcements yet.</p>' : '';
+    snapshot.forEach(doc => {
+        const data = doc.data();
+        let icon = '📢'; 
+        if(data.type === 'tournament') icon = '🏆';
+        if(data.type === 'event') icon = '🎉';
+        if(data.type === 'alert') icon = '⚠️';
+
+        list.innerHTML += `
+            <div class="admin-item">
+                <div class="flex items-center gap-3">
+                    <div class="text-xl">${icon}</div>
+                    <div>
+                        <div class="font-bold text-white">${escapeHtml(data.title)}</div>
+                        <div class="text-xs text-gray-400 max-w-xs truncate">${escapeHtml(data.message)}</div>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="editItem('notifications', '${doc.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
+                    <button onclick="deleteItem('notifications', '${doc.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
                 </div>
             </div>`;
     });
@@ -316,6 +355,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 } else {
                     // --- CREATE NEW ---
                     data.createdAt = new Date().toISOString();
+                    // We use serverTimestamp in some places but your code style uses ISO string client-side
+                    // which is fine for this scale.
                     await addDoc(collection(db, collectionName), data);
                     alert(successMsg);
                     form.reset();
@@ -363,5 +404,12 @@ document.addEventListener('DOMContentLoaded', () => {
         socialLink: qs('#tal-link').value,
         bio: qs('#tal-bio').value
     }), "Talent Added!");
+
+    // NEW: Handle Notifications Form
+    handleForm('#notifForm', 'notifications', () => ({
+        title: qs('#n-title').value,
+        type: qs('#n-type').value,
+        message: qs('#n-message').value
+    }), "Notification Sent!");
 
 });

@@ -38,11 +38,44 @@
         <button onclick="switchTab('events')" id="btn-events" class="px-4 py-2 text-gray-400 hover:text-white transition-colors">Events</button>
         <button onclick="switchTab('talents')" id="btn-talents" class="px-4 py-2 text-gray-400 hover:text-white transition-colors">Talents</button>
         <button onclick="switchTab('jobs')" id="btn-jobs" class="px-4 py-2 text-gray-400 hover:text-white transition-colors">Careers</button>
+        <button onclick="switchTab('notifications')" id="btn-notifications" class="px-4 py-2 text-gray-400 hover:text-white transition-colors">Announcements</button>
         <button onclick="switchTab('messages')" id="btn-messages" class="px-4 py-2 text-gray-400 hover:text-white transition-colors flex items-center gap-2">
             Inbox 
             <span id="msg-badge" class="hidden bg-red-600 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">New</span>
         </button>
     </div>
+
+    <section id="tab-notifications" class="tab-content hidden">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div class="lg:col-span-1">
+                <h2 class="text-xl font-bold text-white mb-4">Send Announcement</h2>
+                <form id="notifForm" class="bg-[var(--dark-card)] p-6 rounded-xl border border-white/10 space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-400">Title</label>
+                        <input id="n-title" type="text" placeholder="New Tournament Live!" required class="dark-input w-full p-2 rounded">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400">Type</label>
+                        <select id="n-type" class="dark-input w-full p-2 rounded bg-[var(--dark-bg)]">
+                            <option value="general">General 📢</option>
+                            <option value="tournament">Tournament 🏆</option>
+                            <option value="event">Event 🎉</option>
+                            <option value="alert">Alert ⚠️</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400">Message</label>
+                        <textarea id="n-message" rows="3" required class="dark-input w-full p-2 rounded"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-[var(--gold)] text-black font-bold px-6 py-2 rounded hover:bg-yellow-400">Push Notification</button>
+                </form>
+            </div>
+            <div class="lg:col-span-2">
+                <h2 class="text-xl font-bold text-white mb-4">Recent Announcements</h2>
+                <div id="notifications-list" class="space-y-2"><p class="text-gray-500">Loading...</p></div>
+            </div>
+        </div>
+    </section>
 
     <section id="tab-tournaments" class="tab-content">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -142,32 +175,6 @@
         </div>
     </section>
 
-    <section id="tab-talents" class="tab-content hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div class="lg:col-span-1">
-                <h2 class="text-xl font-bold text-white mb-4">Add New Talent</h2>
-                <form id="talentForm" class="bg-[var(--dark-card)] p-6 rounded-xl border border-white/10 space-y-4">
-                    <div><label class="block text-sm text-gray-400">Name / IGN</label><input id="tal-name" type="text" required class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Role</label>
-                        <select id="tal-role" class="dark-input w-full p-2 rounded bg-[var(--dark-bg)]">
-                            <option value="Streamer">Streamer</option>
-                            <option value="Caster">Caster</option>
-                            <option value="Cosplayer">Cosplayer</option>
-                            <option value="Content Creator">Content Creator</option>
-                        </select>
-                    </div>
-                    <div><label class="block text-sm text-gray-400">Profile Image URL</label><input id="tal-img" type="url" placeholder="https://..." class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Social Link</label><input id="tal-link" type="url" placeholder="FB/Twitch URL" class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Short Bio</label><textarea id="tal-bio" rows="3" class="dark-input w-full p-2 rounded"></textarea></div>
-                    <button type="submit" class="w-full bg-[var(--gold)] text-black font-bold px-6 py-2 rounded hover:bg-yellow-400">Add Talent</button>
-                </form>
-            </div>
-            <div class="lg:col-span-2">
-                <h2 class="text-xl font-bold text-white mb-4">Current Roster</h2>
-                <div id="talents-list" class="space-y-2"><p class="text-gray-500">Loading roster...</p></div>
-            </div>
-        </div>
-    </section>
 </main>
 
 <script>
@@ -182,7 +189,9 @@
         });
 
         const activeBtn = document.getElementById(`btn-${tabName}`);
-        activeBtn.className = "px-4 py-2 text-[var(--gold)] border-b-2 border-[var(--gold)] font-bold transition-colors flex items-center gap-2";
+        if(activeBtn) {
+            activeBtn.className = "px-4 py-2 text-[var(--gold)] border-b-2 border-[var(--gold)] font-bold transition-colors flex items-center gap-2";
+        }
     }
 </script>
 
