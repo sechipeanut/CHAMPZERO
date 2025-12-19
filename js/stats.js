@@ -1,5 +1,5 @@
 import { db } from './firebase-config.js'; 
-import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { collection, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     initStats();
@@ -9,12 +9,11 @@ function initStats() {
     const statsSection = document.getElementById('stats-section');
     if (!statsSection) return;
 
-    // Trigger animation when section comes into view
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
-                fetchAndAnimateStats();
-                observer.unobserve(entry.target); // Only run once
+                calculateAndAnimateStats();
+                observer.unobserve(entry.target); 
             }
         });
     }, { threshold: 0.5 });
@@ -22,44 +21,75 @@ function initStats() {
     observer.observe(statsSection);
 }
 
-async function fetchAndAnimateStats() {
-    // Default "Starter" numbers (Used if DB is empty or fails)
-    let stats = {
-        talents: 12,
-        followers: 1500,
-        prizes: 50000, // in pesos or currency
-        tournaments: 8,
-        players: 120
-    };
+async function calculateAndAnimateStats() {
+    // Variables for our dynamic stats
+    let totalPrizes = 0;
+    let totalEventsHosted = 0;
+    let totalPlayers = 0;
+    let totalTalents = 0; // We can calculate this dynamically too
+
+    // Static fallback for followers (unless you have a followers collection)
+    const staticFollowers = 1500; 
 
     try {
-        // 1. Try to fetch real stats from Firestore
-        // You need to create a collection named 'statistics' and a document named 'homepage'
-        const docRef = doc(db, "statistics", "homepage");
-        const docSnap = await getDoc(docRef);
+        // --- 1. Calculate Prize Pool & Tournament Count ---
+        const tourneySnapshot = await getDocs(collection(db, "tournaments"));
+        let tournamentCount = 0;
+        
+        tourneySnapshot.forEach(doc => {
+            const data = doc.data();
+            tournamentCount++;
+            
+            // Clean and sum prize money
+            let prizeVal = 0;
+            if (typeof data.prize === 'number') {
+                prizeVal = data.prize;
+            } else if (typeof data.prize === 'string') {
+                prizeVal = Number(data.prize.replace(/[^0-9.-]+/g,""));
+            }
+            if (!isNaN(prizeVal)) totalPrizes += prizeVal;
+        });
 
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            // Merge DB data with defaults (in case some fields are missing)
-            stats = { ...stats, ...data };
-        } else {
-            console.log("No stats document found. Using default starter values.");
+        // --- 2. Calculate Event Count ---
+        const eventSnapshot = await getDocs(collection(db, "events"));
+        const eventCount = eventSnapshot.size;
+
+        // Combine Tournaments + Events
+        totalEventsHosted = tournamentCount + eventCount;
+
+        // --- 3. Calculate Registered Players (Users) ---
+        // This fetches the actual count of documents in your 'users' collection
+        const usersSnapshot = await getDocs(collection(db, "users"));
+        totalPlayers = usersSnapshot.size;
+
+        // --- 4. Calculate Talents (Optional) ---
+        // If you have a 'talents' collection, uncomment the lines below:
+        // const talentsSnapshot = await getDocs(collection(db, "talents"));
+        // totalTalents = talentsSnapshot.size;
+        // If not, we use the fallback from the screenshot (2)
+        totalTalents = 2; 
+
+        // Rounding Logic for Prizes
+        if (totalPrizes > 1000) {
+            totalPrizes = Math.floor(totalPrizes / 1000) * 1000;
         }
 
     } catch (error) {
-        console.error("Error fetching stats:", error);
+        console.error("Error calculating stats:", error);
     }
 
-    // 2. Animate the numbers
-    animateValue("stat-talents", 0, stats.talents, 2000);
-    animateValue("stat-followers", 0, stats.followers, 2500, "+");
-    animateValue("stat-prizes", 0, stats.prizes, 3000, "₱");
-    animateValue("stat-tournaments", 0, stats.tournaments, 1500);
-    animateValue("stat-players", 0, stats.players, 2000);
+    // --- 5. Animate the numbers ---
+    animateValue("stat-talents", 0, totalTalents, 2000);
+    animateValue("stat-followers", 0, staticFollowers, 2500, "+");
+    animateValue("stat-prizes", 0, totalPrizes, 3000, "₱", "+");
+    animateValue("stat-tournaments", 0, totalEventsHosted, 2000);
+    
+    // Animate the real player count
+    animateValue("stat-players", 0, totalPlayers, 2000);
 }
 
 // Animation Logic
-function animateValue(id, start, end, duration, prefix = "") {
+function animateValue(id, start, end, duration, prefix = "", suffix = "") {
     const obj = document.getElementById(id);
     if (!obj) return;
 
@@ -67,29 +97,22 @@ function animateValue(id, start, end, duration, prefix = "") {
     const step = (timestamp) => {
         if (!startTimestamp) startTimestamp = timestamp;
         const progress = Math.min((timestamp - startTimestamp) / duration, 1);
-        
-        // Easing function for smooth effect
         const easeOutQuad = 1 - (1 - progress) * (1 - progress); 
-        
         const current = Math.floor(easeOutQuad * (end - start) + start);
         
-        // Format numbers (e.g. 1,200 instead of 1200)
         let formatted = current.toLocaleString();
-        
-        // Handle "k" formatting for large numbers if needed
         if(current > 10000 && id === "stat-followers") {
              formatted = (current / 1000).toFixed(1) + "k";
         }
 
-        obj.innerHTML = prefix + formatted;
+        obj.innerHTML = prefix + formatted + suffix;
 
         if (progress < 1) {
             window.requestAnimationFrame(step);
         } else {
-            // Ensure final number is exact
             let final = end.toLocaleString();
             if(end > 10000 && id === "stat-followers") final = (end / 1000).toFixed(1) + "k";
-            obj.innerHTML = prefix + final;
+            obj.innerHTML = prefix + final + suffix;
         }
     };
     window.requestAnimationFrame(step);
