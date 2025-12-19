@@ -2,9 +2,9 @@ import { db } from './firebase-config.js';
 import { collection, query, orderBy, limit, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', async () => {
-    injectNotificationStyles();
-    injectNotificationUI();
-    await loadNotifications();
+    injectNotificationStyles(); // Keeps the animations/css
+    setupInteractions(); // Attaches logic to the HTML elements
+    await loadNotifications(); // Fetches data
 });
 
 // 1. Inject Custom CSS
@@ -37,55 +37,15 @@ function injectNotificationStyles() {
     document.head.appendChild(style);
 }
 
-// 2. Inject UI (FIXED LOCATION)
-function injectNotificationUI() {
-    const authContainer = document.getElementById('auth-controls');
-    
-    // Safety check: if page doesn't have auth controls, stop
-    if (!authContainer) return;
-
-    // Create the Wrapper
-    const wrapper = document.createElement('div');
-    wrapper.className = "relative flex items-center mr-3"; // Added margin-right for spacing
-
-    wrapper.innerHTML = `
-        <button id="notif-btn" class="bell-ring-hover relative group p-2 rounded-full border border-[var(--gold)] text-[var(--gold)] bg-transparent hover:bg-[var(--gold)] hover:text-black transition-colors duration-300 outline-none">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-            </svg>
-            <span id="notif-badge" class="hidden absolute top-0 right-0 h-3 w-3">
-                <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                <span class="relative inline-flex rounded-full h-3 w-3 bg-red-600 border-2 border-[var(--dark-bg)]"></span>
-            </span>
-        </button>
-
-        <div id="notif-dropdown" class="hidden absolute top-full right-0 mt-3 w-80 sm:w-96 bg-[#1A1A1F] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden transform origin-top-right">
-            <div class="p-4 border-b border-white/10 flex justify-between items-center bg-[#111115]">
-                <h3 class="font-bold text-white text-sm">Notifications</h3>
-                <span class="text-xs text-gray-500">Recent Updates</span>
-            </div>
-            <div id="notif-list" class="max-h-[300px] overflow-y-auto">
-                <div class="p-6 text-center text-gray-500 text-sm">Loading...</div>
-            </div>
-            <div class="p-2 border-t border-white/10 bg-[#111115] text-center">
-                <a href="events.html" class="text-xs text-[var(--gold)] hover:underline">View All Events</a>
-            </div>
-        </div>
-    `;
-
-    // CRITICAL FIX: Insert BEFORE auth-controls (Sibling), not INSIDE it
-    // This prevents auth.js from wiping the bell when it sets "Welcome User"
-    authContainer.parentNode.insertBefore(wrapper, authContainer);
-
-    setupInteractions();
-}
-
-// 3. Interactions
+// 2. Interactions (Updated to find existing HTML elements)
 function setupInteractions() {
     const btn = document.getElementById('notif-btn');
     const dropdown = document.getElementById('notif-dropdown');
     
-    if(!btn || !dropdown) return;
+    if(!btn || !dropdown) {
+        console.warn("Notification elements not found in HTML");
+        return;
+    }
 
     btn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -111,7 +71,7 @@ function setupInteractions() {
     }
 }
 
-// 4. Load Data
+// 3. Load Data
 async function loadNotifications() {
     const list = document.getElementById('notif-list');
     const badge = document.getElementById('notif-badge');
@@ -130,7 +90,7 @@ async function loadNotifications() {
             const data = doc.data();
             const date = data.timestamp ? new Date(data.timestamp.seconds * 1000).toLocaleDateString() : 'Just now';
             
-            // Fixed Icons (Emojis were corrupted in previous version)
+            // Fixed Icons
             let icon = '📢'; 
             if(data.type === 'tournament') icon = '🏆';
             if(data.type === 'event') icon = '🎉';
