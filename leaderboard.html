@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ChampZero — Leaderboards</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --gold: #FFD700; --dark-bg: #111115; --dark-card: #1A1A1F; }
+        body { font-family: 'Poppins', sans-serif; background-color: var(--dark-bg); color: white; }
+        .text-glow { text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
+        .rank-1 { background: linear-gradient(45deg, #FFD700, #FDB931); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900; }
+        .rank-2 { color: #C0C0C0; font-weight: 800; }
+        .rank-3 { color: #CD7F32; font-weight: 800; }
+    </style>
+</head>
+<body class="antialiased">
+
+<header id="main-header" class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10"></header>
+
+<main class="py-20 px-6">
+    <div class="max-w-5xl mx-auto">
+        <div class="text-center mb-12">
+            <h1 class="text-5xl font-black text-white text-glow mb-4">SEASON RANKINGS</h1>
+            <p class="text-gray-400">Top performing players across all ChampZero tournaments.</p>
+        </div>
+
+        <div class="flex justify-center gap-4 mb-8">
+            <button class="px-6 py-2 rounded-full bg-[var(--gold)] text-black font-bold">Overall</button>
+            <button class="px-6 py-2 rounded-full bg-white/5 text-gray-400 hover:text-white border border-white/10">Valorant</button>
+            <button class="px-6 py-2 rounded-full bg-white/5 text-gray-400 hover:text-white border border-white/10">MLBB</button>
+        </div>
+
+        <div class="bg-[var(--dark-card)] rounded-xl border border-white/10 overflow-hidden">
+            <table class="w-full text-left border-collapse">
+                <thead>
+                    <tr class="bg-white/5 text-gray-400 text-sm uppercase tracking-wider">
+                        <th class="p-6">Rank</th>
+                        <th class="p-6">Player</th>
+                        <th class="p-6 hidden sm:table-cell">Tournaments Won</th>
+                        <th class="p-6 text-right">Points</th>
+                    </tr>
+                </thead>
+                <tbody id="leaderboard-body" class="divide-y divide-white/10">
+                    <tr><td colspan="4" class="p-8 text-center text-gray-500">Loading rankings...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</main>
+
+<script type="module" src="js/main.js"></script>
+<script type="module" src="js/auth.js"></script>
+<script type="module" src="js/leaderboard.js"></script>
+
+</body>
+</html>
