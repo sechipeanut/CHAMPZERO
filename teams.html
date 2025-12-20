@@ -1,187 +1,432 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth"> 
+<html lang="en" class="scroll-smooth">
+
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ChampZero — Teams & Recruitment</title>
-    
-    <meta name="description" content="Find your dream team or recruit top talent. Join the ChampZero esports ecosystem today.">
-    <meta property="og:title" content="ChampZero — Teams & Recruitment">
-    <meta property="og:description" content="Discover official teams, recruit talented players, and find your perfect squad.">
-    <meta property="og:image" content="https://champzero.com/pictures/cz_logo.png">
-    
+
     <script src="https://cdn.tailwindcss.com"></script>
-    
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
 
     <style>
-        :root { 
+        :root {
             --gold: #FFD700;
             --gold-darker: #C99700;
             --dark-bg: #111115;
             --dark-card: #1A1A1F;
         }
-        body { font-family: 'Poppins', sans-serif; }
-        
-        /* Nav Links */
-        .nav-link { position: relative; }
-        .nav-link::after { content: ''; position: absolute; width: 100%; transform: scaleX(0); height: 2px; bottom: -4px; left: 0; background-color: var(--gold); transform-origin: bottom right; transition: transform 0.25s ease-out; }
-        .nav-link:hover::after { transform: scaleX(1); transform-origin: bottom left; }
-        
-        /* Form Elements */
-        .dark-input, .dark-select { background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; }
-        .dark-input:focus, .dark-select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.3); }
-        .dark-select option { background-color: var(--dark-card); color: white; }
-        
-        /* Focus Accessibility */
-        :focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
-        
-        .text-glow { text-shadow: 0 0 8px rgba(255, 215, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.4); }
-        .futuristic-bg { background-color: var(--dark-bg); background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px); background-size: 30px 30px; }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .nav-link {
+            position: relative;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            transform: scaleX(0);
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: var(--gold);
+            transform-origin: bottom right;
+            transition: transform 0.25s ease-out;
+        }
+
+        .nav-link:hover::after {
+            transform: scaleX(1);
+            transform-origin: bottom left;
+        }
+
+        .dark-input,
+        .dark-select {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+        }
+
+        .dark-input:focus,
+        .dark-select:focus {
+            outline: none;
+            border-color: var(--gold);
+            box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.3);
+        }
+
+        .dark-select option {
+            background-color: var(--dark-card);
+            color: white;
+        }
+
+        .text-glow {
+            text-shadow: 0 0 8px rgba(255, 215, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.4);
+        }
+
+        .futuristic-bg {
+            background-color: var(--dark-bg);
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        /* Chat Styling */
+        .chat-bubble {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            position: relative;
+        }
+
+        .chat-bubble.mine {
+            background-color: var(--gold);
+            color: black;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+        }
+
+        .chat-bubble.theirs {
+            background-color: rgba(255, 255, 255, 0.1);
+            color: white;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
+        .chat-time {
+            font-size: 0.65rem;
+            opacity: 0.7;
+            margin-top: 4px;
+            display: block;
+            text-align: right;
+        }
     </style>
 </head>
 
 <body class="bg-[var(--dark-bg)] text-gray-200 antialiased">
 
-<header id="main-header" class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 transition-all duration-300">
-  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
-    <a href="home.html" class="flex items-center gap-3">
-        <img src="pictures/cz_logo.png" alt="ChampZero Logo" width="40" height="40" class="w-10 h-10 rounded-md object-cover">
-        <span class="font-bold text-xl text-white">ChampZero</span>
-    </a>
-    <nav class="hidden md:flex items-center gap-8 text-sm">
-        <a href="home.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Home</a>
-        <a href="tournaments.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Tournaments</a>
-        <a href="events.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Events</a>
-        <a href="teams.html" class="nav-link text-[var(--gold)] font-semibold">Teams & Recruitment</a>
-        <a href="rising.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Rising Champ</a>
-        <a href="partners.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Partners</a>
-        <a href="shop.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Shop</a>
-    </nav>
-    <div class="flex items-center gap-3">
-        <div id="auth-controls-wrapper" class="relative">
-            <div id="auth-controls" class="flex items-center gap-3">
-                <a href="login.html" class="text-sm px-3 py-1.5 rounded-md hover:bg-white/10 text-gray-300">Log In</a>
-                <a href="signup.html" class="hidden sm:inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
+    <header id="main-header"
+        class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
+            <a href="home.html" class="flex items-center gap-3">
+                <img src="pictures/cz_logo.png" alt="ChampZero Logo" width="40" height="40"
+                    class="w-10 h-10 rounded-md object-cover">
+                <span class="font-bold text-xl text-white">ChampZero</span>
+            </a>
+            <nav class="hidden md:flex items-center gap-8 text-sm">
+                <a href="home.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Home</a>
+                <a href="tournaments.html"
+                    class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Tournaments</a>
+                <a href="events.html"
+                    class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Events</a>
+                <a href="teams.html" class="nav-link text-[var(--gold)] font-semibold">Teams & Recruitment</a>
+                <a href="rising.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Rising
+                    Champ</a>
+                <a href="shop.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Shop</a>
+            </nav>
+            <div class="flex items-center gap-3">
+                <div id="auth-controls-wrapper" class="relative">
+                    <div id="auth-controls" class="flex items-center gap-3">
+                        <a href="login.html" class="text-sm px-3 py-1.5 rounded-md hover:bg-white/10 text-gray-300">Log
+                            In</a>
+                        <a href="signup.html"
+                            class="hidden sm:inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign
+                            Up</a>
+                    </div>
+                </div>
+                <button id="mobile-menu-button"
+                    onclick="document.getElementById('mobile-menu').classList.toggle('hidden')"
+                    aria-label="Toggle navigation menu"
+                    class="md:hidden p-2 rounded-md text-gray-300 hover:bg-white/10">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16m-7 6h7"></path>
+                    </svg>
+                </button>
             </div>
         </div>
-        <button id="mobile-menu-button" aria-label="Toggle navigation menu" class="md:hidden p-2 rounded-md text-gray-300 hover:bg-white/10">
-            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+    </header>
+
+    <div id="mobile-menu" class="hidden md:hidden fixed inset-0 bg-[var(--dark-bg)] z-40 p-6 flex flex-col">
+        <button onclick="document.getElementById('mobile-menu').classList.add('hidden')"
+            class="self-end text-gray-400 p-2">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
         </button>
+        <nav class="flex flex-col items-center justify-center h-full gap-6 text-lg">
+            <a href="home.html" class="text-gray-300 hover:text-[var(--gold)]">Home</a>
+            <a href="tournaments.html" class="text-gray-300 hover:text-[var(--gold)]">Tournaments</a>
+            <a href="events.html" class="text-gray-300 hover:text-[var(--gold)]">Events</a>
+            <a href="teams.html" class="text-[var(--gold)] font-semibold">Teams & Recruitment</a>
+            <a href="rising.html" class="text-gray-300 hover:text-[var(--gold)]">Rising Champ</a>
+            <a href="shop.html" class="text-gray-300 hover:text-[var(--gold)]">Shop</a>
+
+            <button onclick="openCreateModal(); document.getElementById('mobile-menu').classList.add('hidden')"
+                class="bg-white/10 border border-white/20 text-white font-semibold px-8 py-3 rounded-full shadow-lg hover:bg-white/20 mt-4">
+                Post a Listing
+            </button>
+
+            <div class="border-t border-white/20 mt-6 pt-6 flex gap-4 w-full justify-center">
+                <a href="login.html" class="text-sm px-4 py-2 rounded-md text-gray-300 ring-1 ring-gray-600">Log in</a>
+                <a href="signup.html"
+                    class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign
+                    Up</a>
+            </div>
+        </nav>
     </div>
-  </div>
-</header>
 
-<div id="mobile-menu" class="hidden md:hidden fixed inset-0 bg-[var(--dark-bg)] z-40 p-6">
-    <nav class="flex flex-col items-center justify-center h-full gap-6 text-lg">
-        <a href="home.html" class="text-gray-300 hover:text-[var(--gold)]">Home</a>
-        <a href="tournaments.html" class="text-gray-300 hover:text-[var(--gold)]">Tournaments</a>
-        <a href="events.html" class="text-gray-300 hover:text-[var(--gold)]">Events</a>
-        <a href="teams.html" class="text-[var(--gold)] font-semibold">Teams & Recruitment</a>
-        <a href="rising.html" class="text-gray-300 hover:text-[var(--gold)]">Rising Champ</a>
-        <a href="shop.html" class="text-gray-300 hover:text-[var(--gold)]">Shop</a>
-        <div class="border-t border-white/20 mt-6 pt-6 flex gap-4">
-             <a href="login.html" class="text-sm px-4 py-2 rounded-md text-gray-300 ring-1 ring-gray-600">Log in</a>
-            <a href="signup.html" class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
-        </div>
-    </nav>
-</div>
+    <main>
+        <section class="relative futuristic-bg text-white overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-t from-[var(--dark-bg)] to-transparent"></div>
+            <div class="relative max-w-7xl mx-auto px-6 sm:px-8 py-40 text-center">
+                <h1 class="text-5xl md:text-7xl font-extrabold text-glow text-[var(--gold)]">Assemble Your Roster</h1>
+                <p class="mt-4 text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">Discover official teams, recruit
+                    talented players, and find your perfect squad.</p>
+                <div class="mt-10 flex justify-center gap-4 flex-wrap">
+                    <a href="#finder"
+                        class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black font-extrabold px-8 py-3 rounded-full shadow-lg hover:scale-105 transform transition-all duration-300">Find
+                        Players & Teams</a>
+                    <button onclick="openCreateModal()"
+                        class="bg-white/10 border border-white/20 backdrop-blur-sm text-white font-semibold px-8 py-3 rounded-full shadow-lg hover:bg-white/20 hover:scale-105 transform transition-all duration-300">Post
+                        a Listing</button>
+                </div>
+            </div>
+        </section>
 
-<main>
-    <section class="relative futuristic-bg text-white overflow-hidden">
-        <div class="absolute inset-0 bg-gradient-to-t from-[var(--dark-bg)] to-transparent"></div> 
-        <div class="relative max-w-7xl mx-auto px-6 sm:px-8 py-40 text-center">
-            <h1 class="text-5xl md:text-7xl font-extrabold text-glow text-[var(--gold)]">Assemble Your Roster</h1>
-            <p class="mt-4 text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">Discover official teams, recruit talented players, and find your perfect squad to climb the ranks.</p>
-            <div class="mt-10 flex justify-center gap-4 flex-wrap">
-                <a href="#finder" class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black font-extrabold px-8 py-3 rounded-full shadow-lg shadow-[var(--gold)]/20 hover:scale-105 transform transition-all duration-300">Find Players & Teams</a>
-                <a href="signup.html" class="bg-white/10 border border-white/20 backdrop-blur-sm text-white font-semibold px-8 py-3 rounded-full shadow-lg hover:bg-white/20 hover:scale-105 transform transition-all duration-300">Post a Listing</a>
+        <section id="finder" class="py-24 futuristic-bg">
+            <div class="max-w-7xl mx-auto px-6 sm:px-8">
+                <h2 class="text-4xl font-extrabold text-center mb-4 text-white">Player & Team Finder</h2>
+                <p class="text-center text-gray-400 mb-12">Filter through listings to find what you need.</p>
+                <div id="recruitment-board" class="space-y-4 min-h-[300px]"></div>
+            </div>
+        </section>
+    </main>
+
+    <div id="createTeamModal" class="fixed inset-0 z-50 hidden" aria-labelledby="modal-title" role="dialog"
+        aria-modal="true">
+        <div id="createTeamBackdrop"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300 opacity-0"></div>
+
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div id="createTeamPanel"
+                    class="relative transform overflow-hidden rounded-xl bg-[var(--dark-card)] border border-white/10 text-left shadow-2xl transition-all duration-300 ease-out opacity-0 scale-95 w-full md:w-1/2 lg:w-1/3 p-6">
+
+                    <h3 class="text-2xl font-bold text-white mb-6 border-b border-white/10 pb-2">Create Team Listing
+                    </h3>
+
+                    <form id="createTeamForm" class="space-y-4">
+                        <div><label class="block text-sm text-gray-400 mb-1">Team Name</label><input id="create-name"
+                                type="text" required class="dark-input w-full p-2 rounded-lg"></div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Game Title</label>
+                            <select id="create-game" class="dark-select w-full p-2 rounded-lg">
+                                <option value="Valorant">Valorant</option>
+                                <option value="MLBB">Mobile Legends: Bang Bang</option>
+                                <option value="HoK">Honor of Kings</option>
+                            </select>
+                        </div>
+                        <div><label class="block text-sm text-gray-400 mb-1">Max Members</label><input id="create-max"
+                                type="number" min="1" required class="dark-input w-full p-2 rounded-lg"></div>
+                        <div><label class="block text-sm text-gray-400 mb-1">Description / Goals</label><textarea
+                                id="create-desc" rows="3" required class="dark-input w-full p-2 rounded-lg"></textarea>
+                        </div>
+                        <div><label class="block text-sm text-gray-400 mb-1">Team Logo URL</label><input id="create-img"
+                                type="url" class="dark-input w-full p-2 rounded-lg"></div>
+
+                        <div class="flex gap-3 pt-4">
+                            <button type="button" onclick="window.closeCreateModal()"
+                                class="flex-1 px-4 py-2 bg-white/10 rounded-lg text-sm hover:bg-white/20 transition-colors">Cancel</button>
+                            <button type="submit"
+                                class="flex-1 px-4 py-2 bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black rounded-lg text-sm font-bold hover:opacity-90 transition-colors">Post
+                                Listing</button>
+                        </div>
+                    </form>
+
+                    <button onclick="window.closeCreateModal()"
+                        class="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button>
+                </div>
             </div>
         </div>
-    </section>
+    </div>
 
-    <section id="finder" class="py-24 futuristic-bg">
-        <div class="max-w-7xl mx-auto px-6 sm:px-8">
-            <h2 class="text-4xl font-extrabold text-center mb-4 text-white">Player & Team Finder</h2>
-            <p class="text-center text-gray-400 mb-12">Filter through listings to find what you need.</p>
-            
-            <div class="mb-8 p-4 bg-[var(--dark-card)] rounded-xl border border-white/10 grid grid-cols-1 md:grid-cols-4 gap-4 items-center">
-                <div class="md:col-span-2">
-                    <label for="search-input" class="sr-only">Search Listings</label>
-                    <input id="search-input" type="text" placeholder="Search by team or player name..." class="dark-input p-2 rounded-lg w-full text-sm" />
+    <div id="applicationModal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div class="bg-[var(--dark-card)] border border-white/10 rounded-xl w-full md:w-1/3 p-6 shadow-2xl relative">
+            <h3 class="text-2xl font-bold text-white mb-2">Apply to Join</h3>
+            <p class="text-sm text-gray-400 mb-4">Send a message to <span id="app-team-name"
+                    class="text-[var(--gold)] font-bold">Team</span></p>
+            <form id="applicationForm">
+                <input type="hidden" id="app-team-id">
+                <div class="mb-4">
+                    <label class="block text-sm text-gray-400 mb-1">Your Message (Rank, Role, etc.)</label>
+                    <textarea id="app-note" rows="4" required class="dark-input w-full p-3 rounded-lg"
+                        placeholder="Hi! I'm a Mythic player..."></textarea>
                 </div>
+                <div class="flex gap-3 justify-end">
+                    <button type="button" onclick="document.getElementById('applicationModal').classList.add('hidden')"
+                        class="px-4 py-2 bg-white/10 rounded-lg text-sm hover:bg-white/20 transition-colors">Cancel</button>
+                    <button type="submit"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-500 transition-colors">Send
+                        Application</button>
+                </div>
+            </form>
+            <button onclick="document.getElementById('applicationModal').classList.add('hidden')"
+                class="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button>
+        </div>
+    </div>
+
+    <div id="manageTeamModal"
+        class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
+        <div
+            class="bg-[var(--dark-card)] border border-white/10 rounded-xl w-full md:w-2/3 lg:w-1/2 shadow-2xl relative h-[85vh] flex flex-col">
+            <div
+                class="p-6 border-b border-white/10 flex justify-between items-center bg-[var(--dark-bg)] rounded-t-xl">
                 <div>
-                    <label for="filter-game" class="sr-only">Filter by Game</label>
-                    <select id="filter-game" class="dark-select p-2 rounded-lg w-full text-sm">
-                        <option value="">All Games</option>
-                        <option value="Valorant">Valorant</option>
-                        <option value="MLBB">Mobile Legends</option>
-                        <option value="HoK">Honor of Kings</option>
-                    </select>
+                    <h3 class="text-2xl font-bold text-white">Team Dashboard</h3>
+                    <p id="manage-team-name" class="text-[var(--gold)] text-sm font-bold uppercase tracking-wider">
+                        Loading...</p>
                 </div>
-                <div>
-                    <label for="filter-role" class="sr-only">Filter by Role</label>
-                    <select id="filter-role" class="dark-select p-2 rounded-lg w-full text-sm">
-                        <option value="">All Roles</option>
-                        <option value="Duelist">Duelist</option>
-                        <option value="Controller">Controller</option>
-                        <option value="Tank">Tank</option>
-                        <option value="Mage">Mage</option>
-                        <option value="Support">Support</option>
-                    </select>
+                <button onclick="closeManageModal()" class="text-gray-400 hover:text-white transition-colors">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="flex border-b border-white/10 bg-white/5 overflow-x-auto no-scrollbar">
+                <button onclick="switchManageTab('chat')" id="tab-chat"
+                    class="flex-1 py-3 md:py-4 text-xs md:text-sm font-bold text-[var(--gold)] border-b-2 border-[var(--gold)] hover:bg-white/5 transition-colors whitespace-nowrap px-2">
+                    Team Chat
+                </button>
+                <button onclick="switchManageTab('roster')" id="tab-roster"
+                    class="flex-1 py-3 md:py-4 text-xs md:text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-colors whitespace-nowrap px-2">
+                    Roster
+                </button>
+                <button onclick="switchManageTab('applications')" id="tab-applications"
+                    class="admin-only flex-1 py-3 md:py-4 text-xs md:text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-colors whitespace-nowrap px-2">
+                    Apps <span id="badge-apps"
+                        class="ml-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded-full hidden">0</span>
+                </button>
+                <button onclick="switchManageTab('settings')" id="tab-settings"
+                    class="admin-only flex-1 py-3 md:py-4 text-xs md:text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-colors whitespace-nowrap px-2">
+                    Settings
+                </button>
+            </div>
+
+            <div class="p-0 overflow-y-auto flex-1 bg-black/20">
+
+                <div id="view-chat" class="manage-view h-full flex flex-col">
+                    <div id="chat-messages" class="flex-1 p-4 overflow-y-auto space-y-3 flex flex-col">
+                        <p class="text-center text-gray-500 mt-10">Welcome to team chat!</p>
+                    </div>
+                    <form id="chatForm" class="p-4 border-t border-white/10 bg-[var(--dark-card)] flex gap-2">
+                        <input type="text" id="chat-input" placeholder="Type a message..."
+                            class="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[var(--gold)]">
+                        <button type="submit"
+                            class="bg-[var(--gold)] text-black p-2 rounded-lg hover:bg-yellow-400 font-bold">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+                            </svg>
+                        </button>
+                    </form>
+                </div>
+
+                <div id="view-roster" class="manage-view hidden p-6">
+                    <h4 class="text-lg font-bold text-white mb-4">Active Roster</h4>
+                    <div id="roster-list" class="space-y-3"></div>
+                </div>
+
+                <div id="view-applications" class="manage-view hidden p-6">
+                    <h4 class="text-lg font-bold text-white mb-4">Join Requests</h4>
+                    <div id="applications-list" class="space-y-3">
+                        <p class="text-gray-500 text-center py-4">No pending applications.</p>
+                    </div>
+                </div>
+
+                <div id="view-settings" class="manage-view hidden p-6">
+                    <form id="editTeamForm" class="space-y-4 max-w-lg mx-auto">
+                        <input type="hidden" id="edit-team-id">
+                        <div><label class="block text-sm text-gray-400 mb-1">Description</label><textarea id="edit-desc"
+                                rows="3" class="dark-input w-full p-2 rounded"></textarea></div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div><label class="block text-sm text-gray-400 mb-1">Max Members</label><input id="edit-max"
+                                    type="number" class="dark-input w-full p-2 rounded"></div>
+                            <div><label class="block text-sm text-gray-400 mb-1">Status</label>
+                                <select id="edit-status" class="dark-select w-full p-2 rounded">
+                                    <option value="Open">Open</option>
+                                    <option value="Closed">Closed</option>
+                                </select>
+                            </div>
+                        </div>
+                        <button type="submit"
+                            class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 rounded transition">Save
+                            Changes</button>
+                    </form>
                 </div>
             </div>
-            
-            <div id="recruitment-board" class="space-y-4 min-h-[300px]">
-                </div>
         </div>
-    </section>
-
-</main>
-
-<div id="contactModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4">
-    <div class="bg-[var(--dark-card)] border border-white/10 rounded-xl w-full md:w-1/3 p-6 shadow-2xl relative">
-        <h3 class="text-2xl font-bold text-white mb-2">Contact Listing</h3>
-        <p class="text-sm text-gray-400 mb-4">Send a message to <span id="contact-target" class="text-[var(--gold)] font-bold">User</span></p>
-        <textarea class="dark-input w-full p-3 rounded-lg h-32 mb-4" placeholder="Hi! I'm interested in joining your team..."></textarea>
-        <div class="flex gap-3 justify-end">
-            <button onclick="closeContactModal()" class="px-4 py-2 bg-white/10 rounded-lg text-sm hover:bg-white/20 transition-colors">Cancel</button>
-            <button onclick="sendContact()" class="px-4 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-500 transition-colors">Send Message</button>
-        </div>
-        <button onclick="closeContactModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">&times;</button>
     </div>
-</div>
 
-<footer class="border-t border-white/10 bg-[var(--dark-bg)] mt-20">
-    <div class="max-w-7xl mx-auto px-6 sm:px-8 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div>
-            <div class="flex items-center gap-3"><img src="pictures/cz_logo.png" alt="ChampZero Logo" width="40" height="40" class="w-10 h-10 rounded-md object-cover"><div><div class="font-bold text-white text-lg">ChampZero</div><div class="text-sm text-gray-400">Esports Ecosystem</div></div></div>
-            <p class="mt-4 text-sm text-gray-400">Building community-driven tournaments, talent development, and esports services.</p>
-            <div class="mt-4 text-sm text-gray-500">© 2025 ChampZero. All rights reserved.</div>
+    <footer class="border-t border-white/10 bg-[var(--dark-bg)] mt-20">
+        <div class="max-w-7xl mx-auto px-6 sm:px-8 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
+            <div>
+                <div class="flex items-center gap-3"><img src="pictures/cz_logo.png" alt="ChampZero Logo" width="40"
+                        height="40" class="w-10 h-10 rounded-md">
+                    <div>
+                        <div class="font-bold text-white text-lg">ChampZero</div>
+                        <div class="text-sm text-gray-400">Esports Ecosystem</div>
+                    </div>
+                </div>
+                <p class="mt-4 text-sm text-gray-400">Building community-driven tournaments, talent development, and
+                    esports services.</p>
+            </div>
+            <div>
+                <h4 class="font-semibold text-white">Quick Links</h4>
+                <ul class="mt-3 text-sm text-gray-400 space-y-2">
+                    <li><a href="about.html">About Us</a></li>
+                    <li><a href="contact.html">Contact</a></li>
+                    <li><a href="terms.html">Terms</a></li>
+                </ul>
+            </div>
+            <div>
+                <h4 class="font-semibold text-white">Follow Us</h4>
+                <div class="mt-3 flex items-center gap-3"><a href="#"
+                        class="p-2 border border-white/20 rounded-md">FB</a><a href="#"
+                        class="p-2 border border-white/20 rounded-md">YT</a></div>
+            </div>
         </div>
-        <div>
-            <h4 class="font-semibold text-white">Quick Links</h4>
-            <ul class="mt-3 text-sm text-gray-400 space-y-2">
-                <li><a href="about.html" class="hover:text-[var(--gold)]">About Us</a></li><li><a href="contact.html" class="hover:text-[var(--gold)]">Contact</a></li><li><a href="terms.html" class="hover:text-[var(--gold)]">Terms & Privacy</a></li><li><a href="careers.html" class="hover:text-[var(--gold)]">Careers</a></li>
-            </ul>
-        </div>
-        <div>
-            <h4 class="font-semibold text-white">Follow Us</h4>
-            <div class="mt-3 flex items-center gap-3">
-                <a href="https://facebook.com/champzeroph" target="_blank" rel="noopener noreferrer" aria-label="facebook" class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">FB</a>
-                <a href="#" target="_blank" rel="noopener noreferrer" aria-label="youtube" class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">YT</a>
-                <a href="#" target="_blank" rel="noopener noreferrer" aria-label="twitter" class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">X</a>
+    </footer>
+
+    <div id="customAlertModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog"
+        aria-modal="true">
+        <div id="alertBackdrop"
+            class="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity duration-300 opacity-0"></div>
+
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+            <div class="flex min-h-full items-center justify-center p-4 text-center sm:p-0">
+                <div id="alertBox"
+                    class="relative transform overflow-hidden rounded-xl bg-[var(--dark-card)] border border-white/10 text-left shadow-2xl transition-all duration-300 ease-out opacity-0 scale-95 sm:my-8 sm:w-full sm:max-w-sm p-6">
+                    <h3 id="alertTitle" class="text-xl font-bold text-white mb-2">Notification</h3>
+                    <p id="alertMessage" class="text-gray-400 text-sm mb-6 leading-relaxed">Message goes here...</p>
+                    <div id="alertButtons" class="flex gap-3 justify-end">
+                    </div>
+                </div>
             </div>
         </div>
     </div>
-</footer>
 
-<script type="module" src="js/main.js"></script>
-<script type="module" src="js/auth.js"></script>
-<script src="js/teams.js"></script>
-<script type="module" src="js/notifications.js"></script>
+    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/auth.js"></script>
+    <script type="module" src="js/teams.js"></script>
+    <script type="module" src="js/notifications.js"></script>
 
 </body>
+
 </html>
