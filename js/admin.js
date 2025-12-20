@@ -8,7 +8,8 @@ import {
     deleteDoc, 
     collection, 
     getDocs, 
-    query 
+    query,
+    serverTimestamp // Added this import
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 function qs(sel) { return document.querySelector(sel); }
@@ -348,15 +349,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (editState.isEditing && editState.collection === collectionName && editState.formId === formId) {
                     // --- UPDATE EXISTING ---
                     const docRef = doc(db, collectionName, editState.id);
-                    data.updatedAt = new Date().toISOString(); // Track updates
+                    data.updatedAt = serverTimestamp(); // Use serverTimestamp for updates
                     await updateDoc(docRef, data);
                     alert("Updated successfully!");
                     resetFormState(formId); // Exit edit mode
                 } else {
                     // --- CREATE NEW ---
-                    data.createdAt = new Date().toISOString();
-                    // We use serverTimestamp in some places but your code style uses ISO string client-side
-                    // which is fine for this scale.
+                    data.createdAt = serverTimestamp(); // Use serverTimestamp for creation
                     await addDoc(collection(db, collectionName), data);
                     alert(successMsg);
                     form.reset();
