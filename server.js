@@ -16,6 +16,10 @@ const PORT = 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
+// ✅ Serve static files (pictures, js, etc.)
+app.use('/pictures', express.static(path.join(__dirname, 'pictures')));
+app.use('/js', express.static(path.join(__dirname, 'js')));
+
 // ✅ Log every request
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
@@ -198,7 +202,7 @@ app.use('/api', apiRouter);
 // F R O N T E N D   F I L E   S E R V I N G (STRICT)
 // =======================================================
 
-const htmlFiles = ['home.html', 'tournaments.html', 'events.html', 'teams.html', 'rising.html', 'partners.html', 'shop.html', 'about.html', 'contact.html', 'terms.html', 'careers.html', 'login.html', 'signup.html', 'profile.html'];
+const htmlFiles = ['home.html', 'tournaments.html', 'events.html', 'teams.html', 'rising.html', 'partners.html', 'shop.html', 'about.html', 'contact.html', 'terms.html', 'careers.html', 'login.html', 'signup.html', 'profile.html', 'admin.html', 'leaderboard.html', 'forgot-password.html', '404.html'];
 
 // Serve all explicit HTML files directly
 htmlFiles.forEach(file => {
