@@ -7,7 +7,7 @@ function qs(sel) { return document.querySelector(sel); }
 // 1. AUTH PROTECTION & INITIAL LOAD
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
-        window.location.href = "login.html"; // Redirect if not logged in
+        window.location.href = "/login"; // Redirect if not logged in
         return;
     }
 
@@ -98,7 +98,7 @@ if(logoutBtn) {
     logoutBtn.addEventListener('click', async () => {
         try {
             await signOut(auth);
-            window.location.href = "login.html";
+            window.location.href = "/login";
         } catch (error) {
             console.error("Logout Error:", error);
         }

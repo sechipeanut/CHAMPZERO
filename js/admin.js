@@ -30,7 +30,7 @@ let currentUserId = null;
 // --- 1. ADMIN CHECK ---
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
-        window.location.href = "login.html";
+        window.location.href = "/login";
         return;
     }
 
@@ -48,11 +48,11 @@ onAuthStateChanged(auth, async (user) => {
             refreshAllLists();
         } else {
             window.showErrorToast("Access Denied", "You do not have permission to access this page.", 3000);
-            setTimeout(() => window.location.href = "home.html", 2000);
+            setTimeout(() => window.location.href = "/", 2000);
         }
     } catch (error) {
         console.error("Auth Error:", error);
-        window.location.href = "home.html";
+        window.location.href = "/";
     }
 });
 
@@ -428,17 +428,30 @@ let currentRoleFilter = 'all'; // Current role filter
 
 // Refresh Users List
 window.refreshUsers = async function() {
-    console.log("🔄 Fetching users from Firestore...");
+    console.log("🔄 Fetching users from Netlify Function...");
     try {
-        const usersCol = collection(db, 'users');
-        const snapshot = await getDocs(usersCol);
+        const user = auth.currentUser;
+        if (!user) {
+            window.showErrorToast("Error", "Please log in first", 3000);
+            return;
+        }
+
+        const token = await user.getIdToken();
         
-        console.log(`✅ Found ${snapshot.size} users in Firestore`);
+        const response = await fetch('/.netlify/functions/get-users', {
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to fetch users');
+        }
+
+        allUsers = await response.json();
         
-        allUsers = snapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-        }));
+        console.log(`✅ Found ${allUsers.length} users`);
         
         // Sort by createdAt if available, newest first
         allUsers.sort((a, b) => {
@@ -586,11 +599,28 @@ function formatDate(timestamp) {
     
     let date;
     if (timestamp.toDate) {
+        // Firestore Timestamp object
         date = timestamp.toDate();
     } else if (timestamp.seconds) {
+        // Firestore Timestamp-like object from API
         date = new Date(timestamp.seconds * 1000);
-    } else {
+    } else if (timestamp._seconds) {
+        // Alternative Firestore timestamp format
+        date = new Date(timestamp._seconds * 1000);
+    } else if (typeof timestamp === 'string') {
+        // ISO string or date string
         date = new Date(timestamp);
+    } else if (typeof timestamp === 'number') {
+        // Unix timestamp in milliseconds
+        date = new Date(timestamp);
+    } else {
+        // Try to parse as date directly
+        date = new Date(timestamp);
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+        return 'N/A';
     }
     
     return date.toLocaleDateString('en-US', { 
@@ -865,10 +895,22 @@ window.toggleUserRole = async function(userId, newRole) {
     if (!confirmed) return;
     
     try {
-        await updateDoc(doc(db, 'users', userId), {
-            role: newRole,
-            updatedAt: serverTimestamp()
+        const user = auth.currentUser;
+        const token = await user.getIdToken();
+        
+        const response = await fetch('/.netlify/functions/update-user-role', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ userId, role: newRole })
         });
+
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error || 'Failed to update role');
+        }
         
         window.showSuccessToast("Role Updated", `User role changed to ${newRole}.`, 2000);
         refreshUsers();

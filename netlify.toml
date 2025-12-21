@@ -1,7 +1,16 @@
 [build]
   publish = "."
+  functions = "netlify/functions"
 
+# Root redirect to home (must be first)
 [[redirects]]
-  from = "/*"
+  from = "/"
   to = "/home.html"
   status = 200
+
+# Remove .html extension from URLs
+[[redirects]]
+  from = "/*"
+  to = "/:splat.html"
+  status = 200
+  force = false

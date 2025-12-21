@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 await ensureUserProfile(creds.user); // Check/Create Profile
                 
                 window.showSuccessToast("Success!", "Login Successful!", 2000);
-                setTimeout(() => window.location.href = "profile.html", 1000);
+                setTimeout(() => window.location.href = "/profile", 1000);
             } catch (error) {
                 console.error(error);
                 window.showErrorToast("Login Failed", error.message, 4000);
@@ -110,7 +110,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
 
                 window.showSuccessToast("Success!", "Account Created Successfully!", 2000);
-                setTimeout(() => window.location.href = "profile.html", 1000);
+                setTimeout(() => window.location.href = "/profile", 1000);
             } catch (error) {
                 console.error(error);
                 window.showErrorToast("Signup Failed", error.message, 4000);
@@ -130,7 +130,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 const result = await signInWithPopup(auth, provider);
                 await ensureUserProfile(result.user);
                 window.showSuccessToast("Welcome!", `Signed in as ${result.user.displayName}`, 2000);
-                setTimeout(() => window.location.href = "profile.html", 1000);
+                setTimeout(() => window.location.href = "/profile", 1000);
             } catch (error) {
                 console.error(error);
                 window.showErrorToast("Sign-In Error", error.message, 4000);

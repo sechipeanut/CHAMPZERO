@@ -131,7 +131,7 @@ function injectNotificationHTML() {
                 <div class="p-6 text-center text-gray-500 text-sm">Loading updates...</div>
             </div>
             <div class="p-3 border-t border-white/10 bg-[#15151a] text-center">
-                <a href="events.html" class="text-xs text-[var(--gold)] hover:underline">View All Events</a>
+                <a href="/events" class="text-xs text-[var(--gold)] hover:underline">View All Events</a>
             </div>
         </div>
     `;
@@ -279,10 +279,10 @@ function renderUnifiedFeed() {
     let html = '';
     finalFeed.forEach(item => {
         let targetUrl = '#'; 
-        if (item.type === 'tournament') targetUrl = `tournaments.html?id=${item.id}`;
-        if (item.type === 'event') targetUrl = `events.html?id=${item.id}`;
-        if (item.type === 'career') targetUrl = `careers.html?id=${item.id}`;
-        if (item.type === 'talent') targetUrl = `rising.html?id=${item.id}`;
+        if (item.type === 'tournament') targetUrl = `/tournaments?id=${item.id}`;
+        if (item.type === 'event') targetUrl = `/events?id=${item.id}`;
+        if (item.type === 'career') targetUrl = `/careers?id=${item.id}`;
+        if (item.type === 'talent') targetUrl = `/rising?id=${item.id}`;
         
         // Manual announcements don't have a specific page, so they might just close the dropdown or stay put
         if (item.type === 'announcement') targetUrl = '#'; 
