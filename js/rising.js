@@ -134,7 +134,7 @@ function checkAdminStatus() {
         if (user) {
             const adminEmails = ["admin@champzero.com", "owner@champzero.com"];
             if (adminEmails.includes(user.email)) {
-                adminArea.innerHTML = `<a href="admin.html" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full font-bold shadow-lg">Manage Talents</a>`;
+                adminArea.innerHTML = `<a href="/admin" class="bg-red-600 hover:bg-red-700 text-white px-6 py-2 rounded-full font-bold shadow-lg">Manage Talents</a>`;
             }
         }
     });
