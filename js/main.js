@@ -37,7 +37,7 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             try {
                 await signOut(auth);
-                window.location.href = "login.html";
+                window.location.href = "/login";
             } catch (error) {
                 console.error("Logout Error:", error);
             }
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (user && authControls) {
             // User is Logged In -> Show Profile Icon
             authControls.innerHTML = `
-                <a href="profile.html" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
+                <a href="/profile" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
                     <div class="text-right hidden sm:block">
                         <div class="text-xs text-gray-400">Welcome,</div>
                         <div class="text-sm font-bold text-[var(--gold)]">${user.displayName || "Champion"}</div>
@@ -66,22 +66,22 @@ document.addEventListener('DOMContentLoaded', () => {
             if (mobileAuth) {
                 mobileAuth.innerHTML = `
                     <div class="flex flex-col gap-4 w-full">
-                        <a href="profile.html" class="text-center text-[var(--gold)] font-bold">My Profile</a>
+                        <a href="/profile" class="text-center text-[var(--gold)] font-bold">My Profile</a>
                         <button id="mobile-logout" class="text-center text-red-400 text-sm">Log Out</button>
                     </div>
                 `;
                 // Re-attach logout listener for the new mobile button
                 document.getElementById('mobile-logout')?.addEventListener('click', async () => {
                     await signOut(auth);
-                    window.location.href = "login.html";
+                    window.location.href = "/login";
                 });
             }
 
         } else if (authControls) {
             // User is Logged Out -> Show Login/Signup
             authControls.innerHTML = `
-                <a href="login.html" class="text-sm px-3 py-1.5 rounded-md hover:bg-white/10 text-gray-300">Log In</a>
-                <a href="signup.html" class="hidden sm:inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
+                <a href="/login" class="text-sm px-3 py-1.5 rounded-md hover:bg-white/10 text-gray-300">Log In</a>
+                <a href="/signup" class="hidden sm:inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
             `;
         }
     });
