@@ -2,7 +2,7 @@
 node_modules/
 package-lock.json
 
-# Environment variables
+# Environment variables (contains sensitive Firebase credentials)
 .env
 .env.local
 .env.production
