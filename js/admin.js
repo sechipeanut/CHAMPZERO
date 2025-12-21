@@ -41,8 +41,8 @@ onAuthStateChanged(auth, async (user) => {
             console.log("Admin Authorized");
             refreshAllLists();
         } else {
-            alert("Access Denied.");
-            window.location.href = "home.html";
+            window.showErrorToast("Access Denied", "You do not have permission to access this page.", 3000);
+            setTimeout(() => window.location.href = "home.html", 2000);
         }
     } catch (error) {
         console.error("Auth Error:", error);
@@ -54,14 +54,15 @@ onAuthStateChanged(auth, async (user) => {
 
 // DELETE ITEM
 window.deleteItem = async function(collectionName, docId) {
-    if(!confirm("Are you sure you want to delete this?")) return;
+    const confirmed = await window.showCustomConfirm("Delete Item?", "Are you sure you want to delete this? This action cannot be undone.");
+    if(!confirmed) return;
     try {
         await deleteDoc(doc(db, collectionName, docId));
-        alert("Deleted successfully.");
+        window.showSuccessToast("Deleted", "Item deleted successfully.", 2000);
         refreshAllLists(); 
     } catch (error) {
         console.error("Delete Error:", error);
-        alert("Failed to delete: " + error.message);
+        window.showErrorToast("Delete Failed", error.message, 4000);
     }
 }
 
@@ -73,7 +74,7 @@ window.editItem = async function(collectionName, docId) {
         const docSnap = await getDoc(docRef);
         
         if (!docSnap.exists()) {
-            alert("Item not found!");
+            window.showErrorToast("Not Found", "Item not found in database.", 3000);
             return;
         }
 
@@ -127,7 +128,7 @@ window.editItem = async function(collectionName, docId) {
 
     } catch (error) {
         console.error("Edit Fetch Error:", error);
-        alert("Error loading item for edit.");
+        window.showErrorToast("Error", "Failed to load item for editing.", 3000);
     }
 }
 
@@ -351,20 +352,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     const docRef = doc(db, collectionName, editState.id);
                     data.updatedAt = serverTimestamp(); // Use serverTimestamp for updates
                     await updateDoc(docRef, data);
-                    alert("Updated successfully!");
+                    window.showSuccessToast("Updated", "Item updated successfully!", 2000);
                     resetFormState(formId); // Exit edit mode
                 } else {
                     // --- CREATE NEW ---
                     data.createdAt = serverTimestamp(); // Use serverTimestamp for creation
                     await addDoc(collection(db, collectionName), data);
-                    alert(successMsg);
+                    window.showSuccessToast("Created", successMsg, 2000);
                     form.reset();
                 }
 
                 refreshAllLists();
             } catch (err) {
                 console.error(err);
-                alert("Error: " + err.message);
+                window.showErrorToast("Error", err.message, 4000);
             } finally {
                 btn.disabled = false;
                 // Text will be reset by resetFormState if edited, or manually here if added

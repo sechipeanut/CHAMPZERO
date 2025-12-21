@@ -34,3 +34,6 @@ build/
 # Temporary files
 tmp/
 temp/
+
+# Other
+TOAST_NOTIFICATIONS.md
