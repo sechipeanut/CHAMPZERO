@@ -216,6 +216,11 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'home.html')); 
 });
 
+// 404 handler - must be last
+app.use((req, res) => {
+  res.status(404).sendFile(path.join(__dirname, '404.html'));
+});
+
 
 // Start server
 app.listen(PORT, () => {
