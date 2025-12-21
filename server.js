@@ -1,6 +1,5 @@
 // server.js
-// Node + Express backend using Firebase Realtime Database
-// NOTE: AUTHENTICATION IS TEMPORARILY MOCKED TO BYPASS FIREBASE ADMIN CRASH
+// Node + Express backend using Firebase Authentication and Firestore
 
 require('dotenv').config();
 const express = require('express');
@@ -27,7 +26,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// ✅ Firebase admin init (CRASHING SECTION)
+// ✅ Firebase admin init
 // NOTE: We wrap this in a try/catch to let the rest of the server run if it fails.
 try {
   const serviceAccount = {
@@ -90,9 +89,29 @@ function computeStatusFromDate(dateStr) {
 // =======================================================
 const apiRouter = express.Router();
 
-// ---------------- MOCK AUTHENTICATION ROUTES (TEMPORARY) ----------------
+// ---------------- AUTHENTICATION ROUTES ----------------
 
-// MOCK Sign Up Route: Skips Firebase Auth. Writes directly to Realtime DB (INSECURE).
+// Middleware to verify Firebase tokens
+async function verifyFirebaseToken(req, res, next) {
+    const authHeader = req.headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return res.status(401).json({ error: 'Unauthorized: No token provided' });
+    }
+
+    const token = authHeader.split('Bearer ')[1];
+
+    try {
+        const decodedToken = await admin.auth().verifyIdToken(token);
+        req.user = decodedToken; // Attach user info to request
+        next();
+    } catch (error) {
+        console.error('Token verification error:', error);
+        res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    }
+}
+
+// Sign Up Route: Creates user with Firebase Authentication
 apiRouter.post('/auth/signup', async (req, res) => {
     const { email, password, username } = req.body;
     
@@ -101,73 +120,46 @@ apiRouter.post('/auth/signup', async (req, res) => {
     }
 
     try {
-        const mockUid = 'user_' + Date.now(); 
-
-        await db.ref(`users/${mockUid}`).set({
-            username: username,
+        // Create user with Firebase Auth (handles password hashing automatically)
+        const userRecord = await admin.auth().createUser({
             email: email,
-            // WARNING: Password is NOT stored securely in this mock.
-            joined: Date.now(),
+            password: password,
+            displayName: username
         });
-        
-        const mockToken = `MOCK_TOKEN_${mockUid}`;
+
+        // Store additional user data in Firestore
+        await db.collection('artifacts').doc('default-app-id')
+            .collection('users').doc(userRecord.uid)
+            .collection('profile').doc('details')
+            .set({
+                username: username,
+                email: email,
+                joined: Date.now()
+            });
 
         res.status(201).json({ 
-            message: 'User created successfully (MOCK).', 
-            uid: mockUid,
-            token: mockToken,
+            message: 'User created successfully.', 
+            uid: userRecord.uid,
             username: username
         });
 
     } catch (error) {
-        console.error('MOCK signup failed:', error);
-        res.status(500).json({ error: 'MOCK authentication failed due to database write error.' });
+        console.error('Signup error:', error);
+        res.status(500).json({ error: error.message || 'Authentication failed.' });
     }
 });
 
-// MOCK Login Route: Checks against the mock users in the Realtime DB.
-apiRouter.post('/auth/login', async (req, res) => {
-    const { email, password } = req.body;
-    
-    if (!email || !password) {
-        return res.status(400).json({ error: 'Email and password are required.' });
-    }
+// Note: Login is handled by Firebase Client SDK on the frontend.
+// The client gets a token from Firebase directly and sends it in requests.
 
-    try {
-        // Find user by email in the Realtime Database
-        const userSnap = await db.ref('users').orderByChild('email').equalTo(email).once('value');
-        const userFound = userSnap.val();
-        
-        if (!userFound) {
-            return res.status(400).json({ error: 'Invalid email or password (MOCK).' });
-        }
-        
-        const userId = Object.keys(userFound)[0];
-        const userData = userFound[userId];
-        
-        // MOCK password check: Since we can't securely hash passwords, we just check if it exists.
-        if (password !== userData.password && userData.password) {
-            return res.status(400).json({ error: 'Invalid email or password (MOCK).' });
-        }
-
-        const mockToken = `MOCK_TOKEN_${userId}`;
-
-        res.json({ 
-            message: 'Login successful (MOCK).', 
-            uid: userId, 
-            token: mockToken,
-            username: userData.username
-        });
-
-    } catch (error) {
-        console.error('MOCK login failed:', error);
-        res.status(500).json({ error: error.message || 'MOCK Authentication failed.' });
-    }
-});
-
-// ---------------- NEW: GET User Profile Data ----------------
-apiRouter.get('/user/data/:uid', async (req, res) => {
+// ---------------- GET User Profile Data (Protected) ----------------
+apiRouter.get('/user/data/:uid', verifyFirebaseToken, async (req, res) => {
     const { uid } = req.params;
+    
+    // Verify user can only access their own data
+    if (req.user.uid !== uid) {
+        return res.status(403).json({ error: 'Forbidden: Cannot access other users data.' });
+    }
     
     // This path must EXACTLY match the path used in signup.html and profile.html
     // We'll use 'default-app-id' to match the frontend's fallback.
