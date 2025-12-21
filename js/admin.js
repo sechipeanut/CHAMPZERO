@@ -9,7 +9,8 @@ import {
     collection, 
     getDocs, 
     query,
-    serverTimestamp // Added this import
+    serverTimestamp,
+    orderBy 
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 function qs(sel) { return document.querySelector(sel); }
@@ -23,12 +24,17 @@ let editState = {
     formId: null
 };
 
+// Store current logged-in user ID
+let currentUserId = null;
+
 // --- 1. ADMIN CHECK ---
 onAuthStateChanged(auth, async (user) => {
     if (!user) {
         window.location.href = "login.html";
         return;
     }
+
+    currentUserId = user.uid; // Store current user ID
 
     try {
         const userRef = doc(db, "users", user.uid);
@@ -183,6 +189,7 @@ async function refreshAllLists() {
     fetchMessages();
     fetchTalents();
     fetchNotifications(); // Added Notification fetch
+    refreshUsers(); // Added User fetch
 }
 
 async function fetchTournaments() {
@@ -413,3 +420,366 @@ document.addEventListener('DOMContentLoaded', () => {
     }), "Notification Sent!");
 
 });
+
+// --- USER MANAGEMENT FUNCTIONS ---
+
+let allUsers = []; // Cache for search
+
+// Refresh Users List
+window.refreshUsers = async function() {
+    console.log("🔄 Fetching users from Firestore...");
+    try {
+        const usersCol = collection(db, 'users');
+        const snapshot = await getDocs(usersCol);
+        
+        console.log(`✅ Found ${snapshot.size} users in Firestore`);
+        
+        allUsers = snapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+        }));
+        
+        // Sort by createdAt if available, newest first
+        allUsers.sort((a, b) => {
+            const aTime = a.createdAt ? (a.createdAt.seconds || 0) : 0;
+            const bTime = b.createdAt ? (b.createdAt.seconds || 0) : 0;
+            return bTime - aTime;
+        });
+        
+        console.log("📊 Displaying users in table...");
+        displayUsers(allUsers);
+        qs('#user-count').textContent = allUsers.length;
+    } catch (error) {
+        console.error("❌ Error fetching users:", error);
+        window.showErrorToast("Error", "Failed to load users: " + error.message, 4000);
+        qs('#users-table-body').innerHTML = '<tr><td colspan="6" class="text-center p-8 text-red-400">Error loading users</td></tr>';
+    }
+}
+
+// Display Users in Table
+function displayUsers(users) {
+    console.log(`📋 displayUsers called with ${users?.length || 0} users`);
+    const tbody = qs('#users-table-body');
+    
+    if (!tbody) {
+        console.error("❌ Could not find #users-table-body element!");
+        return;
+    }
+    
+    if (!users || users.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500">No users found</td></tr>';
+        return;
+    }
+    
+    console.log("✏️ Rendering user rows...");
+    tbody.innerHTML = users.map(user => {
+        const displayName = user.displayName || user.username || 'N/A';
+        const email = user.email || 'N/A';
+        const role = user.role || 'user';
+        const isAdmin = role === 'admin';
+        const isSelf = user.id === currentUserId; // Check if this is the current user
+        
+        // Use createdAt if available, otherwise fall back to joinedAt
+        const createdAt = user.createdAt ? formatDate(user.createdAt) : (user.joinedAt ? formatDate(user.joinedAt) : 'N/A');
+        const lastSignIn = user.lastSignInTime ? formatDate(user.lastSignInTime) : 'Never';
+        const emailVerified = user.emailVerified;
+        
+        return `
+            <tr class="border-b border-white/5 hover:bg-white/5 transition">
+                <td class="p-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-black font-bold">
+                            ${escapeHtml(displayName.charAt(0).toUpperCase())}
+                        </div>
+                        <div class="font-medium text-white">${escapeHtml(displayName)}${isSelf ? ' <span class="text-xs text-yellow-400">(You)</span>' : ''}</div>
+                    </div>
+                </td>
+                <td class="p-4 text-gray-300">${escapeHtml(email)}</td>
+                <td class="p-4">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs font-semibold ${isAdmin ? 'bg-yellow-500/20 text-yellow-400' : 'bg-blue-500/20 text-blue-400'}">
+                        ${isAdmin ? '👑' : '👤'} ${escapeHtml(role)}
+                    </span>
+                    ${emailVerified ? '<span class="ml-2 text-green-400 text-xs">✓ Verified</span>' : ''}
+                </td>
+                <td class="p-4 text-gray-400 text-sm">${createdAt}</td>
+                <td class="p-4 text-gray-400 text-sm">${lastSignIn}</td>
+                <td class="p-4">
+                    <div class="flex gap-2">
+                        <button onclick="viewUserDetails('${user.id}')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded font-medium transition">
+                            View
+                        </button>
+                        ${!isSelf && !isAdmin ? `<button onclick="toggleUserRole('${user.id}', 'admin')" class="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-black text-xs rounded font-medium transition">Make Admin</button>` : ''}
+                        ${!isSelf && isAdmin ? `<button onclick="toggleUserRole('${user.id}', 'user')" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded font-medium transition">Remove Admin</button>` : ''}
+                    </div>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+// Search Users - Initialize on DOM ready
+function initUserSearch() {
+    const searchInput = qs('#user-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            const searchTerm = e.target.value.toLowerCase();
+            const filtered = allUsers.filter(user => {
+                const name = (user.displayName || user.username || '').toLowerCase();
+                const email = (user.email || '').toLowerCase();
+                return name.includes(searchTerm) || email.includes(searchTerm);
+            });
+            displayUsers(filtered);
+        });
+    }
+}
+
+// Initialize search after DOM loads
+setTimeout(initUserSearch, 500);
+
+// Format Date
+function formatDate(timestamp) {
+    if (!timestamp) return 'N/A';
+    
+    let date;
+    if (timestamp.toDate) {
+        date = timestamp.toDate();
+    } else if (timestamp.seconds) {
+        date = new Date(timestamp.seconds * 1000);
+    } else {
+        date = new Date(timestamp);
+    }
+    
+    return date.toLocaleDateString('en-US', { 
+        year: 'numeric', 
+        month: 'short', 
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+}
+
+// View User Details with Custom Modal
+window.viewUserDetails = async function(userId) {
+    try {
+        const userDoc = await getDoc(doc(db, 'users', userId));
+        if (!userDoc.exists()) {
+            window.showErrorToast("Not Found", "User not found.", 3000);
+            return;
+        }
+        
+        const user = userDoc.data();
+        showUserDetailsModal(userId, user);
+    } catch (error) {
+        console.error("Error viewing user:", error);
+        window.showErrorToast("Error", "Failed to load user details.", 3000);
+    }
+}
+
+// Show User Details Modal
+function showUserDetailsModal(userId, user) {
+    const displayName = user.displayName || user.username || 'N/A';
+    const email = user.email || 'N/A';
+    const role = user.role || 'user';
+    const isAdmin = role === 'admin';
+    
+    // Create modal overlay
+    const overlay = document.createElement('div');
+    overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(4px);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        animation: fadeIn 0.2s ease;
+        overflow-y: auto;
+        padding: 20px;
+    `;
+    
+    // Create modal
+    const modal = document.createElement('div');
+    modal.style.cssText = `
+        background: #1A1A1F;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 16px;
+        max-width: 600px;
+        width: 100%;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        animation: scaleIn 0.2s ease;
+        margin: auto;
+    `;
+    
+    // Create content
+    modal.innerHTML = `
+        <style>
+            @keyframes fadeIn {
+                from { opacity: 0; }
+                to { opacity: 1; }
+            }
+            @keyframes scaleIn {
+                from { transform: scale(0.9); opacity: 0; }
+                to { transform: scale(1); opacity: 1; }
+            }
+            .user-detail-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 12px 0;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+            }
+            .user-detail-label {
+                color: #9CA3AF;
+                font-size: 14px;
+                font-weight: 500;
+            }
+            .user-detail-value {
+                color: #fff;
+                font-size: 14px;
+                font-weight: 400;
+                text-align: right;
+                max-width: 60%;
+                word-break: break-word;
+            }
+        </style>
+        <div style="padding: 24px; border-bottom: 1px solid rgba(255, 255, 255, 0.1);">
+            <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                <div style="width: 64px; height: 64px; border-radius: 50%; background: linear-gradient(to br, #FFD700, #C99700); display: flex; align-items: center; justify-content: center; font-size: 28px; font-weight: bold; color: black;">
+                    ${escapeHtml(displayName.charAt(0).toUpperCase())}
+                </div>
+                <div style="flex: 1;">
+                    <h3 style="color: white; font-size: 24px; font-weight: 600; margin: 0;">${escapeHtml(displayName)}</h3>
+                    <span style="display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; ${isAdmin ? 'background: rgba(255, 215, 0, 0.2); color: #FFD700;' : 'background: rgba(59, 130, 246, 0.2); color: #3B82F6;'}">
+                        ${isAdmin ? '👑' : '👤'} ${escapeHtml(role.toUpperCase())}
+                    </span>
+                </div>
+            </div>
+        </div>
+        <div style="padding: 24px;">
+            <div class="user-detail-row">
+                <span class="user-detail-label">User ID</span>
+                <span class="user-detail-value" style="font-family: monospace; font-size: 12px;">${escapeHtml(userId)}</span>
+            </div>
+            <div class="user-detail-row">
+                <span class="user-detail-label">Email</span>
+                <span class="user-detail-value">${escapeHtml(email)}</span>
+            </div>
+            <div class="user-detail-row">
+                <span class="user-detail-label">Email Verified</span>
+                <span class="user-detail-value">${user.emailVerified ? '<span style="color: #10B981;">✓ Verified</span>' : '<span style="color: #EF4444;">✗ Not Verified</span>'}</span>
+            </div>
+            <div class="user-detail-row">
+                <span class="user-detail-label">Account Created</span>
+                <span class="user-detail-value">${formatDate(user.createdAt || user.joinedAt)}</span>
+            </div>
+            <div class="user-detail-row">
+                <span class="user-detail-label">Last Sign In</span>
+                <span class="user-detail-value">${formatDate(user.lastSignInTime) || 'Never'}</span>
+            </div>
+            ${user.rank ? `
+            <div class="user-detail-row">
+                <span class="user-detail-label">Rank</span>
+                <span class="user-detail-value">${escapeHtml(user.rank)}</span>
+            </div>` : ''}
+            ${user.prizesEarned !== undefined ? `
+            <div class="user-detail-row">
+                <span class="user-detail-label">Prizes Earned</span>
+                <span class="user-detail-value" style="color: #FFD700; font-weight: 600;">₱${user.prizesEarned.toLocaleString()}</span>
+            </div>` : ''}
+            ${user.bio ? `
+            <div class="user-detail-row">
+                <span class="user-detail-label">Bio</span>
+                <span class="user-detail-value">${escapeHtml(user.bio)}</span>
+            </div>` : ''}
+            ${user.favoriteGame ? `
+            <div class="user-detail-row">
+                <span class="user-detail-label">Favorite Game</span>
+                <span class="user-detail-value">${escapeHtml(user.favoriteGame)}</span>
+            </div>` : ''}
+        </div>
+        <div style="padding: 20px 24px; border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: flex-end;">
+            <button id="close-modal-btn" style="
+                padding: 10px 24px;
+                border-radius: 8px;
+                border: none;
+                background: linear-gradient(to right, #C99700, #FFD700);
+                color: black;
+                font-size: 14px;
+                font-weight: 600;
+                cursor: pointer;
+                transition: all 0.2s;
+            ">Close</button>
+        </div>
+    `;
+    
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+    
+    // Handle close
+    const cleanup = () => {
+        overlay.style.animation = 'fadeIn 0.2s ease reverse';
+        setTimeout(() => {
+            document.body.removeChild(overlay);
+        }, 200);
+    };
+    
+    const closeBtn = modal.querySelector('#close-modal-btn');
+    closeBtn.addEventListener('click', cleanup);
+    closeBtn.addEventListener('mouseenter', () => {
+        closeBtn.style.opacity = '0.9';
+    });
+    closeBtn.addEventListener('mouseleave', () => {
+        closeBtn.style.opacity = '1';
+    });
+    
+    overlay.addEventListener('click', (e) => {
+        if (e.target === overlay) {
+            cleanup();
+        }
+    });
+}
+
+// Toggle User Role
+window.toggleUserRole = async function(userId, newRole) {
+    // Prevent self-modification
+    if (userId === currentUserId) {
+        window.showErrorToast("Action Denied", "You cannot modify your own admin status.", 3000);
+        return;
+    }
+    
+    const action = newRole === 'admin' ? 'promote this user to admin' : 'remove admin privileges';
+    const confirmed = await window.showCustomConfirm(
+        "Change User Role?", 
+        `Are you sure you want to ${action}?`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        await updateDoc(doc(db, 'users', userId), {
+            role: newRole,
+            updatedAt: serverTimestamp()
+        });
+        
+        window.showSuccessToast("Role Updated", `User role changed to ${newRole}.`, 2000);
+        refreshUsers();
+    } catch (error) {
+        console.error("Error updating role:", error);
+        window.showErrorToast("Error", "Failed to update user role: " + error.message, 4000);
+    }
+}
+
+// Expose switchTab wrapper to load data when tab changes
+const originalSwitchTab = window.switchTab;
+window.switchTab = function(tabName) {
+    if (typeof originalSwitchTab === 'function') {
+        originalSwitchTab(tabName);
+    }
+    // Load users data when users tab is opened
+    if (tabName === 'users') {
+        refreshUsers();
+    }
+};
