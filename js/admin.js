@@ -424,6 +424,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- USER MANAGEMENT FUNCTIONS ---
 
 let allUsers = []; // Cache for search
+let currentRoleFilter = 'all'; // Current role filter
 
 // Refresh Users List
 window.refreshUsers = async function() {
@@ -447,13 +448,64 @@ window.refreshUsers = async function() {
         });
         
         console.log("📊 Displaying users in table...");
-        displayUsers(allUsers);
-        qs('#user-count').textContent = allUsers.length;
+        updateUserCounts();
+        applyCurrentFilters();
     } catch (error) {
         console.error("❌ Error fetching users:", error);
         window.showErrorToast("Error", "Failed to load users: " + error.message, 4000);
         qs('#users-table-body').innerHTML = '<tr><td colspan="6" class="text-center p-8 text-red-400">Error loading users</td></tr>';
     }
+}
+
+// Update user counts
+function updateUserCounts() {
+    const totalUsers = allUsers.length;
+    const adminUsers = allUsers.filter(u => u.role === 'admin').length;
+    const regularUsers = allUsers.filter(u => u.role !== 'admin').length;
+    
+    qs('#user-count').textContent = totalUsers;
+    qs('#admin-count').textContent = adminUsers;
+    qs('#regular-user-count').textContent = regularUsers;
+}
+
+// Filter users by role
+window.filterUsersByRole = function(role) {
+    currentRoleFilter = role;
+    
+    // Update tab styling
+    document.querySelectorAll('.role-tab').forEach(tab => {
+        tab.classList.remove('active');
+    });
+    qs(`#role-tab-${role}`)?.classList.add('active');
+    
+    // Apply filters
+    applyCurrentFilters();
+}
+
+// Apply current filters (role + search)
+function applyCurrentFilters() {
+    let filtered = allUsers;
+    
+    // Apply role filter
+    if (currentRoleFilter !== 'all') {
+        filtered = filtered.filter(user => {
+            const userRole = user.role || 'user';
+            return userRole === currentRoleFilter;
+        });
+    }
+    
+    // Apply search filter if search box has text
+    const searchInput = qs('#user-search');
+    if (searchInput && searchInput.value.trim()) {
+        const searchTerm = searchInput.value.toLowerCase();
+        filtered = filtered.filter(user => {
+            const name = (user.displayName || user.username || '').toLowerCase();
+            const email = (user.email || '').toLowerCase();
+            return name.includes(searchTerm) || email.includes(searchTerm);
+        });
+    }
+    
+    displayUsers(filtered);
 }
 
 // Display Users in Table
@@ -506,10 +558,8 @@ function displayUsers(users) {
                 <td class="p-4">
                     <div class="flex gap-2">
                         <button onclick="viewUserDetails('${user.id}')" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white text-xs rounded font-medium transition">
-                            View
+                            View Profile
                         </button>
-                        ${!isSelf && !isAdmin ? `<button onclick="toggleUserRole('${user.id}', 'admin')" class="px-3 py-1 bg-yellow-600 hover:bg-yellow-700 text-black text-xs rounded font-medium transition">Make Admin</button>` : ''}
-                        ${!isSelf && isAdmin ? `<button onclick="toggleUserRole('${user.id}', 'user')" class="px-3 py-1 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded font-medium transition">Remove Admin</button>` : ''}
                     </div>
                 </td>
             </tr>
@@ -522,13 +572,7 @@ function initUserSearch() {
     const searchInput = qs('#user-search');
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
-            const searchTerm = e.target.value.toLowerCase();
-            const filtered = allUsers.filter(user => {
-                const name = (user.displayName || user.username || '').toLowerCase();
-                const email = (user.email || '').toLowerCase();
-                return name.includes(searchTerm) || email.includes(searchTerm);
-            });
-            displayUsers(filtered);
+            applyCurrentFilters();
         });
     }
 }
@@ -581,6 +625,7 @@ function showUserDetailsModal(userId, user) {
     const email = user.email || 'N/A';
     const role = user.role || 'user';
     const isAdmin = role === 'admin';
+    const isSelf = userId === currentUserId; // Check if viewing own profile
     
     // Create modal overlay
     const overlay = document.createElement('div');
@@ -700,7 +745,36 @@ function showUserDetailsModal(userId, user) {
                 <span class="user-detail-value">${escapeHtml(user.favoriteGame)}</span>
             </div>` : ''}
         </div>
-        <div style="padding: 20px 24px; border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: flex-end;">
+        <div style="padding: 20px 24px; border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; align-items: center; gap: 12px;">
+            <div style="flex: 1;">
+                ${!isSelf ? `
+                    ${!isAdmin ? `
+                        <button id="make-admin-btn" style="
+                            padding: 10px 20px;
+                            border-radius: 8px;
+                            border: none;
+                            background: linear-gradient(to right, #D97706, #F59E0B);
+                            color: white;
+                            font-size: 14px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        ">👑 Make Admin</button>
+                    ` : `
+                        <button id="remove-admin-btn" style="
+                            padding: 10px 20px;
+                            border-radius: 8px;
+                            border: none;
+                            background: #4B5563;
+                            color: white;
+                            font-size: 14px;
+                            font-weight: 600;
+                            cursor: pointer;
+                            transition: all 0.2s;
+                        ">Remove Admin</button>
+                    `}
+                ` : '<span style="color: #9CA3AF; font-size: 14px; font-style: italic;">This is your profile</span>'}
+            </div>
             <button id="close-modal-btn" style="
                 padding: 10px 24px;
                 border-radius: 8px;
@@ -734,6 +808,38 @@ function showUserDetailsModal(userId, user) {
     closeBtn.addEventListener('mouseleave', () => {
         closeBtn.style.opacity = '1';
     });
+    
+    // Handle role change buttons if not self
+    if (!isSelf) {
+        const makeAdminBtn = modal.querySelector('#make-admin-btn');
+        const removeAdminBtn = modal.querySelector('#remove-admin-btn');
+        
+        if (makeAdminBtn) {
+            makeAdminBtn.addEventListener('click', async () => {
+                cleanup();
+                await toggleUserRole(userId, 'admin');
+            });
+            makeAdminBtn.addEventListener('mouseenter', () => {
+                makeAdminBtn.style.opacity = '0.9';
+            });
+            makeAdminBtn.addEventListener('mouseleave', () => {
+                makeAdminBtn.style.opacity = '1';
+            });
+        }
+        
+        if (removeAdminBtn) {
+            removeAdminBtn.addEventListener('click', async () => {
+                cleanup();
+                await toggleUserRole(userId, 'user');
+            });
+            removeAdminBtn.addEventListener('mouseenter', () => {
+                removeAdminBtn.style.background = '#374151';
+            });
+            removeAdminBtn.addEventListener('mouseleave', () => {
+                removeAdminBtn.style.background = '#4B5563';
+            });
+        }
+    }
     
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
