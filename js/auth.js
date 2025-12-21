@@ -7,7 +7,7 @@ import {
     GoogleAuthProvider,
     signInWithPopup
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 // Helper: Ensure a user profile exists in the database
 async function ensureUserProfile(user) {
@@ -17,11 +17,21 @@ async function ensureUserProfile(user) {
     if (!userSnap.exists()) {
         await setDoc(userRef, {
             username: user.displayName || user.email.split('@')[0],
+            displayName: user.displayName || user.email.split('@')[0],
             email: user.email,
             rank: "Unranked",
+            createdAt: serverTimestamp(),
             joinedAt: new Date().toISOString(),
             prizesEarned: 0,
-            role: "user"
+            role: "user",
+            emailVerified: user.emailVerified || false,
+            lastSignInTime: serverTimestamp()
+        });
+    } else {
+        // Update last sign in time on every login
+        await updateDoc(userRef, {
+            lastSignInTime: serverTimestamp(),
+            emailVerified: user.emailVerified || false
         });
     }
 }
@@ -88,11 +98,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Create Firestore Document (This is what you saw working before!)
                 await setDoc(doc(db, "users", user.uid), {
                     username: username,
+                    displayName: username,
                     email: email,
                     rank: "Unranked",
+                    createdAt: serverTimestamp(),
                     joinedAt: new Date().toISOString(),
                     prizesEarned: 0,
-                    role: "user"
+                    role: "user",
+                    emailVerified: user.emailVerified || false,
+                    lastSignInTime: serverTimestamp()
                 });
 
                 window.showSuccessToast("Success!", "Account Created Successfully!", 2000);
