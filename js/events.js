@@ -6,6 +6,29 @@ import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
+// Calculate status based on dates
+function calculateStatus(startDate, endDate) {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Reset time to midnight for accurate comparison
+    
+    if (!startDate) return 'Upcoming'; // Default if no date
+    
+    const start = new Date(startDate);
+    start.setHours(0, 0, 0, 0);
+    
+    // If end date exists, use it; otherwise use start date
+    const end = endDate ? new Date(endDate) : new Date(startDate);
+    end.setHours(23, 59, 59, 999); // End of the day
+    
+    if (today < start) {
+        return 'Upcoming';
+    } else if (today >= start && today <= end) {
+        return 'Ongoing';
+    } else {
+        return 'Completed';
+    }
+}
+
 // --- Main Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
     fetchEvents();
@@ -68,7 +91,18 @@ function createEventCard(ev) {
         // Check if date is a Timestamp object or string
         const dateObj = ev.date.toDate ? ev.date.toDate() : new Date(ev.date);
         dateFormatted = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        
+        // Add end date if it exists
+        if (ev.endDate) {
+            const endDateObj = ev.endDate.toDate ? ev.endDate.toDate() : new Date(ev.endDate);
+            const endDateFormatted = endDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+            dateFormatted = `${dateFormatted} - ${endDateFormatted}`;
+        }
     }
+    
+    // Calculate actual status based on dates
+    const actualStatus = calculateStatus(ev.date, ev.endDate);
+    const statusColor = actualStatus === 'Ongoing' ? 'bg-green-500' : (actualStatus === 'Completed' ? 'bg-gray-500' : 'bg-[var(--gold)]');
 
     card.innerHTML = `
         <div class="h-48 bg-cover bg-center relative cursor-pointer event-trigger overflow-hidden">
@@ -78,6 +112,10 @@ function createEventCard(ev) {
             
             <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded text-xs font-bold text-white border border-white/10">
                 ${escapeHtml(ev.type || 'Event')}
+            </div>
+            
+            <div class="absolute top-3 right-3 ${statusColor} text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
+                ${actualStatus}
             </div>
         </div>
 
@@ -126,7 +164,11 @@ function openModal(ev) {
     qs('#detailDesc').innerHTML = escapeHtml(ev.description).replace(/\n/g, '<br>'); 
     
     // Metadata
-    const dateStr = ev.date ? (ev.date.toDate ? ev.date.toDate().toDateString() : new Date(ev.date).toDateString()) : 'TBA';
+    let dateStr = ev.date ? (ev.date.toDate ? ev.date.toDate().toDateString() : new Date(ev.date).toDateString()) : 'TBA';
+    if (ev.endDate) {
+        const endDateStr = ev.endDate.toDate ? ev.endDate.toDate().toDateString() : new Date(ev.endDate).toDateString();
+        dateStr = `${dateStr} - ${endDateStr}`;
+    }
     qs('#detailMeta').innerHTML = `
         <div class="flex items-center gap-2"><span class="text-[var(--gold)]">📅</span> ${dateStr}</div>
         ${ev.time ? `<div class="flex items-center gap-2"><span class="text-[var(--gold)]">⏰</span> ${escapeHtml(ev.time)}</div>` : ''}
