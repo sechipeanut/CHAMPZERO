@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ChampZero — Edit Profile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --gold: #FFD700; --gold-darker: #C99700; --dark-bg: #111115; --dark-card: #1A1A1F; }
+        body { font-family: 'Poppins', sans-serif; }
+        .dark-input { background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; }
+        .dark-input:focus { outline: none; border-color: var(--gold); }
+        .nav-link { position: relative; }
+        .nav-link::after { content: ''; position: absolute; width: 100%; transform: scaleX(0); height: 2px; bottom: -4px; left: 0; background-color: var(--gold); transform-origin: bottom right; transition: transform 0.25s ease-out; }
+        .nav-link:hover::after, .nav-link.active::after { transform: scaleX(1); transform-origin: bottom left; }
+    </style>
+</head>
+<body class="bg-[var(--dark-bg)] text-gray-200 antialiased">
+
+<header id="main-header" class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 transition-all duration-300">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
+    <a href="/" class="flex items-center gap-3">
+        <img src="pictures/cz_logo.png" alt="ChampZero Logo" class="w-10 h-10 rounded-md object-cover">
+        <span class="font-bold text-xl text-white">ChampZero</span>
+    </a>
+    <nav class="hidden md:flex items-center gap-8 text-sm">
+        <a href="/" class="nav-link text-gray-300 hover:text-[var(--gold)]">Home</a>
+        <a href="/tournaments" class="nav-link text-gray-300 hover:text-[var(--gold)]">Tournaments</a>
+        <a href="/events" class="nav-link text-gray-300 hover:text-[var(--gold)]">Events</a>
+        <a href="/teams" class="nav-link text-gray-300 hover:text-[var(--gold)]">Teams</a>
+        <a href="/rising" class="nav-link text-gray-300 hover:text-[var(--gold)]">Rising Champ</a>
+        <a href="/partners" class="nav-link text-gray-300 hover:text-[var(--gold)]">Partners</a>
+        <a href="/shop" class="nav-link text-gray-300 hover:text-[var(--gold)]">Shop</a>
+    </nav>
+    <div class="flex items-center gap-3">
+        <div id="auth-controls-wrapper">
+            <div id="auth-controls" class="flex items-center gap-3">
+                <!-- Dynamically populated by main.js -->
+            </div>
+        </div>
+    </div>
+  </div>
+</header>
+
+<main class="py-16 px-6">
+    <div class="max-w-4xl mx-auto">
+        <div class="flex items-center justify-between mb-8">
+            <h1 class="text-3xl font-bold text-white">Edit Profile</h1>
+            <a href="/profile" class="text-sm text-gray-400 hover:text-[var(--gold)] transition-colors">← Back to Profile</a>
+        </div>
+
+        <div class="flex flex-col md:flex-row items-center gap-8 mb-12">
+            <div class="relative group">
+                <img id="profile-avatar" src="https://ui-avatars.com/api/?name=User&background=1A1A1F&color=FFD700" class="w-32 h-32 rounded-full border-4 border-[var(--dark-card)] shadow-xl object-cover" alt="Profile Avatar">
+                <div class="absolute inset-0 rounded-full border-2 border-[var(--gold)] opacity-50"></div>
+            </div>
+            <div class="text-center md:text-left">
+                <h2 id="display-name-header" class="text-2xl font-bold text-white mb-1">Loading...</h2>
+                <p id="email-display" class="text-gray-400 mb-4">user@example.com</p>
+                <div class="inline-flex items-center px-3 py-1 rounded-full bg-[var(--gold)]/10 text-[var(--gold)] text-xs font-bold border border-[var(--gold)]/20">
+                    MEMBER
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-[var(--dark-card)] border border-white/10 rounded-xl p-8 shadow-xl">
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                <h2 class="text-xl font-bold text-white">Player Identity</h2>
+                <span class="text-xs text-gray-500 italic">Information required for tournament entry</span>
+            </div>
+            
+            <form id="profileForm" class="space-y-6">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Display Name / IGN <span class="text-red-500">*</span></label>
+                        <input type="text" id="ign" required class="dark-input w-full p-3 rounded-lg" placeholder="e.g. Faker">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-400 mb-1">Real Name</label>
+                        <input type="text" id="realName" class="dark-input w-full p-3 rounded-lg" placeholder="Full Name (Private)">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Avatar Image URL</label>
+                    <input type="url" id="avatarUrl" class="dark-input w-full p-3 rounded-lg" placeholder="Paste image link here...">
+                </div>
+
+                <div class="bg-black/20 p-6 rounded-lg border border-white/5 space-y-4">
+                    <h3 class="text-[var(--gold)] font-bold text-sm uppercase tracking-wide flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> 
+                        Game IDs
+                    </h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">Valorant ID (Name#Tag)</label>
+                            <input type="text" id="valId" class="dark-input w-full p-3 rounded-lg" placeholder="Viper#NA1">
+                        </div>
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-1">MLBB ID (ID + Server)</label>
+                            <input type="text" id="mlbbId" class="dark-input w-full p-3 rounded-lg" placeholder="123456 (3021)">
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Bio / About Me</label>
+                    <textarea id="bio" rows="3" class="dark-input w-full p-3 rounded-lg" placeholder="Tell us about your playstyle..."></textarea>
+                </div>
+
+                <div class="flex justify-end gap-4 pt-4 border-t border-white/10">
+                    <button type="button" onclick="window.location.href='/profile'" class="px-6 py-2 text-gray-400 hover:text-white transition-colors">Cancel</button>
+                    <button type="submit" class="bg-[var(--gold)] text-black font-bold px-8 py-2 rounded-lg hover:bg-yellow-400 transition-transform hover:scale-105 shadow-lg shadow-yellow-500/20">
+                        Save Changes
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</main>
+
+<script src="js/toast.js"></script>
+<script type="module" src="js/main.js"></script>
+<script type="module" src="js/edit-profile.js"></script>
+</body>
+</html>
