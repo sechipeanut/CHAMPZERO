@@ -12,9 +12,99 @@ import {
     serverTimestamp,
     orderBy 
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { toDateInputFormat, calculateStatus } from './utils.js';
 
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+// Focus management state
+let lastFocusedElement = null;
+let focusableElements = [];
+let firstFocusableElement = null;
+let lastFocusableElement = null;
+
+// Modal Management Functions
+window.openModal = function(modalId) {
+    // Store the currently focused element
+    lastFocusedElement = document.activeElement;
+    
+    const modal = document.getElementById(modalId);
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+    
+    // Get all focusable elements in the modal
+    setTimeout(() => {
+        focusableElements = modal.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        
+        if (focusableElements.length > 0) {
+            firstFocusableElement = focusableElements[0];
+            lastFocusableElement = focusableElements[focusableElements.length - 1];
+            
+            // Focus the first focusable element (usually the first input or close button)
+            const firstInput = modal.querySelector('input:not([type="hidden"]), textarea, select');
+            if (firstInput) {
+                firstInput.focus();
+            } else {
+                firstFocusableElement.focus();
+            }
+        }
+    }, 50);
+    
+    // Add focus trap listener
+    modal.addEventListener('keydown', trapFocus);
+}
+
+window.closeModal = function(modalId) {
+    const modal = document.getElementById(modalId);
+    modal.classList.add('hidden');
+    document.body.style.overflow = 'auto';
+    
+    // Remove focus trap listener
+    modal.removeEventListener('keydown', trapFocus);
+    
+    // Return focus to the element that opened the modal
+    if (lastFocusedElement) {
+        lastFocusedElement.focus();
+        lastFocusedElement = null;
+    }
+    
+    // Reset edit state when closing - determine form selector from modalId
+    const formMap = {
+        'tournamentModal': '#tournamentForm',
+        'eventModal': '#eventForm',
+        'jobModal': '#jobForm',
+        'talentModal': '#talentForm',
+        'notificationModal': '#notifForm'
+    };
+    resetFormState(formMap[modalId]);
+}
+
+// Focus trap function
+function trapFocus(e) {
+    if (e.key !== 'Tab') return;
+    
+    if (e.shiftKey) {
+        // Shift + Tab
+        if (document.activeElement === firstFocusableElement) {
+            e.preventDefault();
+            lastFocusableElement.focus();
+        }
+    } else {
+        // Tab
+        if (document.activeElement === lastFocusableElement) {
+            e.preventDefault();
+            firstFocusableElement.focus();
+        }
+    }
+}
+
+window.openTournamentModal = function() { openModal('tournamentModal'); }
+window.openEventModal = function() { openModal('eventModal'); }
+window.openJobModal = function() { openModal('jobModal'); }
+window.openTalentModal = function() { openModal('talentModal'); }
+window.openNotificationModal = function() { openModal('notificationModal'); }
 
 // State to track if we are editing
 let editState = {
@@ -26,6 +116,7 @@ let editState = {
 
 // Store current logged-in user ID
 let currentUserId = null;
+let currentUserData = null;
 
 // --- 1. ADMIN CHECK ---
 onAuthStateChanged(auth, async (user) => {
@@ -45,6 +136,13 @@ onAuthStateChanged(auth, async (user) => {
         
         if (isAdminRole || adminEmails.includes(user.email)) {
             console.log("Admin Authorized");
+            
+            // Store user data and update header
+            if (userSnap.exists()) {
+                currentUserData = userSnap.data();
+            }
+            updateAdminHeader(user, currentUserData);
+            
             refreshAllLists();
         } else {
             window.showErrorToast("Access Denied", "You do not have permission to access this page.", 3000);
@@ -53,6 +151,67 @@ onAuthStateChanged(auth, async (user) => {
     } catch (error) {
         console.error("Auth Error:", error);
         window.location.href = "/";
+    }
+});
+
+// Update Admin Header with User Info
+function updateAdminHeader(user, userData) {
+    // Desktop name display
+    const displayNameEl = qs('#admin-display-name');
+    if (displayNameEl) {
+        const displayName = userData?.ign || userData?.displayName || userData?.username || user.email.split('@')[0];
+        displayNameEl.textContent = displayName;
+        displayNameEl.classList.remove('opacity-50'); // Remove loading state
+    }
+    
+    // Mobile profile picture
+    const profileImg = qs('#mobile-profile-img');
+    if (profileImg) {
+        if (userData?.avatar) {
+            profileImg.src = userData.avatar;
+        }
+        profileImg.classList.remove('opacity-50'); // Remove loading state
+    }
+    
+    // Mobile menu name
+    const mobileNameEl = qs('#mobile-admin-name');
+    if (mobileNameEl) {
+        const displayName = userData?.ign || userData?.displayName || userData?.username || user.email.split('@')[0];
+        mobileNameEl.textContent = displayName;
+    }
+}
+
+// Initialize loading state and mobile profile menu on DOM ready
+document.addEventListener('DOMContentLoaded', () => {
+    // Set loading state on header elements
+    const displayNameEl = qs('#admin-display-name');
+    const profileImg = qs('#mobile-profile-img');
+    
+    if (displayNameEl) {
+        displayNameEl.textContent = 'Loading...';
+        displayNameEl.classList.add('opacity-50');
+    }
+    
+    if (profileImg) {
+        profileImg.classList.add('opacity-50');
+    }
+    
+    // Setup mobile profile menu
+    const profileBtn = qs('#mobile-profile-btn');
+    const profileMenu = qs('#mobile-profile-menu');
+    
+    if (profileBtn && profileMenu) {
+        profileBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            profileMenu.classList.toggle('hidden');
+        });
+        
+        // Close menu when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!profileMenu.contains(e.target) && !profileBtn.contains(e.target)) {
+                profileMenu.classList.add('hidden');
+            }
+        });
     }
 });
 
@@ -88,49 +247,51 @@ window.editItem = async function(collectionName, docId) {
         
         // 2. Determine which form to fill based on collection
         if (collectionName === 'tournaments') {
-            switchTab('tournaments');
             qs('#t-name').value = data.name;
             qs('#t-game').value = data.game;
             qs('#t-prize').value = data.prize;
-            qs('#t-status').value = data.status;
-            qs('#t-date').value = data.date;
+            // Convert Firestore Timestamp to YYYY-MM-DD format for date inputs
+            qs('#t-date').value = toDateInputFormat(data.date);
+            qs('#t-end-date').value = toDateInputFormat(data.endDate);
             qs('#t-banner').value = data.banner;
-            prepareEditMode('tournaments', docId, '#tournamentForm');
+            prepareEditMode('tournaments', docId, '#tournamentForm', 'tournamentModal');
+            openModal('tournamentModal');
         } 
         else if (collectionName === 'events') {
-            switchTab('events');
             qs('#e-name').value = data.name;
-            qs('#e-date').value = data.date;
+            // Convert Firestore Timestamp to YYYY-MM-DD format for date inputs
+            qs('#e-date').value = toDateInputFormat(data.date);
+            qs('#e-end-date').value = toDateInputFormat(data.endDate);
             qs('#e-desc').value = data.description;
             qs('#e-banner').value = data.banner;
-            prepareEditMode('events', docId, '#eventForm');
+            prepareEditMode('events', docId, '#eventForm', 'eventModal');
+            openModal('eventModal');
         } 
         else if (collectionName === 'careers') {
-            switchTab('jobs');
             qs('#j-title').value = data.title;
             qs('#j-location').value = data.location;
             qs('#j-type').value = data.type;
-            prepareEditMode('careers', docId, '#jobForm');
+            prepareEditMode('careers', docId, '#jobForm', 'jobModal');
+            openModal('jobModal');
         }
         else if (collectionName === 'talents') {
-            switchTab('talents');
             qs('#tal-name').value = data.name;
             qs('#tal-role').value = data.role;
             qs('#tal-img').value = data.image;
             qs('#tal-link').value = data.socialLink;
             qs('#tal-bio').value = data.bio;
-            prepareEditMode('talents', docId, '#talentForm');
+            prepareEditMode('talents', docId, '#talentForm', 'talentModal');
+            openModal('talentModal');
         }
         else if (collectionName === 'notifications') {
-            switchTab('notifications');
             qs('#n-title').value = data.title;
             qs('#n-type').value = data.type;
             qs('#n-message').value = data.message;
-            prepareEditMode('notifications', docId, '#notifForm');
+            prepareEditMode('notifications', docId, '#notifForm', 'notificationModal');
+            openModal('notificationModal');
         }
 
-        // Scroll to top to see the form
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // Don't scroll anymore, modal opens automatically
 
     } catch (error) {
         console.error("Edit Fetch Error:", error);
@@ -139,45 +300,87 @@ window.editItem = async function(collectionName, docId) {
 }
 
 // Helper to set UI to "Edit Mode"
-function prepareEditMode(col, id, formSelector) {
-    editState = { isEditing: true, collection: col, id: id, formId: formSelector };
+function prepareEditMode(col, id, formSelector, modalId) {
+    editState = { isEditing: true, collection: col, id: id, formId: formSelector, modalId: modalId };
     
     const form = qs(formSelector);
     const btn = form.querySelector('button[type="submit"]');
     
-    // Change Button Visuals
-    btn.textContent = "Update Item";
-    btn.classList.remove('bg-[var(--gold)]', 'text-black');
-    btn.classList.add('bg-blue-600', 'text-white');
+    // Update modal title
+    const modalTitleMap = {
+        'tournamentModal': 'Edit Tournament',
+        'eventModal': 'Edit Event',
+        'jobModal': 'Edit Job',
+        'talentModal': 'Edit Talent',
+        'notificationModal': 'Edit Announcement'
+    };
     
-    // Add Cancel Button if not exists
-    let cancelBtn = form.querySelector('.cancel-edit-btn');
-    if (!cancelBtn) {
-        cancelBtn = document.createElement('button');
-        cancelBtn.type = "button"; // Prevent submit
-        cancelBtn.className = "cancel-edit-btn w-full mt-2 bg-gray-600 text-white font-bold px-6 py-2 rounded hover:bg-gray-500";
-        cancelBtn.textContent = "Cancel Edit";
-        cancelBtn.onclick = () => resetFormState(formSelector);
-        form.appendChild(cancelBtn);
+    if (modalId && modalTitleMap[modalId]) {
+        const titleEl = qs(`#${modalId.replace('Modal', 'ModalTitle')}`);
+        if (titleEl) titleEl.textContent = modalTitleMap[modalId];
+    }
+    
+    // Change Button Text (explicit mapping instead of fragile string replacement)
+    if (btn && form) {
+        const buttonEditTextMap = {
+            'tournamentForm': 'Update Tournament',
+            'eventForm': 'Update Event',
+            'jobForm': 'Update Job',
+            'talentForm': 'Update Talent',
+            'notifForm': 'Update Announcement'
+        };
+        const formId = form.id;
+        if (buttonEditTextMap[formId]) {
+            btn.textContent = buttonEditTextMap[formId];
+        } else {
+            // Fallback to a generic label if form id is unrecognized
+            btn.textContent = 'Update';
+        }
     }
 }
 
 // Helper to Reset UI to "Add Mode"
 function resetFormState(formSelector) {
-    const form = qs(formSelector);
-    form.reset();
+    // If formSelector provided, use it; otherwise use from editState
+    const selector = formSelector || editState.formId;
+    if (!selector) return;
     
-    const btn = form.querySelector('button[type="submit"]');
-    // Reset Button Visuals
-    btn.textContent = btn.getAttribute('data-original-text') || "Post Item";
-    btn.classList.add('bg-[var(--gold)]', 'text-black');
-    btn.classList.remove('bg-blue-600', 'text-white');
+    const form = qs(selector);
+    if (form) form.reset();
+    
+    // Reset modal titles
+    const modalTitleMap = {
+        'tournamentModal': 'Create Tournament',
+        'eventModal': 'Create Event',
+        'jobModal': 'Create Job',
+        'talentModal': 'Add Talent',
+        'notificationModal': 'Create Announcement'
+    };
+    
+    if (editState.modalId && modalTitleMap[editState.modalId]) {
+        const titleEl = qs(`#${editState.modalId.replace('Modal', 'ModalTitle')}`);
+        if (titleEl) titleEl.textContent = modalTitleMap[editState.modalId];
+    }
+    
+    // Reset button text
+    if (form) {
+        const btn = form.querySelector('button[type="submit"]');
+        if (btn) {
+            const buttonTextMap = {
+                'tournamentForm': 'Save Tournament',
+                'eventForm': 'Save Event',
+                'jobForm': 'Save Job',
+                'talentForm': 'Save Talent',
+                'notifForm': 'Send Announcement'
+            };
+            const formId = form.id;
+            if (buttonTextMap[formId]) {
+                btn.textContent = buttonTextMap[formId];
+            }
+        }
+    }
 
-    // Remove Cancel Button
-    const cancelBtn = form.querySelector('.cancel-edit-btn');
-    if (cancelBtn) cancelBtn.remove();
-
-    editState = { isEditing: false, collection: null, id: null, formId: null };
+    editState = { isEditing: false, collection: null, id: null, formId: null, modalId: null };
 }
 
 // --- 3. FETCH LISTS (Now with Edit Buttons) ---
@@ -189,7 +392,7 @@ async function refreshAllLists() {
     fetchMessages();
     fetchTalents();
     fetchNotifications(); // Added Notification fetch
-    refreshUsers(); // Added User fetch
+    // Note: Users are loaded on-demand when visiting User Management tab
 }
 
 async function fetchTournaments() {
@@ -360,6 +563,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     data.updatedAt = serverTimestamp(); // Use serverTimestamp for updates
                     await updateDoc(docRef, data);
                     window.showSuccessToast("Updated", "Item updated successfully!", 2000);
+                    
+                    // Close modal if in edit mode
+                    if (editState.modalId) {
+                        closeModal(editState.modalId);
+                    }
                     resetFormState(formId); // Exit edit mode
                 } else {
                     // --- CREATE NEW ---
@@ -367,6 +575,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     await addDoc(collection(db, collectionName), data);
                     window.showSuccessToast("Created", successMsg, 2000);
                     form.reset();
+                    
+                    // Close modal after creating
+                    const modalMap = {
+                        'tournamentForm': 'tournamentModal',
+                        'eventForm': 'eventModal',
+                        'jobForm': 'jobModal',
+                        'talentForm': 'talentModal',
+                        'notifForm': 'notificationModal'
+                    };
+                    const modalId = modalMap[form.id];
+                    if (modalId) closeModal(modalId);
                 }
 
                 refreshAllLists();
@@ -382,21 +601,36 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Setup All Forms
-    handleForm('#tournamentForm', 'tournaments', () => ({
-        name: qs('#t-name').value,
-        game: qs('#t-game').value,
-        prize: Number(qs('#t-prize').value),
-        status: qs('#t-status').value,
-        date: qs('#t-date').value,
-        banner: qs('#t-banner').value || "pictures/cz_logo.png"
-    }), "Tournament Created!");
+    handleForm('#tournamentForm', 'tournaments', () => {
+        const startDate = qs('#t-date').value;
+        const endDate = qs('#t-end-date').value || startDate;
+        
+        // Auto-calculate status based on dates using shared utility
+        const status = calculateStatus(startDate, endDate);
+        
+        return {
+            name: qs('#t-name').value,
+            game: qs('#t-game').value,
+            prize: Number(qs('#t-prize').value),
+            status: status,
+            date: startDate,
+            endDate: endDate,
+            banner: qs('#t-banner').value || "pictures/cz_logo.png"
+        };
+    }, "Tournament Created!");
 
-    handleForm('#eventForm', 'events', () => ({
-        name: qs('#e-name').value,
-        date: qs('#e-date').value,
-        description: qs('#e-desc').value,
-        banner: qs('#e-banner').value || "pictures/cz_logo.png"
-    }), "Event Posted!");
+    handleForm('#eventForm', 'events', () => {
+        const startDate = qs('#e-date').value;
+        const endDate = qs('#e-end-date').value || startDate;
+        
+        return {
+            name: qs('#e-name').value,
+            date: startDate,
+            endDate: endDate,
+            description: qs('#e-desc').value,
+            banner: qs('#e-banner').value || "pictures/cz_logo.png"
+        };
+    }, "Event Posted!");
 
     handleForm('#jobForm', 'careers', () => ({
         title: qs('#j-title').value,
@@ -425,6 +659,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
 let allUsers = []; // Cache for search
 let currentRoleFilter = 'all'; // Current role filter
+let usersLoaded = false; // Track if users have been loaded
 
 // Refresh Users List
 window.refreshUsers = async function() {
@@ -461,6 +696,7 @@ window.refreshUsers = async function() {
         });
         
         console.log("📊 Displaying users in table...");
+        usersLoaded = true; // Mark users as loaded
         updateUserCounts();
         applyCurrentFilters();
     } catch (error) {
@@ -543,6 +779,7 @@ function displayUsers(users) {
         const role = user.role || 'user';
         const isAdmin = role === 'admin';
         const isSelf = user.id === currentUserId; // Check if this is the current user
+        const avatar = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=1A1A1F&color=FFD700`;
         
         // Use createdAt if available, otherwise fall back to joinedAt
         const createdAt = user.createdAt ? formatDate(user.createdAt) : (user.joinedAt ? formatDate(user.joinedAt) : 'N/A');
@@ -553,9 +790,7 @@ function displayUsers(users) {
             <tr class="border-b border-white/5 hover:bg-white/5 transition">
                 <td class="p-4">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-black font-bold">
-                            ${escapeHtml(displayName.charAt(0).toUpperCase())}
-                        </div>
+                        <img src="${avatar}" alt="${escapeHtml(displayName)}" class="w-10 h-10 rounded-full border border-[var(--gold)] object-cover" />
                         <div class="font-medium text-white">${escapeHtml(displayName)}${isSelf ? ' <span class="text-xs text-yellow-400">(You)</span>' : ''}</div>
                     </div>
                 </td>
@@ -926,8 +1161,8 @@ window.switchTab = function(tabName) {
     if (typeof originalSwitchTab === 'function') {
         originalSwitchTab(tabName);
     }
-    // Load users data when users tab is opened
-    if (tabName === 'users') {
+    // Load users data when users tab is opened (only if not already loaded)
+    if (tabName === 'users' && !usersLoaded) {
         refreshUsers();
     }
 };

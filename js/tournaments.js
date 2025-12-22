@@ -1,5 +1,6 @@
 import { db } from './firebase-config.js';
 import { collection, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { calculateStatus, escapeCssUrl } from './utils.js';
 
 let allTournaments = [];
 
@@ -42,8 +43,9 @@ function renderTournaments() {
     let filtered = allTournaments.filter(t => {
         const matchesName = (t.name || '').toLowerCase().includes(searchName);
         const matchesGame = filterGame ? (t.game === filterGame) : true;
-        // Check loosely against lowercase status
-        const matchesStatus = filterStatus ? (t.status || '').toLowerCase() === filterStatus.toLowerCase() : true;
+        // Calculate actual status and check against filter
+        const actualStatus = calculateStatus(t.date, t.endDate);
+        const matchesStatus = filterStatus ? actualStatus.toLowerCase() === filterStatus.toLowerCase() : true;
         
         return matchesName && matchesGame && matchesStatus;
     });
@@ -68,11 +70,26 @@ function renderTournaments() {
         const card = document.createElement('article');
         card.className = "bg-[var(--dark-card)] rounded-xl border border-white/10 overflow-hidden hover:border-[var(--gold)]/30 transition-all group relative flex flex-col h-full";
         
-        const statusColor = t.status === 'Ongoing' ? 'text-green-400' : (t.status === 'Completed' ? 'text-gray-400' : 'text-[var(--gold)]');
+        // Calculate actual status based on dates
+        const actualStatus = calculateStatus(t.date, t.endDate);
+        const statusColor = actualStatus === 'Ongoing' ? 'text-green-400' : (actualStatus === 'Completed' ? 'text-gray-400' : 'text-[var(--gold)]');
         const bannerUrl = t.banner || 'https://placehold.co/600x400/1a1a1f/FFD700?text=No+Image';
+        
+        // Format date with end date if available
+        let dateDisplay = 'TBA';
+        if (t.date) {
+            const startDateObj = t.date.toDate ? t.date.toDate() : new Date(t.date);
+            dateDisplay = startDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            if (t.endDate) {
+                const endDateObj = t.endDate.toDate ? t.endDate.toDate() : new Date(t.endDate);
+                const endDateFormatted = endDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                dateDisplay = `${dateDisplay} - ${endDateFormatted}`;
+            }
+        }
 
         card.innerHTML = `
-            <div class="h-48 bg-cover bg-center relative" style="background-image:url('${bannerUrl}')">
+            <div class="h-48 bg-cover bg-center relative" style="background-image:url('${escapeCssUrl(bannerUrl)}')">
                 <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
                 <span class="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white uppercase tracking-wide border border-white/10">
                     ${escapeHtml(t.game)}
@@ -83,9 +100,9 @@ function renderTournaments() {
                 
                 <div class="flex justify-between items-center text-sm mb-4 border-b border-white/10 pb-4">
                     <span class="text-gray-400 flex items-center gap-2">
-                        📅 ${t.date || 'TBA'}
+                        📅 ${dateDisplay}
                     </span>
-                    <span class="font-bold ${statusColor}">${t.status}</span>
+                    <span class="font-bold ${statusColor}">${actualStatus}</span>
                 </div>
 
                 <div class="flex justify-between items-center mt-auto">
@@ -111,10 +128,27 @@ function renderTournaments() {
 function openModal(t) {
     qs('#detailTitle').textContent = t.name;
     qs('#detailBanner').innerHTML = `<img src="${t.banner || 'https://placehold.co/600x400/1a1a1f/FFD700?text=No+Image'}" class="w-full h-64 object-cover rounded-lg">`;
+    
+    // Calculate actual status based on dates
+    const actualStatus = calculateStatus(t.date, t.endDate);
+    
+    // Format date with end date if available
+    let dateDisplay = 'TBA';
+    if (t.date) {
+        const startDateObj = t.date.toDate ? t.date.toDate() : new Date(t.date);
+        dateDisplay = startDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        
+        if (t.endDate) {
+            const endDateObj = t.endDate.toDate ? t.endDate.toDate() : new Date(t.endDate);
+            const endDateFormatted = endDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+            dateDisplay = `${dateDisplay} - ${endDateFormatted}`;
+        }
+    }
+    
     qs('#detailMeta').innerHTML = `
         <span class="bg-[var(--gold)] text-black px-2 py-1 rounded font-bold text-xs">${t.game}</span>
-        <span class="bg-white/10 px-2 py-1 rounded text-xs text-white">${t.status}</span>
-        <span class="text-gray-300">📅 ${t.date}</span>
+        <span class="bg-white/10 px-2 py-1 rounded text-xs text-white">${actualStatus}</span>
+        <span class="text-gray-300">📅 ${dateDisplay}</span>
         <span class="text-[var(--gold)] font-bold">🏆 ₱${Number(t.prize).toLocaleString()}</span>
     `;
     qs('#detailDesc').textContent = t.description || "No specific details provided for this tournament.";

@@ -1,6 +1,7 @@
 import { db } from './firebase-config.js';
 import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+import { calculateStatus, escapeCssUrl } from './utils.js';
 
 // Helper Functions
 function qs(sel) { return document.querySelector(sel); }
@@ -68,16 +69,31 @@ function createEventCard(ev) {
         // Check if date is a Timestamp object or string
         const dateObj = ev.date.toDate ? ev.date.toDate() : new Date(ev.date);
         dateFormatted = dateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        
+        // Add end date if it exists
+        if (ev.endDate) {
+            const endDateObj = ev.endDate.toDate ? ev.endDate.toDate() : new Date(ev.endDate);
+            const endDateFormatted = endDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+            dateFormatted = `${dateFormatted} - ${endDateFormatted}`;
+        }
     }
+    
+    // Calculate actual status based on dates
+    const actualStatus = calculateStatus(ev.date, ev.endDate);
+    const statusColor = actualStatus === 'Ongoing' ? 'bg-green-500' : (actualStatus === 'Completed' ? 'bg-gray-500' : 'bg-[var(--gold)]');
 
     card.innerHTML = `
         <div class="h-48 bg-cover bg-center relative cursor-pointer event-trigger overflow-hidden">
-            <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image:url('${bannerUrl}')"></div>
+            <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image:url('${escapeCssUrl(bannerUrl)}')"></div>
             
             <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
             
             <div class="absolute top-3 left-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded text-xs font-bold text-white border border-white/10">
                 ${escapeHtml(ev.type || 'Event')}
+            </div>
+            
+            <div class="absolute top-3 right-3 ${statusColor} text-white px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide">
+                ${actualStatus}
             </div>
         </div>
 
@@ -126,7 +142,11 @@ function openModal(ev) {
     qs('#detailDesc').innerHTML = escapeHtml(ev.description).replace(/\n/g, '<br>'); 
     
     // Metadata
-    const dateStr = ev.date ? (ev.date.toDate ? ev.date.toDate().toDateString() : new Date(ev.date).toDateString()) : 'TBA';
+    let dateStr = ev.date ? (ev.date.toDate ? ev.date.toDate().toDateString() : new Date(ev.date).toDateString()) : 'TBA';
+    if (ev.endDate) {
+        const endDateStr = ev.endDate.toDate ? ev.endDate.toDate().toDateString() : new Date(ev.endDate).toDateString();
+        dateStr = `${dateStr} - ${endDateStr}`;
+    }
     qs('#detailMeta').innerHTML = `
         <div class="flex items-center gap-2"><span class="text-[var(--gold)]">📅</span> ${dateStr}</div>
         ${ev.time ? `<div class="flex items-center gap-2"><span class="text-[var(--gold)]">⏰</span> ${escapeHtml(ev.time)}</div>` : ''}
