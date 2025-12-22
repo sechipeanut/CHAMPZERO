@@ -243,30 +243,23 @@
 
 <!-- Modal Dialogs -->
 <!-- Tournament Modal -->
-<div id="tournamentModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+<div id="tournamentModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="tournamentModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
             <h3 id="tournamentModalTitle" class="text-xl font-bold text-white">Create Tournament</h3>
-            <button onclick="closeModal('tournamentModal')" class="text-gray-400 hover:text-white transition-colors">
+            <button onclick="closeModal('tournamentModal')" class="text-gray-400 hover:text-white transition-colors" aria-label="Close">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
         <form id="tournamentForm" class="p-6 space-y-4">
-            <div><label class="block text-sm text-gray-400 mb-1">Tournament Name</label><input id="t-name" type="text" required class="dark-input w-full p-3 rounded"></div>
-            <div><label class="block text-sm text-gray-400 mb-1">Game Title</label><input id="t-game" type="text" placeholder="Valorant" required class="dark-input w-full p-3 rounded"></div>
-            <div><label class="block text-sm text-gray-400 mb-1">Prize Pool (₱)</label><input id="t-prize" type="number" required class="dark-input w-full p-3 rounded"></div>
-            <div><label class="block text-sm text-gray-400 mb-1">Status</label>
-                <select id="t-status" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]">
-                    <option value="Upcoming">Upcoming</option>
-                    <option value="Ongoing">Ongoing</option>
-                    <option value="Completed">Completed</option>
-                </select>
-            </div>
+            <div><label for="t-name" class="block text-sm text-gray-400 mb-1">Tournament Name</label><input id="t-name" type="text" required class="dark-input w-full p-3 rounded"></div>
+            <div><label for="t-game" class="block text-sm text-gray-400 mb-1">Game Title</label><input id="t-game" type="text" placeholder="Valorant" required class="dark-input w-full p-3 rounded"></div>
+            <div><label for="t-prize" class="block text-sm text-gray-400 mb-1">Prize Pool (₱)</label><input id="t-prize" type="number" required class="dark-input w-full p-3 rounded"></div>
             <div class="grid grid-cols-2 gap-4">
-                <div><label class="block text-sm text-gray-400 mb-1">Start Date</label><input id="t-date" type="date" required class="dark-input w-full p-3 rounded"></div>
-                <div><label class="block text-sm text-gray-400 mb-1">End Date</label><input id="t-end-date" type="date" class="dark-input w-full p-3 rounded"></div>
+                <div><label for="t-date" class="block text-sm text-gray-400 mb-1">Start Date</label><input id="t-date" type="date" required class="dark-input w-full p-3 rounded"></div>
+                <div><label for="t-end-date" class="block text-sm text-gray-400 mb-1">End Date</label><input id="t-end-date" type="date" class="dark-input w-full p-3 rounded"></div>
             </div>
-            <div><label class="block text-sm text-gray-400 mb-1">Banner Image URL</label><input id="t-banner" type="url" class="dark-input w-full p-3 rounded"></div>
+            <div><label for="t-banner" class="block text-sm text-gray-400 mb-1">Banner Image URL</label><input id="t-banner" type="url" class="dark-input w-full p-3 rounded"></div>
             <div class="flex gap-3 pt-4">
                 <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all">Save Tournament</button>
                 <button type="button" onclick="closeModal('tournamentModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all">Cancel</button>
@@ -276,22 +269,22 @@
 </div>
 
 <!-- Event Modal -->
-<div id="eventModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+<div id="eventModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="eventModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
             <h3 id="eventModalTitle" class="text-xl font-bold text-white">Create Event</h3>
-            <button onclick="closeModal('eventModal')" class="text-gray-400 hover:text-white transition-colors">
+            <button onclick="closeModal('eventModal')" class="text-gray-400 hover:text-white transition-colors" aria-label="Close">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
         <form id="eventForm" class="p-6 space-y-4">
-            <div><label class="block text-sm text-gray-400 mb-1">Event Title</label><input id="e-name" type="text" required class="dark-input w-full p-3 rounded"></div>
+            <div><label for="e-name" class="block text-sm text-gray-400 mb-1">Event Title</label><input id="e-name" type="text" required class="dark-input w-full p-3 rounded"></div>
             <div class="grid grid-cols-2 gap-4">
-                <div><label class="block text-sm text-gray-400 mb-1">Start Date</label><input id="e-date" type="date" required class="dark-input w-full p-3 rounded"></div>
-                <div><label class="block text-sm text-gray-400 mb-1">End Date</label><input id="e-end-date" type="date" class="dark-input w-full p-3 rounded"></div>
+                <div><label for="e-date" class="block text-sm text-gray-400 mb-1">Start Date</label><input id="e-date" type="date" required class="dark-input w-full p-3 rounded"></div>
+                <div><label for="e-end-date" class="block text-sm text-gray-400 mb-1">End Date</label><input id="e-end-date" type="date" class="dark-input w-full p-3 rounded"></div>
             </div>
-            <div><label class="block text-sm text-gray-400 mb-1">Description</label><textarea id="e-desc" rows="4" required class="dark-input w-full p-3 rounded"></textarea></div>
-            <div><label class="block text-sm text-gray-400 mb-1">Banner Image URL</label><input id="e-banner" type="url" class="dark-input w-full p-3 rounded"></div>
+            <div><label for="e-desc" class="block text-sm text-gray-400 mb-1">Description</label><textarea id="e-desc" rows="4" required class="dark-input w-full p-3 rounded"></textarea></div>
+            <div><label for="e-banner" class="block text-sm text-gray-400 mb-1">Banner Image URL</label><input id="e-banner" type="url" class="dark-input w-full p-3 rounded"></div>
             <div class="flex gap-3 pt-4">
                 <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all">Save Event</button>
                 <button type="button" onclick="closeModal('eventModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all">Cancel</button>
@@ -301,18 +294,18 @@
 </div>
 
 <!-- Job Modal -->
-<div id="jobModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+<div id="jobModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="jobModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
             <h3 id="jobModalTitle" class="text-xl font-bold text-white">Create Job</h3>
-            <button onclick="closeModal('jobModal')" class="text-gray-400 hover:text-white transition-colors">
+            <button onclick="closeModal('jobModal')" class="text-gray-400 hover:text-white transition-colors" aria-label="Close">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
         <form id="jobForm" class="p-6 space-y-4">
-            <div><label class="block text-sm text-gray-400 mb-1">Job Title</label><input id="j-title" type="text" required class="dark-input w-full p-3 rounded"></div>
-            <div><label class="block text-sm text-gray-400 mb-1">Location</label><input id="j-location" type="text" placeholder="Remote / Manila" required class="dark-input w-full p-3 rounded"></div>
-            <div><label class="block text-sm text-gray-400 mb-1">Type</label><input id="j-type" type="text" placeholder="Full-time / Contract" required class="dark-input w-full p-3 rounded"></div>
+            <div><label for="j-title" class="block text-sm text-gray-400 mb-1">Job Title</label><input id="j-title" type="text" required class="dark-input w-full p-3 rounded"></div>
+            <div><label for="j-location" class="block text-sm text-gray-400 mb-1">Location</label><input id="j-location" type="text" placeholder="Remote / Manila" required class="dark-input w-full p-3 rounded"></div>
+            <div><label for="j-type" class="block text-sm text-gray-400 mb-1">Type</label><input id="j-type" type="text" placeholder="Full-time / Contract" required class="dark-input w-full p-3 rounded"></div>
             <div class="flex gap-3 pt-4">
                 <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all">Save Job</button>
                 <button type="button" onclick="closeModal('jobModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all">Cancel</button>
@@ -322,17 +315,17 @@
 </div>
 
 <!-- Talent Modal -->
-<div id="talentModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+<div id="talentModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="talentModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
             <h3 id="talentModalTitle" class="text-xl font-bold text-white">Add Talent</h3>
-            <button onclick="closeModal('talentModal')" class="text-gray-400 hover:text-white transition-colors">
+            <button onclick="closeModal('talentModal')" class="text-gray-400 hover:text-white transition-colors" aria-label="Close">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
         <form id="talentForm" class="p-6 space-y-4">
-            <div><label class="block text-sm text-gray-400 mb-1">Name / IGN</label><input id="tal-name" type="text" required class="dark-input w-full p-3 rounded"></div>
-            <div><label class="block text-sm text-gray-400 mb-1">Role</label>
+            <div><label for="tal-name" class="block text-sm text-gray-400 mb-1">Name / IGN</label><input id="tal-name" type="text" required class="dark-input w-full p-3 rounded"></div>
+            <div><label for="tal-role" class="block text-sm text-gray-400 mb-1">Role</label>
                 <select id="tal-role" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]">
                     <option value="Streamer">Streamer</option>
                     <option value="Caster">Caster</option>
@@ -340,9 +333,9 @@
                     <option value="Content Creator">Content Creator</option>
                 </select>
             </div>
-            <div><label class="block text-sm text-gray-400 mb-1">Profile Image URL</label><input id="tal-img" type="url" placeholder="https://..." class="dark-input w-full p-3 rounded"></div>
-            <div><label class="block text-sm text-gray-400 mb-1">Social Link</label><input id="tal-link" type="url" placeholder="FB/Twitch URL" class="dark-input w-full p-3 rounded"></div>
-            <div><label class="block text-sm text-gray-400 mb-1">Short Bio</label><textarea id="tal-bio" rows="3" class="dark-input w-full p-3 rounded"></textarea></div>
+            <div><label for="tal-img" class="block text-sm text-gray-400 mb-1">Profile Image URL</label><input id="tal-img" type="url" placeholder="https://..." class="dark-input w-full p-3 rounded"></div>
+            <div><label for="tal-link" class="block text-sm text-gray-400 mb-1">Social Link</label><input id="tal-link" type="url" placeholder="FB/Twitch URL" class="dark-input w-full p-3 rounded"></div>
+            <div><label for="tal-bio" class="block text-sm text-gray-400 mb-1">Short Bio</label><textarea id="tal-bio" rows="3" class="dark-input w-full p-3 rounded"></textarea></div>
             <div class="flex gap-3 pt-4">
                 <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all">Save Talent</button>
                 <button type="button" onclick="closeModal('talentModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all">Cancel</button>
@@ -352,17 +345,17 @@
 </div>
 
 <!-- Notification Modal -->
-<div id="notificationModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+<div id="notificationModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="notificationModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
             <h3 id="notificationModalTitle" class="text-xl font-bold text-white">Create Announcement</h3>
-            <button onclick="closeModal('notificationModal')" class="text-gray-400 hover:text-white transition-colors">
+            <button onclick="closeModal('notificationModal')" class="text-gray-400 hover:text-white transition-colors" aria-label="Close">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
         <form id="notifForm" class="p-6 space-y-4">
-            <div><label class="block text-sm text-gray-400 mb-1">Title</label><input id="n-title" type="text" placeholder="New Tournament Live!" required class="dark-input w-full p-3 rounded"></div>
-            <div><label class="block text-sm text-gray-400 mb-1">Type</label>
+            <div><label for="n-title" class="block text-sm text-gray-400 mb-1">Title</label><input id="n-title" type="text" placeholder="New Tournament Live!" required class="dark-input w-full p-3 rounded"></div>
+            <div><label for="n-type" class="block text-sm text-gray-400 mb-1">Type</label>
                 <select id="n-type" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]">
                     <option value="general">General 📢</option>
                     <option value="tournament">Tournament 🏆</option>
@@ -370,7 +363,7 @@
                     <option value="alert">Alert ⚠️</option>
                 </select>
             </div>
-            <div><label class="block text-sm text-gray-400 mb-1">Message</label><textarea id="n-message" rows="4" required class="dark-input w-full p-3 rounded"></textarea></div>
+            <div><label for="n-message" class="block text-sm text-gray-400 mb-1">Message</label><textarea id="n-message" rows="4" required class="dark-input w-full p-3 rounded"></textarea></div>
             <div class="flex gap-3 pt-4">
                 <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all">Send Announcement</button>
                 <button type="button" onclick="closeModal('notificationModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all">Cancel</button>

@@ -1,34 +1,12 @@
 import { db } from './firebase-config.js';
 import { collection, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { calculateStatus, escapeCssUrl } from './utils.js';
 
 let allTournaments = [];
 
 // Helper functions
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
-// Calculate status based on dates
-function calculateStatus(startDate, endDate) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to midnight for accurate comparison
-    
-    if (!startDate) return 'Upcoming'; // Default if no date
-    
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    
-    // If end date exists, use it; otherwise use start date
-    const end = endDate ? new Date(endDate) : new Date(startDate);
-    end.setHours(23, 59, 59, 999); // End of the day
-    
-    if (today < start) {
-        return 'Upcoming';
-    } else if (today >= start && today <= end) {
-        return 'Ongoing';
-    } else {
-        return 'Completed';
-    }
-}
 
 // --- Fetch Data ---
 async function fetchTournaments() {
@@ -104,7 +82,7 @@ function renderTournaments() {
         }
 
         card.innerHTML = `
-            <div class="h-48 bg-cover bg-center relative" style="background-image:url('${bannerUrl}')">
+            <div class="h-48 bg-cover bg-center relative" style="background-image:url('${escapeCssUrl(bannerUrl)}')">
                 <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
                 <span class="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white uppercase tracking-wide border border-white/10">
                     ${escapeHtml(t.game)}
