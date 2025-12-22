@@ -118,9 +118,11 @@ let editState = {
 let currentUserId = null;
 let currentUserData = null;
 
-// --- 1. ADMIN CHECK ---
+// --- 1. ADMIN CHECK WITH SECURE LOADING ---
 onAuthStateChanged(auth, async (user) => {
+    // 1. Check if user is logged in
     if (!user) {
+        console.log("No user logged in, redirecting to login...");
         window.location.href = "/login";
         return;
     }
@@ -128,29 +130,37 @@ onAuthStateChanged(auth, async (user) => {
     currentUserId = user.uid; // Store current user ID
 
     try {
+        // 2. Fetch user data from Firestore
         const userRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userRef);
         const adminEmails = ["admin@champzero.com", "owner@champzero.com"];
-        // Check both Role and specific email whitelist
+        
+        // 3. Check if user has admin role or is in whitelist
         const isAdminRole = userSnap.exists() && userSnap.data().role === 'admin';
         
         if (isAdminRole || adminEmails.includes(user.email)) {
-            console.log("Admin Authorized");
+            console.log("✅ Admin Authorized - Loading Dashboard");
             
-            // Store user data and update header
+            // Store user data
             if (userSnap.exists()) {
                 currentUserData = userSnap.data();
             }
-            updateAdminHeader(user, currentUserData);
             
+            // Hide loading screen and show admin content
+            document.getElementById('auth-loading-screen')?.classList.add('hidden');
+            document.getElementById('admin-content')?.classList.remove('hidden');
+            
+            // Update header and load data
+            updateAdminHeader(user, currentUserData);
             refreshAllLists();
         } else {
-            window.showErrorToast("Access Denied", "You do not have permission to access this page.", 3000);
-            setTimeout(() => window.location.href = "/", 2000);
+            // User is not an admin - redirect to access denied page
+            console.log("❌ Access Denied - Not an admin");
+            window.location.href = "/access-denied";
         }
     } catch (error) {
-        console.error("Auth Error:", error);
-        window.location.href = "/";
+        console.error("❌ Auth Error:", error);
+        window.location.href = "/access-denied";
     }
 });
 
