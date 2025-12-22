@@ -51,7 +51,6 @@
 </head>
 <body class="bg-[var(--dark-bg)] text-gray-200 antialiased">
 
-<!-- Loading/Authorization Screen -->
 <div id="auth-loading-screen" class="fixed inset-0 z-[9999] bg-[var(--dark-bg)] flex items-center justify-center">
     <div class="text-center">
         <div class="relative inline-block mb-6">
@@ -67,7 +66,6 @@
     </div>
 </div>
 
-<!-- Admin Content (Hidden by default) -->
 <div id="admin-content" class="hidden">
 
 <header class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 h-16 flex items-center justify-between px-8">
@@ -75,11 +73,9 @@
         <span class="font-bold text-xl text-[var(--gold)]">ChampZero Admin</span>
     </div>
     <div class="flex items-center gap-4">
-        <!-- Desktop Admin Name -->
         <span id="admin-name-desktop" class="hidden md:block text-sm text-gray-300">
             <span class="text-[var(--gold)]">👋</span> <span id="admin-display-name">Loading...</span>
         </span>
-        <!-- Mobile Profile Menu -->
         <div class="md:hidden relative">
             <button id="mobile-profile-btn" class="w-9 h-9 rounded-full overflow-hidden border-2 border-[var(--gold)]/50 hover:border-[var(--gold)] transition-colors">
                 <img id="mobile-profile-img" src="pictures/cz_logo.png" alt="Profile" class="w-full h-full object-cover">
@@ -97,21 +93,18 @@
     </div>
 </header>
 
-<!-- Mobile Hamburger Button -->
 <button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()">
     <div class="hamburger-line"></div>
     <div class="hamburger-line"></div>
     <div class="hamburger-line"></div>
 </button>
 
-<!-- Mobile Overlay -->
 <div class="mobile-overlay" id="mobile-overlay" onclick="toggleSidebar()"></div>
 
-<!-- Sidebar Navigation -->
 <aside class="sidebar" id="sidebar">
     <nav class="py-4">
         <div class="sidebar-item active" onclick="switchTab('tournaments')" id="nav-tournaments">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z"></path></svg>
             <span>Tournaments</span>
         </div>
         <div class="sidebar-item" onclick="switchTab('events')" id="nav-events">
@@ -211,7 +204,6 @@
     <section id="tab-users" class="tab-content hidden">
         <h2 class="text-xl font-bold text-white mb-6">User Management</h2>
         
-        <!-- Role Filter Tabs -->
         <div class="bg-[var(--dark-card)] p-4 rounded-xl border border-white/10 mb-6">
             <div class="flex flex-wrap gap-2 mb-4 border-b border-white/10 pb-4">
                 <button onclick="filterUsersByRole('all')" id="role-tab-all" class="role-tab active px-4 py-2 rounded-lg font-medium transition-all">
@@ -260,8 +252,6 @@
 </div>
 </main>
 
-<!-- Modal Dialogs -->
-<!-- Tournament Modal -->
 <div id="tournamentModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="tournamentModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
@@ -270,7 +260,7 @@
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
-        <form id="tournamentForm" class="p-6 space-y-4">
+        <form id="tournamentForm" class="p-6 space-y-4" novalidate>
             <div><label for="t-name" class="block text-sm text-gray-400 mb-1">Tournament Name</label><input id="t-name" type="text" required class="dark-input w-full p-3 rounded"></div>
             <div><label for="t-game" class="block text-sm text-gray-400 mb-1">Game Title</label><input id="t-game" type="text" placeholder="Valorant" required class="dark-input w-full p-3 rounded"></div>
             <div><label for="t-prize" class="block text-sm text-gray-400 mb-1">Prize Pool (₱)</label><input id="t-prize" type="number" required class="dark-input w-full p-3 rounded"></div>
@@ -287,7 +277,6 @@
     </div>
 </div>
 
-<!-- Event Modal -->
 <div id="eventModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="eventModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
@@ -296,7 +285,7 @@
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
-        <form id="eventForm" class="p-6 space-y-4">
+        <form id="eventForm" class="p-6 space-y-4" novalidate>
             <div><label for="e-name" class="block text-sm text-gray-400 mb-1">Event Title</label><input id="e-name" type="text" required class="dark-input w-full p-3 rounded"></div>
             <div class="grid grid-cols-2 gap-4">
                 <div><label for="e-date" class="block text-sm text-gray-400 mb-1">Start Date</label><input id="e-date" type="date" required class="dark-input w-full p-3 rounded"></div>
@@ -312,7 +301,6 @@
     </div>
 </div>
 
-<!-- Job Modal -->
 <div id="jobModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="jobModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
@@ -321,7 +309,7 @@
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
-        <form id="jobForm" class="p-6 space-y-4">
+        <form id="jobForm" class="p-6 space-y-4" novalidate>
             <div><label for="j-title" class="block text-sm text-gray-400 mb-1">Job Title</label><input id="j-title" type="text" required class="dark-input w-full p-3 rounded"></div>
             <div><label for="j-location" class="block text-sm text-gray-400 mb-1">Location</label><input id="j-location" type="text" placeholder="Remote / Manila" required class="dark-input w-full p-3 rounded"></div>
             <div><label for="j-type" class="block text-sm text-gray-400 mb-1">Type</label><input id="j-type" type="text" placeholder="Full-time / Contract" required class="dark-input w-full p-3 rounded"></div>
@@ -333,7 +321,6 @@
     </div>
 </div>
 
-<!-- Talent Modal -->
 <div id="talentModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="talentModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
@@ -342,7 +329,7 @@
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
-        <form id="talentForm" class="p-6 space-y-4">
+        <form id="talentForm" class="p-6 space-y-4" novalidate>
             <div><label for="tal-name" class="block text-sm text-gray-400 mb-1">Name / IGN</label><input id="tal-name" type="text" required class="dark-input w-full p-3 rounded"></div>
             <div><label for="tal-role" class="block text-sm text-gray-400 mb-1">Role</label>
                 <select id="tal-role" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]">
@@ -363,7 +350,6 @@
     </div>
 </div>
 
-<!-- Notification Modal -->
 <div id="notificationModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="notificationModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
@@ -372,7 +358,7 @@
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
             </button>
         </div>
-        <form id="notifForm" class="p-6 space-y-4">
+        <form id="notifForm" class="p-6 space-y-4" novalidate>
             <div><label for="n-title" class="block text-sm text-gray-400 mb-1">Title</label><input id="n-title" type="text" placeholder="New Tournament Live!" required class="dark-input w-full p-3 rounded"></div>
             <div><label for="n-type" class="block text-sm text-gray-400 mb-1">Type</label>
                 <select id="n-type" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]">
@@ -452,52 +438,30 @@
         });
     });
     
-    // Date validation for tournaments
-    const tStartDate = document.getElementById('t-date');
-    const tEndDate = document.getElementById('t-end-date');
-    if (tStartDate && tEndDate) {
-        tStartDate.addEventListener('change', () => {
-            if (tStartDate.value) {
-                tEndDate.setAttribute('min', tStartDate.value);
-                if (tEndDate.value && tEndDate.value < tStartDate.value) {
-                    tEndDate.value = tStartDate.value;
-                }
-            }
-        });
-        
-        tEndDate.addEventListener('change', () => {
-            if (tStartDate.value && tEndDate.value && tEndDate.value < tStartDate.value) {
-                alert('End date cannot be before start date');
-                tEndDate.value = tStartDate.value;
-            }
-        });
-    }
-    
-    // Date validation for events
-    const eStartDate = document.getElementById('e-date');
-    const eEndDate = document.getElementById('e-end-date');
-    if (eStartDate && eEndDate) {
-        eStartDate.addEventListener('change', () => {
-            if (eStartDate.value) {
-                eEndDate.setAttribute('min', eStartDate.value);
-                if (eEndDate.value && eEndDate.value < eStartDate.value) {
-                    eEndDate.value = eStartDate.value;
-                }
-            }
-        });
-        
-        eEndDate.addEventListener('change', () => {
-            if (eStartDate.value && eEndDate.value && eEndDate.value < eStartDate.value) {
-                alert('End date cannot be before start date');
-                eEndDate.value = eStartDate.value;
-            }
-        });
-    }
+    // --- Updated Date validation for tournaments (admin.html) ---
+const tStartDate = document.getElementById('t-date');
+const tEndDate = document.getElementById('t-end-date');
+if (tStartDate && tEndDate) {
+    tStartDate.addEventListener('change', () => {
+        if (tStartDate.value) {
+            tEndDate.setAttribute('min', tStartDate.value);
+        }
+    });
+}
+
+// --- Updated Date validation for events (admin.html) ---
+const eStartDate = document.getElementById('e-date');
+const eEndDate = document.getElementById('e-end-date');
+if (eStartDate && eEndDate) {
+    eStartDate.addEventListener('change', () => {
+        if (eStartDate.value) {
+            eEndDate.setAttribute('min', eStartDate.value);
+        }
+    });
+}
 </script>
 
-</div> <!-- End admin-content -->
-
-<script src="js/toast.js"></script>
+</div> <script src="js/toast.js"></script>
 <script src="js/alert-compat.js"></script>
 <script type="module" src="js/admin.js"></script>
 </body>

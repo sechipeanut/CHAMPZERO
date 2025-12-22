@@ -1,21 +1,21 @@
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-import { 
-    doc, 
-    getDoc, 
-    addDoc, 
-    updateDoc, 
-    deleteDoc, 
-    collection, 
-    getDocs, 
+import {
+    doc,
+    getDoc,
+    addDoc,
+    updateDoc,
+    deleteDoc,
+    collection,
+    getDocs,
     query,
     serverTimestamp,
-    orderBy 
+    orderBy
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { toDateInputFormat, calculateStatus } from './utils.js';
 
 function qs(sel) { return document.querySelector(sel); }
-function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
 
 // Focus management state
 let lastFocusedElement = null;
@@ -24,24 +24,24 @@ let firstFocusableElement = null;
 let lastFocusableElement = null;
 
 // Modal Management Functions
-window.openModal = function(modalId) {
+window.openModal = function (modalId) {
     // Store the currently focused element
     lastFocusedElement = document.activeElement;
-    
+
     const modal = document.getElementById(modalId);
     modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
-    
+
     // Get all focusable elements in the modal
     setTimeout(() => {
         focusableElements = modal.querySelectorAll(
             'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
         );
-        
+
         if (focusableElements.length > 0) {
             firstFocusableElement = focusableElements[0];
             lastFocusableElement = focusableElements[focusableElements.length - 1];
-            
+
             // Focus the first focusable element (usually the first input or close button)
             const firstInput = modal.querySelector('input:not([type="hidden"]), textarea, select');
             if (firstInput) {
@@ -51,25 +51,25 @@ window.openModal = function(modalId) {
             }
         }
     }, 50);
-    
+
     // Add focus trap listener
     modal.addEventListener('keydown', trapFocus);
 }
 
-window.closeModal = function(modalId) {
+window.closeModal = function (modalId) {
     const modal = document.getElementById(modalId);
     modal.classList.add('hidden');
     document.body.style.overflow = 'auto';
-    
+
     // Remove focus trap listener
     modal.removeEventListener('keydown', trapFocus);
-    
+
     // Return focus to the element that opened the modal
     if (lastFocusedElement) {
         lastFocusedElement.focus();
         lastFocusedElement = null;
     }
-    
+
     // Reset edit state when closing - determine form selector from modalId
     const formMap = {
         'tournamentModal': '#tournamentForm',
@@ -84,7 +84,7 @@ window.closeModal = function(modalId) {
 // Focus trap function
 function trapFocus(e) {
     if (e.key !== 'Tab') return;
-    
+
     if (e.shiftKey) {
         // Shift + Tab
         if (document.activeElement === firstFocusableElement) {
@@ -100,11 +100,11 @@ function trapFocus(e) {
     }
 }
 
-window.openTournamentModal = function() { openModal('tournamentModal'); }
-window.openEventModal = function() { openModal('eventModal'); }
-window.openJobModal = function() { openModal('jobModal'); }
-window.openTalentModal = function() { openModal('talentModal'); }
-window.openNotificationModal = function() { openModal('notificationModal'); }
+window.openTournamentModal = function () { openModal('tournamentModal'); }
+window.openEventModal = function () { openModal('eventModal'); }
+window.openJobModal = function () { openModal('jobModal'); }
+window.openTalentModal = function () { openModal('talentModal'); }
+window.openNotificationModal = function () { openModal('notificationModal'); }
 
 // State to track if we are editing
 let editState = {
@@ -134,22 +134,22 @@ onAuthStateChanged(auth, async (user) => {
         const userRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userRef);
         const adminEmails = ["admin@champzero.com", "owner@champzero.com"];
-        
+
         // 3. Check if user has admin role or is in whitelist
         const isAdminRole = userSnap.exists() && userSnap.data().role === 'admin';
-        
+
         if (isAdminRole || adminEmails.includes(user.email)) {
             console.log("✅ Admin Authorized - Loading Dashboard");
-            
+
             // Store user data
             if (userSnap.exists()) {
                 currentUserData = userSnap.data();
             }
-            
+
             // Hide loading screen and show admin content
             document.getElementById('auth-loading-screen')?.classList.add('hidden');
             document.getElementById('admin-content')?.classList.remove('hidden');
-            
+
             // Update header and load data
             updateAdminHeader(user, currentUserData);
             refreshAllLists();
@@ -173,7 +173,7 @@ function updateAdminHeader(user, userData) {
         displayNameEl.textContent = displayName;
         displayNameEl.classList.remove('opacity-50'); // Remove loading state
     }
-    
+
     // Mobile profile picture
     const profileImg = qs('#mobile-profile-img');
     if (profileImg) {
@@ -182,7 +182,7 @@ function updateAdminHeader(user, userData) {
         }
         profileImg.classList.remove('opacity-50'); // Remove loading state
     }
-    
+
     // Mobile menu name
     const mobileNameEl = qs('#mobile-admin-name');
     if (mobileNameEl) {
@@ -196,26 +196,26 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set loading state on header elements
     const displayNameEl = qs('#admin-display-name');
     const profileImg = qs('#mobile-profile-img');
-    
+
     if (displayNameEl) {
         displayNameEl.textContent = 'Loading...';
         displayNameEl.classList.add('opacity-50');
     }
-    
+
     if (profileImg) {
         profileImg.classList.add('opacity-50');
     }
-    
+
     // Setup mobile profile menu
     const profileBtn = qs('#mobile-profile-btn');
     const profileMenu = qs('#mobile-profile-menu');
-    
+
     if (profileBtn && profileMenu) {
         profileBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             profileMenu.classList.toggle('hidden');
         });
-        
+
         // Close menu when clicking outside
         document.addEventListener('click', (e) => {
             if (!profileMenu.contains(e.target) && !profileBtn.contains(e.target)) {
@@ -228,13 +228,13 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- 2. CORE FUNCTIONS (Edit, Delete, Reset) ---
 
 // DELETE ITEM
-window.deleteItem = async function(collectionName, docId) {
+window.deleteItem = async function (collectionName, docId) {
     const confirmed = await window.showCustomConfirm("Delete Item?", "Are you sure you want to delete this? This action cannot be undone.");
-    if(!confirmed) return;
+    if (!confirmed) return;
     try {
         await deleteDoc(doc(db, collectionName, docId));
         window.showSuccessToast("Deleted", "Item deleted successfully.", 2000);
-        refreshAllLists(); 
+        refreshAllLists();
     } catch (error) {
         console.error("Delete Error:", error);
         window.showErrorToast("Delete Failed", error.message, 4000);
@@ -242,19 +242,19 @@ window.deleteItem = async function(collectionName, docId) {
 }
 
 // EDIT ITEM (Populate Form)
-window.editItem = async function(collectionName, docId) {
+window.editItem = async function (collectionName, docId) {
     try {
         // 1. Fetch data
         const docRef = doc(db, collectionName, docId);
         const docSnap = await getDoc(docRef);
-        
+
         if (!docSnap.exists()) {
             window.showErrorToast("Not Found", "Item not found in database.", 3000);
             return;
         }
 
         const data = docSnap.data();
-        
+
         // 2. Determine which form to fill based on collection
         if (collectionName === 'tournaments') {
             qs('#t-name').value = data.name;
@@ -266,7 +266,7 @@ window.editItem = async function(collectionName, docId) {
             qs('#t-banner').value = data.banner;
             prepareEditMode('tournaments', docId, '#tournamentForm', 'tournamentModal');
             openModal('tournamentModal');
-        } 
+        }
         else if (collectionName === 'events') {
             qs('#e-name').value = data.name;
             // Convert Firestore Timestamp to YYYY-MM-DD format for date inputs
@@ -276,7 +276,7 @@ window.editItem = async function(collectionName, docId) {
             qs('#e-banner').value = data.banner;
             prepareEditMode('events', docId, '#eventForm', 'eventModal');
             openModal('eventModal');
-        } 
+        }
         else if (collectionName === 'careers') {
             qs('#j-title').value = data.title;
             qs('#j-location').value = data.location;
@@ -312,10 +312,10 @@ window.editItem = async function(collectionName, docId) {
 // Helper to set UI to "Edit Mode"
 function prepareEditMode(col, id, formSelector, modalId) {
     editState = { isEditing: true, collection: col, id: id, formId: formSelector, modalId: modalId };
-    
+
     const form = qs(formSelector);
     const btn = form.querySelector('button[type="submit"]');
-    
+
     // Update modal title
     const modalTitleMap = {
         'tournamentModal': 'Edit Tournament',
@@ -324,12 +324,12 @@ function prepareEditMode(col, id, formSelector, modalId) {
         'talentModal': 'Edit Talent',
         'notificationModal': 'Edit Announcement'
     };
-    
+
     if (modalId && modalTitleMap[modalId]) {
         const titleEl = qs(`#${modalId.replace('Modal', 'ModalTitle')}`);
         if (titleEl) titleEl.textContent = modalTitleMap[modalId];
     }
-    
+
     // Change Button Text (explicit mapping instead of fragile string replacement)
     if (btn && form) {
         const buttonEditTextMap = {
@@ -354,10 +354,10 @@ function resetFormState(formSelector) {
     // If formSelector provided, use it; otherwise use from editState
     const selector = formSelector || editState.formId;
     if (!selector) return;
-    
+
     const form = qs(selector);
     if (form) form.reset();
-    
+
     // Reset modal titles
     const modalTitleMap = {
         'tournamentModal': 'Create Tournament',
@@ -366,12 +366,12 @@ function resetFormState(formSelector) {
         'talentModal': 'Add Talent',
         'notificationModal': 'Create Announcement'
     };
-    
+
     if (editState.modalId && modalTitleMap[editState.modalId]) {
         const titleEl = qs(`#${editState.modalId.replace('Modal', 'ModalTitle')}`);
         if (titleEl) titleEl.textContent = modalTitleMap[editState.modalId];
     }
-    
+
     // Reset button text
     if (form) {
         const btn = form.querySelector('button[type="submit"]');
@@ -407,7 +407,7 @@ async function refreshAllLists() {
 
 async function fetchTournaments() {
     const list = qs('#tournaments-list');
-    const q = query(collection(db, "tournaments")); 
+    const q = query(collection(db, "tournaments"));
     const snapshot = await getDocs(q);
     list.innerHTML = snapshot.empty ? '<p class="text-gray-500 italic">No tournaments found.</p>' : '';
     snapshot.forEach(doc => {
@@ -485,10 +485,10 @@ async function fetchNotifications() {
     list.innerHTML = snapshot.empty ? '<p class="text-gray-500">No announcements yet.</p>' : '';
     snapshot.forEach(doc => {
         const data = doc.data();
-        let icon = '📢'; 
-        if(data.type === 'tournament') icon = '🏆';
-        if(data.type === 'event') icon = '🎉';
-        if(data.type === 'alert') icon = '⚠️';
+        let icon = '📢';
+        if (data.type === 'tournament') icon = '🏆';
+        if (data.type === 'event') icon = '🎉';
+        if (data.type === 'alert') icon = '⚠️';
 
         list.innerHTML += `
             <div class="admin-item">
@@ -512,10 +512,10 @@ async function fetchMessages() {
     const q = query(collection(db, "messages"));
     const snapshot = await getDocs(q);
     list.innerHTML = snapshot.empty ? `<div class="text-center py-12 bg-white/5 rounded-lg border border-white/10"><p class="text-gray-400">Inbox is empty.</p></div>` : '';
-    
+
     // Update Badge
     const badge = qs('#msg-badge');
-    if(badge) {
+    if (badge) {
         badge.textContent = snapshot.size;
         badge.classList.remove('hidden');
     }
@@ -552,28 +552,43 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const handleForm = (formId, collectionName, getDataFn, successMsg) => {
         const form = qs(formId);
-        if(!form) return;
-        
+        if (!form) return;
+
         // Save original button text for reset
         const btn = form.querySelector('button[type="submit"]');
         btn.setAttribute('data-original-text', btn.textContent);
 
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
+
+            // 1. Get Data & Validate - BEFORE disabling button
+            let data;
+            try {
+                // If validation fails, getDataFn should throw an error (and optionally show a toast)
+                data = getDataFn();
+            } catch (err) {
+                // If specific validation error (silent-cancel), we stop here.
+                // The error toast is handled inside getDataFn.
+                if (err.message === 'silent-cancel') {
+                    return;
+                }
+                // Unexpected errors logged
+                console.error(err);
+                return;
+            }
+
+            // 2. Start Processing
             btn.disabled = true;
             btn.textContent = "Processing...";
 
             try {
-                const data = getDataFn();
-                
                 if (editState.isEditing && editState.collection === collectionName && editState.formId === formId) {
                     // --- UPDATE EXISTING ---
                     const docRef = doc(db, collectionName, editState.id);
                     data.updatedAt = serverTimestamp(); // Use serverTimestamp for updates
                     await updateDoc(docRef, data);
-                    window.showSuccessToast("Updated", "Item updated successfully!", 2000);
-                    
+                    window.showSuccessToast("Updated", "Changes saved successfully!", 2000);
+
                     // Close modal if in edit mode
                     if (editState.modalId) {
                         closeModal(editState.modalId);
@@ -585,7 +600,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     await addDoc(collection(db, collectionName), data);
                     window.showSuccessToast("Created", successMsg, 2000);
                     form.reset();
-                    
+
                     // Close modal after creating
                     const modalMap = {
                         'tournamentForm': 'tournamentModal',
@@ -601,23 +616,35 @@ document.addEventListener('DOMContentLoaded', () => {
                 refreshAllLists();
             } catch (err) {
                 console.error(err);
-                window.showErrorToast("Error", err.message, 4000);
+                window.showErrorToast("Server Error", "Could not save data. Please try again.", 4000);
             } finally {
+                // 3. Reset Button State
                 btn.disabled = false;
-                // Text will be reset by resetFormState if edited, or manually here if added
-                if(!editState.isEditing) btn.textContent = btn.getAttribute('data-original-text');
+                
+                // If the form hasn't been reset (e.g. error occurred or just staying on page), 
+                // restore the original button text.
+                if (btn.textContent === "Processing...") {
+                    btn.textContent = btn.getAttribute('data-original-text');
+                }
             }
         });
     };
 
     // Setup All Forms
+
+    // --- Synchronized Tournament Logic ---
     handleForm('#tournamentForm', 'tournaments', () => {
         const startDate = qs('#t-date').value;
         const endDate = qs('#t-end-date').value || startDate;
-        
-        // Auto-calculate status based on dates using shared utility
+
+        // VALIDATION ON SUBMIT
+        if (new Date(endDate) < new Date(startDate)) {
+            window.showErrorToast("Date Error", "End date cannot be earlier than start date.");
+            throw new Error("silent-cancel"); // Stops flow without extra error toast
+        }
+
         const status = calculateStatus(startDate, endDate);
-        
+
         return {
             name: qs('#t-name').value,
             game: qs('#t-game').value,
@@ -629,10 +656,17 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }, "Tournament Created!");
 
+    // --- Synchronized Event Logic ---
     handleForm('#eventForm', 'events', () => {
         const startDate = qs('#e-date').value;
         const endDate = qs('#e-end-date').value || startDate;
-        
+
+        // VALIDATION ON SUBMIT
+        if (new Date(endDate) < new Date(startDate)) {
+            window.showErrorToast("Date Error", "End date cannot be earlier than start date.");
+            throw new Error("silent-cancel"); // Stops flow without extra error toast
+        }
+
         return {
             name: qs('#e-name').value,
             date: startDate,
@@ -672,7 +706,7 @@ let currentRoleFilter = 'all'; // Current role filter
 let usersLoaded = false; // Track if users have been loaded
 
 // Refresh Users List
-window.refreshUsers = async function() {
+window.refreshUsers = async function () {
     console.log("🔄 Fetching users from Netlify Function...");
     try {
         const user = auth.currentUser;
@@ -682,7 +716,7 @@ window.refreshUsers = async function() {
         }
 
         const token = await user.getIdToken();
-        
+
         const response = await fetch('/.netlify/functions/get-users', {
             headers: {
                 'Authorization': `Bearer ${token}`
@@ -695,16 +729,16 @@ window.refreshUsers = async function() {
         }
 
         allUsers = await response.json();
-        
+
         console.log(`✅ Found ${allUsers.length} users`);
-        
+
         // Sort by createdAt if available, newest first
         allUsers.sort((a, b) => {
             const aTime = a.createdAt ? (a.createdAt.seconds || 0) : 0;
             const bTime = b.createdAt ? (b.createdAt.seconds || 0) : 0;
             return bTime - aTime;
         });
-        
+
         console.log("📊 Displaying users in table...");
         usersLoaded = true; // Mark users as loaded
         updateUserCounts();
@@ -721,22 +755,22 @@ function updateUserCounts() {
     const totalUsers = allUsers.length;
     const adminUsers = allUsers.filter(u => u.role === 'admin').length;
     const regularUsers = allUsers.filter(u => u.role !== 'admin').length;
-    
+
     qs('#user-count').textContent = totalUsers;
     qs('#admin-count').textContent = adminUsers;
     qs('#regular-user-count').textContent = regularUsers;
 }
 
 // Filter users by role
-window.filterUsersByRole = function(role) {
+window.filterUsersByRole = function (role) {
     currentRoleFilter = role;
-    
+
     // Update tab styling
     document.querySelectorAll('.role-tab').forEach(tab => {
         tab.classList.remove('active');
     });
     qs(`#role-tab-${role}`)?.classList.add('active');
-    
+
     // Apply filters
     applyCurrentFilters();
 }
@@ -744,7 +778,7 @@ window.filterUsersByRole = function(role) {
 // Apply current filters (role + search)
 function applyCurrentFilters() {
     let filtered = allUsers;
-    
+
     // Apply role filter
     if (currentRoleFilter !== 'all') {
         filtered = filtered.filter(user => {
@@ -752,7 +786,7 @@ function applyCurrentFilters() {
             return userRole === currentRoleFilter;
         });
     }
-    
+
     // Apply search filter if search box has text
     const searchInput = qs('#user-search');
     if (searchInput && searchInput.value.trim()) {
@@ -763,7 +797,7 @@ function applyCurrentFilters() {
             return name.includes(searchTerm) || email.includes(searchTerm);
         });
     }
-    
+
     displayUsers(filtered);
 }
 
@@ -771,17 +805,17 @@ function applyCurrentFilters() {
 function displayUsers(users) {
     console.log(`📋 displayUsers called with ${users?.length || 0} users`);
     const tbody = qs('#users-table-body');
-    
+
     if (!tbody) {
         console.error("❌ Could not find #users-table-body element!");
         return;
     }
-    
+
     if (!users || users.length === 0) {
         tbody.innerHTML = '<tr><td colspan="6" class="text-center p-8 text-gray-500">No users found</td></tr>';
         return;
     }
-    
+
     console.log("✏️ Rendering user rows...");
     tbody.innerHTML = users.map(user => {
         const displayName = user.displayName || user.username || 'N/A';
@@ -790,12 +824,12 @@ function displayUsers(users) {
         const isAdmin = role === 'admin';
         const isSelf = user.id === currentUserId; // Check if this is the current user
         const avatar = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=1A1A1F&color=FFD700`;
-        
+
         // Use createdAt if available, otherwise fall back to joinedAt
         const createdAt = user.createdAt ? formatDate(user.createdAt) : (user.joinedAt ? formatDate(user.joinedAt) : 'N/A');
         const lastSignIn = user.lastSignInTime ? formatDate(user.lastSignInTime) : 'Never';
         const emailVerified = user.emailVerified;
-        
+
         return `
             <tr class="border-b border-white/5 hover:bg-white/5 transition">
                 <td class="p-4">
@@ -841,7 +875,7 @@ setTimeout(initUserSearch, 500);
 // Format Date
 function formatDate(timestamp) {
     if (!timestamp) return 'N/A';
-    
+
     let date;
     if (timestamp.toDate) {
         // Firestore Timestamp object
@@ -862,15 +896,15 @@ function formatDate(timestamp) {
         // Try to parse as date directly
         date = new Date(timestamp);
     }
-    
+
     // Check if date is valid
     if (isNaN(date.getTime())) {
         return 'N/A';
     }
-    
-    return date.toLocaleDateString('en-US', { 
-        year: 'numeric', 
-        month: 'short', 
+
+    return date.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
         day: 'numeric',
         hour: '2-digit',
         minute: '2-digit'
@@ -878,14 +912,14 @@ function formatDate(timestamp) {
 }
 
 // View User Details with Custom Modal
-window.viewUserDetails = async function(userId) {
+window.viewUserDetails = async function (userId) {
     try {
         const userDoc = await getDoc(doc(db, 'users', userId));
         if (!userDoc.exists()) {
             window.showErrorToast("Not Found", "User not found.", 3000);
             return;
         }
-        
+
         const user = userDoc.data();
         showUserDetailsModal(userId, user);
     } catch (error) {
@@ -901,7 +935,7 @@ function showUserDetailsModal(userId, user) {
     const role = user.role || 'user';
     const isAdmin = role === 'admin';
     const isSelf = userId === currentUserId; // Check if viewing own profile
-    
+
     // Create modal overlay
     const overlay = document.createElement('div');
     overlay.style.cssText = `
@@ -920,7 +954,7 @@ function showUserDetailsModal(userId, user) {
         overflow-y: auto;
         padding: 20px;
     `;
-    
+
     // Create modal
     const modal = document.createElement('div');
     modal.style.cssText = `
@@ -933,7 +967,7 @@ function showUserDetailsModal(userId, user) {
         animation: scaleIn 0.2s ease;
         margin: auto;
     `;
-    
+
     // Create content
     modal.innerHTML = `
         <style>
@@ -1063,10 +1097,10 @@ function showUserDetailsModal(userId, user) {
             ">Close</button>
         </div>
     `;
-    
+
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
-    
+
     // Handle close
     const cleanup = () => {
         overlay.style.animation = 'fadeIn 0.2s ease reverse';
@@ -1074,7 +1108,7 @@ function showUserDetailsModal(userId, user) {
             document.body.removeChild(overlay);
         }, 200);
     };
-    
+
     const closeBtn = modal.querySelector('#close-modal-btn');
     closeBtn.addEventListener('click', cleanup);
     closeBtn.addEventListener('mouseenter', () => {
@@ -1083,12 +1117,12 @@ function showUserDetailsModal(userId, user) {
     closeBtn.addEventListener('mouseleave', () => {
         closeBtn.style.opacity = '1';
     });
-    
+
     // Handle role change buttons if not self
     if (!isSelf) {
         const makeAdminBtn = modal.querySelector('#make-admin-btn');
         const removeAdminBtn = modal.querySelector('#remove-admin-btn');
-        
+
         if (makeAdminBtn) {
             makeAdminBtn.addEventListener('click', async () => {
                 cleanup();
@@ -1101,7 +1135,7 @@ function showUserDetailsModal(userId, user) {
                 makeAdminBtn.style.opacity = '1';
             });
         }
-        
+
         if (removeAdminBtn) {
             removeAdminBtn.addEventListener('click', async () => {
                 cleanup();
@@ -1115,7 +1149,7 @@ function showUserDetailsModal(userId, user) {
             });
         }
     }
-    
+
     overlay.addEventListener('click', (e) => {
         if (e.target === overlay) {
             cleanup();
@@ -1124,25 +1158,25 @@ function showUserDetailsModal(userId, user) {
 }
 
 // Toggle User Role
-window.toggleUserRole = async function(userId, newRole) {
+window.toggleUserRole = async function (userId, newRole) {
     // Prevent self-modification
     if (userId === currentUserId) {
         window.showErrorToast("Action Denied", "You cannot modify your own admin status.", 3000);
         return;
     }
-    
+
     const action = newRole === 'admin' ? 'promote this user to admin' : 'remove admin privileges';
     const confirmed = await window.showCustomConfirm(
-        "Change User Role?", 
+        "Change User Role?",
         `Are you sure you want to ${action}?`
     );
-    
+
     if (!confirmed) return;
-    
+
     try {
         const user = auth.currentUser;
         const token = await user.getIdToken();
-        
+
         const response = await fetch('/.netlify/functions/update-user-role', {
             method: 'POST',
             headers: {
@@ -1156,7 +1190,7 @@ window.toggleUserRole = async function(userId, newRole) {
             const errorData = await response.json();
             throw new Error(errorData.error || 'Failed to update role');
         }
-        
+
         window.showSuccessToast("Role Updated", `User role changed to ${newRole}.`, 2000);
         refreshUsers();
     } catch (error) {
@@ -1167,7 +1201,7 @@ window.toggleUserRole = async function(userId, newRole) {
 
 // Expose switchTab wrapper to load data when tab changes
 const originalSwitchTab = window.switchTab;
-window.switchTab = function(tabName) {
+window.switchTab = function (tabName) {
     if (typeof originalSwitchTab === 'function') {
         originalSwitchTab(tabName);
     }
