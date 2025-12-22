@@ -432,6 +432,48 @@
             }
         });
     });
+    
+    // Date validation for tournaments
+    const tStartDate = document.getElementById('t-date');
+    const tEndDate = document.getElementById('t-end-date');
+    if (tStartDate && tEndDate) {
+        tStartDate.addEventListener('change', () => {
+            if (tStartDate.value) {
+                tEndDate.setAttribute('min', tStartDate.value);
+                if (tEndDate.value && tEndDate.value < tStartDate.value) {
+                    tEndDate.value = tStartDate.value;
+                }
+            }
+        });
+        
+        tEndDate.addEventListener('change', () => {
+            if (tStartDate.value && tEndDate.value && tEndDate.value < tStartDate.value) {
+                alert('End date cannot be before start date');
+                tEndDate.value = tStartDate.value;
+            }
+        });
+    }
+    
+    // Date validation for events
+    const eStartDate = document.getElementById('e-date');
+    const eEndDate = document.getElementById('e-end-date');
+    if (eStartDate && eEndDate) {
+        eStartDate.addEventListener('change', () => {
+            if (eStartDate.value) {
+                eEndDate.setAttribute('min', eStartDate.value);
+                if (eEndDate.value && eEndDate.value < eStartDate.value) {
+                    eEndDate.value = eStartDate.value;
+                }
+            }
+        });
+        
+        eEndDate.addEventListener('change', () => {
+            if (eStartDate.value && eEndDate.value && eEndDate.value < eStartDate.value) {
+                alert('End date cannot be before start date');
+                eEndDate.value = eStartDate.value;
+            }
+        });
+    }
 </script>
 
 <script src="js/toast.js"></script>

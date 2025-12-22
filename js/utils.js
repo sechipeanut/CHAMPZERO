@@ -53,6 +53,6 @@ export function toDateInputFormat(dateValue) {
  */
 export function escapeCssUrl(url) {
     if (!url) return '';
-    // Escape single quotes, backslashes, and parentheses
-    return url.replace(/[\\'()]/g, '\\$&');
+    // Escape backslashes, single quotes, and parentheses
+    return url.replace(/[\\\'()]/g, '\\$&');
 }

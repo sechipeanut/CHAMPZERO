@@ -76,9 +76,16 @@ function renderTournaments() {
         const bannerUrl = t.banner || 'https://placehold.co/600x400/1a1a1f/FFD700?text=No+Image';
         
         // Format date with end date if available
-        let dateDisplay = t.date || 'TBA';
-        if (t.date && t.endDate) {
-            dateDisplay = `${t.date} - ${t.endDate}`;
+        let dateDisplay = 'TBA';
+        if (t.date) {
+            const startDateObj = t.date.toDate ? t.date.toDate() : new Date(t.date);
+            dateDisplay = startDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+            
+            if (t.endDate) {
+                const endDateObj = t.endDate.toDate ? t.endDate.toDate() : new Date(t.endDate);
+                const endDateFormatted = endDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+                dateDisplay = `${dateDisplay} - ${endDateFormatted}`;
+            }
         }
 
         card.innerHTML = `
@@ -126,9 +133,16 @@ function openModal(t) {
     const actualStatus = calculateStatus(t.date, t.endDate);
     
     // Format date with end date if available
-    let dateDisplay = t.date || 'TBA';
-    if (t.date && t.endDate) {
-        dateDisplay = `${t.date} - ${t.endDate}`;
+    let dateDisplay = 'TBA';
+    if (t.date) {
+        const startDateObj = t.date.toDate ? t.date.toDate() : new Date(t.date);
+        dateDisplay = startDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+        
+        if (t.endDate) {
+            const endDateObj = t.endDate.toDate ? t.endDate.toDate() : new Date(t.endDate);
+            const endDateFormatted = endDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+            dateDisplay = `${dateDisplay} - ${endDateFormatted}`;
+        }
     }
     
     qs('#detailMeta').innerHTML = `
