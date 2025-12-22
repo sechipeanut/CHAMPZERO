@@ -51,11 +51,31 @@
 </head>
 <body class="bg-[var(--dark-bg)] text-gray-200 antialiased">
 
-<header class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 border-b border-white/10 h-16 flex items-center justify-between px-8">
+<header class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 h-16 flex items-center justify-between px-8">
     <div class="flex items-center gap-3">
         <span class="font-bold text-xl text-[var(--gold)]">ChampZero Admin</span>
     </div>
-    <a href="/" class="text-sm hover:text-white text-gray-400">Back to Site</a>
+    <div class="flex items-center gap-4">
+        <!-- Desktop Admin Name -->
+        <span id="admin-name-desktop" class="hidden md:block text-sm text-gray-300">
+            <span class="text-[var(--gold)]">👋</span> <span id="admin-display-name">Loading...</span>
+        </span>
+        <!-- Mobile Profile Menu -->
+        <div class="md:hidden relative">
+            <button id="mobile-profile-btn" class="w-9 h-9 rounded-full overflow-hidden border-2 border-[var(--gold)]/50 hover:border-[var(--gold)] transition-colors">
+                <img id="mobile-profile-img" src="pictures/cz_logo.png" alt="Profile" class="w-full h-full object-cover">
+            </button>
+            <div id="mobile-profile-menu" class="hidden absolute right-0 top-12 w-48 bg-[var(--dark-card)] border border-white/20 rounded-lg shadow-xl overflow-hidden z-50">
+                <div class="px-4 py-3 border-b border-white/10">
+                    <p id="mobile-admin-name" class="text-sm font-semibold text-white">Admin</p>
+                </div>
+                <a href="/" class="block px-4 py-2 text-sm text-gray-300 hover:bg-[var(--gold)]/10 hover:text-[var(--gold)] transition-colors">
+                    🏠 Back to Site
+                </a>
+            </div>
+        </div>
+        <a href="/" class="hidden md:block text-sm hover:text-white text-gray-400">Back to Site</a>
+    </div>
 </header>
 
 <!-- Mobile Hamburger Button -->
@@ -108,126 +128,58 @@
     <h1 class="text-3xl font-bold text-white mb-8">Dashboard Overview</h1>
 
     <section id="tab-notifications" class="tab-content hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div class="lg:col-span-1">
-                <h2 class="text-xl font-bold text-white mb-4">Send Announcement</h2>
-                <form id="notifForm" class="bg-[var(--dark-card)] p-6 rounded-xl border border-white/10 space-y-4">
-                    <div>
-                        <label class="block text-sm text-gray-400">Title</label>
-                        <input id="n-title" type="text" placeholder="New Tournament Live!" required class="dark-input w-full p-2 rounded">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-gray-400">Type</label>
-                        <select id="n-type" class="dark-input w-full p-2 rounded bg-[var(--dark-bg)]">
-                            <option value="general">General 📢</option>
-                            <option value="tournament">Tournament 🏆</option>
-                            <option value="event">Event 🎉</option>
-                            <option value="alert">Alert ⚠️</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label class="block text-sm text-gray-400">Message</label>
-                        <textarea id="n-message" rows="3" required class="dark-input w-full p-2 rounded"></textarea>
-                    </div>
-                    <button type="submit" class="w-full bg-[var(--gold)] text-black font-bold px-6 py-2 rounded hover:bg-yellow-400">Push Notification</button>
-                </form>
-            </div>
-            <div class="lg:col-span-2">
-                <h2 class="text-xl font-bold text-white mb-4">Recent Announcements</h2>
-                <div id="notifications-list" class="space-y-2"><p class="text-gray-500">Loading...</p></div>
-            </div>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">Announcements</h2>
+            <button onclick="openNotificationModal()" class="bg-[var(--gold)] text-black font-bold px-4 md:px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span class="hidden md:inline">Create Announcement</span>
+            </button>
         </div>
+        <div id="notifications-list" class="space-y-2"><p class="text-gray-500">Loading...</p></div>
     </section>
 
     <section id="tab-tournaments" class="tab-content">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div class="lg:col-span-1">
-                <h2 class="text-xl font-bold text-white mb-4">Create Tournament</h2>
-                <form id="tournamentForm" class="bg-[var(--dark-card)] p-6 rounded-xl border border-white/10 space-y-4">
-                    <div><label class="block text-sm text-gray-400">Tournament Name</label><input id="t-name" type="text" required class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Game Title</label><input id="t-game" type="text" placeholder="Valorant" required class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Prize Pool</label><input id="t-prize" type="number" required class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Status</label>
-                        <select id="t-status" class="dark-input w-full p-2 rounded bg-[var(--dark-bg)]">
-                            <option value="Upcoming">Upcoming</option>
-                            <option value="Ongoing">Ongoing</option>
-                            <option value="Completed">Completed</option>
-                        </select>
-                    </div>
-                    <div><label class="block text-sm text-gray-400">Date</label><input id="t-date" type="date" required class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Banner Image URL</label><input id="t-banner" type="url" class="dark-input w-full p-2 rounded"></div>
-                    <button type="submit" class="w-full bg-[var(--gold)] text-black font-bold px-6 py-2 rounded hover:bg-yellow-400">Post Tournament</button>
-                </form>
-            </div>
-            <div class="lg:col-span-2">
-                <h2 class="text-xl font-bold text-white mb-4">Manage Tournaments</h2>
-                <div id="tournaments-list" class="space-y-2"><p class="text-gray-500">Loading...</p></div>
-            </div>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">Tournaments</h2>
+            <button onclick="openTournamentModal()" class="bg-[var(--gold)] text-black font-bold px-4 md:px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span class="hidden md:inline">Create Tournament</span>
+            </button>
         </div>
+        <div id="tournaments-list" class="space-y-2"><p class="text-gray-500">Loading...</p></div>
     </section>
 
     <section id="tab-events" class="tab-content hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div class="lg:col-span-1">
-                <h2 class="text-xl font-bold text-white mb-4">Post Community Event</h2>
-                <form id="eventForm" class="bg-[var(--dark-card)] p-6 rounded-xl border border-white/10 space-y-4">
-                    <div><label class="block text-sm text-gray-400">Event Title</label><input id="e-name" type="text" required class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Date</label><input id="e-date" type="date" required class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Description</label><textarea id="e-desc" rows="3" required class="dark-input w-full p-2 rounded"></textarea></div>
-                    <div><label class="block text-sm text-gray-400">Image URL</label><input id="e-banner" type="url" class="dark-input w-full p-2 rounded"></div>
-                    <button type="submit" class="w-full bg-[var(--gold)] text-black font-bold px-6 py-2 rounded hover:bg-yellow-400">Post Event</button>
-                </form>
-            </div>
-            <div class="lg:col-span-2">
-                <h2 class="text-xl font-bold text-white mb-4">Manage Events</h2>
-                <div id="events-list" class="space-y-2"><p class="text-gray-500">Loading...</p></div>
-            </div>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">Events</h2>
+            <button onclick="openEventModal()" class="bg-[var(--gold)] text-black font-bold px-4 md:px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span class="hidden md:inline">Create Event</span>
+            </button>
         </div>
+        <div id="events-list" class="space-y-2"><p class="text-gray-500">Loading...</p></div>
     </section>
 
     <section id="tab-jobs" class="tab-content hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div class="lg:col-span-1">
-                <h2 class="text-xl font-bold text-white mb-4">Post Job Opening</h2>
-                <form id="jobForm" class="bg-[var(--dark-card)] p-6 rounded-xl border border-white/10 space-y-4">
-                    <div><label class="block text-sm text-gray-400">Job Title</label><input id="j-title" type="text" required class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Location</label><input id="j-location" type="text" placeholder="Remote / Manila" required class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Type</label><input id="j-type" type="text" placeholder="Full-time / Contract" required class="dark-input w-full p-2 rounded"></div>
-                    <button type="submit" class="w-full bg-[var(--gold)] text-black font-bold px-6 py-2 rounded hover:bg-yellow-400">Post Job</button>
-                </form>
-            </div>
-            <div class="lg:col-span-2">
-                <h2 class="text-xl font-bold text-white mb-4">Manage Careers</h2>
-                <div id="jobs-list" class="space-y-2"><p class="text-gray-500">Loading...</p></div>
-            </div>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">Careers</h2>
+            <button onclick="openJobModal()" class="bg-[var(--gold)] text-black font-bold px-4 md:px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span class="hidden md:inline">Create Job</span>
+            </button>
         </div>
+        <div id="jobs-list" class="space-y-2"><p class="text-gray-500">Loading...</p></div>
     </section>
     
     <section id="tab-talents" class="tab-content hidden">
-        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div class="lg:col-span-1">
-                <h2 class="text-xl font-bold text-white mb-4">Add New Talent</h2>
-                <form id="talentForm" class="bg-[var(--dark-card)] p-6 rounded-xl border border-white/10 space-y-4">
-                    <div><label class="block text-sm text-gray-400">Name / IGN</label><input id="tal-name" type="text" required class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Role</label>
-                        <select id="tal-role" class="dark-input w-full p-2 rounded bg-[var(--dark-bg)]">
-                            <option value="Streamer">Streamer</option>
-                            <option value="Caster">Caster</option>
-                            <option value="Cosplayer">Cosplayer</option>
-                            <option value="Content Creator">Content Creator</option>
-                        </select>
-                    </div>
-                    <div><label class="block text-sm text-gray-400">Profile Image URL</label><input id="tal-img" type="url" placeholder="https://..." class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Social Link</label><input id="tal-link" type="url" placeholder="FB/Twitch URL" class="dark-input w-full p-2 rounded"></div>
-                    <div><label class="block text-sm text-gray-400">Short Bio</label><textarea id="tal-bio" rows="3" class="dark-input w-full p-2 rounded"></textarea></div>
-                    <button type="submit" class="w-full bg-[var(--gold)] text-black font-bold px-6 py-2 rounded hover:bg-yellow-400">Add Talent</button>
-                </form>
-            </div>
-            <div class="lg:col-span-2">
-                <h2 class="text-xl font-bold text-white mb-4">Current Roster</h2>
-                <div id="talents-list" class="space-y-2"><p class="text-gray-500">Loading roster...</p></div>
-            </div>
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">Rising Talents</h2>
+            <button onclick="openTalentModal()" class="bg-[var(--gold)] text-black font-bold px-4 md:px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span class="hidden md:inline">Add Talent</span>
+            </button>
         </div>
+        <div id="talents-list" class="space-y-2"><p class="text-gray-500">Loading roster...</p></div>
     </section>
 
     <section id="tab-messages" class="tab-content hidden">
@@ -289,6 +241,144 @@
 </div>
 </main>
 
+<!-- Modal Dialogs -->
+<!-- Tournament Modal -->
+<div id="tournamentModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+            <h3 id="tournamentModalTitle" class="text-xl font-bold text-white">Create Tournament</h3>
+            <button onclick="closeModal('tournamentModal')" class="text-gray-400 hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form id="tournamentForm" class="p-6 space-y-4">
+            <div><label class="block text-sm text-gray-400 mb-1">Tournament Name</label><input id="t-name" type="text" required class="dark-input w-full p-3 rounded"></div>
+            <div><label class="block text-sm text-gray-400 mb-1">Game Title</label><input id="t-game" type="text" placeholder="Valorant" required class="dark-input w-full p-3 rounded"></div>
+            <div><label class="block text-sm text-gray-400 mb-1">Prize Pool (₱)</label><input id="t-prize" type="number" required class="dark-input w-full p-3 rounded"></div>
+            <div><label class="block text-sm text-gray-400 mb-1">Status</label>
+                <select id="t-status" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]">
+                    <option value="Upcoming">Upcoming</option>
+                    <option value="Ongoing">Ongoing</option>
+                    <option value="Completed">Completed</option>
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="block text-sm text-gray-400 mb-1">Start Date</label><input id="t-date" type="date" required class="dark-input w-full p-3 rounded"></div>
+                <div><label class="block text-sm text-gray-400 mb-1">End Date</label><input id="t-end-date" type="date" class="dark-input w-full p-3 rounded"></div>
+            </div>
+            <div><label class="block text-sm text-gray-400 mb-1">Banner Image URL</label><input id="t-banner" type="url" class="dark-input w-full p-3 rounded"></div>
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all">Save Tournament</button>
+                <button type="button" onclick="closeModal('tournamentModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Event Modal -->
+<div id="eventModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+            <h3 id="eventModalTitle" class="text-xl font-bold text-white">Create Event</h3>
+            <button onclick="closeModal('eventModal')" class="text-gray-400 hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form id="eventForm" class="p-6 space-y-4">
+            <div><label class="block text-sm text-gray-400 mb-1">Event Title</label><input id="e-name" type="text" required class="dark-input w-full p-3 rounded"></div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="block text-sm text-gray-400 mb-1">Start Date</label><input id="e-date" type="date" required class="dark-input w-full p-3 rounded"></div>
+                <div><label class="block text-sm text-gray-400 mb-1">End Date</label><input id="e-end-date" type="date" class="dark-input w-full p-3 rounded"></div>
+            </div>
+            <div><label class="block text-sm text-gray-400 mb-1">Description</label><textarea id="e-desc" rows="4" required class="dark-input w-full p-3 rounded"></textarea></div>
+            <div><label class="block text-sm text-gray-400 mb-1">Banner Image URL</label><input id="e-banner" type="url" class="dark-input w-full p-3 rounded"></div>
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all">Save Event</button>
+                <button type="button" onclick="closeModal('eventModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Job Modal -->
+<div id="jobModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+            <h3 id="jobModalTitle" class="text-xl font-bold text-white">Create Job</h3>
+            <button onclick="closeModal('jobModal')" class="text-gray-400 hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form id="jobForm" class="p-6 space-y-4">
+            <div><label class="block text-sm text-gray-400 mb-1">Job Title</label><input id="j-title" type="text" required class="dark-input w-full p-3 rounded"></div>
+            <div><label class="block text-sm text-gray-400 mb-1">Location</label><input id="j-location" type="text" placeholder="Remote / Manila" required class="dark-input w-full p-3 rounded"></div>
+            <div><label class="block text-sm text-gray-400 mb-1">Type</label><input id="j-type" type="text" placeholder="Full-time / Contract" required class="dark-input w-full p-3 rounded"></div>
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all">Save Job</button>
+                <button type="button" onclick="closeModal('jobModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Talent Modal -->
+<div id="talentModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+            <h3 id="talentModalTitle" class="text-xl font-bold text-white">Add Talent</h3>
+            <button onclick="closeModal('talentModal')" class="text-gray-400 hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form id="talentForm" class="p-6 space-y-4">
+            <div><label class="block text-sm text-gray-400 mb-1">Name / IGN</label><input id="tal-name" type="text" required class="dark-input w-full p-3 rounded"></div>
+            <div><label class="block text-sm text-gray-400 mb-1">Role</label>
+                <select id="tal-role" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]">
+                    <option value="Streamer">Streamer</option>
+                    <option value="Caster">Caster</option>
+                    <option value="Cosplayer">Cosplayer</option>
+                    <option value="Content Creator">Content Creator</option>
+                </select>
+            </div>
+            <div><label class="block text-sm text-gray-400 mb-1">Profile Image URL</label><input id="tal-img" type="url" placeholder="https://..." class="dark-input w-full p-3 rounded"></div>
+            <div><label class="block text-sm text-gray-400 mb-1">Social Link</label><input id="tal-link" type="url" placeholder="FB/Twitch URL" class="dark-input w-full p-3 rounded"></div>
+            <div><label class="block text-sm text-gray-400 mb-1">Short Bio</label><textarea id="tal-bio" rows="3" class="dark-input w-full p-3 rounded"></textarea></div>
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all">Save Talent</button>
+                <button type="button" onclick="closeModal('talentModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Notification Modal -->
+<div id="notificationModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+            <h3 id="notificationModalTitle" class="text-xl font-bold text-white">Create Announcement</h3>
+            <button onclick="closeModal('notificationModal')" class="text-gray-400 hover:text-white transition-colors">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
+        </div>
+        <form id="notifForm" class="p-6 space-y-4">
+            <div><label class="block text-sm text-gray-400 mb-1">Title</label><input id="n-title" type="text" placeholder="New Tournament Live!" required class="dark-input w-full p-3 rounded"></div>
+            <div><label class="block text-sm text-gray-400 mb-1">Type</label>
+                <select id="n-type" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]">
+                    <option value="general">General 📢</option>
+                    <option value="tournament">Tournament 🏆</option>
+                    <option value="event">Event 🎉</option>
+                    <option value="alert">Alert ⚠️</option>
+                </select>
+            </div>
+            <div><label class="block text-sm text-gray-400 mb-1">Message</label><textarea id="n-message" rows="4" required class="dark-input w-full p-3 rounded"></textarea></div>
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all">Send Announcement</button>
+                <button type="button" onclick="closeModal('notificationModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     // Tab Switching Logic
     window.switchTab = function(tabName) {
@@ -324,6 +414,30 @@
             document.getElementById('sidebar').classList.remove('mobile-open');
             document.getElementById('mobile-overlay').classList.remove('active');
         }
+    });
+    
+    // Close modal on Escape key
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            const openModals = ['tournamentModal', 'eventModal', 'jobModal', 'talentModal', 'notificationModal'];
+            openModals.forEach(modalId => {
+                const modal = document.getElementById(modalId);
+                if (modal && !modal.classList.contains('hidden')) {
+                    closeModal(modalId);
+                }
+            });
+        }
+    });
+    
+    // Close modal when clicking outside
+    document.addEventListener('click', (e) => {
+        const modals = ['tournamentModal', 'eventModal', 'jobModal', 'talentModal', 'notificationModal'];
+        modals.forEach(modalId => {
+            const modal = document.getElementById(modalId);
+            if (modal && !modal.classList.contains('hidden') && e.target === modal) {
+                closeModal(modalId);
+            }
+        });
     });
 </script>
 
