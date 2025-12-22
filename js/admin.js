@@ -25,8 +25,15 @@ window.openModal = function(modalId) {
 window.closeModal = function(modalId) {
     document.getElementById(modalId).classList.add('hidden');
     document.body.style.overflow = 'auto';
-    // Reset edit state when closing
-    resetFormState();
+    // Reset edit state when closing - determine form selector from modalId
+    const formMap = {
+        'tournamentModal': '#tournamentForm',
+        'eventModal': '#eventForm',
+        'jobModal': '#jobForm',
+        'talentModal': '#talentForm',
+        'notificationModal': '#notifForm'
+    };
+    resetFormState(formMap[modalId]);
 }
 
 window.openTournamentModal = function() { openModal('tournamentModal'); }
@@ -161,17 +168,18 @@ window.editItem = async function(collectionName, docId) {
             qs('#t-name').value = data.name;
             qs('#t-game').value = data.game;
             qs('#t-prize').value = data.prize;
-            qs('#t-status').value = data.status;
-            qs('#t-date').value = data.date;
-            qs('#t-end-date').value = data.endDate || '';
+            // Convert Firestore Timestamp to YYYY-MM-DD format for date inputs
+            qs('#t-date').value = data.date ? (data.date.toDate ? data.date.toDate().toISOString().split('T')[0] : data.date) : '';
+            qs('#t-end-date').value = data.endDate ? (data.endDate.toDate ? data.endDate.toDate().toISOString().split('T')[0] : data.endDate) : '';
             qs('#t-banner').value = data.banner;
             prepareEditMode('tournaments', docId, '#tournamentForm', 'tournamentModal');
             openModal('tournamentModal');
         } 
         else if (collectionName === 'events') {
             qs('#e-name').value = data.name;
-            qs('#e-date').value = data.date;
-            qs('#e-end-date').value = data.endDate || '';
+            // Convert Firestore Timestamp to YYYY-MM-DD format for date inputs
+            qs('#e-date').value = data.date ? (data.date.toDate ? data.date.toDate().toISOString().split('T')[0] : data.date) : '';
+            qs('#e-end-date').value = data.endDate ? (data.endDate.toDate ? data.endDate.toDate().toISOString().split('T')[0] : data.endDate) : '';
             qs('#e-desc').value = data.description;
             qs('#e-banner').value = data.banner;
             prepareEditMode('events', docId, '#eventForm', 'eventModal');
@@ -496,15 +504,33 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // Setup All Forms
-    handleForm('#tournamentForm', 'tournaments', () => ({
-        name: qs('#t-name').value,
-        game: qs('#t-game').value,
-        prize: Number(qs('#t-prize').value),
-        status: qs('#t-status').value,
-        date: qs('#t-date').value,
-        endDate: qs('#t-end-date').value || null,
-        banner: qs('#t-banner').value || "pictures/cz_logo.png"
-    }), "Tournament Created!");
+    handleForm('#tournamentForm', 'tournaments', () => {
+        const startDate = qs('#t-date').value;
+        const endDate = qs('#t-end-date').value || startDate;
+        
+        // Auto-calculate status based on dates
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        
+        let status = 'Upcoming';
+        if (today >= start && today <= end) {
+            status = 'Ongoing';
+        } else if (today > end) {
+            status = 'Completed';
+        }
+        
+        return {
+            name: qs('#t-name').value,
+            game: qs('#t-game').value,
+            prize: Number(qs('#t-prize').value),
+            status: status,
+            date: startDate,
+            endDate: endDate,
+            banner: qs('#t-banner').value || "pictures/cz_logo.png"
+        };
+    }, "Tournament Created!");
 
     handleForm('#eventForm', 'events', () => ({
         name: qs('#e-name').value,

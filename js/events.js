@@ -1,33 +1,11 @@
 import { db } from './firebase-config.js';
 import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+import { calculateStatus, escapeCssUrl } from './utils.js';
 
 // Helper Functions
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
-
-// Calculate status based on dates
-function calculateStatus(startDate, endDate) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Reset time to midnight for accurate comparison
-    
-    if (!startDate) return 'Upcoming'; // Default if no date
-    
-    const start = new Date(startDate);
-    start.setHours(0, 0, 0, 0);
-    
-    // If end date exists, use it; otherwise use start date
-    const end = endDate ? new Date(endDate) : new Date(startDate);
-    end.setHours(23, 59, 59, 999); // End of the day
-    
-    if (today < start) {
-        return 'Upcoming';
-    } else if (today >= start && today <= end) {
-        return 'Ongoing';
-    } else {
-        return 'Completed';
-    }
-}
 
 // --- Main Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
@@ -106,7 +84,7 @@ function createEventCard(ev) {
 
     card.innerHTML = `
         <div class="h-48 bg-cover bg-center relative cursor-pointer event-trigger overflow-hidden">
-            <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image:url('${bannerUrl}')"></div>
+            <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-110" style="background-image:url('${escapeCssUrl(bannerUrl)}')"></div>
             
             <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
             
