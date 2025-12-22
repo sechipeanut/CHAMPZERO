@@ -12,19 +12,64 @@ import {
     serverTimestamp,
     orderBy 
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { toDateInputFormat, calculateStatus } from './utils.js';
 
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
 
+// Focus management state
+let lastFocusedElement = null;
+let focusableElements = [];
+let firstFocusableElement = null;
+let lastFocusableElement = null;
+
 // Modal Management Functions
 window.openModal = function(modalId) {
-    document.getElementById(modalId).classList.remove('hidden');
+    // Store the currently focused element
+    lastFocusedElement = document.activeElement;
+    
+    const modal = document.getElementById(modalId);
+    modal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
+    
+    // Get all focusable elements in the modal
+    setTimeout(() => {
+        focusableElements = modal.querySelectorAll(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        
+        if (focusableElements.length > 0) {
+            firstFocusableElement = focusableElements[0];
+            lastFocusableElement = focusableElements[focusableElements.length - 1];
+            
+            // Focus the first focusable element (usually the first input or close button)
+            const firstInput = modal.querySelector('input:not([type="hidden"]), textarea, select');
+            if (firstInput) {
+                firstInput.focus();
+            } else {
+                firstFocusableElement.focus();
+            }
+        }
+    }, 50);
+    
+    // Add focus trap listener
+    modal.addEventListener('keydown', trapFocus);
 }
 
 window.closeModal = function(modalId) {
-    document.getElementById(modalId).classList.add('hidden');
+    const modal = document.getElementById(modalId);
+    modal.classList.add('hidden');
     document.body.style.overflow = 'auto';
+    
+    // Remove focus trap listener
+    modal.removeEventListener('keydown', trapFocus);
+    
+    // Return focus to the element that opened the modal
+    if (lastFocusedElement) {
+        lastFocusedElement.focus();
+        lastFocusedElement = null;
+    }
+    
     // Reset edit state when closing - determine form selector from modalId
     const formMap = {
         'tournamentModal': '#tournamentForm',
@@ -34,6 +79,25 @@ window.closeModal = function(modalId) {
         'notificationModal': '#notifForm'
     };
     resetFormState(formMap[modalId]);
+}
+
+// Focus trap function
+function trapFocus(e) {
+    if (e.key !== 'Tab') return;
+    
+    if (e.shiftKey) {
+        // Shift + Tab
+        if (document.activeElement === firstFocusableElement) {
+            e.preventDefault();
+            lastFocusableElement.focus();
+        }
+    } else {
+        // Tab
+        if (document.activeElement === lastFocusableElement) {
+            e.preventDefault();
+            firstFocusableElement.focus();
+        }
+    }
 }
 
 window.openTournamentModal = function() { openModal('tournamentModal'); }
@@ -95,26 +159,44 @@ function updateAdminHeader(user, userData) {
     // Desktop name display
     const displayNameEl = qs('#admin-display-name');
     if (displayNameEl) {
-        const displayName = userData?.displayName || userData?.username || user.email.split('@')[0];
+        const displayName = userData?.ign || userData?.displayName || userData?.username || user.email.split('@')[0];
         displayNameEl.textContent = displayName;
+        displayNameEl.classList.remove('opacity-50'); // Remove loading state
     }
     
     // Mobile profile picture
     const profileImg = qs('#mobile-profile-img');
-    if (profileImg && userData?.photoURL) {
-        profileImg.src = userData.photoURL;
+    if (profileImg) {
+        if (userData?.avatar) {
+            profileImg.src = userData.avatar;
+        }
+        profileImg.classList.remove('opacity-50'); // Remove loading state
     }
     
     // Mobile menu name
     const mobileNameEl = qs('#mobile-admin-name');
     if (mobileNameEl) {
-        const displayName = userData?.displayName || userData?.username || user.email.split('@')[0];
+        const displayName = userData?.ign || userData?.displayName || userData?.username || user.email.split('@')[0];
         mobileNameEl.textContent = displayName;
     }
 }
 
-// Toggle Mobile Profile Menu
+// Initialize loading state and mobile profile menu on DOM ready
 document.addEventListener('DOMContentLoaded', () => {
+    // Set loading state on header elements
+    const displayNameEl = qs('#admin-display-name');
+    const profileImg = qs('#mobile-profile-img');
+    
+    if (displayNameEl) {
+        displayNameEl.textContent = 'Loading...';
+        displayNameEl.classList.add('opacity-50');
+    }
+    
+    if (profileImg) {
+        profileImg.classList.add('opacity-50');
+    }
+    
+    // Setup mobile profile menu
     const profileBtn = qs('#mobile-profile-btn');
     const profileMenu = qs('#mobile-profile-menu');
     
@@ -169,8 +251,8 @@ window.editItem = async function(collectionName, docId) {
             qs('#t-game').value = data.game;
             qs('#t-prize').value = data.prize;
             // Convert Firestore Timestamp to YYYY-MM-DD format for date inputs
-            qs('#t-date').value = data.date ? (data.date.toDate ? data.date.toDate().toISOString().split('T')[0] : data.date) : '';
-            qs('#t-end-date').value = data.endDate ? (data.endDate.toDate ? data.endDate.toDate().toISOString().split('T')[0] : data.endDate) : '';
+            qs('#t-date').value = toDateInputFormat(data.date);
+            qs('#t-end-date').value = toDateInputFormat(data.endDate);
             qs('#t-banner').value = data.banner;
             prepareEditMode('tournaments', docId, '#tournamentForm', 'tournamentModal');
             openModal('tournamentModal');
@@ -178,8 +260,8 @@ window.editItem = async function(collectionName, docId) {
         else if (collectionName === 'events') {
             qs('#e-name').value = data.name;
             // Convert Firestore Timestamp to YYYY-MM-DD format for date inputs
-            qs('#e-date').value = data.date ? (data.date.toDate ? data.date.toDate().toISOString().split('T')[0] : data.date) : '';
-            qs('#e-end-date').value = data.endDate ? (data.endDate.toDate ? data.endDate.toDate().toISOString().split('T')[0] : data.endDate) : '';
+            qs('#e-date').value = toDateInputFormat(data.date);
+            qs('#e-end-date').value = toDateInputFormat(data.endDate);
             qs('#e-desc').value = data.description;
             qs('#e-banner').value = data.banner;
             prepareEditMode('events', docId, '#eventForm', 'eventModal');
@@ -238,8 +320,23 @@ function prepareEditMode(col, id, formSelector, modalId) {
         if (titleEl) titleEl.textContent = modalTitleMap[modalId];
     }
     
-    // Change Button Text
-    btn.textContent = btn.textContent.replace('Save', 'Update').replace('Send', 'Update').replace('Create', 'Update');
+    // Change Button Text (explicit mapping instead of fragile string replacement)
+    if (btn && form) {
+        const buttonEditTextMap = {
+            'tournamentForm': 'Update Tournament',
+            'eventForm': 'Update Event',
+            'jobForm': 'Update Job',
+            'talentForm': 'Update Talent',
+            'notifForm': 'Update Announcement'
+        };
+        const formId = form.id;
+        if (buttonEditTextMap[formId]) {
+            btn.textContent = buttonEditTextMap[formId];
+        } else {
+            // Fallback to a generic label if form id is unrecognized
+            btn.textContent = 'Update';
+        }
+    }
 }
 
 // Helper to Reset UI to "Add Mode"
@@ -508,18 +605,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const startDate = qs('#t-date').value;
         const endDate = qs('#t-end-date').value || startDate;
         
-        // Auto-calculate status based on dates
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        
-        let status = 'Upcoming';
-        if (today >= start && today <= end) {
-            status = 'Ongoing';
-        } else if (today > end) {
-            status = 'Completed';
-        }
+        // Auto-calculate status based on dates using shared utility
+        const status = calculateStatus(startDate, endDate);
         
         return {
             name: qs('#t-name').value,
@@ -532,13 +619,18 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }, "Tournament Created!");
 
-    handleForm('#eventForm', 'events', () => ({
-        name: qs('#e-name').value,
-        date: qs('#e-date').value,
-        endDate: qs('#e-end-date').value || null,
-        description: qs('#e-desc').value,
-        banner: qs('#e-banner').value || "pictures/cz_logo.png"
-    }), "Event Posted!");
+    handleForm('#eventForm', 'events', () => {
+        const startDate = qs('#e-date').value;
+        const endDate = qs('#e-end-date').value || startDate;
+        
+        return {
+            name: qs('#e-name').value,
+            date: startDate,
+            endDate: endDate,
+            description: qs('#e-desc').value,
+            banner: qs('#e-banner').value || "pictures/cz_logo.png"
+        };
+    }, "Event Posted!");
 
     handleForm('#jobForm', 'careers', () => ({
         title: qs('#j-title').value,
@@ -687,6 +779,7 @@ function displayUsers(users) {
         const role = user.role || 'user';
         const isAdmin = role === 'admin';
         const isSelf = user.id === currentUserId; // Check if this is the current user
+        const avatar = user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=1A1A1F&color=FFD700`;
         
         // Use createdAt if available, otherwise fall back to joinedAt
         const createdAt = user.createdAt ? formatDate(user.createdAt) : (user.joinedAt ? formatDate(user.joinedAt) : 'N/A');
@@ -697,9 +790,7 @@ function displayUsers(users) {
             <tr class="border-b border-white/5 hover:bg-white/5 transition">
                 <td class="p-4">
                     <div class="flex items-center gap-3">
-                        <div class="w-10 h-10 rounded-full bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center text-black font-bold">
-                            ${escapeHtml(displayName.charAt(0).toUpperCase())}
-                        </div>
+                        <img src="${avatar}" alt="${escapeHtml(displayName)}" class="w-10 h-10 rounded-full border border-[var(--gold)] object-cover" />
                         <div class="font-medium text-white">${escapeHtml(displayName)}${isSelf ? ' <span class="text-xs text-yellow-400">(You)</span>' : ''}</div>
                     </div>
                 </td>
