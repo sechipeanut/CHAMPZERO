@@ -521,8 +521,13 @@ export async function removeParticipant(index) {
     
     currentEditingTournament.participants.splice(index, 1);
     currentEditingTournament.matches = [];
+    
+    // Save to Firebase
+    await saveTournamentChanges();
+    
     renderTMParticipants();
     renderTMBracket();
+    updateOverviewStats();
 }
 
 export function switchTMTab(tabName) {
