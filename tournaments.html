@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ChampZero — Tournaments</title>
 
-    <meta name="description" content="Browse and join upcoming esports tournaments on ChampZero. Compete in Valorant, MLBB, and Honor of Kings for huge prize pools.">
+    <meta name="description" content="Browse and join upcoming esports tournaments on ChampZero.">
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -34,17 +34,14 @@
         
         :focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
 
-        /* BRACKET STYLES */
-        .bracket-container { display: flex; overflow-x: auto; gap: 2rem; padding: 1rem 0; }
-        .bracket-round { display: flex; flex-direction: column; justify-content: space-around; gap: 2rem; min-width: 220px; }
-        .bracket-match { background: #15151a; border: 1px solid rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 0.5rem; position: relative; display: flex; flex-direction: column; gap: 0.5rem; }
-        .bracket-match:hover { border-color: var(--gold); }
-        .team-slot { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 2px 0; }
-        .team-name { color: #e5e7eb; font-weight: 500; }
-        .team-score { color: var(--gold); font-weight: bold; }
-        .bracket-round-title { text-align: center; color: var(--gold); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem; font-weight: bold; }
-        /* Connecting lines for bracket (Simplified) */
-        .bracket-round:not(:last-child) .bracket-match::after {
+        /* Bracket Styles */
+        .bracket-wrapper { display: flex; gap: 2rem; padding: 1rem; }
+        .bracket-round { display: flex; flex-direction: column; justify-content: space-around; gap: 1rem; width: 160px; }
+        .match-card { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 8px; position: relative; }
+        .team-slot { display: flex; justify-content: space-between; font-size: 0.75rem; padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .team-slot:last-child { border-bottom: none; }
+        .team-score { font-weight: bold; color: var(--gold); }
+        .bracket-round:not(:last-child) .match-card::after {
             content: ''; position: absolute; right: -1rem; top: 50%; width: 1rem; height: 1px; background: rgba(255,255,255,0.2);
         }
     </style>
@@ -149,53 +146,36 @@
 </main>
 
 <div id="detailsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4 transition-opacity duration-300">
-  <div class="bg-[var(--dark-card)] border border-white/10 rounded-xl w-full md:w-3/4 lg:w-4/5 xl:w-2/3 p-6 relative max-h-[95vh] overflow-auto shadow-2xl flex flex-col">
+  <div class="bg-[var(--dark-card)] border border-white/10 rounded-xl w-full md:w-3/4 lg:w-2/3 p-6 relative max-h-[90vh] overflow-auto shadow-2xl">
     
-    <div id="detailBanner" class="mb-4 w-full h-48 rounded-lg overflow-hidden relative bg-black"></div>
-    <div class="flex justify-between items-start mb-2">
-        <h3 id="detailTitle" class="text-3xl font-bold text-white"></h3>
-        <button onclick="closeModal('detailsModal')" aria-label="Close modal" class="text-gray-400 hover:text-white font-bold text-2xl bg-white/5 rounded-full w-8 h-8 flex items-center justify-center">&times;</button>
-    </div>
-    <div id="detailMeta" class="mb-6 text-sm text-gray-300 flex flex-wrap gap-x-6 gap-y-2"></div>
+    <div id="detailBanner" class="mb-4"></div>
+    <h3 id="detailTitle" class="text-3xl font-bold mb-2 text-white"></h3>
+    <div id="detailMeta" class="mb-4 text-sm text-gray-300 flex flex-wrap gap-x-6 gap-y-2"></div>
     
-    <div class="border-b border-white/10 mb-4 flex gap-6">
-        <button onclick="switchTab('desc')" id="tab-desc" class="pb-2 text-[var(--gold)] border-b-2 border-[var(--gold)] font-semibold transition-colors">Overview</button>
-        <button onclick="switchTab('bracket')" id="tab-bracket" class="pb-2 text-gray-400 hover:text-white transition-colors">Bracket & Matchups</button>
-    </div>
+    <div class="border-t border-white/10 my-4"></div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2">
+            <h4 class="font-semibold text-white mb-2">Overview</h4>
+            <div id="detailDesc" class="mb-6 text-gray-300 leading-relaxed text-sm"></div>
 
-    <div id="content-desc" class="space-y-6">
-        <div id="detailDesc" class="text-gray-300 leading-relaxed whitespace-pre-line"></div>
-        <div>
-            <h4 class="font-semibold text-lg text-white mb-2">Registered Participants</h4>
-            <div class="bg-black/20 p-4 rounded-lg max-h-40 overflow-y-auto border border-white/5">
-                <ul id="participantsList" class="space-y-2 text-sm text-gray-300">
-                    <li class="text-gray-500 italic">No participants yet.</li>
-                </ul>
+            <div id="actionArea" class="mb-6"></div>
+
+            <div id="bracketSection" class="hidden">
+                <h4 class="font-semibold text-white mb-4 flex items-center gap-2">Tournament Bracket</h4>
+                <div class="overflow-x-auto pb-4 custom-scrollbar">
+                    <div id="bracketContainer" class="bracket-wrapper min-w-[600px]"></div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <div id="content-bracket" class="hidden">
-        <div class="bg-black/20 border border-white/5 rounded-lg p-4">
-            <h4 class="font-bold text-[var(--gold)] mb-4 flex items-center gap-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
-                Automatic Match-Up Bracket
-            </h4>
-            <div id="bracket-root" class="bracket-container">
-                <div class="text-sm text-gray-500 p-4">Generating bracket based on participant list...</div>
-            </div>
+        <div class="lg:col-span-1">
+            <h4 class="font-semibold text-white mb-2">Registered Teams</h4>
+            <ul id="participantsList" class="bg-black/20 p-4 rounded-lg space-y-2 text-sm text-gray-300 max-h-80 overflow-y-auto"></ul>
         </div>
     </div>
 
-    <div class="border-t border-white/10 mt-6 pt-4 flex justify-between items-center">
-        <span class="text-xs text-gray-500">ChampZero Official Tournament</span>
-        <div class="flex gap-3">
-            <button onclick="closeModal('detailsModal')" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-md transition-colors text-sm font-medium">Close</button>
-            <button id="joinTournamentBtn" class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-6 py-2 rounded-md text-sm font-bold shadow-lg hover:shadow-[var(--gold)]/20 hover:scale-105 transition-all">
-                Join Tournament
-            </button>
-        </div>
-    </div>
+    <button onclick="closeModal('detailsModal')" aria-label="Close modal" class="absolute top-4 right-4 text-gray-400 hover:text-white font-bold text-2xl">&times;</button>
   </div>
 </div>
 
@@ -225,249 +205,8 @@
 
 <script type="module" src="js/main.js"></script>
 <script type="module" src="js/auth.js"></script>
-<script type="module" src="js/tournaments.js"></script>
 <script type="module" src="js/notifications.js"></script>
-
-<script>
-    function switchTab(tabName) {
-        // Reset Tabs
-        document.getElementById('tab-desc').className = "pb-2 text-gray-400 hover:text-white transition-colors";
-        document.getElementById('tab-bracket').className = "pb-2 text-gray-400 hover:text-white transition-colors";
-        
-        document.getElementById('content-desc').classList.add('hidden');
-        document.getElementById('content-bracket').classList.add('hidden');
-
-        // Activate Selected
-        document.getElementById(`tab-${tabName}`).className = "pb-2 text-[var(--gold)] border-b-2 border-[var(--gold)] font-semibold transition-colors";
-        document.getElementById(`content-${tabName}`).classList.remove('hidden');
-    }
-
-    // Expose close modal globally for the HTML onclicks
-    window.closeModal = function(id) {
-        const modal = document.getElementById(id);
-        if(modal) {
-            modal.classList.remove('flex');
-            modal.classList.add('hidden');
-            // Reset URL
-            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-            window.history.pushState({path:newUrl},'',newUrl);
-        }
-    }
-</script>
-
-<script type="module">
-    import { db, auth } from './js/firebase-config.js';
-    import { doc, getDoc, collection, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-
-    let currentTournamentId = null;
-    let participantsCache = [];
-
-    document.addEventListener('DOMContentLoaded', async () => {
-        const params = new URLSearchParams(window.location.search);
-        const tournamentId = params.get('id');
-
-        // SETUP JOIN BUTTON LISTENER
-        const joinBtn = document.getElementById('joinTournamentBtn');
-        if(joinBtn) {
-            joinBtn.addEventListener('click', async () => {
-                if(!auth.currentUser) {
-                    alert("You must be logged in to join a tournament.");
-                    window.location.href = 'login.html';
-                    return;
-                }
-                
-                if(!currentTournamentId) return;
-
-                const teamName = prompt("Enter your Team/In-Game Name to register:");
-                if(!teamName) return;
-
-                // Simulate DB write (In real app, perform validation check if already joined)
-                joinBtn.disabled = true;
-                joinBtn.textContent = "Joining...";
-
-                try {
-                    await addDoc(collection(db, `tournaments/${currentTournamentId}/participants`), {
-                        uid: auth.currentUser.uid,
-                        name: teamName,
-                        joinedAt: serverTimestamp()
-                    });
-                    
-                    alert("Successfully registered!");
-                    joinBtn.textContent = "Registered ✅";
-                    // Refresh data
-                    loadTournamentDetails(currentTournamentId);
-                } catch(err) {
-                    console.error("Error joining:", err);
-                    alert("Failed to join. Please try again.");
-                    joinBtn.disabled = false;
-                    joinBtn.textContent = "Join Tournament";
-                }
-            });
-        }
-
-        if (tournamentId) {
-            loadTournamentDetails(tournamentId);
-        }
-    });
-
-    async function loadTournamentDetails(id) {
-        currentTournamentId = id;
-        console.log("Loading Tournament:", id);
-        
-        const docRef = doc(db, "tournaments", id);
-        const docSnap = await getDoc(docRef);
-
-        if (docSnap.exists()) {
-            const data = docSnap.data();
-            
-            // Populate UI
-            document.getElementById('detailTitle').textContent = data.name;
-            document.getElementById('detailDesc').textContent = data.description || `Game: ${data.game}\nPrize Pool: ${data.prize}\nStatus: ${data.status}`;
-            
-            const metaEl = document.getElementById('detailMeta');
-            if (metaEl) {
-                metaEl.innerHTML = `
-                    <span class="bg-[var(--gold)] text-black px-2 py-0.5 rounded text-xs font-bold uppercase">${data.status || 'Upcoming'}</span>
-                    <span class="flex items-center gap-1 text-gray-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> ${data.date || 'Date TBA'}</span>
-                    <span class="flex items-center gap-1 text-gray-400 ml-4"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> ${data.prize || 'TBA'}</span>
-                `;
-            }
-
-            const bannerEl = document.getElementById('detailBanner');
-            if (bannerEl && data.banner) {
-                bannerEl.innerHTML = `<img src="${data.banner}" class="w-full h-full object-cover">`;
-            } else if(bannerEl) {
-                bannerEl.innerHTML = `<div class="w-full h-full bg-gradient-to-r from-gray-900 to-gray-800 flex items-center justify-center text-gray-600 font-bold">No Banner</div>`;
-            }
-
-            // LOAD PARTICIPANTS & GENERATE BRACKET
-            await loadParticipantsAndBracket(id);
-
-            // Show Modal
-            const modal = document.getElementById('detailsModal');
-            if (modal) {
-                modal.classList.remove('hidden');
-                modal.classList.add('flex');
-            }
-        }
-    }
-
-    async function loadParticipantsAndBracket(id) {
-        const listEl = document.getElementById('participantsList');
-        listEl.innerHTML = '<li class="text-gray-500 italic">Loading...</li>';
-        
-        try {
-            // Fetch participants subcollection
-            const snap = await getDocs(collection(db, `tournaments/${id}/participants`));
-            participantsCache = [];
-            
-            if(snap.empty) {
-                listEl.innerHTML = '<li class="text-gray-500 italic">No participants yet. Be the first to join!</li>';
-                renderEmptyBracket();
-                return;
-            }
-
-            let html = '';
-            snap.forEach(doc => {
-                const p = doc.data();
-                participantsCache.push(p.name || "Unknown Team");
-                html += `<li class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-[var(--gold)]"></div> ${p.name || "Unknown Team"}</li>`;
-            });
-            listEl.innerHTML = html;
-
-            // GENERATE BRACKET
-            generateBracket(participantsCache);
-
-        } catch(e) {
-            console.warn("Could not load participants (maybe permission issue):", e);
-            listEl.innerHTML = '<li class="text-red-400 italic">Login to view participants.</li>';
-        }
-    }
-
-    function renderEmptyBracket() {
-        const container = document.getElementById('bracket-root');
-        container.innerHTML = `<div class="text-center w-full p-8 text-gray-500 border border-dashed border-white/10 rounded-lg">Bracket will be generated once teams join.</div>`;
-    }
-
-    function generateBracket(teams) {
-        const container = document.getElementById('bracket-root');
-        container.innerHTML = ''; // Clear previous
-
-        // 1. Shuffle teams for randomness
-        let shuffled = [...teams].sort(() => 0.5 - Math.random());
-
-        // 2. Pad to nearest power of 2 (2, 4, 8, 16)
-        let powerOf2 = 2;
-        while(powerOf2 < shuffled.length) powerOf2 *= 2;
-        
-        while(shuffled.length < powerOf2) {
-            shuffled.push("BYE"); // Placeholder for empty slots
-        }
-
-        // 3. Create Rounds Structure
-        // Number of rounds = log2(powerOf2)
-        const roundsCount = Math.log2(powerOf2);
-        let currentRoundTeams = shuffled;
-
-        for(let r = 0; r < roundsCount; r++) {
-            const roundDiv = document.createElement('div');
-            roundDiv.className = 'bracket-round';
-            
-            // Round Title
-            let roundName = `Round ${r + 1}`;
-            if(r === roundsCount - 1) roundName = "Finals";
-            if(r === roundsCount - 2) roundName = "Semi-Finals";
-            
-            const title = document.createElement('div');
-            title.className = 'bracket-round-title';
-            title.textContent = roundName;
-            roundDiv.appendChild(title);
-
-            // Create Matches for this round
-            const nextRoundTeams = [];
-            for(let i = 0; i < currentRoundTeams.length; i += 2) {
-                const team1 = currentRoundTeams[i];
-                const team2 = currentRoundTeams[i+1];
-                
-                // Create Match HTML
-                const matchDiv = document.createElement('div');
-                matchDiv.className = 'bracket-match';
-                
-                matchDiv.innerHTML = `
-                    <div class="team-slot">
-                        <span class="team-name ${team1 === 'BYE' ? 'text-gray-600' : ''}">${team1}</span>
-                        <span class="team-score">-</span>
-                    </div>
-                    <div class="team-slot">
-                        <span class="team-name ${team2 === 'BYE' ? 'text-gray-600' : ''}">${team2}</span>
-                        <span class="team-score">-</span>
-                    </div>
-                `;
-                roundDiv.appendChild(matchDiv);
-
-                // For visualization only, we assume the next round is TBD
-                nextRoundTeams.push("TBD");
-            }
-
-            container.appendChild(roundDiv);
-            
-            // If this is the finals, we stop generating next rounds based on "TBD"
-            // But we render the empty slots for visuals
-            currentRoundTeams = nextRoundTeams; 
-        }
-
-        // Add the Winner Box
-        const winnerDiv = document.createElement('div');
-        winnerDiv.className = 'bracket-round justify-center';
-        winnerDiv.innerHTML = `
-            <div class="bracket-round-title text-[var(--gold)]">🏆 Champion</div>
-            <div class="bracket-match border-[var(--gold)]">
-                <div class="team-slot justify-center py-2"><span class="team-name text-[var(--gold)]">TBD</span></div>
-            </div>
-        `;
-        container.appendChild(winnerDiv);
-    }
-</script>
+<script type="module" src="js/tournaments.js"></script>
 
 </body>
 </html>
