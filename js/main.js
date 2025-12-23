@@ -1,5 +1,6 @@
 import { auth } from './firebase-config.js';
 import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+import { initLiveScores } from './live-scores.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     
@@ -180,4 +181,5 @@ document.addEventListener('DOMContentLoaded', () => {
             authWrapper.style.visibility = 'visible';
         }
     });
+    initLiveScores();
 });

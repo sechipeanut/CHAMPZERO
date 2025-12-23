@@ -1,16 +1,25 @@
 import { db } from './firebase-config.js';
-import { collection, getDocs, query, orderBy } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { collection, getDocs, query } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import { calculateStatus, escapeCssUrl } from './utils.js';
 
-// Helper Functions
-function qs(sel) { return document.querySelector(sel); }
-function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+// 1. Import the live scores engine
+import { initLiveScores } from './live-scores.js';
 
-// --- Main Initialization ---
+function qs(sel) { return document.querySelector(sel); }
+
+// 2. ADD 'export' here so live-scores.js can see it
+export function escapeHtml(str) { 
+    if (!str) return ''; 
+    return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); 
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     fetchEvents();
-    checkAdminStatus(); // Check if the "Add Event" button should show
+    checkAdminStatus();
+    
+    // 3. Start the live match engine
+    initLiveScores();
 });
 
 // --- 1. Fetch Events from Firebase ---
