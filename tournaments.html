@@ -6,10 +6,6 @@
     <title>ChampZero — Tournaments</title>
 
     <meta name="description" content="Browse and join upcoming esports tournaments on ChampZero. Compete in Valorant, MLBB, and Honor of Kings for huge prize pools.">
-    <meta property="og:title" content="ChampZero — Tournaments">
-    <meta property="og:description" content="Compete in top-tier tournaments, get scouted, and win prizes.">
-    <meta property="og:image" content="https://champzero.com/pictures/cz_logo.png">
-    <meta property="twitter:card" content="summary_large_image">
     
     <script src="https://cdn.tailwindcss.com"></script>
     
@@ -28,42 +24,53 @@
         .text-glow { text-shadow: 0 0 8px rgba(255, 215, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.4); }
         .futuristic-bg { background-color: var(--dark-bg); background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px); background-size: 30px 30px; }
         
-        /* Nav Links */
         .nav-link { position: relative; }
         .nav-link::after { content: ''; position: absolute; width: 100%; transform: scaleX(0); height: 2px; bottom: -4px; left: 0; background-color: var(--gold); transform-origin: bottom right; transition: transform 0.25s ease-out; }
         .nav-link:hover::after { transform: scaleX(1); transform-origin: bottom left; }
         
-        /* Form Elements */
         .dark-input, .dark-select { background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; }
         .dark-input:focus, .dark-select:focus { outline: none; border-color: var(--gold); box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.3); }
         .dark-select option { background-color: var(--dark-card); color: white; }
         
-        /* Focus Accessibility */
         :focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
+
+        /* BRACKET STYLES */
+        .bracket-container { display: flex; overflow-x: auto; gap: 2rem; padding: 1rem 0; }
+        .bracket-round { display: flex; flex-direction: column; justify-content: space-around; gap: 2rem; min-width: 220px; }
+        .bracket-match { background: #15151a; border: 1px solid rgba(255,255,255,0.1); padding: 0.75rem; border-radius: 0.5rem; position: relative; display: flex; flex-direction: column; gap: 0.5rem; }
+        .bracket-match:hover { border-color: var(--gold); }
+        .team-slot { display: flex; justify-content: space-between; font-size: 0.85rem; padding: 2px 0; }
+        .team-name { color: #e5e7eb; font-weight: 500; }
+        .team-score { color: var(--gold); font-weight: bold; }
+        .bracket-round-title { text-align: center; color: var(--gold); font-size: 0.8rem; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 1rem; font-weight: bold; }
+        /* Connecting lines for bracket (Simplified) */
+        .bracket-round:not(:last-child) .bracket-match::after {
+            content: ''; position: absolute; right: -1rem; top: 50%; width: 1rem; height: 1px; background: rgba(255,255,255,0.2);
+        }
     </style>
 </head>
 <body class="bg-[var(--dark-bg)] text-gray-200 antialiased futuristic-bg">
 
 <header id="main-header" class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 transition-all duration-300">
   <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
-    <a href="/" class="flex items-center gap-3">
+    <a href="home.html" class="flex items-center gap-3">
         <img src="pictures/cz_logo.png" alt="ChampZero Logo" width="40" height="40" class="w-10 h-10 rounded-md object-cover">
         <span class="font-bold text-xl text-white">ChampZero</span>
     </a>
     <nav class="hidden md:flex items-center gap-8 text-sm">
-        <a href="/" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Home</a>
-        <a href="/tournaments" class="nav-link text-[var(--gold)] font-semibold">Tournaments</a>
-        <a href="/events" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Events</a>
-        <a href="/teams" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Teams & Recruitment</a>
-        <a href="/rising" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Rising Champ</a>
-        <a href="/partners" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Partners</a>
-        <a href="/shop" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Shop</a>
+        <a href="home.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Home</a>
+        <a href="tournaments.html" class="nav-link text-[var(--gold)] font-semibold">Tournaments</a>
+        <a href="events.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Events</a>
+        <a href="teams.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Teams & Recruitment</a>
+        <a href="rising.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Rising Champ</a>
+        <a href="partners.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Partners</a>
+        <a href="shop.html" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Shop</a>
     </nav>
     <div class="flex items-center gap-3">
         <div id="auth-controls-wrapper" class="relative">
             <div id="auth-controls" class="flex items-center gap-3">
-                <a href="/login" class="text-sm px-3 py-1.5 rounded-md hover:bg-white/10 text-gray-300">Log In</a>
-                <a href="/signup" class="hidden sm:inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
+                <a href="login.html" class="text-sm px-3 py-1.5 rounded-md hover:bg-white/10 text-gray-300">Log In</a>
+                <a href="signup.html" class="hidden sm:inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
             </div>
         </div>
         <button id="mobile-menu-button" aria-label="Toggle navigation menu" class="md:hidden p-2 rounded-md text-gray-300 hover:bg-white/10">
@@ -75,15 +82,15 @@
 
 <div id="mobile-menu" class="hidden md:hidden fixed inset-0 bg-[var(--dark-bg)] z-40 p-6">
     <nav class="flex flex-col items-center justify-center h-full gap-6 text-lg">
-        <a href="/" class="text-gray-300 hover:text-[var(--gold)]">Home</a>
-        <a href="/tournaments" class="text-[var(--gold)] font-semibold">Tournaments</a>
-        <a href="/events" class="text-gray-300 hover:text-[var(--gold)]">Events</a>
-        <a href="/teams" class="text-gray-300 hover:text-[var(--gold)]">Teams & Recruitment</a>
-        <a href="/rising" class="text-gray-300 hover:text-[var(--gold)]">Rising Champ</a>
-        <a href="/shop" class="text-gray-300 hover:text-[var(--gold)]">Shop</a>
+        <a href="home.html" class="text-gray-300 hover:text-[var(--gold)]">Home</a>
+        <a href="tournaments.html" class="text-[var(--gold)] font-semibold">Tournaments</a>
+        <a href="events.html" class="text-gray-300 hover:text-[var(--gold)]">Events</a>
+        <a href="teams.html" class="text-gray-300 hover:text-[var(--gold)]">Teams & Recruitment</a>
+        <a href="rising.html" class="text-gray-300 hover:text-[var(--gold)]">Rising Champ</a>
+        <a href="shop.html" class="text-gray-300 hover:text-[var(--gold)]">Shop</a>
         <div class="border-t border-white/20 mt-6 pt-6 flex gap-4">
-             <a href="/login" class="text-sm px-4 py-2 rounded-md text-gray-300 ring-1 ring-gray-600">Log in</a>
-            <a href="/signup" class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
+             <a href="login.html" class="text-sm px-4 py-2 rounded-md text-gray-300 ring-1 ring-gray-600">Log in</a>
+            <a href="signup.html" class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
         </div>
     </nav>
 </div>
@@ -92,6 +99,13 @@
   <section class="text-center mb-12">
     <h1 class="text-5xl md:text-6xl font-extrabold text-glow text-[var(--gold)]">Tournament Hub</h1>
     <p class="mt-4 text-lg text-gray-300 max-w-2xl mx-auto">Explore, compete, and conquer. The central arena for all ChampZero esports action.</p>
+    
+    <div class="mt-6">
+        <a href="leaderboard.html" class="inline-flex items-center gap-2 text-[var(--gold)] hover:text-white transition-colors text-sm font-semibold uppercase tracking-wider group">
+            View Global Rankings
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 transform group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+        </a>
+    </div>
   </section>
 
   <section class="mb-8 p-4 bg-[var(--dark-card)] rounded-xl border border-white/10 sticky top-[72px] z-30 backdrop-blur-lg shadow-lg">
@@ -135,20 +149,53 @@
 </main>
 
 <div id="detailsModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-50 p-4 transition-opacity duration-300">
-  <div class="bg-[var(--dark-card)] border border-white/10 rounded-xl w-full md:w-2/3 lg:w-1/2 p-6 relative max-h-[90vh] overflow-auto shadow-2xl">
-    <div id="detailBanner" class="mb-4"></div>
-    <h3 id="detailTitle" class="text-3xl font-bold mb-2 text-white"></h3>
-    <div id="detailMeta" class="mb-4 text-sm text-gray-300 flex flex-wrap gap-x-6 gap-y-2"></div>
-    <div class="border-t border-white/10 my-4"></div>
-    <div id="detailDesc" class="mb-4 text-gray-300 leading-relaxed"></div>
-    <div id="detailParticipants" class="mb-6">
-      <h4 class="font-semibold text-lg text-white mb-2">Participants</h4>
-      <ul id="participantsList" class="bg-black/20 p-4 rounded-lg space-y-2 text-sm text-gray-300 max-h-40 overflow-y-auto"></ul>
+  <div class="bg-[var(--dark-card)] border border-white/10 rounded-xl w-full md:w-3/4 lg:w-4/5 xl:w-2/3 p-6 relative max-h-[95vh] overflow-auto shadow-2xl flex flex-col">
+    
+    <div id="detailBanner" class="mb-4 w-full h-48 rounded-lg overflow-hidden relative bg-black"></div>
+    <div class="flex justify-between items-start mb-2">
+        <h3 id="detailTitle" class="text-3xl font-bold text-white"></h3>
+        <button onclick="closeModal('detailsModal')" aria-label="Close modal" class="text-gray-400 hover:text-white font-bold text-2xl bg-white/5 rounded-full w-8 h-8 flex items-center justify-center">&times;</button>
     </div>
-    <div class="flex justify-end">
-        <button onclick="closeModal('detailsModal')" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-md transition-colors">Close</button>
+    <div id="detailMeta" class="mb-6 text-sm text-gray-300 flex flex-wrap gap-x-6 gap-y-2"></div>
+    
+    <div class="border-b border-white/10 mb-4 flex gap-6">
+        <button onclick="switchTab('desc')" id="tab-desc" class="pb-2 text-[var(--gold)] border-b-2 border-[var(--gold)] font-semibold transition-colors">Overview</button>
+        <button onclick="switchTab('bracket')" id="tab-bracket" class="pb-2 text-gray-400 hover:text-white transition-colors">Bracket & Matchups</button>
     </div>
-    <button onclick="closeModal('detailsModal')" aria-label="Close modal" class="absolute top-4 right-4 text-gray-400 hover:text-white font-bold text-2xl">&times;</button>
+
+    <div id="content-desc" class="space-y-6">
+        <div id="detailDesc" class="text-gray-300 leading-relaxed whitespace-pre-line"></div>
+        <div>
+            <h4 class="font-semibold text-lg text-white mb-2">Registered Participants</h4>
+            <div class="bg-black/20 p-4 rounded-lg max-h-40 overflow-y-auto border border-white/5">
+                <ul id="participantsList" class="space-y-2 text-sm text-gray-300">
+                    <li class="text-gray-500 italic">No participants yet.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div id="content-bracket" class="hidden">
+        <div class="bg-black/20 border border-white/5 rounded-lg p-4">
+            <h4 class="font-bold text-[var(--gold)] mb-4 flex items-center gap-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.384-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                Automatic Match-Up Bracket
+            </h4>
+            <div id="bracket-root" class="bracket-container">
+                <div class="text-sm text-gray-500 p-4">Generating bracket based on participant list...</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="border-t border-white/10 mt-6 pt-4 flex justify-between items-center">
+        <span class="text-xs text-gray-500">ChampZero Official Tournament</span>
+        <div class="flex gap-3">
+            <button onclick="closeModal('detailsModal')" class="bg-white/10 hover:bg-white/20 text-white px-4 py-2 rounded-md transition-colors text-sm font-medium">Close</button>
+            <button id="joinTournamentBtn" class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-6 py-2 rounded-md text-sm font-bold shadow-lg hover:shadow-[var(--gold)]/20 hover:scale-105 transition-all">
+                Join Tournament
+            </button>
+        </div>
+    </div>
   </div>
 </div>
 
@@ -162,7 +209,7 @@
         <div>
             <h4 class="font-semibold text-white">Quick Links</h4>
             <ul class="mt-3 text-sm text-gray-400 space-y-2">
-                <li><a href="/about" class="hover:text-[var(--gold)]">About Us</a></li><li><a href="/contact" class="hover:text-[var(--gold)]">Contact</a></li><li><a href="/terms" class="hover:text-[var(--gold)]">Terms & Privacy</a></li><li><a href="/careers" class="hover:text-[var(--gold)]">Careers</a></li>
+                <li><a href="about.html" class="hover:text-[var(--gold)]">About Us</a></li><li><a href="contact.html" class="hover:text-[var(--gold)]">Contact</a></li><li><a href="terms.html" class="hover:text-[var(--gold)]">Terms & Privacy</a></li><li><a href="careers.html" class="hover:text-[var(--gold)]">Careers</a></li>
             </ul>
         </div>
         <div>
@@ -181,60 +228,246 @@
 <script type="module" src="js/tournaments.js"></script>
 <script type="module" src="js/notifications.js"></script>
 
+<script>
+    function switchTab(tabName) {
+        // Reset Tabs
+        document.getElementById('tab-desc').className = "pb-2 text-gray-400 hover:text-white transition-colors";
+        document.getElementById('tab-bracket').className = "pb-2 text-gray-400 hover:text-white transition-colors";
+        
+        document.getElementById('content-desc').classList.add('hidden');
+        document.getElementById('content-bracket').classList.add('hidden');
+
+        // Activate Selected
+        document.getElementById(`tab-${tabName}`).className = "pb-2 text-[var(--gold)] border-b-2 border-[var(--gold)] font-semibold transition-colors";
+        document.getElementById(`content-${tabName}`).classList.remove('hidden');
+    }
+
+    // Expose close modal globally for the HTML onclicks
+    window.closeModal = function(id) {
+        const modal = document.getElementById(id);
+        if(modal) {
+            modal.classList.remove('flex');
+            modal.classList.add('hidden');
+            // Reset URL
+            const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
+            window.history.pushState({path:newUrl},'',newUrl);
+        }
+    }
+</script>
+
 <script type="module">
-    import { db } from './js/firebase-config.js';
-    import { doc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+    import { db, auth } from './js/firebase-config.js';
+    import { doc, getDoc, collection, getDocs, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+    let currentTournamentId = null;
+    let participantsCache = [];
 
     document.addEventListener('DOMContentLoaded', async () => {
-        // 1. Check URL for "?id="
         const params = new URLSearchParams(window.location.search);
         const tournamentId = params.get('id');
 
+        // SETUP JOIN BUTTON LISTENER
+        const joinBtn = document.getElementById('joinTournamentBtn');
+        if(joinBtn) {
+            joinBtn.addEventListener('click', async () => {
+                if(!auth.currentUser) {
+                    alert("You must be logged in to join a tournament.");
+                    window.location.href = 'login.html';
+                    return;
+                }
+                
+                if(!currentTournamentId) return;
+
+                const teamName = prompt("Enter your Team/In-Game Name to register:");
+                if(!teamName) return;
+
+                // Simulate DB write (In real app, perform validation check if already joined)
+                joinBtn.disabled = true;
+                joinBtn.textContent = "Joining...";
+
+                try {
+                    await addDoc(collection(db, `tournaments/${currentTournamentId}/participants`), {
+                        uid: auth.currentUser.uid,
+                        name: teamName,
+                        joinedAt: serverTimestamp()
+                    });
+                    
+                    alert("Successfully registered!");
+                    joinBtn.textContent = "Registered ✅";
+                    // Refresh data
+                    loadTournamentDetails(currentTournamentId);
+                } catch(err) {
+                    console.error("Error joining:", err);
+                    alert("Failed to join. Please try again.");
+                    joinBtn.disabled = false;
+                    joinBtn.textContent = "Join Tournament";
+                }
+            });
+        }
+
         if (tournamentId) {
-            console.log("Opening Tournament:", tournamentId);
-            const docRef = doc(db, "tournaments", tournamentId);
-            const docSnap = await getDoc(docRef);
-
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                
-                // 2. Populate Modal (Matching your HTML IDs)
-                const titleEl = document.getElementById('detailTitle');
-                const metaEl = document.getElementById('detailMeta');
-                const descEl = document.getElementById('detailDesc');
-                const bannerEl = document.getElementById('detailBanner');
-
-                if (titleEl) titleEl.textContent = data.name;
-                if (descEl) descEl.textContent = `Game: ${data.game} \nPrize: ${data.prize} \nStatus: ${data.status}`;
-                
-                // Meta Tags
-                if (metaEl) {
-                    metaEl.innerHTML = `
-                        <span class="bg-[var(--gold)] text-black px-2 py-0.5 rounded text-xs font-bold">${data.status || 'Upcoming'}</span>
-                        <span class="flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> ${data.date || 'TBA'}</span>
-                    `;
-                }
-
-                // Banner
-                if (bannerEl && data.banner) {
-                    bannerEl.innerHTML = `<img src="${data.banner}" class="w-full h-48 object-cover rounded-lg border border-white/10">`;
-                }
-
-                // 3. Show Modal
-                const modal = document.getElementById('detailsModal');
-                if (modal) {
-                    modal.classList.remove('hidden');
-                    modal.classList.add('flex');
-                }
-
-                // 4. Clean URL (Remove ID so refresh doesn't reopen it)
-                const newUrl = window.location.protocol + "//" + window.location.host + window.location.pathname;
-                window.history.pushState({path:newUrl},'',newUrl);
-            }
+            loadTournamentDetails(tournamentId);
         }
     });
-</script>
 
+    async function loadTournamentDetails(id) {
+        currentTournamentId = id;
+        console.log("Loading Tournament:", id);
+        
+        const docRef = doc(db, "tournaments", id);
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            
+            // Populate UI
+            document.getElementById('detailTitle').textContent = data.name;
+            document.getElementById('detailDesc').textContent = data.description || `Game: ${data.game}\nPrize Pool: ${data.prize}\nStatus: ${data.status}`;
+            
+            const metaEl = document.getElementById('detailMeta');
+            if (metaEl) {
+                metaEl.innerHTML = `
+                    <span class="bg-[var(--gold)] text-black px-2 py-0.5 rounded text-xs font-bold uppercase">${data.status || 'Upcoming'}</span>
+                    <span class="flex items-center gap-1 text-gray-400"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> ${data.date || 'Date TBA'}</span>
+                    <span class="flex items-center gap-1 text-gray-400 ml-4"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> ${data.prize || 'TBA'}</span>
+                `;
+            }
+
+            const bannerEl = document.getElementById('detailBanner');
+            if (bannerEl && data.banner) {
+                bannerEl.innerHTML = `<img src="${data.banner}" class="w-full h-full object-cover">`;
+            } else if(bannerEl) {
+                bannerEl.innerHTML = `<div class="w-full h-full bg-gradient-to-r from-gray-900 to-gray-800 flex items-center justify-center text-gray-600 font-bold">No Banner</div>`;
+            }
+
+            // LOAD PARTICIPANTS & GENERATE BRACKET
+            await loadParticipantsAndBracket(id);
+
+            // Show Modal
+            const modal = document.getElementById('detailsModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+    }
+
+    async function loadParticipantsAndBracket(id) {
+        const listEl = document.getElementById('participantsList');
+        listEl.innerHTML = '<li class="text-gray-500 italic">Loading...</li>';
+        
+        try {
+            // Fetch participants subcollection
+            const snap = await getDocs(collection(db, `tournaments/${id}/participants`));
+            participantsCache = [];
+            
+            if(snap.empty) {
+                listEl.innerHTML = '<li class="text-gray-500 italic">No participants yet. Be the first to join!</li>';
+                renderEmptyBracket();
+                return;
+            }
+
+            let html = '';
+            snap.forEach(doc => {
+                const p = doc.data();
+                participantsCache.push(p.name || "Unknown Team");
+                html += `<li class="flex items-center gap-2"><div class="w-2 h-2 rounded-full bg-[var(--gold)]"></div> ${p.name || "Unknown Team"}</li>`;
+            });
+            listEl.innerHTML = html;
+
+            // GENERATE BRACKET
+            generateBracket(participantsCache);
+
+        } catch(e) {
+            console.warn("Could not load participants (maybe permission issue):", e);
+            listEl.innerHTML = '<li class="text-red-400 italic">Login to view participants.</li>';
+        }
+    }
+
+    function renderEmptyBracket() {
+        const container = document.getElementById('bracket-root');
+        container.innerHTML = `<div class="text-center w-full p-8 text-gray-500 border border-dashed border-white/10 rounded-lg">Bracket will be generated once teams join.</div>`;
+    }
+
+    function generateBracket(teams) {
+        const container = document.getElementById('bracket-root');
+        container.innerHTML = ''; // Clear previous
+
+        // 1. Shuffle teams for randomness
+        let shuffled = [...teams].sort(() => 0.5 - Math.random());
+
+        // 2. Pad to nearest power of 2 (2, 4, 8, 16)
+        let powerOf2 = 2;
+        while(powerOf2 < shuffled.length) powerOf2 *= 2;
+        
+        while(shuffled.length < powerOf2) {
+            shuffled.push("BYE"); // Placeholder for empty slots
+        }
+
+        // 3. Create Rounds Structure
+        // Number of rounds = log2(powerOf2)
+        const roundsCount = Math.log2(powerOf2);
+        let currentRoundTeams = shuffled;
+
+        for(let r = 0; r < roundsCount; r++) {
+            const roundDiv = document.createElement('div');
+            roundDiv.className = 'bracket-round';
+            
+            // Round Title
+            let roundName = `Round ${r + 1}`;
+            if(r === roundsCount - 1) roundName = "Finals";
+            if(r === roundsCount - 2) roundName = "Semi-Finals";
+            
+            const title = document.createElement('div');
+            title.className = 'bracket-round-title';
+            title.textContent = roundName;
+            roundDiv.appendChild(title);
+
+            // Create Matches for this round
+            const nextRoundTeams = [];
+            for(let i = 0; i < currentRoundTeams.length; i += 2) {
+                const team1 = currentRoundTeams[i];
+                const team2 = currentRoundTeams[i+1];
+                
+                // Create Match HTML
+                const matchDiv = document.createElement('div');
+                matchDiv.className = 'bracket-match';
+                
+                matchDiv.innerHTML = `
+                    <div class="team-slot">
+                        <span class="team-name ${team1 === 'BYE' ? 'text-gray-600' : ''}">${team1}</span>
+                        <span class="team-score">-</span>
+                    </div>
+                    <div class="team-slot">
+                        <span class="team-name ${team2 === 'BYE' ? 'text-gray-600' : ''}">${team2}</span>
+                        <span class="team-score">-</span>
+                    </div>
+                `;
+                roundDiv.appendChild(matchDiv);
+
+                // For visualization only, we assume the next round is TBD
+                nextRoundTeams.push("TBD");
+            }
+
+            container.appendChild(roundDiv);
+            
+            // If this is the finals, we stop generating next rounds based on "TBD"
+            // But we render the empty slots for visuals
+            currentRoundTeams = nextRoundTeams; 
+        }
+
+        // Add the Winner Box
+        const winnerDiv = document.createElement('div');
+        winnerDiv.className = 'bracket-round justify-center';
+        winnerDiv.innerHTML = `
+            <div class="bracket-round-title text-[var(--gold)]">🏆 Champion</div>
+            <div class="bracket-match border-[var(--gold)]">
+                <div class="team-slot justify-center py-2"><span class="team-name text-[var(--gold)]">TBD</span></div>
+            </div>
+        `;
+        container.appendChild(winnerDiv);
+    }
+</script>
 
 </body>
 </html>
