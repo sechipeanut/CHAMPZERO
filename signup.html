@@ -17,7 +17,7 @@
 <body class="bg-[var(--dark-bg)] text-gray-200 antialiased">
 
 <header class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 h-16 flex items-center justify-center">
-    <a href="home.html" class="flex items-center gap-3">
+    <a href="/" class="flex items-center gap-3">
         <img src="pictures/cz_logo.png" alt="ChampZero" width="40" height="40" class="w-10 h-10 rounded-md">
         <span class="font-bold text-xl text-white">ChampZero</span>
     </a>
@@ -45,7 +45,7 @@
             
             <div class="pt-2 flex items-center text-sm">
                 <input id="terms" type="checkbox" required class="dark-checkbox h-4 w-4 rounded">
-                <label for="terms" class="ml-2 block text-gray-300">I agree to the <a href="terms.html" class="text-[var(--gold)] hover:underline">Terms & Privacy</a></label>
+                <label for="terms" class="ml-2 block text-gray-300">I agree to the <a href="/terms" class="text-[var(--gold)] hover:underline">Terms & Privacy</a></label>
             </div>
 
             <div>
@@ -53,10 +53,11 @@
             </div>
         </form>
 
-        <p class="mt-8 text-center text-sm text-gray-400">Already a member? <a href="login.html" class="font-medium text-[var(--gold)] hover:underline">Log in</a></p>
+        <p class="mt-8 text-center text-sm text-gray-400">Already a member? <a href="/login" class="font-medium text-[var(--gold)] hover:underline">Log in</a></p>
     </div>
 </main>
 
+<script src="js/toast.js"></script>
 <script type="module" src="js/auth.js"></script>
 
 </body>

@@ -1,20 +1,22 @@
 // js/teams.js
 import { db, auth } from './firebase-config.js';
-import { 
-    collection, getDocs, doc, addDoc, updateDoc, deleteDoc, 
+import {
+    collection, getDocs, doc, addDoc, updateDoc, deleteDoc,
     serverTimestamp, arrayUnion, arrayRemove, getDoc, onSnapshot, query, orderBy, collectionGroup, where
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 // Helper for selecting elements
 function qs(sel) { return document.querySelector(sel); }
 // Helper for escaping HTML to prevent XSS
-function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
 
 // Global Variables
 let currentUserRole = null;
-let chatUnsubscribe = null; 
-let kickUnsubscribe = null; // New listener for kick notifications
-let currentManageId = null; 
+let chatUnsubscribe = null;
+let kickUnsubscribe = null;
+let currentManageId = null;
+let activeTeamFilter = 'available'; // Default filter state
+let searchTerm = ''; // NEW: Search state
 
 // --- 1. ANIMATION HELPERS ---
 
@@ -23,7 +25,7 @@ function animateGenericOpen(modalId, backdropId, panelId) {
     const backdrop = document.getElementById(backdropId);
     const panel = document.getElementById(panelId);
     if (!modal) return;
-    
+
     modal.classList.remove('hidden');
     setTimeout(() => {
         backdrop.classList.remove('opacity-0');
@@ -44,7 +46,7 @@ function animateGenericClose(modalId, backdropId, panelId, callback) {
 
     setTimeout(() => {
         modal.classList.add('hidden');
-        if(callback) callback();
+        if (callback) callback();
     }, 300);
 }
 
@@ -55,10 +57,10 @@ window.showCustomAlert = (title, message) => {
         const msgEl = document.getElementById('alertMessage');
         const btnContainer = document.getElementById('alertButtons');
 
-        if(!document.getElementById('customAlertModal')) { alert(message); resolve(); return; }
+        if (!document.getElementById('customAlertModal')) { alert(message); resolve(); return; }
 
         titleEl.textContent = title;
-        msgEl.innerHTML = message; 
+        msgEl.innerHTML = message;
         btnContainer.innerHTML = '';
 
         const okBtn = document.createElement('button');
@@ -80,7 +82,7 @@ window.showCustomConfirm = (title, message) => {
         const msgEl = document.getElementById('alertMessage');
         const btnContainer = document.getElementById('alertButtons');
 
-        if(!document.getElementById('customAlertModal')) { resolve(confirm(message)); return; }
+        if (!document.getElementById('customAlertModal')) { resolve(confirm(message)); return; }
 
         titleEl.textContent = title;
         msgEl.innerHTML = message;
@@ -110,29 +112,34 @@ window.showCustomConfirm = (title, message) => {
 
 // --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async () => {
+    // Search Listener
+    const searchInput = document.getElementById('team-search');
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            searchTerm = e.target.value.toLowerCase();
+            renderTeams();
+        });
+    }
+
     auth.onAuthStateChanged(async (user) => {
         if (user) {
             try {
                 const snap = await getDoc(doc(db, "users", user.uid));
                 if (snap.exists()) currentUserRole = snap.data().role;
-                
-                // START LISTENING FOR KICK NOTIFICATIONS
                 startKickListener(user.uid);
-                
             } catch (e) { console.error("Error fetching user role:", e); }
         } else {
-            if(kickUnsubscribe) kickUnsubscribe();
+            if (kickUnsubscribe) kickUnsubscribe();
         }
         renderTeams();
     });
     setupForms();
 });
 
-// --- NEW: KICK NOTIFICATION LISTENER ---
+// --- KICK NOTIFICATION LISTENER ---
 function startKickListener(uid) {
-    // Queries all 'applications' across the DB where I am the applicant AND status is 'kicked'
-    const q = query(collectionGroup(db, 'applications'), 
-        where('applicantId', '==', uid), 
+    const q = query(collectionGroup(db, 'applications'),
+        where('applicantId', '==', uid),
         where('status', '==', 'kicked')
     );
 
@@ -140,24 +147,16 @@ function startKickListener(uid) {
         for (const change of snapshot.docChanges()) {
             if (change.type === 'added') {
                 const appDoc = change.doc;
-                // Get the parent Team Document to find the Name
-                // Structure: recruitment/{teamId}/applications/{appId} -> parent.parent is teamRef
-                const teamRef = appDoc.ref.parent.parent; 
-                
-                if(teamRef) {
+                const teamRef = appDoc.ref.parent.parent;
+
+                if (teamRef) {
                     try {
                         const teamSnap = await getDoc(teamRef);
                         const teamName = teamSnap.exists() ? teamSnap.data().name : "Unknown Team";
-                        
-                        // Show the Alert
                         await window.showCustomAlert("Notification", `You have been kicked from <strong>${escapeHtml(teamName)}</strong>.`);
-                        
-                        // Clean up: Delete the application so notification doesn't show again
                         await deleteDoc(appDoc.ref);
-                        
-                        // Refresh UI if needed
                         renderTeams();
-                    } catch(err) {
+                    } catch (err) {
                         console.error("Error handling kick notification:", err);
                     }
                 }
@@ -166,112 +165,135 @@ function startKickListener(uid) {
     });
 }
 
-// --- RENDER TEAMS LIST ---
+// ==========================================
+// MAIN RENDER FUNCTION
+// ==========================================
 async function renderTeams() {
     const board = qs('#recruitment-board');
     if (!board) return;
-    board.innerHTML = '<div class="text-center py-12"><div class="animate-pulse flex flex-col items-center"><div class="h-4 w-4 bg-[var(--gold)] rounded-full mb-2"></div><p class="text-gray-500 text-sm">Loading listings...</p></div></div>';
+    board.innerHTML = '<p class="text-gray-500 text-center col-span-full">Loading listings...</p>';
 
     try {
-        const querySnapshot = await getDocs(collection(db, "recruitment")); 
+        const querySnapshot = await getDocs(collection(db, "recruitment"));
         
-        let myApplications = {}; 
-        if (auth.currentUser) {
-            const appsQuery = query(collectionGroup(db, 'applications'), where('applicantId', '==', auth.currentUser.uid));
-            const appsSnap = await getDocs(appsQuery);
-            appsSnap.forEach(doc => {
-                if(doc.ref.parent.parent) {
-                    myApplications[doc.ref.parent.parent.id] = doc.id;
-                }
-            });
-        }
-
         board.innerHTML = '';
-        if (querySnapshot.empty) { board.innerHTML = '<p class="text-center text-gray-500 py-8">No active listings found.</p>'; return; }
+        const myUid = auth.currentUser ? auth.currentUser.uid : null;
+        let count = 0;
 
         querySnapshot.forEach((docSnap) => {
             const post = docSnap.data();
             const docId = docSnap.id;
             
-            const currentMembers = post.members ? post.members.length : (parseInt(post.currentMembers) || 0);
-            const maxMembers = parseInt(post.maxMembers) || 5;
-            const isFull = currentMembers >= maxMembers;
-            
-            const myUid = auth.currentUser ? auth.currentUser.uid : null;
             const isAuthor = myUid === post.authorId;
-            const isAdmin = currentUserRole === 'admin';
             const isMember = post.members && post.members.some(m => m.uid === myUid);
+            const isJoined = isAuthor || isMember;
+
+            // --- FILTER LOGIC (AVAILABLE / MINE) ---
+            if (activeTeamFilter === 'mine' && !isJoined) return;
+            if (activeTeamFilter === 'available' && isJoined) return;
+
+            // --- SEARCH LOGIC (NAME) ---
+            // If there is a search term, skip this team if name doesn't match
+            if (searchTerm && !post.name.toLowerCase().includes(searchTerm)) {
+                return;
+            }
             
-            const appId = myApplications[docId];
-            const hasApplied = !isMember && !!appId;
+            count++;
 
-            const canManage = isAuthor || isAdmin;
-            const imgUrl = post.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.name)}&background=1A1A1F&color=FFD700&size=128`;
-
+            // --- CREATE CARD ELEMENT ---
             const postEl = document.createElement('div');
-            postEl.className = `bg-[var(--dark-card)] border ${isMember || isAuthor ? 'border-[var(--gold)]' : (isFull ? 'border-red-900/50 opacity-75' : 'border-white/10 hover:border-indigo-500')} rounded-xl p-6 flex flex-col md:flex-row items-start md:items-center gap-6 mb-4 transition-all duration-300 relative overflow-hidden`;
-            
-            let badge = '';
-            if (isAuthor) badge = `<div class="absolute top-0 right-0 bg-[var(--gold)] text-black text-[10px] font-bold px-2 py-1 rounded-bl-lg">OWNER</div>`;
-            else if (isMember) badge = `<div class="absolute top-0 right-0 bg-indigo-500 text-white text-[10px] font-bold px-2 py-1 rounded-bl-lg">MEMBER</div>`;
+            postEl.className = "bg-[var(--dark-card)] border border-white/10 rounded-xl overflow-hidden hover:border-[var(--gold)] transition-all duration-300 group flex flex-col";
 
+            // Determine Button Logic
             let actionBtn = '';
-            if (canManage) {
-                 actionBtn = `<button onclick="window.openManageModal('${docId}', 'admin')" class="w-full md:w-auto px-6 py-2 bg-[var(--gold)] text-black rounded-lg text-sm font-bold hover:bg-yellow-400 transition-colors shadow-lg shadow-yellow-500/20">Manage Team</button>`;
+            const memberCount = post.members ? post.members.length : 0;
+            const maxMembers = post.maxMembers || 5;
+            const isFull = memberCount >= maxMembers;
+
+            if (isAuthor) {
+                actionBtn = `<button onclick="window.openManageModal('${docId}', 'admin')" class="w-full bg-[var(--gold)] text-black font-bold py-2 rounded mt-auto hover:bg-yellow-400 transition-colors shadow-lg shadow-yellow-900/20">Manage Team</button>`;
             } else if (isMember) {
-                 actionBtn = `<button onclick="window.openManageModal('${docId}', 'member')" class="w-full md:w-auto px-6 py-2 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/20">View Team</button>`;
-            } else if (hasApplied) {
-                 actionBtn = `<button onclick="window.cancelApplication('${docId}', '${appId}')" class="w-full md:w-auto px-6 py-2 bg-red-900/50 border border-red-500/30 text-red-200 rounded-lg text-sm font-bold hover:bg-red-900 hover:text-white transition-colors">Cancel App</button>`;
+                actionBtn = `<button onclick="window.openManageModal('${docId}', 'view')" class="w-full bg-white/10 text-white font-bold py-2 rounded mt-auto hover:bg-white/20 transition-colors">View Team</button>`;
+            } else if (isFull) {
+                actionBtn = `<button disabled class="w-full bg-red-900/20 text-red-500 font-bold py-2 rounded mt-auto cursor-not-allowed border border-red-900/50">Roster Full</button>`;
             } else {
-                 actionBtn = `<button onclick="${isFull ? '' : `window.openApplicationModal('${docId}', '${escapeHtml(post.name)}')`}" class="w-full md:w-auto px-6 py-2 rounded-lg text-sm font-bold transition-colors ${isFull ? 'bg-gray-700 text-gray-400 cursor-not-allowed' : 'bg-white/10 text-white hover:bg-white/20'}">${isFull ? 'Roster Full' : 'Apply to Join'}</button>`;
+                actionBtn = `<button onclick="window.openApplicationModal('${docId}', '${escapeHtml(post.name)}')" class="w-full bg-indigo-600 text-white font-bold py-2 rounded mt-auto hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-900/20">Apply to Join</button>`;
             }
 
+            const imgUrl = post.image || 'pictures/cz_logo.png';
+
+            // --- POPULATE CARD HTML ---
             postEl.innerHTML = `
-                ${badge}
-                <div class="flex-shrink-0 w-full md:w-24 h-24 bg-black/20 rounded-lg overflow-hidden flex items-center justify-center">
-                    <img src="${escapeHtml(imgUrl)}" alt="Team Logo" class="w-full h-full object-cover">
-                </div>
-                <div class="flex-1 w-full">
-                    <div class="flex justify-between items-start">
-                        <div>
-                            <h3 class="font-bold text-white text-xl">${escapeHtml(post.name)}</h3>
-                            <div class="text-xs text-[var(--gold)] uppercase font-bold mt-0.5">${escapeHtml(post.game)}</div>
-                        </div>
-                    </div>
-                    <p class="text-sm text-gray-300 mt-2 line-clamp-2">"${escapeHtml(post.description)}"</p>
-                    <div class="mt-4 flex flex-wrap gap-4 text-xs text-gray-400 items-center">
-                        <div class="flex items-center gap-1">
-                            <span class="${isFull ? 'text-red-400' : 'text-white'}">${currentMembers} / ${maxMembers} Members</span>
-                        </div>
+                <div class="h-32 bg-gray-800 relative overflow-hidden">
+                    <img src="${escapeHtml(imgUrl)}" class="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-all duration-500 transform group-hover:scale-110" alt="${escapeHtml(post.name)}">
+                    <div class="absolute top-2 right-2 bg-black/60 px-2 py-1 rounded text-[10px] text-white font-bold backdrop-blur-sm border border-white/10">
+                        ${escapeHtml(post.game)}
                     </div>
                 </div>
-                <div class="w-full md:w-auto mt-4 md:mt-0">${actionBtn}</div>
+                <div class="p-5 flex-1 flex flex-col">
+                    <div class="flex justify-between items-start mb-2">
+                        <h3 class="text-xl font-bold text-white leading-tight truncate pr-2">${escapeHtml(post.name)}</h3>
+                    </div>
+                    
+                    <p class="text-xs text-gray-400 mb-4 flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-[var(--gold)]"></span>
+                        Captain: <span class="text-gray-300">${escapeHtml(post.members && post.members[0] ? post.members[0].name : 'Unknown')}</span>
+                    </p>
+                    
+                    <div class="mb-4">
+                        <div class="flex justify-between text-xs text-gray-400 mb-1">
+                            <span>Roster Status</span>
+                            <span class="${isFull ? 'text-red-400' : 'text-[var(--gold)]'}">${memberCount} / ${maxMembers}</span>
+                        </div>
+                        <div class="w-full bg-white/5 h-1.5 rounded-full overflow-hidden">
+                            <div class="bg-[var(--gold)] h-full transition-all duration-500" style="width: ${(memberCount / maxMembers) * 100}%"></div>
+                        </div>
+                    </div>
+
+                    <p class="text-sm text-gray-400 line-clamp-2 mb-6 h-10 leading-relaxed">${escapeHtml(post.description)}</p>
+                    
+                    ${actionBtn}
+                </div>
             `;
+            
             board.appendChild(postEl);
         });
-    } catch (error) { console.error(error); board.innerHTML = '<p class="text-red-500 text-center">Failed to load listings.</p>'; }
+
+        if (count === 0) {
+            let msg = '';
+            if (searchTerm) {
+                msg = `No teams found matching "${escapeHtml(searchTerm)}" in this category.`;
+            } else {
+                msg = activeTeamFilter === 'mine' ? 'You haven\'t joined any teams yet.' : 'No available teams found.';
+            }
+            board.innerHTML = `<p class="text-center text-gray-500 py-8 col-span-full">${msg}</p>`;
+        }
+    } catch (error) { 
+        console.error(error); 
+        board.innerHTML = '<p class="text-red-500 text-center col-span-full">Failed to load listings.</p>'; 
+    }
 }
 
 // ==========================================
-// 2. WINDOW FUNCTIONS
+// 3. WINDOW FUNCTIONS
 // ==========================================
 
 window.openManageModal = async (teamId, mode) => {
     currentManageId = teamId;
     const modal = document.getElementById('manageTeamModal');
     modal.classList.remove('hidden');
-    
+
     const adminTabs = document.querySelectorAll('.admin-only');
     adminTabs.forEach(el => el.style.display = (mode === 'admin') ? 'block' : 'none');
 
     try {
         const docRef = doc(db, "recruitment", teamId);
         const docSnap = await getDoc(docRef);
-        
+
         if (docSnap.exists()) {
             const data = docSnap.data();
             document.getElementById('manage-team-name').textContent = data.name;
-            
+
             if (mode === 'admin') {
                 document.getElementById('edit-team-id').value = teamId;
                 document.getElementById('edit-desc').value = data.description;
@@ -280,8 +302,7 @@ window.openManageModal = async (teamId, mode) => {
             }
 
             renderRosterList(data.members || [], mode === 'admin');
-            startChatListener(teamId); 
-            
+            startChatListener(teamId);
             window.switchManageTab('chat');
         }
     } catch (err) { console.error(err); await window.showCustomAlert("Error", "Failed to open team manager."); }
@@ -297,13 +318,13 @@ window.closeManageModal = () => {
 window.switchManageTab = (tabName) => {
     document.querySelectorAll('.manage-view').forEach(el => el.classList.add('hidden'));
     document.getElementById(`view-${tabName}`).classList.remove('hidden');
-    
+
     const activeClass = "flex-1 py-3 md:py-4 text-xs md:text-sm font-bold text-[var(--gold)] border-b-2 border-[var(--gold)] hover:bg-white/5 transition-colors whitespace-nowrap px-2";
     const inactiveClass = "flex-1 py-3 md:py-4 text-xs md:text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-colors whitespace-nowrap px-2";
 
     ['chat', 'roster', 'applications', 'settings'].forEach(t => {
         const btn = document.getElementById(`tab-${t}`);
-        if(btn) {
+        if (btn) {
             btn.className = (t === tabName) ? activeClass : inactiveClass;
         }
     });
@@ -311,7 +332,7 @@ window.switchManageTab = (tabName) => {
 
 window.cancelApplication = async (teamId, appId) => {
     const confirm = await window.showCustomConfirm("Cancel Application?", "Are you sure you want to withdraw your application?");
-    if(!confirm) return;
+    if (!confirm) return;
 
     try {
         await deleteDoc(doc(db, "recruitment", teamId, "applications", appId));
@@ -323,25 +344,20 @@ window.cancelApplication = async (teamId, appId) => {
     }
 };
 
-// --- UPDATED: LEAVE TEAM WITH BOLD NOTIFICATION ---
 window.leaveTeam = async () => {
     const confirm = await window.showCustomConfirm("Leave Team?", "Are you sure you want to leave this team? This action cannot be undone.");
-    if(!confirm) return;
-    
+    if (!confirm) return;
+
     try {
         const teamRef = doc(db, "recruitment", currentManageId);
-        
-        // 1. Get Team Name FIRST (before leaving)
         const teamSnap = await getDoc(teamRef);
         const teamName = teamSnap.exists() ? teamSnap.data().name : "the team";
 
-        // 2. Delete Application
         const appsRef = collection(db, "recruitment", currentManageId, "applications");
         const q = query(appsRef, where("applicantId", "==", auth.currentUser.uid));
         const appSnaps = await getDocs(q);
         await Promise.all(appSnaps.docs.map(d => deleteDoc(d.ref)));
 
-        // 3. Remove from Roster
         if (teamSnap.exists()) {
             const data = teamSnap.data();
             const updatedMembers = data.members.filter(m => m.uid !== auth.currentUser.uid);
@@ -351,11 +367,10 @@ window.leaveTeam = async () => {
                 members: updatedMembers,
                 currentMembers: newCount
             });
-            
-            // 4. Show Bold Notification
+
             await window.showCustomAlert("Success", `You have left <strong>${escapeHtml(teamName)}</strong>.`);
             window.closeManageModal();
-            renderTeams(); 
+            renderTeams();
         }
     } catch (err) {
         console.error("Leave Team Error:", err);
@@ -363,33 +378,27 @@ window.leaveTeam = async () => {
     }
 }
 
-// --- UPDATED: KICK MEMBER (TRIGGERS NOTIFICATION) ---
 window.kickMember = async (uid) => {
     const confirm = await window.showCustomConfirm("Kick Member?", "Are you sure you want to kick this user?");
-    if(!confirm) return;
-    
+    if (!confirm) return;
+
     try {
         const teamRef = doc(db, "recruitment", currentManageId);
-        
-        // 1. UPDATE Application status to 'kicked' (so the user gets notified)
-        // instead of deleting it immediately.
         const appsRef = collection(db, "recruitment", currentManageId, "applications");
         const q = query(appsRef, where("applicantId", "==", uid));
         const appSnaps = await getDocs(q);
-        
-        // Update all matching applications to 'kicked' status
+
         await Promise.all(appSnaps.docs.map(d => updateDoc(d.ref, { status: 'kicked' })));
 
-        // 2. Remove from Roster
         const snap = await getDoc(teamRef);
         const mems = snap.data().members.filter(m => m.uid !== uid);
         const newCount = parseInt(mems.length);
-        
-        await updateDoc(teamRef, { 
-            members: mems, 
-            currentMembers: newCount 
+
+        await updateDoc(teamRef, {
+            members: mems,
+            currentMembers: newCount
         });
-        
+
         renderRosterList(mems, true);
     } catch (error) {
         console.error("Error kicking member:", error);
@@ -398,11 +407,11 @@ window.kickMember = async (uid) => {
 };
 
 window.openApplicationModal = (teamId, teamName) => {
-    if (!auth.currentUser) { 
-        window.showCustomAlert("Login Required", "Please log in to apply."); 
-        return; 
+    if (!auth.currentUser) {
+        window.showCustomAlert("Login Required", "Please log in to apply.");
+        return;
     }
-    
+
     document.getElementById('app-team-id').value = teamId;
     document.getElementById('app-team-name').textContent = teamName;
     document.getElementById('applicationModal').classList.remove('hidden');
@@ -411,7 +420,7 @@ window.openApplicationModal = (teamId, teamName) => {
 window.handleApp = async (appId, uid, name, accept) => {
     try {
         await updateDoc(doc(db, "recruitment", currentManageId, "applications", appId), { status: accept ? 'accepted' : 'rejected' });
-        if(accept) {
+        if (accept) {
             await updateDoc(doc(db, "recruitment", currentManageId), {
                 members: arrayUnion({ uid, name, role: 'Member', joinedAt: Date.now() })
             });
@@ -426,31 +435,50 @@ window.handleApp = async (appId, uid, name, accept) => {
 };
 
 window.openCreateModal = async () => {
-    if (!auth.currentUser) { 
-        window.showCustomAlert("Login Required", "Please log in to post a listing."); 
-        return; 
+    if (!auth.currentUser) {
+        window.showCustomAlert("Login Required", "Please log in to post a listing.");
+        return;
     }
     if (currentUserRole !== 'admin' && currentUserRole !== 'subscriber') {
-        await window.showCustomAlert("Restricted Access", "Only Subscribers and Admins can post listings."); 
+        await window.showCustomAlert("Restricted Access", "Only Subscribers and Admins can post listings.");
         return;
     }
     animateGenericOpen('createTeamModal', 'createTeamBackdrop', 'createTeamPanel');
 }
 
-window.closeCreateModal = () => { 
+window.closeCreateModal = () => {
     animateGenericClose('createTeamModal', 'createTeamBackdrop', 'createTeamPanel', () => {
         qs('#createTeamForm').reset();
     });
 }
 
+// --- FILTER BUTTON LOGIC ---
+window.setTeamFilter = (filter) => {
+    activeTeamFilter = filter;
+    
+    // Update Button UI
+    const availBtn = document.getElementById('filter-available');
+    const mineBtn = document.getElementById('filter-mine');
+    
+    if (filter === 'available') {
+        availBtn.className = "px-6 py-2 rounded-full font-bold transition-all border-2 border-[var(--gold)] bg-[var(--gold)] text-black";
+        mineBtn.className = "px-6 py-2 rounded-full font-bold transition-all border-2 border-white/10 text-gray-400 hover:text-white";
+    } else {
+        mineBtn.className = "px-6 py-2 rounded-full font-bold transition-all border-2 border-[var(--gold)] bg-[var(--gold)] text-black";
+        availBtn.className = "px-6 py-2 rounded-full font-bold transition-all border-2 border-white/10 text-gray-400 hover:text-white";
+    }
+    
+    renderTeams();
+};
+
 // ==========================================
-// 3. INTERNAL HELPERS
+// 4. INTERNAL HELPERS
 // ==========================================
 
 function renderRosterList(members, isAdmin) {
     const list = document.getElementById('roster-list');
     list.innerHTML = '';
-    
+
     if (!isAdmin) {
         const leaveContainer = document.createElement('div');
         leaveContainer.className = "mb-4 pb-4 border-b border-white/10 text-right";
@@ -479,9 +507,9 @@ function renderRosterList(members, isAdmin) {
 function startChatListener(teamId) {
     const chatContainer = document.getElementById('chat-messages');
     chatContainer.innerHTML = '<p class="text-center text-gray-500 mt-4">Loading messages...</p>';
-    
+
     const q = query(collection(db, "recruitment", teamId, "messages"), orderBy("createdAt", "asc"));
-    
+
     chatUnsubscribe = onSnapshot(q, (snapshot) => {
         chatContainer.innerHTML = '';
         if (snapshot.empty) {
@@ -492,13 +520,13 @@ function startChatListener(teamId) {
         snapshot.forEach((doc) => {
             const msg = doc.data();
             const isMe = msg.senderId === auth.currentUser.uid;
-            
+
             const bubble = document.createElement('div');
             bubble.className = `chat-bubble ${isMe ? 'mine' : 'theirs'} mb-2`;
             bubble.innerHTML = `
                 <div class="font-bold text-[10px] opacity-75 mb-0.5">${escapeHtml(msg.senderName)}</div>
                 <div>${escapeHtml(msg.text)}</div>
-                <span class="chat-time">${new Date(msg.createdAt?.toDate()).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                <span class="chat-time">${new Date(msg.createdAt?.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             `;
             chatContainer.appendChild(bubble);
         });
@@ -510,12 +538,12 @@ function setupForms() {
     const chatForm = document.getElementById('chatForm');
     if (chatForm) {
         chatForm.addEventListener('submit', async (e) => {
-            e.preventDefault(); 
+            e.preventDefault();
             const input = document.getElementById('chat-input');
             const text = input.value.trim();
             if (!text || !currentManageId) return;
 
-            input.value = ''; 
+            input.value = '';
 
             try {
                 await addDoc(collection(db, "recruitment", currentManageId, "messages"), {
@@ -533,44 +561,44 @@ function setupForms() {
 
     // Create Team Form
     const createForm = document.getElementById('createTeamForm');
-    if(createForm) {
+    if (createForm) {
         createForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const btn = createForm.querySelector('button[type="submit"]');
-            const nameInput = document.getElementById('create-name').value; 
+            const nameInput = document.getElementById('create-name').value;
             btn.textContent = "Posting..."; btn.disabled = true;
-            
+
             try {
                 await addDoc(collection(db, "recruitment"), {
                     name: nameInput,
                     game: document.getElementById('create-game').value,
-                    currentMembers: 1, 
+                    currentMembers: 1,
                     maxMembers: parseInt(document.getElementById('create-max').value),
                     description: document.getElementById('create-desc').value,
                     image: document.getElementById('create-img').value,
                     authorId: auth.currentUser.uid,
                     authorEmail: auth.currentUser.email,
                     createdAt: serverTimestamp(),
-                    members: [{ uid: auth.currentUser.uid, name: auth.currentUser.displayName || "Captain", role: 'Captain', joinedAt: Date.now() }] 
+                    members: [{ uid: auth.currentUser.uid, name: auth.currentUser.displayName || "Captain", role: 'Captain', joinedAt: Date.now() }]
                 });
-                
-                window.closeCreateModal(); 
+
+                window.closeCreateModal();
                 await window.showCustomAlert("Success", "Your team: <strong>" + escapeHtml(nameInput) + "</strong> has been created.");
                 renderTeams();
-            } catch(e) { console.error(e); await window.showCustomAlert("Error", e.message); } 
+            } catch (e) { console.error(e); await window.showCustomAlert("Error", e.message); }
             finally { btn.textContent = "Post Listing"; btn.disabled = false; }
         });
     }
 
     // Application Form
     const appForm = document.getElementById('applicationForm');
-    if(appForm) {
+    if (appForm) {
         appForm.addEventListener('submit', async (e) => {
             e.preventDefault();
             const teamId = document.getElementById('app-team-id').value;
             const note = document.getElementById('app-note').value;
             const btn = appForm.querySelector('button[type="submit"]');
-            
+
             btn.textContent = "Sending..."; btn.disabled = true;
 
             try {
@@ -601,7 +629,7 @@ async function loadApplications(teamId) {
     let count = 0;
     snap.forEach(d => {
         const app = d.data();
-        if(app.status === 'pending') {
+        if (app.status === 'pending') {
             count++;
             const div = document.createElement('div');
             div.className = "bg-black/20 p-3 rounded border border-white/5";
@@ -615,7 +643,7 @@ async function loadApplications(teamId) {
             list.appendChild(div);
         }
     });
-    if(count === 0) list.innerHTML = '<p class="text-gray-500 text-center py-4">No pending applications.</p>';
+    if (count === 0) list.innerHTML = '<p class="text-gray-500 text-center py-4">No pending applications.</p>';
     const badge = document.getElementById('badge-apps');
-    if(badge) { badge.textContent = count; badge.classList.toggle('hidden', count === 0); }
+    if (badge) { badge.textContent = count; badge.classList.toggle('hidden', count === 0); }
 }

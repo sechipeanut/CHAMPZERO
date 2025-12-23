@@ -7,7 +7,7 @@ import {
     GoogleAuthProvider,
     signInWithPopup
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-import { doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 // Helper: Ensure a user profile exists in the database
 async function ensureUserProfile(user) {
@@ -17,11 +17,21 @@ async function ensureUserProfile(user) {
     if (!userSnap.exists()) {
         await setDoc(userRef, {
             username: user.displayName || user.email.split('@')[0],
+            displayName: user.displayName || user.email.split('@')[0],
             email: user.email,
             rank: "Unranked",
+            createdAt: serverTimestamp(),
             joinedAt: new Date().toISOString(),
             prizesEarned: 0,
-            role: "user"
+            role: "user",
+            emailVerified: user.emailVerified || false,
+            lastSignInTime: serverTimestamp()
+        });
+    } else {
+        // Update last sign in time on every login
+        await updateDoc(userRef, {
+            lastSignInTime: serverTimestamp(),
+            emailVerified: user.emailVerified || false
         });
     }
 }
@@ -46,11 +56,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 const creds = await signInWithEmailAndPassword(auth, email, password);
                 await ensureUserProfile(creds.user); // Check/Create Profile
                 
-                alert("Login Successful!");
-                window.location.href = "profile.html";
+                window.showSuccessToast("Success!", "Login Successful!", 2000);
+                setTimeout(() => window.location.href = "/profile", 1000);
             } catch (error) {
                 console.error(error);
-                alert("Login Failed: " + error.message);
+                window.showErrorToast("Login Failed", error.message, 4000);
                 btn.textContent = "Log In";
                 btn.disabled = false;
             }
@@ -70,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = signupForm.querySelector('button[type="submit"]');
 
             if (password !== confirm) {
-                alert("Passwords do not match!");
+                window.showWarningToast("Validation Error", "Passwords do not match!", 3000);
                 return;
             }
 
@@ -88,18 +98,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Create Firestore Document (This is what you saw working before!)
                 await setDoc(doc(db, "users", user.uid), {
                     username: username,
+                    displayName: username,
                     email: email,
                     rank: "Unranked",
+                    createdAt: serverTimestamp(),
                     joinedAt: new Date().toISOString(),
                     prizesEarned: 0,
-                    role: "user"
+                    role: "user",
+                    emailVerified: user.emailVerified || false,
+                    lastSignInTime: serverTimestamp()
                 });
 
-                alert("Account Created Successfully!");
-                window.location.href = "profile.html";
+                window.showSuccessToast("Success!", "Account Created Successfully!", 2000);
+                setTimeout(() => window.location.href = "/profile", 1000);
             } catch (error) {
                 console.error(error);
-                alert("Signup Failed: " + error.message);
+                window.showErrorToast("Signup Failed", error.message, 4000);
                 btn.textContent = "Create Account";
                 btn.disabled = false;
             }
@@ -115,11 +129,11 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const result = await signInWithPopup(auth, provider);
                 await ensureUserProfile(result.user);
-                alert(`Welcome, ${result.user.displayName}!`);
-                window.location.href = "profile.html";
+                window.showSuccessToast("Welcome!", `Signed in as ${result.user.displayName}`, 2000);
+                setTimeout(() => window.location.href = "/profile", 1000);
             } catch (error) {
                 console.error(error);
-                alert("Google Sign-In Error: " + error.message);
+                window.showErrorToast("Sign-In Error", error.message, 4000);
             }
         });
     }
