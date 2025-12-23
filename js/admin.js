@@ -12,6 +12,7 @@ import {
     serverTimestamp
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { toDateInputFormat, calculateStatus } from './utils.js';
+import { setCurrentUserId, openTournamentManager as tmOpenTournamentManager } from './tournament-admin.js';
 
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
@@ -60,6 +61,7 @@ onAuthStateChanged(auth, async (user) => {
         return;
     }
     currentUserId = user.uid;
+    setCurrentUserId(user.uid); // Set for tournament admin module
 
     try {
         const userRef = doc(db, "users", user.uid);
@@ -231,12 +233,16 @@ async function fetchTournaments() {
             <div class="admin-item">
                 <div><div class="font-bold text-white">${escapeHtml(data.name)}</div><div class="text-sm text-gray-400">${escapeHtml(data.game)}</div></div>
                 <div class="flex gap-2">
+                    <button onclick="openTournamentManager('${doc.id}')" class="bg-green-900/50 hover:bg-green-600 text-green-200 px-3 py-1 rounded text-sm border border-green-800">Manage</button>
                     <button onclick="editItem('tournaments', '${doc.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
                     <button onclick="deleteItem('tournaments', '${doc.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
                 </div>
             </div>`;
     });
 }
+
+// Expose tournament manager to window
+window.openTournamentManager = tmOpenTournamentManager;
 
 // (Other fetch functions: fetchEvents, fetchJobs, fetchTalents, fetchNotifications, fetchMessages omitted for brevity as they remain unchanged)
 async function fetchEvents() {
