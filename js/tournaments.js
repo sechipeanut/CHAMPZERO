@@ -204,12 +204,16 @@ async function handleCreateTournament() {
 
         await addDoc(collection(db, "tournaments"), newTournament);
 
-        alert("Tournament Created Successfully!");
+        if (window.showSuccessToast) {
+            window.showSuccessToast('Success', 'Tournament Created Successfully!');
+        }
         window.location.reload();
 
     } catch (error) {
         console.error("Create Error:", error);
-        alert("Failed to create tournament: " + error.message);
+        if (window.showErrorToast) {
+            window.showErrorToast('Error', 'Failed to create tournament: ' + error.message);
+        }
         btn.disabled = false;
         btn.textContent = "Launch Tournament";
     }
@@ -360,11 +364,15 @@ async function saveBracketChanges() {
             format: currentEditingTournament.format,
             participants: currentEditingTournament.participants
         });
-        alert("Bracket updated successfully!");
+        if (window.showSuccessToast) {
+            window.showSuccessToast('Success', 'Bracket updated successfully!');
+        }
         qs('#detailFormatBadge').textContent = currentEditingTournament.format;
     } catch (e) {
         console.error("Save failed", e);
-        alert("Failed to save: " + e.message);
+        if (window.showErrorToast) {
+            window.showErrorToast('Error', 'Failed to save: ' + e.message);
+        }
     }
 }
 
@@ -388,7 +396,9 @@ function selectTeamForSwap(index) {
 function openJoinForm(id) {
     const auth = getAuth();
     if (!auth.currentUser) {
-        alert("Please log in to register a team.");
+        if (window.showErrorToast) {
+            window.showErrorToast('Login Required', 'Please log in to register a team.');
+        }
         window.location.href = 'login.html';
         return;
     }
@@ -424,16 +434,54 @@ async function submitJoinRequest() {
     const joinModal = document.getElementById('joinModal');
     const tourneyRef = doc(db, "tournaments", currentJoiningId);
 
+    // Disable submit button to prevent duplicate submissions
+    const submitBtn = qs('#joinForm button[type="submit"]');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Registering...';
+    }
+
     try {
         await updateDoc(tourneyRef, {
             participants: arrayUnion(newTeam)
         });
-        alert("Success! Your team has been registered.");
+        
+        // Send notification
+        await sendTournamentNotification(currentJoiningId, 'registration', `Your team "${teamName}" has been registered for the tournament!`);
+        
+        if (window.showSuccessToast) {
+            window.showSuccessToast('Success', 'Your team has been registered!');
+        }
         joinModal.classList.add('hidden');
         window.location.reload();
     } catch (error) {
         console.error("Error joining:", error);
-        alert("Failed to join: " + error.message);
+        if (window.showErrorToast) {
+            window.showErrorToast('Error', 'Failed to join: ' + error.message);
+        }
+        // Re-enable button on error
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Register Team';
+        }
+    }
+}
+
+// Notification helper
+async function sendTournamentNotification(tournamentId, type, message) {
+    try {
+        const tournament = allTournaments.find(t => t.id === tournamentId);
+        const title = tournament ? tournament.name : 'Tournament Update';
+        
+        await addDoc(collection(db, "notifications"), {
+            title: title,
+            type: 'tournament',
+            message: message,
+            tournamentId: tournamentId,
+            createdAt: serverTimestamp()
+        });
+    } catch (error) {
+        console.error("Error sending notification:", error);
     }
 }
 
@@ -443,18 +491,148 @@ function renderBracket(participants, format, isEditable) {
     if (!container) return;
     container.innerHTML = '';
 
+    // If we have matches from database (set by admin), use them
+    if (currentEditingTournament && currentEditingTournament.matches && currentEditingTournament.matches.length > 0) {
+        renderMatchesFromDatabase(container, currentEditingTournament.matches, format, isEditable);
+        return;
+    }
+
+    // Otherwise, show placeholder view
     let teams = participants.map(p => typeof p === 'object' ? p.name : p);
 
     if (format === 'Round Robin') {
         renderRoundRobin(container, teams);
     } else if (format === 'Double Elimination') {
-        renderDoubleElimination(container, teams);
+        renderDoubleEliminationPlaceholder(container, teams);
     } else {
-        renderSingleElimination(container, teams, isEditable);
+        renderSingleEliminationPlaceholder(container, teams, isEditable);
     }
 }
 
-function renderSingleElimination(container, participants, isEditable) {
+function renderMatchesFromDatabase(container, matches, format, isEditable) {
+    if (format === 'Single Elimination') {
+        renderSingleEliminationFromMatches(container, matches, isEditable);
+    } else if (format === 'Double Elimination') {
+        renderDoubleEliminationFromMatches(container, matches, isEditable);
+    } else if (format === 'Round Robin') {
+        renderRoundRobinFromMatches(container, matches, isEditable);
+    }
+}
+
+function renderSingleEliminationFromMatches(container, matches, isEditable) {
+    const rounds = {};
+    matches.forEach(m => {
+        if (!rounds[m.round]) rounds[m.round] = [];
+        rounds[m.round].push(m);
+    });
+    
+    const bracketWrapper = document.createElement('div');
+    bracketWrapper.className = "flex gap-8 overflow-x-auto pb-4";
+    
+    Object.keys(rounds).sort((a, b) => a - b).forEach(roundNum => {
+        const roundDiv = document.createElement('div');
+        roundDiv.className = "flex flex-col gap-6 min-w-[280px]";
+        
+        let roundName = `Round ${roundNum}`;
+        if (roundNum == Object.keys(rounds).length) roundName = "Grand Final";
+        else if (roundNum == Object.keys(rounds).length - 1) roundName = "Semi Finals";
+        
+        roundDiv.innerHTML = `<h4 class="text-center text-sm font-bold text-[var(--gold)] mb-2">${roundName}</h4>`;
+        
+        rounds[roundNum].forEach(match => {
+            const matchDiv = document.createElement('div');
+            const isCompleted = match.status === 'completed';
+            matchDiv.className = `bg-[var(--dark-card)] border ${isCompleted ? 'border-green-500/30' : 'border-white/20'} rounded-lg p-3 hover:border-[var(--gold)]/50 transition-colors`;
+            matchDiv.innerHTML = `
+                <div class="flex justify-between items-center mb-2">
+                    <span class="text-xs text-gray-500">Match ${match.matchNumber}</span>
+                    ${!isEditable && match.team1 !== 'TBD' && match.team2 !== 'TBD' ? `<button onclick="openMatchChat('${match.id}')" class="text-xs bg-blue-600/30 text-blue-300 px-2 py-1 rounded hover:bg-blue-600/50 transition flex items-center gap-1">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                        Chat
+                    </button>` : ''}
+                </div>
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center ${match.winner === match.team1 ? 'text-[var(--gold)] font-bold' : 'text-white'}">
+                        <span class="text-sm">${escapeHtml(match.team1)}</span>
+                        <span class="text-sm font-bold">${match.score1 !== null && match.score1 !== undefined ? match.score1 : '-'}</span>
+                    </div>
+                    <div class="flex justify-between items-center ${match.winner === match.team2 ? 'text-[var(--gold)] font-bold' : 'text-white'}">
+                        <span class="text-sm">${escapeHtml(match.team2)}</span>
+                        <span class="text-sm font-bold">${match.score2 !== null && match.score2 !== undefined ? match.score2 : '-'}</span>
+                    </div>
+                </div>
+                ${isCompleted ? `<div class="mt-2 text-center text-xs text-green-400 font-bold">✓ Complete</div>` : ''}
+            `;
+            roundDiv.appendChild(matchDiv);
+        });
+        
+        bracketWrapper.appendChild(roundDiv);
+    });
+    
+    container.appendChild(bracketWrapper);
+}
+
+function renderDoubleEliminationFromMatches(container, matches, isEditable) {
+    const winnersMatches = matches.filter(m => m.bracket === 'winners');
+    const losersMatches = matches.filter(m => m.bracket === 'losers');
+    
+    const wbTitle = document.createElement('h4');
+    wbTitle.className = "text-[var(--gold)] font-bold mb-4";
+    wbTitle.textContent = "Winner's Bracket";
+    container.appendChild(wbTitle);
+    
+    const wbDiv = document.createElement('div');
+    renderSingleEliminationFromMatches(wbDiv, winnersMatches, isEditable);
+    container.appendChild(wbDiv);
+    
+    if (losersMatches.length > 0) {
+        const lbTitle = document.createElement('h4');
+        lbTitle.className = "text-red-400 font-bold mt-8 mb-4";
+        lbTitle.textContent = "Loser's Bracket";
+        container.appendChild(lbTitle);
+        
+        const lbDiv = document.createElement('div');
+        renderSingleEliminationFromMatches(lbDiv, losersMatches, isEditable);
+        container.appendChild(lbDiv);
+    }
+}
+
+function renderRoundRobinFromMatches(container, matches, isEditable) {
+    const wrapper = document.createElement('div');
+    wrapper.className = "space-y-3";
+    
+    matches.forEach((match, idx) => {
+        const isCompleted = match.status === 'completed';
+        const matchDiv = document.createElement('div');
+        matchDiv.className = `bg-[var(--dark-card)] border ${isCompleted ? 'border-green-500/30' : 'border-white/20'} rounded-lg p-4 hover:border-[var(--gold)]/50 transition-colors`;
+        matchDiv.innerHTML = `
+            <div class="flex justify-between items-center mb-3">
+                <span class="text-sm text-gray-400">Match ${idx + 1}</span>
+                ${!isEditable ? `<button onclick="openMatchChat('${match.id}')" class="text-xs bg-blue-600/30 text-blue-300 px-3 py-1 rounded hover:bg-blue-600/50 transition flex items-center gap-1">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                    Chat
+                </button>` : ''}
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="${match.winner === match.team1 ? 'text-[var(--gold)]' : 'text-white'}">
+                    <div class="font-bold mb-1">${escapeHtml(match.team1)}</div>
+                    <div class="text-2xl font-bold">${match.score1 !== null && match.score1 !== undefined ? match.score1 : '-'}</div>
+                </div>
+                <div class="${match.winner === match.team2 ? 'text-[var(--gold)]' : 'text-white'}">
+                    <div class="font-bold mb-1">${escapeHtml(match.team2)}</div>
+                    <div class="text-2xl font-bold">${match.score2 !== null && match.score2 !== undefined ? match.score2 : '-'}</div>
+                </div>
+            </div>
+            ${isCompleted ? `<div class="mt-3 text-center text-xs text-green-400 font-bold">✓ Match Complete</div>` : ''}
+        `;
+        wrapper.appendChild(matchDiv);
+    });
+    
+    container.appendChild(wrapper);
+}
+
+// Placeholder renders (for when no matches in database yet)
+function renderSingleEliminationPlaceholder(container, participants, isEditable) {
     // 1. Setup Bracket Data
     let targetSize = currentEditingTournament.maxTeams || 8;
     let bracketSize = 2;
@@ -545,7 +723,7 @@ function renderSingleElimination(container, participants, isEditable) {
     }
 }
 
-function renderDoubleElimination(container, participants, isEditable) {
+function renderDoubleEliminationPlaceholder(container, participants, isEditable) {
     container.innerHTML = '';
 
     // --- 1. Setup Data & Sizing ---
@@ -826,4 +1004,128 @@ function formatDateRange(start, end) {
         display = `${display} - ${endDateObj.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`;
     }
     return display;
+}
+
+// ========================================
+// MATCH CHAT SYSTEM
+// ========================================
+
+let matchChatUnsubscribe = null;
+let currentMatchId = null;
+
+window.openMatchChat = function(matchId) {
+    currentMatchId = matchId;
+    const match = currentEditingTournament?.matches?.find(m => m.id === matchId);
+    
+    if (!match) {
+        if (window.showErrorToast) {
+            window.showErrorToast('Error', 'Match not found.');
+        }
+        return;
+    }
+    
+    qs('#chat-match-title').textContent = `${match.team1} vs ${match.team2}`;
+    qs('#chat-match-info').textContent = `Match ${match.matchNumber} - Round ${match.round || 1}`;
+    
+    // Start chat listener
+    startMatchChatListener(currentEditingTournament.id, matchId);
+    
+    // Show modal
+    document.getElementById('matchChatModal').classList.remove('hidden');
+    document.getElementById('matchChatModal').classList.add('flex');
+}
+
+function startMatchChatListener(tournamentId, matchId) {
+    const chatContainer = qs('#match-chat-container');
+    if (!chatContainer) return;
+    
+    chatContainer.innerHTML = '<p class="text-center text-gray-500 mt-4">Loading messages...</p>';
+    
+    // Unsubscribe previous listener
+    if (matchChatUnsubscribe) {
+        matchChatUnsubscribe();
+    }
+    
+    import("https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js").then(({ collection, query, orderBy, onSnapshot }) => {
+        const messagesRef = collection(db, "tournaments", tournamentId, "matchChats", matchId, "messages");
+        const q = query(messagesRef, orderBy("createdAt", "asc"));
+        
+        matchChatUnsubscribe = onSnapshot(q, (snapshot) => {
+            chatContainer.innerHTML = '';
+            if (snapshot.empty) {
+                chatContainer.innerHTML = '<p class="text-center text-gray-500 mt-10">No messages yet. Start the conversation!</p>';
+                return;
+            }
+            
+            const auth = getAuth();
+            const currentUser = auth.currentUser;
+            
+            snapshot.forEach((doc) => {
+                const msg = doc.data();
+                const isAdmin = msg.senderRole === 'admin';
+                const isMe = currentUser && msg.senderId === currentUser.uid;
+                
+                const bubble = document.createElement('div');
+                bubble.className = `mb-3 ${isMe ? 'text-right' : 'text-left'}`;
+                bubble.innerHTML = `
+                    <div class="inline-block max-w-[80%] ${isMe ? 'bg-[var(--gold)]/20 border-[var(--gold)]' : isAdmin ? 'bg-red-500/20 border-red-500' : 'bg-white/5 border-white/10'} border rounded-lg p-3">
+                        <div class="font-bold text-[10px] mb-1 ${isAdmin ? 'text-red-400' : 'text-gray-400'}">${escapeHtml(msg.senderName)}${isAdmin ? ' (Admin)' : ''}</div>
+                        <div class="text-sm text-white">${escapeHtml(msg.text)}</div>
+                        <div class="text-[10px] text-gray-500 mt-1">${msg.createdAt ? new Date(msg.createdAt.toDate()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+                    </div>
+                `;
+                chatContainer.appendChild(bubble);
+            });
+            
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        });
+    });
+}
+
+window.sendMatchChatMessage = async function() {
+    const input = qs('#match-chat-input');
+    const text = input.value.trim();
+    if (!text || !currentMatchId || !currentEditingTournament) return;
+    
+    const auth = getAuth();
+    const user = auth.currentUser;
+    
+    if (!user) {
+        if (window.showErrorToast) {
+            window.showErrorToast('Login Required', 'Please sign in to send messages.');
+        }
+        return;
+    }
+    
+    input.value = '';
+    
+    try {
+        const { collection, addDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js");
+        const messagesRef = collection(db, "tournaments", currentEditingTournament.id, "matchChats", currentMatchId, "messages");
+        
+        await addDoc(messagesRef, {
+            text: text,
+            senderId: user.uid,
+            senderName: user.displayName || user.email.split('@')[0],
+            senderRole: 'user',
+            createdAt: serverTimestamp()
+        });
+    } catch (err) {
+        console.error("Chat error:", err);
+        if (window.showErrorToast) {
+            window.showErrorToast('Error', 'Failed to send message.');
+        }
+    }
+}
+
+window.closeMatchChat = function() {
+    document.getElementById('matchChatModal').classList.remove('flex');
+    document.getElementById('matchChatModal').classList.add('hidden');
+    
+    if (matchChatUnsubscribe) {
+        matchChatUnsubscribe();
+        matchChatUnsubscribe = null;
+    }
+    
+    currentMatchId = null;
 }
