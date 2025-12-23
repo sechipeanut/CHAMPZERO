@@ -217,9 +217,27 @@
 
     <script type="module" src="js/main.js"></script>
     <script type="module" src="js/auth.js"></script>
-    <script src="js/shop.js"></script>
+    <script type="module" src="js/shop.js"></script>
     <script type="module" src="js/notifications.js"></script>
 
+
+    <div id="service-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onclick="closeServiceModal()">
+        </div>
+
+        <div
+            class="relative bg-[var(--dark-card)] border border-[var(--gold)]/30 rounded-2xl w-full max-w-lg p-8 shadow-2xl transform transition-all scale-100">
+            <button onclick="closeServiceModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                    </path>
+                </svg>
+            </button>
+
+            <div id="modal-content" class="text-center">
+            </div>
+        </div>
+    </div>
 </body>
 
 </html>
