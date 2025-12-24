@@ -20,6 +20,243 @@ function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>
 // Focus management
 let lastFocusedElement = null;
 
+// ======================
+// LIVESTREAM MANAGEMENT
+// ======================
+
+window.createLivestream = async function(eventId, eventName) {
+    const confirmed = await window.showCustomConfirm("Create Livestream", `Create a new livestream for "${eventName}"?`);
+    if (!confirmed) return;
+    
+    try {
+        window.showSuccessToast("Processing", "Creating livestream...", 3000);
+        
+        const response = await fetch('/.netlify/functions/create-mux-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId, eventName })
+        });
+        
+        if (!response.ok) throw new Error('Failed to create stream');
+        
+        const streamData = await response.json();
+        
+        // Update Firestore with stream info
+        const eventRef = doc(db, 'events', eventId);
+        await updateDoc(eventRef, {
+            livestream: {
+                streamId: streamData.streamId,
+                streamKey: streamData.streamKey,
+                playbackId: streamData.playbackId,
+                status: streamData.status,
+                createdAt: serverTimestamp()
+            }
+        });
+        
+        window.showSuccessToast("Success", "Livestream created successfully!", 3000);
+        refreshAllLists();
+        manageLivestream(eventId);
+        
+    } catch (error) {
+        console.error('Error creating livestream:', error);
+        window.showErrorToast("Error", "Failed to create livestream: " + error.message, 5000);
+    }
+};
+
+window.manageLivestream = async function(eventId) {
+    try {
+        const eventRef = doc(db, 'events', eventId);
+        const eventSnap = await getDoc(eventRef);
+        
+        if (!eventSnap.exists()) {
+            window.showErrorToast("Error", "Event not found", 3000);
+            return;
+        }
+        
+        const eventData = eventSnap.data();
+        const livestream = eventData.livestream;
+        
+        if (!livestream || !livestream.streamId) {
+            window.showErrorToast("Error", "No livestream found for this event", 3000);
+            return;
+        }
+        
+        // Fetch current stream status from Mux
+        const response = await fetch(`/.netlify/functions/get-mux-stream?streamId=${livestream.streamId}`);
+        const streamData = await response.json();
+        
+        const isActive = streamData.status === 'active';
+        const streamUrl = `rtmp://push-global.rtmp.franzvallesmedia.com/${livestream.streamKey}`;
+        
+        const modal = document.createElement('div');
+        modal.id = 'livestreamModal';
+        modal.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4';
+        modal.innerHTML = `
+            <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-white">📡 Livestream Manager</h3>
+                    <button onclick="closeLivestreamModal()" class="text-gray-400 hover:text-white transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-gray-400 text-sm">Stream Status</span>
+                            <span class="px-3 py-1 rounded-full text-sm font-semibold ${isActive ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-400'}">
+                                ${isActive ? '🔴 LIVE' : '⚫ Idle'}
+                            </span>
+                        </div>
+                        <div class="text-white font-bold text-lg">${escapeHtml(eventData.name)}</div>
+                    </div>
+                    
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+                        <label class="text-gray-400 text-sm block mb-2">Stream URL</label>
+                        <div class="flex gap-2">
+                            <input type="text" readonly value="rtmp://push-global.rtmp.franzvallesmedia.com" class="flex-1 bg-black/30 border border-white/20 text-white px-3 py-2 rounded text-sm">
+                            <button onclick="copyToClipboard('rtmp://push-global.rtmp.franzvallesmedia.com')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">Copy</button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+                        <label class="text-gray-400 text-sm block mb-2">Stream Key</label>
+                        <div class="flex gap-2">
+                            <input type="password" id="streamKeyInput" readonly value="${livestream.streamKey}" class="flex-1 bg-black/30 border border-white/20 text-white px-3 py-2 rounded text-sm font-mono">
+                            <button onclick="toggleStreamKey()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm">Show</button>
+                            <button onclick="copyToClipboard('${livestream.streamKey}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">Copy</button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">⚠️ Keep this private! Use it in OBS/Streamlabs to start streaming.</p>
+                    </div>
+                    
+                    <div class="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4">
+                        <div class="flex items-start gap-3">
+                            <span class="text-2xl">💡</span>
+                            <div class="flex-1">
+                                <div class="text-blue-400 font-semibold mb-1">How to Stream</div>
+                                <ol class="text-sm text-gray-300 space-y-1">
+                                    <li>1. Open OBS Studio or your streaming software</li>
+                                    <li>2. Go to Settings → Stream</li>
+                                    <li>3. Choose "Custom" as Service</li>
+                                    <li>4. Copy the Stream URL above</li>
+                                    <li>5. Copy the Stream Key above</li>
+                                    <li>6. Start streaming!</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-3 pt-4">
+                        <button onclick="disableLivestream('${eventId}')" class="flex-1 bg-red-900/50 hover:bg-red-600 text-red-200 px-4 py-3 rounded-lg font-bold border border-red-800 transition-all">
+                            🛑 End Stream
+                        </button>
+                        <button onclick="deleteLivestream('${eventId}')" class="flex-1 bg-gray-900/50 hover:bg-gray-600 text-gray-200 px-4 py-3 rounded-lg font-bold border border-gray-800 transition-all">
+                            🗑️ Delete Stream
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+    } catch (error) {
+        console.error('Error managing livestream:', error);
+        window.showErrorToast("Error", "Failed to load livestream info: " + error.message, 5000);
+    }
+};
+
+window.closeLivestreamModal = function() {
+    const modal = document.getElementById('livestreamModal');
+    if (modal) modal.remove();
+};
+
+window.toggleStreamKey = function() {
+    const input = document.getElementById('streamKeyInput');
+    const btn = event.target;
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = 'Hide';
+    } else {
+        input.type = 'password';
+        btn.textContent = 'Show';
+    }
+};
+
+window.copyToClipboard = async function(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        window.showSuccessToast("Copied!", "Copied to clipboard", 2000);
+    } catch (err) {
+        window.showErrorToast("Error", "Failed to copy", 2000);
+    }
+};
+
+window.disableLivestream = async function(eventId) {
+    const confirmed = await window.showCustomConfirm("End Stream", "This will end the current live broadcast. Continue?");
+    if (!confirmed) return;
+    
+    try {
+        const eventRef = doc(db, 'events', eventId);
+        const eventSnap = await getDoc(eventRef);
+        const livestream = eventSnap.data().livestream;
+        
+        const response = await fetch('/.netlify/functions/disable-mux-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ streamId: livestream.streamId })
+        });
+        
+        if (!response.ok) throw new Error('Failed to disable stream');
+        
+        await updateDoc(eventRef, {
+            'livestream.status': 'idle'
+        });
+        
+        window.showSuccessToast("Success", "Stream ended successfully", 3000);
+        closeLivestreamModal();
+        refreshAllLists();
+        
+    } catch (error) {
+        console.error('Error disabling stream:', error);
+        window.showErrorToast("Error", "Failed to end stream: " + error.message, 5000);
+    }
+};
+
+window.deleteLivestream = async function(eventId) {
+    const confirmed = await window.showCustomConfirm("Delete Stream", "This will permanently delete the stream and its key. You'll need to create a new one. Continue?");
+    if (!confirmed) return;
+    
+    try {
+        const eventRef = doc(db, 'events', eventId);
+        const eventSnap = await getDoc(eventRef);
+        const livestream = eventSnap.data().livestream;
+        
+        const response = await fetch('/.netlify/functions/delete-mux-stream', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ streamId: livestream.streamId })
+        });
+        
+        if (!response.ok) throw new Error('Failed to delete stream');
+        
+        await updateDoc(eventRef, {
+            livestream: null
+        });
+        
+        window.showSuccessToast("Success", "Stream deleted successfully", 3000);
+        closeLivestreamModal();
+        refreshAllLists();
+        
+    } catch (error) {
+        console.error('Error deleting stream:', error);
+        window.showErrorToast("Error", "Failed to delete stream: " + error.message, 5000);
+    }
+};
+
+// ======================
+// END LIVESTREAM MANAGEMENT
+// ======================
+
 // Modal Management
 window.openModal = function (modalId) {
     lastFocusedElement = document.activeElement;
@@ -250,17 +487,62 @@ async function fetchEvents() {
     const q = query(collection(db, "events"));
     const snapshot = await getDocs(q);
     list.innerHTML = snapshot.empty ? '<p class="text-gray-500 italic">No events found.</p>' : '';
+    
+    // Fetch all events and check their stream status
+    const eventPromises = [];
     snapshot.forEach(doc => {
-        const data = doc.data();
-        list.innerHTML += `
-            <div class="admin-item">
-                <div><div class="font-bold text-white">${escapeHtml(data.name)}</div><div class="text-sm text-gray-400">${escapeHtml(data.date)}</div></div>
-                <div class="flex gap-2">
-                    <button onclick="editItem('events', '${doc.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
-                    <button onclick="deleteItem('events', '${doc.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
-                </div>
-            </div>`;
+        eventPromises.push(renderEventItem(doc));
     });
+    
+    const eventItems = await Promise.all(eventPromises);
+    eventItems.forEach(item => {
+        list.innerHTML += item;
+    });
+}
+
+async function renderEventItem(doc) {
+    const data = doc.data();
+    const hasStream = data.livestream && data.livestream.streamId;
+    let streamStatus = 'idle';
+    let isLive = false;
+    
+    // Check actual stream status from Mux if stream exists
+    if (hasStream) {
+        try {
+            const response = await fetch(`/.netlify/functions/get-mux-stream?streamId=${data.livestream.streamId}`);
+            if (response.ok) {
+                const streamData = await response.json();
+                streamStatus = streamData.status;
+                isLive = streamStatus === 'active';
+                
+                // Update Firestore if status changed
+                if (data.livestream.status !== streamStatus) {
+                    const eventRef = doc.ref;
+                    await updateDoc(eventRef, { 'livestream.status': streamStatus });
+                }
+            }
+        } catch (err) {
+            console.warn('Could not fetch stream status:', err);
+            streamStatus = data.livestream?.status || 'idle';
+            isLive = streamStatus === 'active';
+        }
+    }
+    
+    return `
+        <div class="admin-item">
+            <div>
+                <div class="flex items-center gap-2">
+                    <div class="font-bold text-white">${escapeHtml(data.name)}</div>
+                    ${hasStream ? `<span class="px-2 py-0.5 rounded text-xs ${isLive ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-gray-500/20 text-gray-400'}">📡 ${isLive ? 'LIVE' : 'Stream Ready'}</span>` : ''}
+                </div>
+                <div class="text-sm text-gray-400">${escapeHtml(data.date)}</div>
+            </div>
+            <div class="flex gap-2">
+                ${hasStream ? `<button onclick="manageLivestream('${doc.id}')" class="bg-purple-900/50 hover:bg-purple-600 text-purple-200 px-3 py-1 rounded text-sm border border-purple-800">Stream</button>` : `<button onclick="createLivestream('${doc.id}', '${escapeHtml(data.name).replace(/'/g, "\\'")}')\" class="bg-green-900/50 hover:bg-green-600 text-green-200 px-3 py-1 rounded text-sm border border-green-800">+ Stream</button>`}
+                <button onclick="editItem('events', '${doc.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
+                <button onclick="deleteItem('events', '${doc.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
+            </div>
+        </div>`;
 }
 
 async function fetchJobs() {
