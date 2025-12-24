@@ -1,4 +1,6 @@
 import { escapeHtml } from './events.js'; 
+import { db } from './firebase-config.js';
+import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 export async function initLiveScores() {
     updateLiveMatches();
@@ -7,27 +9,18 @@ export async function initLiveScores() {
 
 async function updateLiveMatches() {
     try {
-        // 1. Fetch data (Falling back to mock if API isn't ready)
-        let liveMatches = [];
-        try {
-            const response = await fetch('/.netlify/functions/get-live-matches');
-            if (response.ok) liveMatches = await response.json();
-        } catch (e) { /* ignore */ }
-
-        if (liveMatches.length === 0) {
-            liveMatches = await mockFetchLiveMatches();
-        }
+        // Fetch live events from Firebase
+        let liveMatches = await fetchLiveEvents();
 
         const isLive = liveMatches.length > 0;
 
-        // 2. Update the Nav Badges (Desktop & Mobile)
-        // This runs on EVERY page
+        // Update the Nav Badges (Desktop & Mobile)
         const badges = document.querySelectorAll('#live-badge, #live-badge-mobile');
         badges.forEach(badge => {
             isLive ? badge.classList.remove('hidden') : badge.classList.add('hidden');
         });
 
-        // 3. Update the Grid (Only runs on the EVENTS page)
+        // Update the Grid (Only runs on the EVENTS page)
         const LIVE_SECTION = document.querySelector('#liveMatchesSection');
         const LIVE_GRID = document.querySelector('#liveMatchGrid');
 
@@ -44,49 +37,74 @@ async function updateLiveMatches() {
     }
 }
 
-// Updated to accept the container element
-function renderLiveMatches(matches, container) {
-    container.innerHTML = matches.map(match => {
-        const config = GAME_CONFIG[match.game] || { icon: 'pictures/cz_logo.png', color: 'border-white/10' };
+async function fetchLiveEvents() {
+    try {
+        // Query events that have livestream data
+        const q = query(collection(db, "events"));
+        const snapshot = await getDocs(q);
         
+        const liveEvents = [];
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            // Check if event has livestream and it's active
+            if (data.livestream && data.livestream.playbackId) {
+                liveEvents.push({
+                    id: doc.id,
+                    name: data.name,
+                    playbackId: data.livestream.playbackId,
+                    status: data.livestream.status,
+                    banner: data.banner,
+                    description: data.description
+                });
+            }
+        });
+        
+        return liveEvents;
+    } catch (error) {
+        console.error('Error fetching live events:', error);
+        return [];
+    }
+}
+
+function renderLiveMatches(liveEvents, container) {
+    container.innerHTML = liveEvents.map(event => {
         return `
-            <div class="bg-[var(--dark-card)] border-l-4 ${config.color} rounded-xl p-6 flex flex-col md:flex-row items-center justify-between gap-6 shadow-2xl relative overflow-hidden">
-                <div class="absolute -right-10 -top-10 w-32 h-32 bg-white/5 blur-3xl rounded-full"></div>
+            <div class="bg-[var(--dark-card)] border border-white/10 rounded-xl overflow-hidden shadow-2xl hover:border-red-500/50 transition-all group">
+                <div class="relative">
+                    <!-- Mux Player -->
+                    <mux-player
+                        playback-id="${event.playbackId}"
+                        metadata-video-title="${escapeHtml(event.name)}"
+                        accent-color="#FFD700"
+                        class="w-full aspect-video"
+                        stream-type="live"
+                        autoplay
+                        muted
+                    ></mux-player>
+                    
+                    <!-- Live Badge Overlay -->
+                    <div class="absolute top-3 left-3 bg-red-500 text-white px-3 py-1 rounded-full text-xs font-bold uppercase flex items-center gap-2 animate-pulse">
+                        <span class="relative flex h-2 w-2">
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                            <span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                        </span>
+                        LIVE
+                    </div>
+                </div>
                 
-                <div class="flex flex-col items-center gap-2 w-full md:w-1/3 text-center">
-                    <img src="${match.teamA.logo}" class="w-16 h-16 object-contain drop-shadow-lg" alt="${match.teamA.name}">
-                    <span class="font-bold text-white">${escapeHtml(match.teamA.name)}</span>
-                </div>
-
-                <div class="flex flex-col items-center justify-center w-full md:w-1/3">
-                    <div class="text-xs uppercase tracking-widest text-gray-500 font-bold mb-2">${escapeHtml(match.game)}</div>
-                    <div class="flex items-center gap-4">
-                        <span class="text-4xl md:text-5xl font-black text-white">${match.teamA.score}</span>
-                        <span class="text-xl font-bold text-gray-600">:</span>
-                        <span class="text-4xl md:text-5xl font-black text-white">${match.teamB.score}</span>
-                    </div>
-                    <div class="mt-3 px-3 py-1 bg-red-500/10 text-red-500 text-[10px] font-bold rounded-full uppercase">
-                        Live Match
-                    </div>
-                </div>
-
-                <div class="flex flex-col items-center gap-2 w-full md:w-1/3 text-center">
-                    <img src="${match.teamB.logo}" class="w-16 h-16 object-contain drop-shadow-lg" alt="${match.teamB.name}">
-                    <span class="font-bold text-white">${escapeHtml(match.teamB.name)}</span>
+                <div class="p-5">
+                    <h3 class="text-xl font-bold text-white mb-2 group-hover:text-[var(--gold)] transition-colors">
+                        ${escapeHtml(event.name)}
+                    </h3>
+                    <p class="text-gray-400 text-sm mb-4 line-clamp-2">
+                        ${escapeHtml(event.description || 'Watch live now!')}
+                    </p>
+                    <a href="/livestream.html?event=${event.id}" 
+                       class="block w-full py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white text-center rounded-lg font-semibold transition-all">
+                        Watch Full Stream
+                    </a>
                 </div>
             </div>
         `;
     }).join('');
-}
-
-// Simulating API Data
-async function mockFetchLiveMatches() {
-    return [
-        {
-            id: 'val-001',
-            game: 'Valorant',
-            teamA: { name: 'Team Secret', score: 11, logo: 'https://placehold.co/100x100/111/fff?text=TS' },
-            teamB: { name: 'PRX', score: 9, logo: 'https://placehold.co/100x100/111/fff?text=PRX' }
-        }
-    ];
 }
