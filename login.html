@@ -36,7 +36,13 @@
 
         <form id="loginForm" class="space-y-6">
             <div><label class="block text-sm font-medium text-gray-300">Email</label><input id="email" type="email" required class="dark-input mt-1 block w-full p-3 rounded-md"></div>
-            <div><label class="block text-sm font-medium text-gray-300">Password</label><input id="password" type="password" required class="dark-input mt-1 block w-full p-3 rounded-md"></div>
+            <div>
+                <div class="flex items-center justify-between mb-1">
+                    <label class="block text-sm font-medium text-gray-300">Password</label>
+                    <a href="/forgot-password" class="text-xs text-[var(--gold)] hover:underline">Forgot password?</a>
+                </div>
+                <input id="password" type="password" required class="dark-input mt-1 block w-full p-3 rounded-md">
+            </div>
             <button type="submit" class="w-full bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black font-bold py-3 px-4 rounded-md hover:opacity-90 transition cursor-pointer">Log In</button>
         </form>
 
