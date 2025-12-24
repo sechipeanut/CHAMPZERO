@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>ChampZero — Live Stream</title>
+
+    <meta name="description" content="Watch live esports broadcasts on ChampZero">
+    <meta property="og:title" content="ChampZero — Live Stream">
+    <meta property="og:description" content="Watch live esports broadcasts">
+    <meta property="og:image" content="https://champzero.com/pictures/cz_logo.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Mux Player -->
+    <script src="https://cdn.jsdelivr.net/npm/@mux/mux-player"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
+
+    <style>
+        :root {
+            --gold: #FFD700;
+            --gold-darker: #C99700;
+            --dark-bg: #111115;
+            --dark-card: #1A1A1F;
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+
+        .text-glow {
+            text-shadow: 0 0 8px rgba(255, 215, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.4);
+        }
+
+        .futuristic-bg {
+            background-color: var(--dark-bg);
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
+        .chat-container {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .chat-container::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .chat-container::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 4px;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb {
+            background: rgba(255, 215, 0, 0.3);
+            border-radius: 4px;
+        }
+
+        .chat-container::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 215, 0, 0.5);
+        }
+
+        .chat-message {
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-[var(--dark-bg)] text-gray-200 antialiased futuristic-bg">
+
+    <header class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
+            <a href="/" class="flex items-center gap-3">
+                <img src="pictures/cz_logo.png" alt="ChampZero Logo" width="40" height="40"
+                    class="w-10 h-10 rounded-md object-cover">
+                <span class="font-bold text-xl text-white">ChampZero</span>
+            </a>
+
+            <div class="flex items-center gap-4">
+                <a href="/events" class="text-sm text-gray-300 hover:text-[var(--gold)] transition-colors">← Back to Events</a>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Video Player Section -->
+            <div class="lg:col-span-2">
+                <div class="bg-[var(--dark-card)] rounded-xl border border-white/10 overflow-hidden">
+                    <!-- Player Container -->
+                    <div id="playerContainer" class="w-full aspect-video bg-black">
+                        <div class="flex items-center justify-center h-full text-gray-500">
+                            <div class="text-center">
+                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--gold)] mx-auto mb-4"></div>
+                                <p>Loading stream...</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Event Info -->
+                    <div class="p-6">
+                        <div class="flex items-center gap-3 mb-4">
+                            <span class="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full uppercase flex items-center gap-2">
+                                <span class="relative flex h-2 w-2">
+                                    <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                                    <span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
+                                </span>
+                                LIVE
+                            </span>
+                            <span id="viewerCount" class="text-sm text-gray-400">👁️ -- viewers</span>
+                        </div>
+                        <h1 id="eventTitle" class="text-3xl font-bold text-white mb-3">Loading...</h1>
+                        <p id="eventDescription" class="text-gray-400 leading-relaxed">Loading event details...</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Section -->
+            <div class="lg:col-span-1">
+                <div class="bg-[var(--dark-card)] rounded-xl border border-white/10 overflow-hidden flex flex-col" style="height: calc(100vh - 120px); min-height: 600px;">
+                    <div class="border-b border-white/10 p-4">
+                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
+                            💬 Live Chat
+                            <span id="chatStatus" class="text-xs text-gray-400 font-normal"></span>
+                        </h2>
+                    </div>
+
+                    <!-- Chat Messages -->
+                    <div id="chatMessages" class="chat-container flex-1 p-4 space-y-3">
+                        <div class="text-center text-gray-500 text-sm py-8">
+                            Chat will appear here when messages are sent...
+                        </div>
+                    </div>
+
+                    <!-- Chat Input -->
+                    <div class="border-t border-white/10 p-4">
+                        <div id="chatInputContainer">
+                            <form id="chatForm" class="flex gap-2">
+                                <input 
+                                    type="text" 
+                                    id="chatInput" 
+                                    placeholder="Type your message..." 
+                                    class="flex-1 bg-white/5 border border-white/10 text-white px-4 py-2 rounded-lg focus:outline-none focus:border-[var(--gold)]"
+                                    maxlength="200"
+                                    required
+                                />
+                                <button 
+                                    type="submit" 
+                                    class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-6 py-2 rounded-lg font-bold hover:opacity-90 transition-opacity">
+                                    Send
+                                </button>
+                            </form>
+                        </div>
+                        <div id="loginPrompt" class="hidden text-center">
+                            <p class="text-gray-400 text-sm mb-3">Sign in to join the chat</p>
+                            <a href="/login" class="inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-6 py-2 rounded-lg font-bold hover:opacity-90 transition-opacity">
+                                Sign In
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module" src="js/livestream.js"></script>
+</body>
+
+</html>
