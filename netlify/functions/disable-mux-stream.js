@@ -33,8 +33,9 @@ exports.handler = async (event, context) => {
     const mux = new Mux(process.env.MUX_TOKEN_ID, process.env.MUX_TOKEN_SECRET);
     const { Video } = mux;
 
-    // Disable the stream (this ends the current stream session)
-    await Video.LiveStreams.disableStream(streamId);
+    // Signal the stream to complete/end (this ends the current session)
+    // The stream key remains valid for future broadcasts
+    await Video.LiveStreams.signalComplete(streamId);
 
     return {
       statusCode: 200,
