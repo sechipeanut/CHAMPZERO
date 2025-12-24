@@ -219,7 +219,7 @@ async function refreshAllLists() {
     fetchMessages();
     fetchTalents();
     fetchNotifications();
-    if(window.refreshUsers) window.refreshUsers();
+    // Users are loaded lazily when the tab is clicked
 }
 
 async function fetchTournaments() {
@@ -364,6 +364,295 @@ async function fetchMessages() {
                     ${data.link ? `<div class="mt-2 text-[var(--gold)]"><a href="${data.link}" target="_blank">View Portfolio Link</a></div>` : ''}
                 </div>
             </div>`;
+    });
+}
+
+// --- USER MANAGEMENT ---
+let allUsers = [];
+let currentRoleFilter = 'all';
+window.usersLoaded = false;
+
+async function fetchUsers() {
+    try {
+        const q = query(collection(db, "users"));
+        const snapshot = await getDocs(q);
+        allUsers = [];
+        
+        snapshot.forEach(doc => {
+            allUsers.push({ id: doc.id, ...doc.data() });
+        });
+        
+        window.usersLoaded = true;
+        displayUsers();
+    } catch (error) {
+        console.error('Error fetching users:', error);
+        const tbody = qs('#users-table-body');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-red-400">Error loading users. Check console for details.</td></tr>';
+        }
+    }
+}
+window.fetchUsers = fetchUsers;
+
+function displayUsers() {
+    const tbody = qs('#users-table-body');
+    if (!tbody) return;
+    
+    const searchTerm = qs('#user-search')?.value?.toLowerCase() || '';
+    
+    // Filter by role and search
+    let filtered = allUsers.filter(user => {
+        const matchesRole = currentRoleFilter === 'all' || user.role === currentRoleFilter;
+        const matchesSearch = !searchTerm || 
+            (user.username?.toLowerCase().includes(searchTerm)) ||
+            (user.displayName?.toLowerCase().includes(searchTerm)) ||
+            (user.email?.toLowerCase().includes(searchTerm));
+        return matchesRole && matchesSearch;
+    });
+    
+    // Update counts
+    const totalUsers = allUsers.length;
+    const adminCount = allUsers.filter(u => u.role === 'admin').length;
+    const regularUserCount = allUsers.filter(u => u.role === 'user' || !u.role).length;
+    
+    if (qs('#user-count')) qs('#user-count').textContent = totalUsers;
+    if (qs('#admin-count')) qs('#admin-count').textContent = adminCount;
+    if (qs('#regular-user-count')) qs('#regular-user-count').textContent = regularUserCount;
+    
+    // Display users
+    if (filtered.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-400">No users found.</td></tr>';
+        return;
+    }
+    
+    tbody.innerHTML = '';
+    filtered.forEach(user => {
+        const createdDate = user.createdAt?.toDate?.() || user.joinedAt ? new Date(user.joinedAt) : null;
+        const dateStr = createdDate ? createdDate.toLocaleDateString() : 'Unknown';
+        const displayName = user.displayName || user.username || 'Unknown User';
+        const email = user.email || 'No email';
+        const role = user.role || 'user';
+        const profilePicture = user.avatar || user.photoURL || null;
+        
+        const row = document.createElement('tr');
+        row.className = 'border-b border-white/5 hover:bg-white/5';
+        row.innerHTML = `
+            <td class="p-4">
+                <div class="flex items-center gap-3">
+                    ${profilePicture ? 
+                        `<img src="${escapeHtml(profilePicture)}" alt="${escapeHtml(displayName)}" class="w-10 h-10 rounded-full object-cover border-2 border-white/10">` :
+                        `<div class="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-orange-500/20 flex items-center justify-center text-lg font-bold text-white border-2 border-white/10">
+                            ${escapeHtml(displayName.charAt(0).toUpperCase())}
+                        </div>`
+                    }
+                    <div class="font-semibold text-white">${escapeHtml(displayName)}</div>
+                </div>
+            </td>
+            <td class="p-4 text-gray-300 hidden md:table-cell">${escapeHtml(email)}</td>
+            <td class="p-4">
+                <span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${role === 'admin' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-blue-900/30 text-blue-400'}">
+                    ${role === 'admin' ? '👑' : '👤'} ${escapeHtml(role)}
+                </span>
+            </td>
+            <td class="p-4">
+                <button onclick="openUserDialog('${user.id}')" 
+                        class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1.5 rounded text-sm border border-blue-800 transition-colors">
+                    View Profile
+                </button>
+            </td>
+        `;
+        tbody.appendChild(row);
+    });
+}
+
+window.openUserDialog = function(userId) {
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) return;
+    
+    const displayName = user.displayName || user.username || 'Unknown User';
+    const email = user.email || 'No email';
+    const role = user.role || 'user';
+    const emailVerified = user.emailVerified;
+    const createdDate = user.createdAt?.toDate?.() || user.joinedAt ? new Date(user.joinedAt) : null;
+    const createdStr = createdDate ? createdDate.toLocaleString('en-US', { 
+        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true 
+    }) : 'Unknown';
+    const lastSignIn = user.lastSignInTime?.toDate?.();
+    const lastSignInStr = lastSignIn ? lastSignIn.toLocaleString('en-US', { 
+        month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true 
+    }) : 'N/A';
+    const rank = user.rank || 'Unranked';
+    const prizesEarned = user.prizesEarned || 0;
+    const bio = user.bio || 'No bio provided';
+    const profilePicture = user.avatar || user.photoURL || null;
+    
+    const isCurrentUser = userId === currentUserId;
+    
+    const modal = document.getElementById('userModal');
+    const content = modal.querySelector('.user-dialog-content');
+    
+    content.innerHTML = `
+        <div class="text-center border-b border-white/10 pb-6 mb-6">
+            ${profilePicture ? 
+                `<img src="${escapeHtml(profilePicture)}" alt="${escapeHtml(displayName)}" class="w-20 h-20 rounded-full object-cover border-4 border-[var(--gold)]/20 mx-auto mb-3">` :
+                `<div class="w-20 h-20 bg-gradient-to-br from-[var(--gold)]/20 to-orange-500/20 rounded-full flex items-center justify-center text-4xl font-bold text-white mx-auto mb-3 border-4 border-[var(--gold)]/20">
+                    ${escapeHtml(displayName.charAt(0).toUpperCase())}
+                </div>`
+            }
+            <h3 class="text-2xl font-bold text-white mb-2">${escapeHtml(displayName)}</h3>
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm ${role === 'admin' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-blue-900/30 text-blue-400'}">
+                ${role === 'admin' ? '👑 ADMIN' : '👤 USER'}
+            </span>
+        </div>
+        
+        <div class="space-y-3 mb-6">
+            <div class="flex justify-between py-2 border-b border-white/5">
+                <span class="text-gray-400">User ID</span>
+                <span class="text-white text-sm font-mono">${escapeHtml(userId)}</span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-white/5">
+                <span class="text-gray-400">Email</span>
+                <span class="text-white">${escapeHtml(email)}</span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-white/5">
+                <span class="text-gray-400">Email Verified</span>
+                <span class="${emailVerified ? 'text-green-400' : 'text-red-400'}">${emailVerified ? '✓ Verified' : '✗ Not Verified'}</span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-white/5">
+                <span class="text-gray-400">Account Created</span>
+                <span class="text-white">${createdStr}</span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-white/5">
+                <span class="text-gray-400">Last Sign In</span>
+                <span class="text-white">${lastSignInStr}</span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-white/5">
+                <span class="text-gray-400">Rank</span>
+                <span class="text-white">${escapeHtml(rank)}</span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-white/5">
+                <span class="text-gray-400">Prizes Earned</span>
+                <span class="text-[var(--gold)] font-semibold">₱${prizesEarned}</span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-white/5">
+                <span class="text-gray-400">Bio</span>
+                <span class="text-white text-right max-w-xs">${escapeHtml(bio)}</span>
+            </div>
+        </div>
+        
+        ${!isCurrentUser ? `
+            <div class="flex flex-col sm:flex-row gap-3 pt-4 border-t border-white/10">
+                <button onclick="toggleUserRole('${userId}', '${role}')" 
+                        class="flex-1 bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-4 py-2.5 rounded-lg font-semibold border border-blue-800 transition-colors">
+                    ${role === 'admin' ? 'Demote to User' : 'Promote to Admin'}
+                </button>
+                <button onclick="deleteUserConfirm('${userId}')" 
+                        class="flex-1 bg-red-900/50 hover:bg-red-600 text-red-200 px-4 py-2.5 rounded-lg font-semibold border border-red-800 transition-colors">
+                    Delete User
+                </button>
+            </div>
+            <div class="pt-3">
+                <button onclick="closeModal('userModal')" 
+                        class="w-full bg-[var(--gold)] hover:bg-yellow-400 text-black px-4 py-2.5 rounded-lg font-bold transition-colors">
+                    Close
+                </button>
+            </div>
+        ` : `
+            <div class="text-center text-gray-400 text-sm py-4 border-t border-white/10 mb-3">
+                This is your account. You cannot modify your own role or delete yourself.
+            </div>
+            <button onclick="closeModal('userModal')" 
+                    class="w-full bg-[var(--gold)] hover:bg-yellow-400 text-black px-4 py-2.5 rounded-lg font-bold transition-colors">
+                Close
+            </button>
+        `}
+    `;
+    
+    openModal('userModal');
+}
+
+window.filterUsersByRole = function(role) {
+    currentRoleFilter = role;
+    
+    // Update active tab
+    document.querySelectorAll('.role-tab').forEach(tab => tab.classList.remove('active'));
+    const activeTab = qs(`#role-tab-${role}`);
+    if (activeTab) activeTab.classList.add('active');
+    
+    displayUsers();
+}
+
+window.refreshUsers = async function() {
+    const btn = event?.target;
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Refreshing...';
+    }
+    
+    await fetchUsers();
+    
+    if (btn) {
+        btn.disabled = false;
+        btn.textContent = 'Refresh';
+    }
+}
+
+window.toggleUserRole = async function(userId, currentRole) {
+    if (userId === currentUserId) {
+        window.showWarningToast("Not Allowed", "You cannot change your own role.", 3000);
+        return;
+    }
+    
+    const newRole = currentRole === 'admin' ? 'user' : 'admin';
+    const action = newRole === 'admin' ? 'promote' : 'demote';
+    
+    const confirmed = await window.showCustomConfirm(
+        `${action.charAt(0).toUpperCase() + action.slice(1)} User?`,
+        `Are you sure you want to ${action} this user to ${newRole}?`
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        const userRef = doc(db, "users", userId);
+        await updateDoc(userRef, { role: newRole });
+        window.showSuccessToast("Success", `User ${action}d to ${newRole}.`, 2000);
+        closeModal('userModal');
+        await fetchUsers();
+    } catch (error) {
+        console.error('Error updating role:', error);
+        window.showErrorToast("Error", "Failed to update user role.", 4000);
+    }
+}
+
+window.deleteUserConfirm = async function(userId) {
+    if (userId === currentUserId) {
+        window.showWarningToast("Not Allowed", "You cannot delete your own account from here.", 3000);
+        return;
+    }
+    
+    const confirmed = await window.showCustomConfirm(
+        "Delete User?",
+        "Are you sure? This will permanently delete the user's account and data."
+    );
+    
+    if (!confirmed) return;
+    
+    try {
+        await deleteDoc(doc(db, "users", userId));
+        window.showSuccessToast("Deleted", "User deleted successfully.", 2000);
+        closeModal('userModal');
+        await fetchUsers();
+    } catch (error) {
+        console.error('Error deleting user:', error);
+        window.showErrorToast("Error", "Failed to delete user. They may need to be deleted from Firebase Auth as well.", 4000);
+    }
+}
+
+// Search functionality
+if (qs('#user-search')) {
+    qs('#user-search').addEventListener('input', () => {
+        displayUsers();
     });
 }
 

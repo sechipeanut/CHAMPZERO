@@ -51,47 +51,48 @@
 </head>
 <body class="bg-[var(--dark-bg)] text-gray-200 antialiased">
 
-<div id="auth-loading-screen" class="fixed inset-0 z-[9999] bg-[var(--dark-bg)] flex items-center justify-center">
-    <div class="text-center">
-        <div class="relative inline-block mb-6">
-            <div class="absolute inset-0 bg-[var(--gold)]/20 rounded-full blur-xl animate-pulse"></div>
-            <div class="relative bg-gradient-to-br from-[var(--gold)]/20 to-orange-500/20 p-8 rounded-full border-2 border-[var(--gold)]/50">
-                <svg class="w-16 h-16 text-[var(--gold)] animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-                </svg>
-            </div>
-        </div>
-        <h2 class="text-2xl font-bold text-white mb-2">Verifying Access</h2>
-        <p class="text-gray-400 text-sm">Checking your permissions...</p>
-    </div>
-</div>
-
-<div id="admin-content" class="hidden">
-
 <header class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 h-16 flex items-center justify-between px-8">
     <div class="flex items-center gap-3">
         <span class="font-bold text-xl text-[var(--gold)]">ChampZero Admin</span>
     </div>
     <div class="flex items-center gap-4">
+        <!-- Desktop Admin Name -->
         <span id="admin-name-desktop" class="hidden md:block text-sm text-gray-300">
             <span class="text-[var(--gold)]">👋</span> <span id="admin-display-name">Loading...</span>
         </span>
-        <a href="/" class="text-sm hover:text-white text-gray-400">Back to Site</a>
+        <!-- Mobile Profile Menu -->
+        <div class="md:hidden relative">
+            <button id="mobile-profile-btn" class="w-9 h-9 rounded-full overflow-hidden border-2 border-[var(--gold)]/50 hover:border-[var(--gold)] transition-colors">
+                <img id="mobile-profile-img" src="pictures/cz_logo.png" alt="Profile" class="w-full h-full object-cover">
+            </button>
+            <div id="mobile-profile-menu" class="hidden absolute right-0 top-12 w-48 bg-[var(--dark-card)] border border-white/20 rounded-lg shadow-xl overflow-hidden z-50">
+                <div class="px-4 py-3 border-b border-white/10">
+                    <p id="mobile-admin-name" class="text-sm font-semibold text-white">Admin</p>
+                </div>
+                <a href="/" class="block px-4 py-2 text-sm text-gray-300 hover:bg-[var(--gold)]/10 hover:text-[var(--gold)] transition-colors">
+                    🏠 Back to Site
+                </a>
+            </div>
+        </div>
+        <a href="/" class="hidden md:block text-sm hover:text-white text-gray-400">Back to Site</a>
     </div>
 </header>
 
+<!-- Mobile Hamburger Button -->
 <button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()">
     <div class="hamburger-line"></div>
     <div class="hamburger-line"></div>
     <div class="hamburger-line"></div>
 </button>
 
+<!-- Mobile Overlay -->
 <div class="mobile-overlay" id="mobile-overlay" onclick="toggleSidebar()"></div>
 
+<!-- Sidebar Navigation -->
 <aside class="sidebar" id="sidebar">
     <nav class="py-4">
         <div class="sidebar-item active" onclick="switchTab('tournaments')" id="nav-tournaments">
-            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138z"></path></svg>
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
             <span>Tournaments</span>
         </div>
         <div class="sidebar-item" onclick="switchTab('events')" id="nav-events">
@@ -191,15 +192,25 @@
     <section id="tab-users" class="tab-content hidden">
         <h2 class="text-xl font-bold text-white mb-6">User Management</h2>
         
+        <!-- Role Filter Tabs -->
         <div class="bg-[var(--dark-card)] p-4 rounded-xl border border-white/10 mb-6">
             <div class="flex flex-wrap gap-2 mb-4 border-b border-white/10 pb-4">
-                <button onclick="filterUsersByRole('all')" id="role-tab-all" class="role-tab active px-4 py-2 rounded-lg font-medium transition-all">All Users</button>
-                <button onclick="filterUsersByRole('admin')" id="role-tab-admin" class="role-tab px-4 py-2 rounded-lg font-medium transition-all">Admins</button>
-                <button onclick="filterUsersByRole('user')" id="role-tab-user" class="role-tab px-4 py-2 rounded-lg font-medium transition-all">Users</button>
+                <button onclick="filterUsersByRole('all')" id="role-tab-all" class="role-tab active px-4 py-2 rounded-lg font-medium transition-all">
+                    All Users
+                </button>
+                <button onclick="filterUsersByRole('admin')" id="role-tab-admin" class="role-tab px-4 py-2 rounded-lg font-medium transition-all">
+                    <span class="inline-block mr-1">👑</span> Admins
+                </button>
+                <button onclick="filterUsersByRole('user')" id="role-tab-user" class="role-tab px-4 py-2 rounded-lg font-medium transition-all">
+                    <span class="inline-block mr-1">👤</span> Users
+                </button>
             </div>
             <div class="flex flex-col sm:flex-row gap-4 mb-4">
-                <input type="text" id="user-search" placeholder="Search users..." class="dark-input flex-1 p-3 rounded">
-                <button onclick="refreshUsers()" class="bg-[var(--gold)] text-black font-bold px-6 py-3 rounded hover:bg-yellow-400">Refresh</button>
+                <input type="text" id="user-search" placeholder="Search users by email or name..." class="dark-input flex-1 p-3 rounded">
+                <button onclick="refreshUsers()" class="bg-[var(--gold)] text-black font-bold px-6 py-3 rounded hover:bg-yellow-400 flex items-center gap-2 justify-center">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    Refresh
+                </button>
             </div>
             <div class="flex flex-wrap gap-4 text-sm text-gray-400">
                 <span>Total: <strong id="user-count" class="text-white">0</strong></span>
@@ -213,14 +224,13 @@
                 <thead>
                     <tr class="bg-[var(--dark-card)] border-b border-white/10">
                         <th class="text-left p-4 text-gray-400 font-semibold">User</th>
-                        <th class="text-left p-4 text-gray-400 font-semibold">Email</th>
-                        <th class="text-left p-4 text-gray-400 font-semibold">Status</th>
-                        <th class="text-left p-4 text-gray-400 font-semibold">Created</th>
+                        <th class="text-left p-4 text-gray-400 font-semibold hidden md:table-cell">Email</th>
+                        <th class="text-left p-4 text-gray-400 font-semibold">Role</th>
                         <th class="text-left p-4 text-gray-400 font-semibold">Actions</th>
                     </tr>
                 </thead>
                 <tbody id="users-table-body">
-                    <tr><td colspan="5" class="text-center p-8 text-gray-500">Loading users...</td></tr>
+                    <tr><td colspan="4" class="text-center p-8 text-gray-500">Click "Refresh" or switch to this tab to load users.</td></tr>
                 </tbody>
             </table>
         </div>
@@ -229,25 +239,19 @@
 </div>
 </main>
 
-<div id="tournamentModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+<!-- Modal Dialogs -->
+<!-- Tournament Modal -->
+<div id="tournamentModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="tournamentModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
             <h3 id="tournamentModalTitle" class="text-xl font-bold text-white">Create Tournament</h3>
-            <button onclick="closeModal('tournamentModal')" class="text-gray-400 hover:text-white transition-colors">&times;</button>
+            <button onclick="closeModal('tournamentModal')" class="text-gray-400 hover:text-white transition-colors" aria-label="Close">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
         </div>
-        <form id="tournamentForm" class="p-6 space-y-4" novalidate>
+        <form id="tournamentForm" class="p-6 space-y-4">
             <div><label for="t-name" class="block text-sm text-gray-400 mb-1">Tournament Name</label><input id="t-name" type="text" required class="dark-input w-full p-3 rounded"></div>
             <div><label for="t-game" class="block text-sm text-gray-400 mb-1">Game Title</label><input id="t-game" type="text" placeholder="Valorant" required class="dark-input w-full p-3 rounded"></div>
-            
-            <div>
-                <label for="t-format" class="block text-sm text-gray-400 mb-1">Bracket Format</label>
-                <select id="t-format" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]">
-                    <option value="Single Elimination">Single Elimination</option>
-                    <option value="Double Elimination">Double Elimination</option>
-                    <option value="Round Robin">Round Robin</option>
-                </select>
-            </div>
-
             <div><label for="t-prize" class="block text-sm text-gray-400 mb-1">Prize Pool (₱)</label><input id="t-prize" type="number" required class="dark-input w-full p-3 rounded"></div>
             <div class="grid grid-cols-2 gap-4">
                 <div><label for="t-date" class="block text-sm text-gray-400 mb-1">Start Date</label><input id="t-date" type="date" required class="dark-input w-full p-3 rounded"></div>
@@ -262,13 +266,16 @@
     </div>
 </div>
 
-<div id="eventModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+<!-- Event Modal -->
+<div id="eventModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="eventModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
             <h3 id="eventModalTitle" class="text-xl font-bold text-white">Create Event</h3>
-            <button onclick="closeModal('eventModal')" class="text-gray-400 hover:text-white transition-colors">&times;</button>
+            <button onclick="closeModal('eventModal')" class="text-gray-400 hover:text-white transition-colors" aria-label="Close">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
         </div>
-        <form id="eventForm" class="p-6 space-y-4" novalidate>
+        <form id="eventForm" class="p-6 space-y-4">
             <div><label for="e-name" class="block text-sm text-gray-400 mb-1">Event Title</label><input id="e-name" type="text" required class="dark-input w-full p-3 rounded"></div>
             <div class="grid grid-cols-2 gap-4">
                 <div><label for="e-date" class="block text-sm text-gray-400 mb-1">Start Date</label><input id="e-date" type="date" required class="dark-input w-full p-3 rounded"></div>
@@ -284,13 +291,16 @@
     </div>
 </div>
 
-<div id="jobModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+<!-- Job Modal -->
+<div id="jobModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="jobModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
             <h3 id="jobModalTitle" class="text-xl font-bold text-white">Create Job</h3>
-            <button onclick="closeModal('jobModal')" class="text-gray-400 hover:text-white transition-colors">&times;</button>
+            <button onclick="closeModal('jobModal')" class="text-gray-400 hover:text-white transition-colors" aria-label="Close">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
         </div>
-        <form id="jobForm" class="p-6 space-y-4" novalidate>
+        <form id="jobForm" class="p-6 space-y-4">
             <div><label for="j-title" class="block text-sm text-gray-400 mb-1">Job Title</label><input id="j-title" type="text" required class="dark-input w-full p-3 rounded"></div>
             <div><label for="j-location" class="block text-sm text-gray-400 mb-1">Location</label><input id="j-location" type="text" placeholder="Remote / Manila" required class="dark-input w-full p-3 rounded"></div>
             <div><label for="j-type" class="block text-sm text-gray-400 mb-1">Type</label><input id="j-type" type="text" placeholder="Full-time / Contract" required class="dark-input w-full p-3 rounded"></div>
@@ -302,13 +312,16 @@
     </div>
 </div>
 
-<div id="talentModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+<!-- Talent Modal -->
+<div id="talentModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="talentModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
             <h3 id="talentModalTitle" class="text-xl font-bold text-white">Add Talent</h3>
-            <button onclick="closeModal('talentModal')" class="text-gray-400 hover:text-white transition-colors">&times;</button>
+            <button onclick="closeModal('talentModal')" class="text-gray-400 hover:text-white transition-colors" aria-label="Close">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
         </div>
-        <form id="talentForm" class="p-6 space-y-4" novalidate>
+        <form id="talentForm" class="p-6 space-y-4">
             <div><label for="tal-name" class="block text-sm text-gray-400 mb-1">Name / IGN</label><input id="tal-name" type="text" required class="dark-input w-full p-3 rounded"></div>
             <div><label for="tal-role" class="block text-sm text-gray-400 mb-1">Role</label>
                 <select id="tal-role" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]">
@@ -329,13 +342,16 @@
     </div>
 </div>
 
-<div id="notificationModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+<!-- Notification Modal -->
+<div id="notificationModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="notificationModalTitle">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
             <h3 id="notificationModalTitle" class="text-xl font-bold text-white">Create Announcement</h3>
-            <button onclick="closeModal('notificationModal')" class="text-gray-400 hover:text-white transition-colors">&times;</button>
+            <button onclick="closeModal('notificationModal')" class="text-gray-400 hover:text-white transition-colors" aria-label="Close">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+            </button>
         </div>
-        <form id="notifForm" class="p-6 space-y-4" novalidate>
+        <form id="notifForm" class="p-6 space-y-4">
             <div><label for="n-title" class="block text-sm text-gray-400 mb-1">Title</label><input id="n-title" type="text" placeholder="New Tournament Live!" required class="dark-input w-full p-3 rounded"></div>
             <div><label for="n-type" class="block text-sm text-gray-400 mb-1">Type</label>
                 <select id="n-type" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]">
@@ -360,18 +376,35 @@
         document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
         document.getElementById(`tab-${tabName}`).classList.remove('hidden');
         
-        document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
+        // Update sidebar active state
+        document.querySelectorAll('.sidebar-item').forEach(item => {
+            item.classList.remove('active');
+        });
         const activeItem = document.getElementById(`nav-${tabName}`);
-        if(activeItem) activeItem.classList.add('active');
+        if(activeItem) {
+            activeItem.classList.add('active');
+        }
         
-        if(window.innerWidth <= 1024) toggleSidebar();
+        // Lazy load users when User Management tab is clicked
+        if(tabName === 'users' && window.usersLoaded === false) {
+            if(window.fetchUsers) window.fetchUsers();
+        }
+        
+        // Close mobile menu after selection
+        if(window.innerWidth <= 1024) {
+            toggleSidebar();
+        }
     }
     
+    // Toggle sidebar for mobile
     function toggleSidebar() {
-        document.getElementById('sidebar').classList.toggle('mobile-open');
-        document.getElementById('mobile-overlay').classList.toggle('active');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('mobile-overlay');
+        sidebar.classList.toggle('mobile-open');
+        overlay.classList.toggle('active');
     }
     
+    // Close sidebar when clicking outside on mobile
     window.addEventListener('resize', () => {
         if(window.innerWidth > 1024) {
             document.getElementById('sidebar').classList.remove('mobile-open');
@@ -379,181 +412,78 @@
         }
     });
     
+    // Close modal on Escape key
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            ['tournamentModal', 'eventModal', 'jobModal', 'talentModal', 'notificationModal', 'tournamentManagerModal', 'matchManagerModal'].forEach(id => {
-                const modal = document.getElementById(id);
-                if (modal && !modal.classList.contains('hidden')) closeModal(id);
+            const openModals = ['tournamentModal', 'eventModal', 'jobModal', 'talentModal', 'notificationModal'];
+            openModals.forEach(modalId => {
+                const modal = document.getElementById(modalId);
+                if (modal && !modal.classList.contains('hidden')) {
+                    closeModal(modalId);
+                }
             });
         }
     });
     
-    // --- Updated Date validation for tournaments (admin.html) ---
+    // Close modal when clicking outside
+    document.addEventListener('click', (e) => {
+        const modals = ['tournamentModal', 'eventModal', 'jobModal', 'talentModal', 'notificationModal'];
+        modals.forEach(modalId => {
+            const modal = document.getElementById(modalId);
+            if (modal && !modal.classList.contains('hidden') && e.target === modal) {
+                closeModal(modalId);
+            }
+        });
+    });
+    
+    // Date validation for tournaments
     const tStartDate = document.getElementById('t-date');
     const tEndDate = document.getElementById('t-end-date');
     if (tStartDate && tEndDate) {
         tStartDate.addEventListener('change', () => {
-            if (tStartDate.value) tEndDate.setAttribute('min', tStartDate.value);
+            if (tStartDate.value) {
+                tEndDate.setAttribute('min', tStartDate.value);
+                if (tEndDate.value && tEndDate.value < tStartDate.value) {
+                    tEndDate.value = tStartDate.value;
+                }
+            }
+        });
+        
+        tEndDate.addEventListener('change', () => {
+            if (tStartDate.value && tEndDate.value && tEndDate.value < tStartDate.value) {
+                alert('End date cannot be before start date');
+                tEndDate.value = tStartDate.value;
+            }
         });
     }
-
-    // --- Updated Date validation for events (admin.html) ---
+    
+    // Date validation for events
     const eStartDate = document.getElementById('e-date');
     const eEndDate = document.getElementById('e-end-date');
     if (eStartDate && eEndDate) {
         eStartDate.addEventListener('change', () => {
-            if (eStartDate.value) eEndDate.setAttribute('min', eStartDate.value);
+            if (eStartDate.value) {
+                eEndDate.setAttribute('min', eStartDate.value);
+                if (eEndDate.value && eEndDate.value < eStartDate.value) {
+                    eEndDate.value = eStartDate.value;
+                }
+            }
+        });
+        
+        eEndDate.addEventListener('change', () => {
+            if (eStartDate.value && eEndDate.value && eEndDate.value < eStartDate.value) {
+                alert('End date cannot be before start date');
+                eEndDate.value = eStartDate.value;
+            }
         });
     }
 </script>
 
-</div> 
-
-<!-- Tournament Manager Modal -->
-<div id="tournamentManagerModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-    <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center z-10">
-            <div>
-                <h3 id="tm-title" class="text-2xl font-bold text-white">Tournament Manager</h3>
-                <p class="text-sm text-gray-400"><span id="tm-game">Game</span> • <span id="tm-format">Format</span></p>
-            </div>
-            <button onclick="closeModal('tournamentManagerModal')" class="text-gray-400 hover:text-white text-2xl transition-colors">&times;</button>
-        </div>
-        
-        <div class="p-6">
-            <!-- Tabs -->
-            <div class="flex gap-2 mb-6 border-b border-white/10 pb-2">
-                <button id="tm-tab-overview" onclick="window.tmSwitchTab('overview')" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent">Overview</button>
-                <button id="tm-tab-bracket" onclick="window.tmSwitchTab('bracket')" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent">Bracket</button>
-                <button id="tm-tab-participants" onclick="window.tmSwitchTab('participants')" class="px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent">Participants</button>
-            </div>
-            
-            <!-- Overview Tab -->
-            <div id="tm-content-overview" class="hidden">
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-                    <div class="bg-black/30 p-4 rounded-lg border border-white/10">
-                        <div class="text-gray-400 text-sm mb-1">Total Participants</div>
-                        <div class="text-2xl font-bold text-white" id="tm-participants-count">0</div>
-                    </div>
-                    <div class="bg-black/30 p-4 rounded-lg border border-white/10">
-                        <div class="text-gray-400 text-sm mb-1">Total Matches</div>
-                        <div class="text-2xl font-bold text-white" id="tm-matches-count">0</div>
-                    </div>
-                    <div class="bg-black/30 p-4 rounded-lg border border-white/10">
-                        <div class="text-gray-400 text-sm mb-1">Completed</div>
-                        <div class="text-2xl font-bold text-[var(--gold)]" id="tm-completed-count">0</div>
-                    </div>
-                </div>
-                
-                <div class="flex gap-3">
-                    <button onclick="window.tmSaveTournamentChanges()" class="bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-colors">
-                        Save All Changes
-                    </button>
-                    <button onclick="window.tmSendTournamentNotification(null, 'start', 'Tournament is starting!')" class="bg-blue-600 text-white font-bold px-6 py-3 rounded-lg hover:bg-blue-500 transition-colors">
-                        Notify Participants
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Bracket Tab -->
-            <div id="tm-content-bracket" class="hidden">
-                <div class="mb-4 p-4 bg-blue-500/10 border border-blue-500/30 rounded-lg">
-                    <p class="text-sm text-blue-300"><strong>Tip:</strong> Click "Manage" on any match to update scores, declare winners, and communicate with players.</p>
-                </div>
-                <div id="tm-bracket-container" class="overflow-x-auto"></div>
-            </div>
-            
-            <!-- Participants Tab -->
-            <div id="tm-content-participants" class="hidden">
-                <div class="mb-4 p-4 bg-yellow-500/10 border border-yellow-500/30 rounded-lg">
-                    <p class="text-sm text-yellow-300"><strong>Seeding Management:</strong> Use the "Swap" button to rearrange team seeds. Changes will regenerate the bracket.</p>
-                </div>
-                <div id="tm-participants-list" class="space-y-2"></div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Match Manager Modal -->
-<div id="matchManagerModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[110] flex items-center justify-center p-4">
-    <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-5xl max-h-[90vh] overflow-hidden flex flex-col">
-        <div class="bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
-            <div>
-                <h3 id="match-title" class="text-xl font-bold text-white">Match Manager</h3>
-                <p class="text-xs text-gray-400 mt-1">Manage scores, results, and communicate with players</p>
-            </div>
-            <button onclick="closeModal('matchManagerModal')" class="text-gray-400 hover:text-white text-2xl transition-colors">&times;</button>
-        </div>
-        
-        <div class="flex-1 overflow-y-auto p-6">
-            <!-- Team Cards with Score Management -->
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                <div class="bg-gradient-to-br from-blue-900/20 to-blue-800/10 p-5 rounded-lg border border-blue-500/30">
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <div class="text-xs text-blue-300 mb-1 uppercase tracking-wide">Team 1</div>
-                            <div id="match-team1" class="text-xl font-bold text-white">Team A</div>
-                        </div>
-                        <div class="bg-blue-600/30 px-3 py-1 rounded text-blue-200 text-xs font-bold">HOME</div>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <input type="number" id="match-score1" placeholder="Score" 
-                            class="dark-input w-24 p-2 rounded-lg text-center text-lg font-bold">
-                        <button onclick="window.tmQuickWin(1)" class="flex-1 bg-green-600/30 hover:bg-green-600/50 text-green-300 px-3 py-2 rounded-lg text-sm font-bold transition-colors">
-                            Declare Winner
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="bg-gradient-to-br from-red-900/20 to-red-800/10 p-5 rounded-lg border border-red-500/30">
-                    <div class="flex justify-between items-start mb-3">
-                        <div>
-                            <div class="text-xs text-red-300 mb-1 uppercase tracking-wide">Team 2</div>
-                            <div id="match-team2" class="text-xl font-bold text-white">Team B</div>
-                        </div>
-                        <div class="bg-red-600/30 px-3 py-1 rounded text-red-200 text-xs font-bold">AWAY</div>
-                    </div>
-                    <div class="flex items-center gap-3">
-                        <input type="number" id="match-score2" placeholder="Score" 
-                            class="dark-input w-24 p-2 rounded-lg text-center text-lg font-bold">
-                        <button onclick="window.tmQuickWin(2)" class="flex-1 bg-green-600/30 hover:bg-green-600/50 text-green-300 px-3 py-2 rounded-lg text-sm font-bold transition-colors">
-                            Declare Winner
-                        </button>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Quick Actions -->
-            <div class="flex gap-3 mb-6">
-                <button onclick="window.tmUpdateScores()" class="flex-1 bg-[var(--gold)] hover:bg-yellow-400 text-black font-bold px-4 py-2 rounded-lg transition-colors">
-                    💾 Save Scores
-                </button>
-                <button onclick="window.tmResetMatch()" class="bg-red-900/50 hover:bg-red-900 text-red-300 px-4 py-2 rounded-lg transition-colors">
-                    ↺ Reset Match
-                </button>
-            </div>
-            
-            <!-- Match Chat Section -->
-            <div class="bg-gradient-to-br from-[var(--gold)]/10 to-orange-500/10 rounded-lg border border-[var(--gold)]/30 p-5">
-                <h4 class="font-bold text-white mb-4 flex items-center gap-2">
-                    <svg class="w-5 h-5 text-[var(--gold)]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                    </svg>
-                    Match Chat
-                    <span class="text-xs text-gray-400 font-normal ml-auto">Communicate with players in real-time</span>
-                </h4>
-                <div id="match-chat-messages" class="bg-black/50 rounded-lg p-4 h-72 overflow-y-auto mb-4 space-y-2 border border-white/10"></div>
-                <form onsubmit="event.preventDefault(); window.tmSendMatchMessage();" class="flex gap-2">
-                    <input type="text" id="match-chat-input" placeholder="Type your message to players..." 
-                        class="dark-input flex-1 p-3 rounded-lg focus:border-[var(--gold)]">
-                    <button type="submit" class="bg-[var(--gold)] hover:bg-yellow-400 text-black font-bold px-6 py-3 rounded-lg transition-colors flex items-center gap-2">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
-                        </svg>
-                        Send
-                    </button>
-                </form>
-            </div>
+<!-- User Profile Modal -->
+<div id="userModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="bg-[#1f1f23] rounded-xl border border-white/10 w-full max-w-lg shadow-2xl">
+        <div class="p-6 user-dialog-content">
+            <!-- Content populated by openUserDialog() -->
         </div>
     </div>
 </div>
@@ -561,6 +491,5 @@
 <script src="js/toast.js"></script>
 <script src="js/alert-compat.js"></script>
 <script type="module" src="js/admin.js"></script>
-<script type="module" src="js/tournament-admin.js"></script>
 </body>
 </html>
