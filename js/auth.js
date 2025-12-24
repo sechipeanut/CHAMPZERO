@@ -59,11 +59,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Check if email is verified (skip for Google sign-ins as they're auto-verified)
                 if (!user.emailVerified && !user.providerData.some(p => p.providerId === 'google.com')) {
-                    // Sign out the user
-                    await auth.signOut();
-                    window.showErrorToast("Email Not Verified", "Please verify your email before signing in. Check your inbox for the verification link.", 5000);
-                    btn.textContent = "Log In";
-                    btn.disabled = false;
+                    // Don't sign out - keep them signed in so they can resend verification
+                    window.showErrorToast("Email Not Verified", "Please verify your email before signing in.", 4000);
+                    // Redirect to verify-email page where they can resend
+                    setTimeout(() => {
+                        window.location.href = '/verify-email';
+                    }, 1000);
                     return;
                 }
                 
@@ -128,11 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     lastSignInTime: serverTimestamp()
                 });
 
-                // Sign out the user so they must verify email first
-                await auth.signOut();
-
-                window.showSuccessToast("Success!", "Account created! Please check your email to verify your account before signing in.", 5000);
-                setTimeout(() => window.location.href = "/login", 2000);
+                // Keep user signed in and redirect to verify-email page
+                window.showSuccessToast("Success!", "Account created! Please check your email to verify your account.", 4000);
+                setTimeout(() => window.location.href = "/verify-email?fromSignup=true", 1500);
             } catch (error) {
                 console.error(error);
                 window.showErrorToast("Signup Failed", error.message, 4000);
