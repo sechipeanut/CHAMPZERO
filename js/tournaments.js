@@ -15,7 +15,6 @@ function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>
 document.addEventListener('DOMContentLoaded', () => {
     fetchTournaments();
 
-    // Auth Listener for Role Checking
     const auth = getAuth();
     onAuthStateChanged(auth, async (user) => {
         if (user) {
@@ -23,13 +22,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Event Listeners
     if (qs('#searchName')) qs('#searchName').addEventListener('input', renderTournaments);
     if (qs('#filterGame')) qs('#filterGame').addEventListener('change', renderTournaments);
     if (qs('#filterStatus')) qs('#filterStatus').addEventListener('change', renderTournaments);
     if (qs('#sortBy')) qs('#sortBy').addEventListener('change', renderTournaments);
 
-    // Create Form Listener
     const createForm = qs('#createForm');
     if (createForm) {
         createForm.addEventListener('submit', async (e) => {
@@ -48,8 +45,6 @@ async function checkCreatorPermissions(user) {
         if (userSnap.exists()) {
             const role = userSnap.data().role || 'user';
             const allowedRoles = ['admin', 'org partner', 'tournament organizer'];
-
-            // Allow if role matches OR exact admin email (fallback)
             if (allowedRoles.includes(role) || ["admin@champzero.com"].includes(user.email)) {
                 const controls = qs('#creator-controls');
                 if (controls) controls.classList.remove('hidden');
@@ -69,7 +64,6 @@ async function fetchTournaments() {
 
     try {
         const querySnapshot = await getDocs(collection(db, "tournaments"));
-
         allTournaments = [];
         querySnapshot.forEach((doc) => {
             allTournaments.push({ id: doc.id, ...doc.data() });
@@ -177,20 +171,16 @@ async function handleCreateTournament() {
     try {
         const startDate = qs('#c-date').value;
         const endDate = qs('#c-end-date').value || startDate;
-
-        // Handle Game Title Logic
         const gameSelect = qs('#c-game-select').value;
         const gameOther = qs('#c-game-other').value;
         const finalGameTitle = (gameSelect === 'Others') ? gameOther : gameSelect;
-
-        // Handle Max Teams
         const maxTeams = parseInt(qs('#c-max-teams').value) || 8;
 
         const newTournament = {
             name: qs('#c-name').value,
             game: finalGameTitle,
             format: qs('#c-format').value,
-            maxTeams: maxTeams, // Saved to DB
+            maxTeams: maxTeams,
             prize: Number(qs('#c-prize').value),
             date: startDate,
             endDate: endDate,
@@ -204,16 +194,12 @@ async function handleCreateTournament() {
 
         await addDoc(collection(db, "tournaments"), newTournament);
 
-        if (window.showSuccessToast) {
-            window.showSuccessToast('Success', 'Tournament Created Successfully!');
-        }
+        if (window.showSuccessToast) window.showSuccessToast('Success', 'Tournament Created Successfully!');
         window.location.reload();
 
     } catch (error) {
         console.error("Create Error:", error);
-        if (window.showErrorToast) {
-            window.showErrorToast('Error', 'Failed to create tournament: ' + error.message);
-        }
+        if (window.showErrorToast) window.showErrorToast('Error', 'Failed to create tournament: ' + error.message);
         btn.disabled = false;
         btn.textContent = "Launch Tournament";
     }
@@ -246,14 +232,9 @@ async function openModal(t) {
     let canEdit = false;
 
     if (user) {
-        // Fetch fresh role again to be safe, or reuse checks
-        // Simplified check: Creator or Hardcoded Admin
         if (t.createdBy === user.uid || ["admin@champzero.com"].includes(user.email)) {
             canEdit = true;
         }
-
-        // Also allow if user role is in the allowed list (requires storing role globally or refetching)
-        // Since we checked role for the CREATE button, we assume if they can create, they can edit their own.
     }
 
     const actionArea = qs('#actionArea');
@@ -343,9 +324,9 @@ async function openModal(t) {
 
         renderBracket(currentEditingTournament.participants, currentEditingTournament.format, true);
     } else {
-        if (actualStatus !== 'Upcoming' && actualStatus !== 'Open') {
-            renderBracket(t.participants || [], format, false);
-        }
+        // If not editable (viewing only), render from DB matches if they exist, otherwise placeholder
+        // BUT logic inside renderBracket handles this check (matches vs placeholder).
+        renderBracket(t.participants || [], format, false);
     }
 
     const newUrl = `${window.location.pathname}?id=${t.id}`;
@@ -364,15 +345,11 @@ async function saveBracketChanges() {
             format: currentEditingTournament.format,
             participants: currentEditingTournament.participants
         });
-        if (window.showSuccessToast) {
-            window.showSuccessToast('Success', 'Bracket updated successfully!');
-        }
+        if (window.showSuccessToast) window.showSuccessToast('Success', 'Bracket updated successfully!');
         qs('#detailFormatBadge').textContent = currentEditingTournament.format;
     } catch (e) {
         console.error("Save failed", e);
-        if (window.showErrorToast) {
-            window.showErrorToast('Error', 'Failed to save: ' + e.message);
-        }
+        if (window.showErrorToast) window.showErrorToast('Error', 'Failed to save: ' + e.message);
     }
 }
 
@@ -396,9 +373,7 @@ function selectTeamForSwap(index) {
 function openJoinForm(id) {
     const auth = getAuth();
     if (!auth.currentUser) {
-        if (window.showErrorToast) {
-            window.showErrorToast('Login Required', 'Please log in to register a team.');
-        }
+        if (window.showErrorToast) window.showErrorToast('Login Required', 'Please log in to register a team.');
         window.location.href = 'login.html';
         return;
     }
@@ -431,10 +406,6 @@ async function submitJoinRequest() {
         registeredBy: user.uid
     };
 
-    const joinModal = document.getElementById('joinModal');
-    const tourneyRef = doc(db, "tournaments", currentJoiningId);
-
-    // Disable submit button to prevent duplicate submissions
     const submitBtn = qs('#joinForm button[type="submit"]');
     if (submitBtn) {
         submitBtn.disabled = true;
@@ -442,24 +413,18 @@ async function submitJoinRequest() {
     }
 
     try {
-        await updateDoc(tourneyRef, {
+        await updateDoc(doc(db, "tournaments", currentJoiningId), {
             participants: arrayUnion(newTeam)
         });
-        
-        // Send notification
-        await sendTournamentNotification(currentJoiningId, 'registration', `Your team "${teamName}" has been registered for the tournament!`);
-        
-        if (window.showSuccessToast) {
-            window.showSuccessToast('Success', 'Your team has been registered!');
-        }
-        joinModal.classList.add('hidden');
+
+        await sendTournamentNotification(currentJoiningId, 'registration', `Your team "${teamName}" has been registered!`);
+
+        if (window.showSuccessToast) window.showSuccessToast('Success', 'Your team has been registered!');
+        document.getElementById('joinModal').classList.add('hidden');
         window.location.reload();
     } catch (error) {
         console.error("Error joining:", error);
-        if (window.showErrorToast) {
-            window.showErrorToast('Error', 'Failed to join: ' + error.message);
-        }
-        // Re-enable button on error
+        if (window.showErrorToast) window.showErrorToast('Error', 'Failed to join: ' + error.message);
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = 'Register Team';
@@ -467,12 +432,10 @@ async function submitJoinRequest() {
     }
 }
 
-// Notification helper
 async function sendTournamentNotification(tournamentId, type, message) {
     try {
         const tournament = allTournaments.find(t => t.id === tournamentId);
         const title = tournament ? tournament.name : 'Tournament Update';
-        
         await addDoc(collection(db, "notifications"), {
             title: title,
             type: 'tournament',
@@ -491,13 +454,11 @@ function renderBracket(participants, format, isEditable) {
     if (!container) return;
     container.innerHTML = '';
 
-    // If we have matches from database (set by admin), use them
     if (currentEditingTournament && currentEditingTournament.matches && currentEditingTournament.matches.length > 0) {
         renderMatchesFromDatabase(container, currentEditingTournament.matches, format, isEditable);
         return;
     }
 
-    // Otherwise, show placeholder view
     let teams = participants.map(p => typeof p === 'object' ? p.name : p);
 
     if (format === 'Round Robin') {
@@ -519,88 +480,128 @@ function renderMatchesFromDatabase(container, matches, format, isEditable) {
     }
 }
 
+// [UPDATED] Fixes broken lines and missing Grand Final styling when viewing DB tournaments
 function renderSingleEliminationFromMatches(container, matches, isEditable) {
     const rounds = {};
     matches.forEach(m => {
         if (!rounds[m.round]) rounds[m.round] = [];
         rounds[m.round].push(m);
     });
-    
+
+    // Create wrapper
     const bracketWrapper = document.createElement('div');
-    bracketWrapper.className = "flex gap-8 overflow-x-auto pb-4";
-    
-    Object.keys(rounds).sort((a, b) => a - b).forEach(roundNum => {
+    bracketWrapper.className = "bracket-wrapper";
+
+    const roundNumbers = Object.keys(rounds).sort((a, b) => a - b);
+    const totalRounds = roundNumbers.length;
+
+    roundNumbers.forEach((roundNum, index) => {
         const roundDiv = document.createElement('div');
-        roundDiv.className = "flex flex-col gap-6 min-w-[280px]";
-        
+        roundDiv.className = "bracket-round";
+        const isFinalRound = (index === totalRounds - 1);
+
         let roundName = `Round ${roundNum}`;
-        if (roundNum == Object.keys(rounds).length) roundName = "Grand Final";
-        else if (roundNum == Object.keys(rounds).length - 1) roundName = "Semi Finals";
+        if (isFinalRound) roundName = "Grand Final";
+        else if (index === totalRounds - 2) roundName = "Semi Finals";
+
+        roundDiv.innerHTML = `<h4 class="text-center text-sm font-bold text-[var(--gold)] mb-2 uppercase tracking-widest border-b border-white/10 pb-2">${roundName}</h4>`;
+
+        const roundMatches = rounds[roundNum];
         
-        roundDiv.innerHTML = `<h4 class="text-center text-sm font-bold text-[var(--gold)] mb-2">${roundName}</h4>`;
-        
-        rounds[roundNum].forEach(match => {
-            const matchDiv = document.createElement('div');
-            const isCompleted = match.status === 'completed';
-            matchDiv.className = `bg-[var(--dark-card)] border ${isCompleted ? 'border-green-500/30' : 'border-white/20'} rounded-lg p-3 hover:border-[var(--gold)]/50 transition-colors`;
-            matchDiv.innerHTML = `
-                <div class="flex justify-between items-center mb-2">
-                    <span class="text-xs text-gray-500">Match ${match.matchNumber}</span>
-                    ${!isEditable && match.team1 !== 'TBD' && match.team2 !== 'TBD' ? `<button onclick="openMatchChat('${match.id}')" class="text-xs bg-blue-600/30 text-blue-300 px-2 py-1 rounded hover:bg-blue-600/50 transition flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-                        Chat
-                    </button>` : ''}
-                </div>
-                <div class="space-y-2">
-                    <div class="flex justify-between items-center ${match.winner === match.team1 ? 'text-[var(--gold)] font-bold' : 'text-white'}">
-                        <span class="text-sm">${escapeHtml(match.team1)}</span>
-                        <span class="text-sm font-bold">${match.score1 !== null && match.score1 !== undefined ? match.score1 : '-'}</span>
+        // Group matches into pairs for visual lines (assuming consecutive ordering 1,2 then 3,4)
+        // If it's the final round, there is only 1 match (so 1 pair with 1 item).
+        for (let i = 0; i < roundMatches.length; i += 2) {
+            const pairWrapper = document.createElement('div');
+            // 'straight-mode' hides the fork on the right side. Use this for the Final Round.
+            pairWrapper.className = isFinalRound ? 'match-pair straight-mode' : 'match-pair';
+
+            // Inner loop: Usually 2 matches per pair, unless it's the Final (1 match).
+            // Logic: if we have a pair (i and i+1), render both. If only i exists, render one.
+            const subLimit = (i + 1 < roundMatches.length) ? 2 : 1;
+            
+            for (let j = 0; j < subLimit; j++) {
+                const match = roundMatches[i + j];
+                const isCompleted = match.status === 'completed';
+
+                // Styling logic for Grand Final vs Standard
+                const extraClasses = isFinalRound ? 'champ-card h-[100px] justify-center' : `h-auto py-3 my-2 ${isCompleted ? 'border-green-500/30' : ''}`;
+                const nameClass = isFinalRound ? 'text-lg font-bold' : 'text-sm';
+                const scoreClass = isFinalRound ? 'text-lg' : 'text-sm';
+                
+                // Chat button logic
+                const chatBtn = (!isEditable && match.team1 !== 'TBD' && match.team2 !== 'TBD') 
+                    ? `<button onclick="openMatchChat('${match.id}')" class="text-xs bg-blue-600/30 text-blue-300 px-2 py-1 rounded hover:bg-blue-600/50 transition flex items-center gap-1 z-20 relative">Chat</button>` 
+                    : '';
+
+                const matchDiv = document.createElement('div');
+                matchDiv.className = `match-card ${extraClasses}`;
+                
+                matchDiv.innerHTML = `
+                    <div class="flex justify-between items-center mb-1">
+                        <span class="text-xs text-gray-500">M${match.matchNumber}</span>
+                        ${chatBtn}
                     </div>
-                    <div class="flex justify-between items-center ${match.winner === match.team2 ? 'text-[var(--gold)] font-bold' : 'text-white'}">
-                        <span class="text-sm">${escapeHtml(match.team2)}</span>
-                        <span class="text-sm font-bold">${match.score2 !== null && match.score2 !== undefined ? match.score2 : '-'}</span>
+                    <div class="space-y-1 w-full">
+                        <div class="flex justify-between items-center ${match.winner === match.team1 ? 'text-[var(--gold)] font-bold' : 'text-white'}">
+                            <span class="${nameClass} truncate">${escapeHtml(match.team1)}</span>
+                            <span class="${scoreClass} font-bold ${isFinalRound ? 'bg-black/20 px-2 rounded' : ''}">${match.score1 !== null ? match.score1 : '-'}</span>
+                        </div>
+                        <div class="flex justify-between items-center ${match.winner === match.team2 ? 'text-[var(--gold)] font-bold' : 'text-white'}">
+                            <span class="${nameClass} truncate">${escapeHtml(match.team2)}</span>
+                            <span class="${scoreClass} font-bold ${isFinalRound ? 'bg-black/20 px-2 rounded' : ''}">${match.score2 !== null ? match.score2 : '-'}</span>
+                        </div>
                     </div>
-                </div>
-                ${isCompleted ? `<div class="mt-2 text-center text-xs text-green-400 font-bold">✓ Complete</div>` : ''}
-            `;
-            roundDiv.appendChild(matchDiv);
-        });
-        
+                    ${isCompleted ? `<div class="mt-1 text-center text-xs text-green-400 font-bold">✓ Complete</div>` : ''}
+                `;
+                pairWrapper.appendChild(matchDiv);
+            }
+            roundDiv.appendChild(pairWrapper);
+        }
         bracketWrapper.appendChild(roundDiv);
     });
-    
+
     container.appendChild(bracketWrapper);
 }
 
 function renderDoubleEliminationFromMatches(container, matches, isEditable) {
+    container.innerHTML = '';
+    const controlsDiv = document.createElement('div');
+    controlsDiv.className = "flex gap-3 mb-4 border-b border-white/10 pb-4";
+    controlsDiv.innerHTML = `
+        <button id="btn-ub" onclick="window.switchBracketTab('upper')" class="px-6 py-2 rounded-md font-bold text-sm transition-all bg-[var(--gold)] text-black shadow-lg shadow-[var(--gold)]/20 hover:scale-105">Upper Bracket</button>
+        <button id="btn-lb" onclick="window.switchBracketTab('lower')" class="px-6 py-2 rounded-md font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/10">Lower Bracket</button>
+    `;
+    container.appendChild(controlsDiv);
+
+    const bracketScrollWrapper = document.createElement('div');
+    bracketScrollWrapper.className = "bracket-wrapper overflow-x-auto custom-scrollbar";
+    bracketScrollWrapper.style.width = "100%";
+
     const winnersMatches = matches.filter(m => m.bracket === 'winners');
     const losersMatches = matches.filter(m => m.bracket === 'losers');
-    
-    const wbTitle = document.createElement('h4');
-    wbTitle.className = "text-[var(--gold)] font-bold mb-4";
-    wbTitle.textContent = "Winner's Bracket";
-    container.appendChild(wbTitle);
-    
-    const wbDiv = document.createElement('div');
-    renderSingleEliminationFromMatches(wbDiv, winnersMatches, isEditable);
-    container.appendChild(wbDiv);
-    
+
+    const ubContainer = document.createElement('div');
+    ubContainer.id = 'ub-container';
+    // Reusing the UPDATED single elim renderer ensures UB gets correct lines and Grand Final styling too
+    renderSingleEliminationFromMatches(ubContainer, winnersMatches, isEditable);
+    bracketScrollWrapper.appendChild(ubContainer);
+
+    const lbContainer = document.createElement('div');
+    lbContainer.id = 'lb-container';
+    lbContainer.className = "hidden";
+
     if (losersMatches.length > 0) {
-        const lbTitle = document.createElement('h4');
-        lbTitle.className = "text-red-400 font-bold mt-8 mb-4";
-        lbTitle.textContent = "Loser's Bracket";
-        container.appendChild(lbTitle);
-        
-        const lbDiv = document.createElement('div');
-        renderSingleEliminationFromMatches(lbDiv, losersMatches, isEditable);
-        container.appendChild(lbDiv);
+        renderSingleEliminationFromMatches(lbContainer, losersMatches, isEditable);
+    } else {
+        lbContainer.innerHTML = '<div class="text-center text-gray-500 py-10 min-w-[300px]">Lower Bracket matches have not started yet.</div>';
     }
+    bracketScrollWrapper.appendChild(lbContainer);
+    container.appendChild(bracketScrollWrapper);
 }
 
 function renderRoundRobinFromMatches(container, matches, isEditable) {
     const wrapper = document.createElement('div');
     wrapper.className = "space-y-3";
-    
     matches.forEach((match, idx) => {
         const isCompleted = match.status === 'completed';
         const matchDiv = document.createElement('div');
@@ -608,76 +609,65 @@ function renderRoundRobinFromMatches(container, matches, isEditable) {
         matchDiv.innerHTML = `
             <div class="flex justify-between items-center mb-3">
                 <span class="text-sm text-gray-400">Match ${idx + 1}</span>
-                ${!isEditable ? `<button onclick="openMatchChat('${match.id}')" class="text-xs bg-blue-600/30 text-blue-300 px-3 py-1 rounded hover:bg-blue-600/50 transition flex items-center gap-1">
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
-                    Chat
-                </button>` : ''}
+                ${!isEditable ? `<button onclick="openMatchChat('${match.id}')" class="text-xs bg-blue-600/30 text-blue-300 px-3 py-1 rounded">Chat</button>` : ''}
             </div>
             <div class="grid grid-cols-2 gap-4">
-                <div class="${match.winner === match.team1 ? 'text-[var(--gold)]' : 'text-white'}">
-                    <div class="font-bold mb-1">${escapeHtml(match.team1)}</div>
-                    <div class="text-2xl font-bold">${match.score1 !== null && match.score1 !== undefined ? match.score1 : '-'}</div>
-                </div>
-                <div class="${match.winner === match.team2 ? 'text-[var(--gold)]' : 'text-white'}">
-                    <div class="font-bold mb-1">${escapeHtml(match.team2)}</div>
-                    <div class="text-2xl font-bold">${match.score2 !== null && match.score2 !== undefined ? match.score2 : '-'}</div>
-                </div>
+                <div class="${match.winner === match.team1 ? 'text-[var(--gold)]' : 'text-white'}"><div class="font-bold mb-1">${escapeHtml(match.team1)}</div><div class="text-2xl font-bold">${match.score1 || '-'}</div></div>
+                <div class="${match.winner === match.team2 ? 'text-[var(--gold)]' : 'text-white'}"><div class="font-bold mb-1">${escapeHtml(match.team2)}</div><div class="text-2xl font-bold">${match.score2 || '-'}</div></div>
             </div>
             ${isCompleted ? `<div class="mt-3 text-center text-xs text-green-400 font-bold">✓ Match Complete</div>` : ''}
         `;
         wrapper.appendChild(matchDiv);
     });
-    
     container.appendChild(wrapper);
 }
 
-// Placeholder renders (for when no matches in database yet)
+// [FIX] MAIN FIX HERE: Added wrapper to prevent vertical stacking
 function renderSingleEliminationPlaceholder(container, participants, isEditable) {
-    // 1. Setup Bracket Data
     let targetSize = currentEditingTournament.maxTeams || 8;
     let bracketSize = 2;
     while (bracketSize < targetSize) bracketSize *= 2;
 
     let seeds = [...participants.map(p => typeof p === 'object' ? p.name : p)];
-    while(seeds.length < targetSize) seeds.push('TBD');
-    
-    // Calculate Byes
+    while (seeds.length < targetSize) seeds.push('TBD');
+
     const totalSlots = bracketSize;
     const numByes = totalSlots - seeds.length;
-    for(let i=0; i<numByes; i++) seeds.push('BYE');
+    for (let i = 0; i < numByes; i++) seeds.push('BYE');
 
     let rounds = Math.log2(bracketSize);
 
-    // 2. Render Rounds
+    // Creates the horizontal flex container
+    const bracketWrapper = document.createElement('div');
+    bracketWrapper.className = "bracket-wrapper";
+
     for (let r = 0; r < rounds; r++) {
         const roundDiv = document.createElement('div');
         roundDiv.className = 'bracket-round';
-        
-        // Round Title
+
         let roundName = `Round ${r + 1}`;
         if (r === rounds - 1) roundName = "Grand Final";
         else if (r === rounds - 2) roundName = "Semi Finals";
-        
-        roundDiv.innerHTML = `<div class="text-center text-xs text-gray-500 mb-4 font-bold uppercase tracking-wider h-6">${roundName}</div>`;
+
+        roundDiv.innerHTML = `<div class="text-center text-sm text-[var(--gold)] mb-4 font-bold uppercase tracking-widest border-b border-white/10 pb-2">${roundName}</div>`;
 
         const matchesInRound = bracketSize / Math.pow(2, r + 1);
 
-        // --- KEY CHANGE: Loop by 2 to create PAIRS ---
+        // Special styling for the Grand Final round
+        const isFinalRound = (r === rounds - 1);
+
         for (let m = 0; m < matchesInRound; m += 2) {
-            
-            // Create the container that holds TWO matches (The "Fork")
             const pairWrapper = document.createElement('div');
-            pairWrapper.className = 'match-pair'; 
+            // If it's the final, use 'straight-mode' to hide the right-side connector forks
+            pairWrapper.className = isFinalRound ? 'match-pair straight-mode' : 'match-pair';
 
-            // Logic to handle the Final Round (which has only 1 match, not a pair)
-            let subLoopLimit = (r === rounds - 1) ? 1 : 2;
+            let subLoopLimit = isFinalRound ? 1 : 2;
 
-            for(let i = 0; i < subLoopLimit; i++) {
+            for (let i = 0; i < subLoopLimit; i++) {
                 let currentM = m + i;
                 let team1 = "TBD", team2 = "TBD";
                 let isByeMatch = false;
 
-                // Determine Teams
                 if (r === 0) {
                     const idx1 = currentM * 2;
                     const idx2 = currentM * 2 + 1;
@@ -685,88 +675,88 @@ function renderSingleEliminationPlaceholder(container, participants, isEditable)
                     team2 = seeds[idx2] || "TBD";
                     if (team1 === 'BYE' || team2 === 'BYE') isByeMatch = true;
                 } else {
-                    team1 = (r === rounds - 1) ? "Winner S1" : `Winner R${r}-M${currentM*2+1}`;
-                    team2 = (r === rounds - 1) ? "Winner S2" : `Winner R${r}-M${currentM*2+2}`;
+                    team1 = isFinalRound ? "Winner Semis 1" : `Winner R${r}-M${currentM * 2 + 1}`;
+                    team2 = isFinalRound ? "Winner Semis 2" : `Winner R${r}-M${currentM * 2 + 2}`;
                 }
 
-                // Render Individual Match Card
                 let matchHTML = '';
                 if (isByeMatch) {
                     const realTeam = (team1 !== 'BYE') ? team1 : team2;
                     matchHTML = `
-                        <div class="match-card opacity-70 border-dashed border-gray-600">
+                        <div class="match-card opacity-50 border-dashed border-gray-600">
                             <div class="team-slot"><span class="text-[var(--gold)]">${escapeHtml(realTeam)}</span><span class="text-xs text-green-400">Advances</span></div>
                             <div class="team-slot text-gray-600"><span>BYE</span></div>
                         </div>`;
                 } else {
-                    const idx1 = (r===0) ? currentM*2 : -1;
-                    const idx2 = (r===0) ? currentM*2+1 : -1;
-                    const click1 = (isEditable && r===0 && team1 !== 'TBD') ? `onclick="window.selectTeam(${idx1})"` : '';
-                    const click2 = (isEditable && r===0 && team2 !== 'TBD') ? `onclick="window.selectTeam(${idx2})"` : '';
-                    const sel1 = (swapSourceIndex === idx1 && r===0) ? 'selected-for-swap' : '';
-                    const sel2 = (swapSourceIndex === idx2 && r===0) ? 'selected-for-swap' : '';
+                    const idx1 = (r === 0) ? currentM * 2 : -1;
+                    const idx2 = (r === 0) ? currentM * 2 + 1 : -1;
+                    const click1 = (isEditable && r === 0 && team1 !== 'TBD') ? `onclick="window.selectTeam(${idx1})"` : '';
+                    const click2 = (isEditable && r === 0 && team2 !== 'TBD') ? `onclick="window.selectTeam(${idx2})"` : '';
+                    const sel1 = (swapSourceIndex === idx1 && r === 0) ? 'selected-for-swap' : '';
+                    const sel2 = (swapSourceIndex === idx2 && r === 0) ? 'selected-for-swap' : '';
                     
-                    const isFinal = (r === rounds - 1);
-                    const borderClass = isFinal ? 'border-[var(--gold)] shadow-[0_0_15px_rgba(255,215,0,0.2)]' : '';
+                    // Special styling for Grand Final card
+                    const extraClasses = isFinalRound ? 'champ-card h-[100px] justify-center' : '';
+                    const scoreDisplay = isFinalRound ? '' : '<span class="team-score">-</span>';
+                    
+                    // Use standard styling for team names, but maybe larger for finals
+                    const nameClass = isFinalRound ? 'text-lg font-bold' : '';
 
                     matchHTML = `
-                        <div class="match-card ${borderClass} ${isEditable && r===0 ? 'editable-mode' : ''}">
-                            <div class="team-slot ${sel1}" ${click1}><span>${escapeHtml(team1)}</span><span class="team-score">-</span></div>
-                            <div class="team-slot ${sel2}" ${click2}><span>${escapeHtml(team2)}</span><span class="team-score">-</span></div>
+                        <div class="match-card ${extraClasses} ${isEditable && r === 0 ? 'editable-mode' : ''}">
+                            <div class="team-slot ${sel1} ${nameClass}" ${click1}><span>${escapeHtml(team1)}</span>${scoreDisplay}</div>
+                            <div class="team-slot ${sel2} ${nameClass}" ${click2}><span>${escapeHtml(team2)}</span>${scoreDisplay}</div>
                         </div>`;
                 }
                 pairWrapper.innerHTML += matchHTML;
             }
             roundDiv.appendChild(pairWrapper);
         }
-        container.appendChild(roundDiv);
+        bracketWrapper.appendChild(roundDiv);
     }
+    container.appendChild(bracketWrapper);
 }
 
 function renderDoubleEliminationPlaceholder(container, participants, isEditable) {
     container.innerHTML = '';
+    const controlsDiv = document.createElement('div');
+    controlsDiv.className = "flex gap-3 mb-4 border-b border-white/10 pb-4";
+    controlsDiv.innerHTML = `
+        <button id="btn-ub" onclick="window.switchBracketTab('upper')" class="px-6 py-2 rounded-md font-bold text-sm transition-all bg-[var(--gold)] text-black shadow-lg shadow-[var(--gold)]/20 hover:scale-105">Upper Bracket</button>
+        <button id="btn-lb" onclick="window.switchBracketTab('lower')" class="px-6 py-2 rounded-md font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/10">Lower Bracket</button>
+    `;
+    container.appendChild(controlsDiv);
 
-    // --- 1. Setup Data & Sizing ---
+    const bracketScrollWrapper = document.createElement('div');
+    bracketScrollWrapper.className = "bracket-wrapper overflow-x-auto custom-scrollbar";
+    bracketScrollWrapper.style.width = "100%";
+
     let targetSize = currentEditingTournament.maxTeams || 8;
     let bracketSize = 2;
     while (bracketSize < targetSize) bracketSize *= 2;
 
-    // Prepare seeds similar to Single Elim
     let seeds = [...participants.map(p => typeof p === 'object' ? p.name : p)];
     while (seeds.length < targetSize) seeds.push('TBD');
     const totalSlots = bracketSize;
     const numByes = totalSlots - seeds.length;
     for (let i = 0; i < numByes; i++) seeds.push('BYE');
 
-    // =========================================
-    // 2. Render UPPER BRACKET (Winner's)
-    // =========================================
-
-    const upperWrapper = document.createElement('div');
-    upperWrapper.className = "mb-12 border-b border-white/10 pb-8";
-    upperWrapper.innerHTML = '<h4 class="text-[var(--gold)] font-bold uppercase tracking-widest mb-4 border-l-4 border-[var(--gold)] pl-3">Upper Bracket</h4>';
-
     const ubContainer = document.createElement('div');
-    ubContainer.className = "bracket-wrapper overflow-x-auto custom-scrollbar";
+    ubContainer.id = 'ub-container';
+    ubContainer.className = "flex";
 
     let wbRounds = Math.log2(bracketSize);
-
     for (let r = 0; r < wbRounds; r++) {
         const roundDiv = document.createElement('div');
         roundDiv.className = 'bracket-round';
-        roundDiv.innerHTML = `<div class="text-center text-xs text-gray-500 mb-2 font-bold uppercase">WB Round ${r + 1}</div>`;
+        roundDiv.innerHTML = `<div class="text-center text-sm text-[var(--gold)] mb-4 font-bold uppercase tracking-widest border-b border-white/10 pb-2">WB Round ${r + 1}</div>`;
 
         const matchesInRound = bracketSize / Math.pow(2, r + 1);
 
-        // --- FIX: Loop by 2 to create PAIRS (just like Single Elim) ---
         for (let m = 0; m < matchesInRound; m += 2) {
-            
-            // Create the container that holds TWO matches (The "Fork" for the lines)
             const pairWrapper = document.createElement('div');
-            pairWrapper.className = 'match-pair';
-
-            // Determine if this is the last round of WB (which is the WB Final, effectively 1 match)
-            // If it is the WB Final, we only render 1 match in the pair, otherwise 2.
+            const isUBFinal = (r === wbRounds - 1);
+            pairWrapper.className = isUBFinal ? 'match-pair straight-mode' : 'match-pair';
             let subLoopLimit = (r === wbRounds - 1) ? 1 : 2;
 
             for (let i = 0; i < subLoopLimit; i++) {
@@ -775,17 +765,17 @@ function renderDoubleEliminationPlaceholder(container, participants, isEditable)
                 let isBye = false;
 
                 if (r === 0) {
-                    // Initial Seeding
                     const idx1 = currentM * 2;
                     const idx2 = currentM * 2 + 1;
                     team1 = seeds[idx1] || "TBD";
                     team2 = seeds[idx2] || "TBD";
                     if (team1 === 'BYE' || team2 === 'BYE') isBye = true;
                 } else {
-                    // Standard advancement logic
                     team1 = `W-R${r}-M${currentM * 2 + 1}`;
                     team2 = `W-R${r}-M${currentM * 2 + 2}`;
                 }
+                
+                const straightLineClass = isUBFinal ? 'straight-line' : '';
 
                 if (isBye) {
                     const real = (team1 !== 'BYE') ? team1 : team2;
@@ -795,7 +785,6 @@ function renderDoubleEliminationPlaceholder(container, participants, isEditable)
                             <div class="team-slot text-gray-600"><span>BYE</span></div>
                         </div>`;
                 } else {
-                    // Interactive swapping only allowed in Round 1
                     const idx1 = r === 0 ? currentM * 2 : -1;
                     const idx2 = r === 0 ? currentM * 2 + 1 : -1;
                     const click1 = (isEditable && r === 0 && team1 !== 'TBD') ? `onclick="window.selectTeam(${idx1})"` : '';
@@ -804,7 +793,7 @@ function renderDoubleEliminationPlaceholder(container, participants, isEditable)
                     const sel2 = (swapSourceIndex === idx2 && r === 0) ? 'selected-for-swap' : '';
 
                     pairWrapper.innerHTML += `
-                        <div class="match-card ${isEditable && r === 0 ? 'editable-mode' : ''}">
+                        <div class="match-card ${straightLineClass} ${isEditable && r === 0 ? 'editable-mode' : ''}">
                             <div class="team-slot ${sel1}" ${click1}><span>${escapeHtml(team1)}</span><span class="team-score">-</span></div>
                             <div class="team-slot ${sel2}" ${click2}><span>${escapeHtml(team2)}</span><span class="team-score">-</span></div>
                         </div>`;
@@ -814,83 +803,96 @@ function renderDoubleEliminationPlaceholder(container, participants, isEditable)
         }
         ubContainer.appendChild(roundDiv);
     }
-    upperWrapper.appendChild(ubContainer);
-    container.appendChild(upperWrapper);
 
-    // =========================================
-    // 3. Render LOWER BRACKET (Loser's)
-    // =========================================
-    // Note: LB lines are tricky because they don't always merge perfectly in binary pairs.
-    // For now, we will render them simply to keep the layout clean without broken connectors.
-
-    const lowerWrapper = document.createElement('div');
-    lowerWrapper.innerHTML = '<h4 class="text-red-400 font-bold uppercase tracking-widest mb-4 border-l-4 border-red-500 pl-3">Lower Bracket</h4>';
+    const finalDiv = document.createElement('div');
+    finalDiv.className = 'bracket-round flex flex-col justify-center';
+    finalDiv.innerHTML = `
+        <div class="text-center text-sm text-[var(--gold)] mb-4 font-bold uppercase tracking-widest border-b border-white/10 pb-2">Grand Final</div>
+        <div class="match-pair straight-mode">
+            <div class="match-card border-[var(--gold)] shadow-[0_0_20px_rgba(255,215,0,0.15)] h-[100px]">
+                 <div class="team-slot"><span class="text-[var(--gold)] font-bold text-lg">Winner UB</span></div>
+                 <div class="team-slot"><span class="text-red-400 font-bold text-lg">Winner LB</span></div>
+            </div>
+        </div>`;
+    ubContainer.appendChild(finalDiv);
+    bracketScrollWrapper.appendChild(ubContainer);
 
     const lbContainer = document.createElement('div');
-    lbContainer.className = "bracket-wrapper overflow-x-auto custom-scrollbar";
-
-    // Calculate Lower Bracket Rounds: (WB_Rounds - 1) * 2
+    lbContainer.id = 'lb-container';
+    lbContainer.className = "flex hidden"; 
     const lbRoundsCount = (wbRounds - 1) * 2;
 
     for (let r = 0; r < lbRoundsCount; r++) {
         const roundDiv = document.createElement('div');
         roundDiv.className = 'bracket-round';
-        roundDiv.innerHTML = `<div class="text-center text-xs text-gray-500 mb-2 font-bold uppercase">LB Round ${r + 1}</div>`;
-
-        // Calculate matches in this LB round
+        roundDiv.innerHTML = `<div class="text-center text-sm text-red-400 mb-4 font-bold uppercase tracking-widest border-b border-white/10 pb-2">LB Round ${r + 1}</div>`;
         const powerDrop = Math.floor(r / 2);
         const matchesInThisRound = Math.max(1, (bracketSize / 4) / Math.pow(2, powerDrop));
+        const nextPowerDrop = Math.floor((r + 1) / 2);
+        const matchesInNextRound = Math.max(1, (bracketSize / 4) / Math.pow(2, nextPowerDrop));
+        const isStraightRound = matchesInThisRound === matchesInNextRound;
 
-        // Grouping LB into "Pairs" visually helps alignment, even if lines aren't perfect binary trees
-        for (let m = 0; m < matchesInThisRound; m++) {
-            // We wrap individual matches in a 'match-pair' logic just to keep height consistent
-            // effectively acting as a single items container here
-            const pairWrapper = document.createElement('div');
-            pairWrapper.className = 'match-pair'; 
-            
-            // Note: In CSS, a 'match-pair' with only 1 child might not draw the fork correctly
-            // because the fork connects child 1 and child 2. 
-            // However, this keeps the vertical spacing consistent with the Upper Bracket.
-            
-            pairWrapper.innerHTML = `
-                <div class="match-card border-red-500/20">
-                    <div class="team-slot text-gray-400"><span>Waiting...</span></div>
-                    <div class="team-slot text-gray-400"><span>Waiting...</span></div>
-                </div>`;
-                
-            roundDiv.appendChild(pairWrapper);
+        if (isStraightRound) {
+            for (let m = 0; m < matchesInThisRound; m++) {
+                const pairWrapper = document.createElement('div');
+                pairWrapper.className = 'match-pair straight-mode'; 
+                pairWrapper.innerHTML = `
+                    <div class="match-card border-red-500/20 straight-line">
+                        <div class="team-slot text-gray-400"><span>Waiting...</span></div>
+                        <div class="team-slot text-gray-400"><span>Waiting...</span></div>
+                    </div>`;
+                roundDiv.appendChild(pairWrapper);
+            }
+        } else {
+            for (let m = 0; m < matchesInThisRound; m += 2) {
+                const pairWrapper = document.createElement('div');
+                pairWrapper.className = 'match-pair'; 
+                pairWrapper.innerHTML = `
+                    <div class="match-card border-red-500/20">
+                        <div class="team-slot text-gray-400"><span>Waiting...</span></div>
+                        <div class="team-slot text-gray-400"><span>Waiting...</span></div>
+                    </div>
+                    <div class="match-card border-red-500/20">
+                        <div class="team-slot text-gray-400"><span>Waiting...</span></div>
+                        <div class="team-slot text-gray-400"><span>Waiting...</span></div>
+                    </div>`;
+                roundDiv.appendChild(pairWrapper);
+            }
         }
         lbContainer.appendChild(roundDiv);
     }
-
-    // Add Grand Final
-    const finalDiv = document.createElement('div');
-    finalDiv.className = 'bracket-round flex flex-col justify-center';
     
-    // Determine winner of UB and LB
-    finalDiv.innerHTML = `
-        <div class="text-center text-xs text-[var(--gold)] mb-2 font-bold uppercase">Grand Final</div>
-        <div class="match-pair">
-            <div class="match-card border-[var(--gold)] shadow-[0_0_20px_rgba(255,215,0,0.15)]">
-                 <div class="team-slot"><span class="text-[var(--gold)]">Winner UB</span></div>
-                 <div class="team-slot"><span class="text-red-400">Winner LB</span></div>
-            </div>
-        </div>`;
+    bracketScrollWrapper.appendChild(lbContainer);
+    container.appendChild(bracketScrollWrapper);
+}
 
-    lbContainer.appendChild(finalDiv);
+window.switchBracketTab = function (tabName) {
+    const ubContainer = document.getElementById('ub-container');
+    const lbContainer = document.getElementById('lb-container');
+    const btnUb = document.getElementById('btn-ub');
+    const btnLb = document.getElementById('btn-lb');
 
-    lowerWrapper.appendChild(lbContainer);
-    container.appendChild(lowerWrapper);
+    if (!ubContainer || !lbContainer) return;
+
+    if (tabName === 'upper') {
+        ubContainer.classList.remove('hidden');
+        lbContainer.classList.add('hidden');
+        btnUb.classList.add('bg-[var(--gold)]', 'text-black', 'border-[var(--gold)]');
+        btnUb.classList.remove('bg-transparent', 'text-gray-400', 'border-gray-600');
+        btnLb.classList.remove('bg-[var(--gold)]', 'text-black', 'border-[var(--gold)]');
+        btnLb.classList.add('bg-transparent', 'text-gray-400', 'border-gray-600');
+    } else {
+        ubContainer.classList.add('hidden');
+        lbContainer.classList.remove('hidden');
+        btnLb.classList.add('bg-[var(--gold)]', 'text-black', 'border-[var(--gold)]');
+        btnLb.classList.remove('bg-transparent', 'text-gray-400', 'border-gray-600');
+        btnUb.classList.remove('bg-[var(--gold)]', 'text-black', 'border-[var(--gold)]');
+        btnUb.classList.add('bg-transparent', 'text-gray-400', 'border-gray-600');
+    }
 }
 
 function renderRoundRobin(container, participants) {
-    // 1. Determine size: use registered teams or fallback to Max Teams
-    // If we are in "Edit Mode" (creator), we might want to show empty slots up to Max Teams.
-    // If in "View Mode", we usually just show registered teams.
-    // For this implementation, we will show all slots up to Max Teams to let organizers see the full grid.
-
     let targetSize = currentEditingTournament ? (currentEditingTournament.maxTeams || 8) : participants.length;
-    // Minimum 2 for display
     if (targetSize < 2) targetSize = 2;
 
     const teamNames = [];
@@ -903,15 +905,12 @@ function renderRoundRobin(container, participants) {
         }
     }
 
-    // 2. Build the Table
     let html = `
     <div class="overflow-x-auto">
         <table class="rr-table min-w-full">
             <thead>
                 <tr>
                     <th class="w-32 bg-black/20 border-white/10">Team</th>`;
-
-    // Header Row (1, 2, 3...)
     teamNames.forEach((_, i) => {
         html += `<th class="w-16 bg-black/20 border-white/10">${i + 1}</th>`;
     });
@@ -920,33 +919,18 @@ function renderRoundRobin(container, participants) {
                 </tr>
             </thead>
             <tbody>`;
-
-    // Rows
     teamNames.forEach((teamA, i) => {
         html += `<tr>
             <td class="font-bold text-white text-left px-3 border-white/10 truncate max-w-[150px]" title="${escapeHtml(teamA)}">
                 <span class="text-[var(--gold)] mr-2">${i + 1}</span>${escapeHtml(teamA)}
             </td>`;
-
         teamNames.forEach((teamB, j) => {
-            if (i === j) {
-                // Diagonal (Self vs Self)
-                html += `<td class="bg-white/5 border-white/10"></td>`;
-            } else {
-                // Match Slot
-                // In a real app, you'd fetch the score from DB here.
-                html += `<td class="border-white/10 text-xs text-gray-500 hover:bg-white/5 cursor-pointer" title="${escapeHtml(teamA)} vs ${escapeHtml(teamB)}">vs</td>`;
-            }
+            if (i === j) html += `<td class="bg-white/5 border-white/10"></td>`;
+            else html += `<td class="border-white/10 text-xs text-gray-500 hover:bg-white/5 cursor-pointer" title="${escapeHtml(teamA)} vs ${escapeHtml(teamB)}">vs</td>`;
         });
-
-        // Stats Column (Placeholder)
         html += `<td class="font-bold text-[var(--gold)] border-white/10">0-0</td></tr>`;
     });
-
     html += '</tbody></table></div>';
-
-    // Optional: Add a "Matches List" below for clarity if needed, 
-    // but the table is the standard Round Robin view.
     container.innerHTML = html;
 }
 
@@ -969,7 +953,6 @@ function renderParticipantsList(participants) {
     }
 }
 
-// Expose to window
 window.selectTeam = selectTeamForSwap;
 window.closeModal = function (id) {
     document.getElementById(id).classList.remove('flex');
@@ -1006,31 +989,21 @@ function formatDateRange(start, end) {
     return display;
 }
 
-// ========================================
-// MATCH CHAT SYSTEM
-// ========================================
-
 let matchChatUnsubscribe = null;
 let currentMatchId = null;
 
-window.openMatchChat = function(matchId) {
+window.openMatchChat = function (matchId) {
     currentMatchId = matchId;
     const match = currentEditingTournament?.matches?.find(m => m.id === matchId);
-    
+
     if (!match) {
-        if (window.showErrorToast) {
-            window.showErrorToast('Error', 'Match not found.');
-        }
+        if (window.showErrorToast) window.showErrorToast('Error', 'Match not found.');
         return;
     }
-    
+
     qs('#chat-match-title').textContent = `${match.team1} vs ${match.team2}`;
     qs('#chat-match-info').textContent = `Match ${match.matchNumber} - Round ${match.round || 1}`;
-    
-    // Start chat listener
     startMatchChatListener(currentEditingTournament.id, matchId);
-    
-    // Show modal
     document.getElementById('matchChatModal').classList.remove('hidden');
     document.getElementById('matchChatModal').classList.add('flex');
 }
@@ -1038,33 +1011,25 @@ window.openMatchChat = function(matchId) {
 function startMatchChatListener(tournamentId, matchId) {
     const chatContainer = qs('#match-chat-container');
     if (!chatContainer) return;
-    
     chatContainer.innerHTML = '<p class="text-center text-gray-500 mt-4">Loading messages...</p>';
-    
-    // Unsubscribe previous listener
-    if (matchChatUnsubscribe) {
-        matchChatUnsubscribe();
-    }
-    
+    if (matchChatUnsubscribe) matchChatUnsubscribe();
+
     import("https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js").then(({ collection, query, orderBy, onSnapshot }) => {
         const messagesRef = collection(db, "tournaments", tournamentId, "matchChats", matchId, "messages");
         const q = query(messagesRef, orderBy("createdAt", "asc"));
-        
+
         matchChatUnsubscribe = onSnapshot(q, (snapshot) => {
             chatContainer.innerHTML = '';
             if (snapshot.empty) {
                 chatContainer.innerHTML = '<p class="text-center text-gray-500 mt-10">No messages yet. Start the conversation!</p>';
                 return;
             }
-            
             const auth = getAuth();
             const currentUser = auth.currentUser;
-            
             snapshot.forEach((doc) => {
                 const msg = doc.data();
                 const isAdmin = msg.senderRole === 'admin';
                 const isMe = currentUser && msg.senderId === currentUser.uid;
-                
                 const bubble = document.createElement('div');
                 bubble.className = `mb-3 ${isMe ? 'text-right' : 'text-left'}`;
                 bubble.innerHTML = `
@@ -1076,33 +1041,25 @@ function startMatchChatListener(tournamentId, matchId) {
                 `;
                 chatContainer.appendChild(bubble);
             });
-            
             chatContainer.scrollTop = chatContainer.scrollHeight;
         });
     });
 }
 
-window.sendMatchChatMessage = async function() {
+window.sendMatchChatMessage = async function () {
     const input = qs('#match-chat-input');
     const text = input.value.trim();
     if (!text || !currentMatchId || !currentEditingTournament) return;
-    
     const auth = getAuth();
     const user = auth.currentUser;
-    
     if (!user) {
-        if (window.showErrorToast) {
-            window.showErrorToast('Login Required', 'Please sign in to send messages.');
-        }
+        if (window.showErrorToast) window.showErrorToast('Login Required', 'Please sign in to send messages.');
         return;
     }
-    
     input.value = '';
-    
     try {
         const { collection, addDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js");
         const messagesRef = collection(db, "tournaments", currentEditingTournament.id, "matchChats", currentMatchId, "messages");
-        
         await addDoc(messagesRef, {
             text: text,
             senderId: user.uid,
@@ -1112,20 +1069,16 @@ window.sendMatchChatMessage = async function() {
         });
     } catch (err) {
         console.error("Chat error:", err);
-        if (window.showErrorToast) {
-            window.showErrorToast('Error', 'Failed to send message.');
-        }
+        if (window.showErrorToast) window.showErrorToast('Error', 'Failed to send message.');
     }
 }
 
-window.closeMatchChat = function() {
+window.closeMatchChat = function () {
     document.getElementById('matchChatModal').classList.remove('flex');
     document.getElementById('matchChatModal').classList.add('hidden');
-    
     if (matchChatUnsubscribe) {
         matchChatUnsubscribe();
         matchChatUnsubscribe = null;
     }
-    
     currentMatchId = null;
 }
