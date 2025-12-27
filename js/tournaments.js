@@ -26,261 +26,188 @@ function animateGenericOpen(modalId, backdropId, panelId) {
 }
 
 // --- INJECT RECURSIVE TREE CSS (Theme: Original ChampZero) ---
-// --- 1. REPLACE THIS FUNCTION: CSS INJECTION ---
 function injectTreeStyles() {
     if (document.getElementById('tree-bracket-styles')) return;
     const style = document.createElement('style');
     style.id = 'tree-bracket-styles';
     style.textContent = `
-        /* Variables converted to standard CSS */
-        :root {
-            --side-margin: 50px;
-            --vertical-margin: 10px;
-            --line-color: rgba(255, 255, 255, 0.5);
-            --card-bg: #1A1A1F;
-            --card-border: #FFD700;
-        }
-
+        /* Main Container */
         .bracket-scroll-container {
             display: flex;
-            justify-content: center; /* Center the whole tree */
+            flex-direction: column;
+            align-items: flex-start; /* Align left to match tree growth */
             padding: 40px;
             overflow: auto;
+            height: 100%;
             min-height: 600px;
         }
 
-        /* WRAPPER */
+        /* HEADER STYLES */
+        .bracket-header-row {
+            display: flex;
+            flex-direction: row;
+            margin-bottom: 30px;
+            padding-left: 20px; /* Aligns with wrapper padding */
+            min-width: max-content; /* Ensure it scrolls with bracket */
+        }
+        
+        .header-item {
+            width: 220px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: 800;
+            color: var(--gold);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            font-size: 0.85rem;
+            margin-right: 50px;
+            flex-shrink: 0;
+            position: relative;
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+        }
+        
+        /* Decorative underline for headers */
+        .header-item::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 3px;
+            background: var(--gold);
+            box-shadow: 0 0 8px var(--gold);
+            border-radius: 2px;
+        }
+
+        /* BRACKET TREE WRAPPER */
         .wrapper {
             display: flex;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
+            padding: 20px;
+            min-width: max-content;
         }
 
-        /* ITEM STRUCTURE */
         .item {
             display: flex;
-            flex-direction: row-reverse; /* Parent Right, Children Left */
+            flex-direction: row;
             align-items: center;
         }
 
-        /* PARENT (The Match Card) */
         .item-parent {
             position: relative;
-            margin-left: var(--side-margin);
+            margin-left: 50px; /* Space between columns */
             display: flex;
             align-items: center;
             z-index: 10;
         }
 
-        /* Line from Parent to Children Group */
-        .item-parent:after {
+        /* Horizontal Line: Parent to Left Fork */
+        .item-parent::after {
             position: absolute;
             content: '';
-            width: calc(var(--side-margin) / 2);
+            width: 50px; /* Half of margin-left */
             height: 2px;
             left: 0;
             top: 50%;
-            background-color: var(--line-color);
+            background-color: var(--line-color, rgba(255, 255, 255, 0.4));
             transform: translateX(-100%);
         }
 
-        /* Remove line for root (Grand Final) */
-        .item-parent.root-node:after {
-            display: none;
-        }
-
-        /* CHILDREN CONTAINER */
         .item-childrens {
             display: flex;
             flex-direction: column;
             justify-content: center;
         }
-
-        /* CHILD WRAPPER */
+        
         .item-child {
             display: flex;
-            align-items: flex-start;
+            align-items: center;
             justify-content: flex-end;
-            margin-top: var(--vertical-margin);
-            margin-bottom: var(--vertical-margin);
+            margin: 10px 0; /* Vertical Gap between matches */
             position: relative;
-            padding-right: 25px; /* Space for connector */
+            padding-right: 25px; /* Space for horizontal connector */
         }
-
-        /* Horizontal Line: Child to Bracket Fork */
-        .item-child:before {
+        
+        /* Horizontal Line: Child to Right Fork */
+        .item-child::before {
             content: '';
             position: absolute;
-            background-color: var(--line-color);
+            background-color: var(--line-color, rgba(255, 255, 255, 0.4));
             right: 0;
             top: 50%;
             width: 25px;
             height: 2px;
         }
-
-        /* Vertical Line: The Bracket Fork */
-        .item-child:after {
+        
+        /* VERTICAL FORK LINES (The Fix) */
+        .item-child::after {
             content: '';
             position: absolute;
-            background-color: var(--line-color);
+            background-color: var(--line-color, rgba(255, 255, 255, 0.4));
             right: 0;
             width: 2px;
-            /* Dynamic height logic handled by CSS pseudo-classes */
         }
-
-        /* Top Child: Line goes DOWN */
-        .item-child:first-child:after {
+        
+        /* Top Child: Line goes from center DOWN to gap */
+        .item-child:first-child::after {
             top: 50%;
-            height: 50%; /* Connects to middle */
-            bottom: auto;
+            height: calc(50% + 10px); /* 50% of child height + margin gap */
         }
-
-        /* Bottom Child: Line goes UP */
-        .item-child:last-child:after {
+        
+        /* Bottom Child: Line goes from center UP to gap */
+        .item-child:last-child::after {
             top: auto;
             bottom: 50%;
-            height: 50%;
+            height: calc(50% + 10px); /* 50% of child height + margin gap */
         }
-
-        /* Middle Child (if ever needed) or Single Child handling */
-        .item-child:only-child:after {
+        
+        /* Single Child (Bye): No vertical line, making it straight */
+        .item-child:only-child::after {
             display: none;
         }
         
-        /* Remove connectors if there are no children (Leaf Nodes) */
-        .item-childrens:empty + .item-parent:after {
+        /* Remove connectors for the very first round (leaves) */
+        .item-childrens:empty + .item-parent::after {
             display: none;
         }
 
-        /* MATCH CARD STYLING */
-        .match-card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--card-border);
-            border-left: 3px solid var(--card-border);
-            color: white;
-            padding: 10px;
+        /* CARD STYLES */
+        .tree-match-card {
+            background: var(--dark-card, #1A1A1F);
+            border: 1px solid var(--gold, #FFD700);
+            border-left: 3px solid var(--gold, #FFD700);
             border-radius: 4px;
-            min-width: 180px;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
-            cursor: pointer;
-            transition: transform 0.2s;
+            padding: 8px 12px;
+            width: 220px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            z-index: 20;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .match-card:hover {
-            transform: scale(1.02);
-            background-color: #2a2a2f;
+        .tree-match-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
+            border-color: rgba(255, 215, 0, 0.3);
         }
-        .team-name {
-            font-size: 12px;
-            font-weight: bold;
-            display: block;
+        .tree-match-card.completed {
+            border-right: 1px solid rgba(74, 222, 128, 0.3);
         }
-        .team-score {
-            float: right;
-            color: var(--card-border);
-        }
-        
-        /* LEAF NODE (Team Name Only) */
-        .leaf-node {
-            background: #333;
-            padding: 5px 10px;
-            border-radius: 4px;
-            font-size: 12px;
-            color: #ccc;
-            border: 1px solid #444;
+        .tree-match-card.bye-card {
+            border-left: 3px solid transparent;
+            border: 1px dashed rgba(255, 255, 255, 0.2);
+            opacity: 0.6;
+            background: transparent;
+            box-shadow: none;
         }
     `;
     document.head.appendChild(style);
-}
-
-// --- 2. REPLACE THIS FUNCTION: NEW RECURSIVE RENDERER ---
-function renderRecursiveBracket(container, treeNode, isAdmin, isRoot = false) {
-    if (!treeNode) return;
-
-    // Outer Wrapper (item)
-    const item = document.createElement('div');
-    item.className = 'item';
-
-    // 1. CHILDREN CONTAINER (item-childrens) - Left side visually
-    const childrenContainer = document.createElement('div');
-    childrenContainer.className = 'item-childrens';
-
-    // Logic: Do we recurse? 
-    // If a child match contains a "BYE", we treat it as a leaf (don't draw a bracket),
-    // UNLESS both teams are real (Play-in match).
-    if (treeNode.children && treeNode.children.length > 0) {
-        treeNode.children.forEach(childNode => {
-            const childWrapper = document.createElement('div');
-            childWrapper.className = 'item-child';
-
-            const m = childNode.match;
-            // CHECK: Is this a "Bye Match" (Team vs BYE)?
-            const isByeMatch = (m.team1 === 'BYE' || m.team2 === 'BYE');
-            
-            // CHECK: Is it a Double Bye? (Shouldn't happen often but good safety)
-            const isDoubleBye = (m.team1 === 'BYE' && m.team2 === 'BYE');
-
-            if (isDoubleBye) {
-                // Don't render anything for double byes
-                childWrapper.innerHTML = '';
-            } 
-            else if (isByeMatch) {
-                // LEAF NODE LOGIC:
-                // Instead of drawing a bracket, just draw the name of the real team.
-                // This creates the "Play-in" effect where standard teams sit waiting.
-                const realTeam = (m.team1 !== 'BYE') ? m.team1 : m.team2;
-                const leafDiv = document.createElement('div');
-                leafDiv.className = 'leaf-node';
-                leafDiv.textContent = realTeam;
-                
-                // Note: We put this leaf inside an 'item' structure so lines align? 
-                // Actually, CSS expects item-child -> content. 
-                childWrapper.appendChild(leafDiv);
-                childrenContainer.appendChild(childWrapper);
-            } 
-            else {
-                // REAL MATCH (Branch): Recurse!
-                // This will draw the bracket for 8 vs 9, etc.
-                renderRecursiveBracket(childWrapper, childNode, isAdmin, false);
-                childrenContainer.appendChild(childWrapper);
-            }
-        });
-    }
-
-    // 2. PARENT CONTAINER (item-parent) - Right side visually
-    const parentContainer = document.createElement('div');
-    parentContainer.className = 'item-parent';
-    if (isRoot) parentContainer.classList.add('root-node');
-
-    // Build the Match Card
-    const m = treeNode.match;
-    const card = document.createElement('div');
-    card.className = 'match-card';
-    if (isAdmin) card.onclick = () => window.openScoreModal(m.id);
-
-    const winnerClass = "text-[var(--gold)]";
-    const normalClass = "text-gray-300";
-
-    card.innerHTML = `
-        <div class="mb-1 border-b border-white/10 pb-1 flex justify-between">
-            <span class="text-[10px] text-gray-500">M${m.matchNumber}</span>
-        </div>
-        <div>
-            <span class="team-name ${m.winner === m.team1 ? winnerClass : normalClass}">
-                ${escapeHtml(m.team1)} <span class="team-score">${m.score1 ?? '-'}</span>
-            </span>
-            <span class="team-name ${m.winner === m.team2 ? winnerClass : normalClass}">
-                ${escapeHtml(m.team2)} <span class="team-score">${m.score2 ?? '-'}</span>
-            </span>
-        </div>
-    `;
-
-    parentContainer.appendChild(card);
-
-    // Append to Item (Flex Row Reverse handles the order: Children Left, Parent Right)
-    item.appendChild(parentContainer);
-    item.appendChild(childrenContainer);
-
-    container.appendChild(item);
 }
 // Call init
 document.addEventListener('DOMContentLoaded', injectTreeStyles);
@@ -576,11 +503,10 @@ function getStandardSeeding(numTeams) {
 function generateInitialMatches(participants, format) {
     let teamNames = participants.map(p => typeof p === 'object' ? p.name : p);
 
-    // 1. Normalize Size to Power of 2 (2, 4, 8, 16...)
     let size = 2;
     while (size < teamNames.length) size *= 2;
 
-    // 2. Apply Seeding
+    // Use standard seeding to place BYEs correctly
     const seedOrder = getStandardSeeding(size);
     let orderedTeams = new Array(size).fill("BYE");
 
@@ -594,7 +520,7 @@ function generateInitialMatches(participants, format) {
     let matchIdCounter = 1;
     let roundCount = Math.log2(size);
 
-    // 3. Generate Round 1
+    // Round 1
     for (let i = 0; i < size / 2; i++) {
         matches.push({
             id: `1-${i + 1}`,
@@ -609,7 +535,7 @@ function generateInitialMatches(participants, format) {
         });
     }
 
-    // 4. Generate Subsequent Rounds
+    // Subsequent Rounds
     for (let r = 2; r <= roundCount; r++) {
         let matchesInRound = size / Math.pow(2, r);
         for (let i = 0; i < matchesInRound; i++) {
@@ -628,7 +554,7 @@ function generateInitialMatches(participants, format) {
         }
     }
 
-    // 5. Auto-Advance BYEs
+    // --- AUTO-ADVANCE LOGIC ---
     matches.forEach(m => {
         let advanced = false;
         let winnerName = null;
@@ -688,10 +614,12 @@ window.openScoreModal = function (matchId) {
 
 function generateDoubleEliminationMatches(participants) {
     let teamNames = participants.map(p => typeof p === 'object' ? p.name : p);
-
+    
+    // Normalize to power of 2
     let size = 2;
     while (size < teamNames.length) size *= 2;
-
+    
+    // Seed
     const seedOrder = getStandardSeeding(size);
     let orderedTeams = new Array(size).fill("BYE");
     for (let i = 0; i < teamNames.length; i++) {
@@ -702,24 +630,36 @@ function generateDoubleEliminationMatches(participants) {
 
     let matches = [];
     let matchIdCounter = 1;
+    
+    // --- UPPER BRACKET GENERATION ---
     let wbMatches = [];
     let wbRounds = Math.log2(size);
-
-    // --- UPPER BRACKET ---
+    
     for (let r = 1; r <= wbRounds; r++) {
         let count = size / Math.pow(2, r);
         for (let i = 0; i < count; i++) {
-            let id = `WB-R${r}-M${i + 1}`;
-            // Last WB winner goes to Grand Final (GF-1)
-            let nextId = (r < wbRounds) ? `WB-R${r + 1}-M${Math.floor(i / 2) + 1}` : `GF-1`; 
-
-            // Calculate Loser Drops
+            let id = `WB-R${r}-M${i+1}`;
+            let nextId = (r < wbRounds) ? `WB-R${r+1}-M${Math.floor(i/2)+1}` : `GF-1`; // Last WB goes to Grand Final
+            
+            // Determine Loser Drop Path
             let loserId = null;
             if (r === 1) {
-                loserId = `LB-R1-M${Math.floor(i / 2) + 1}`;
+                // R1 losers go to LB R1
+                loserId = `LB-R1-M${Math.floor(i/2)+1}`;
             } else {
-                // Formula to drop losers into alternating LB rounds
-                loserId = `LB-R${(r - 1) * 2}-M${i + 1}`;
+                // Complex drop logic for standard Double Elim
+                // For simplified logic: Drop to LB Round = (r-1)*2
+                // This is a simplified DE pattern. For full standard DE, mapping is complex.
+                // We will use a functional mapping for 4/8/16 teams logic:
+                let lbRoundTarget = (r - 1) * 2; 
+                // However, standard DE usually feeds specific LB rounds.
+                // WB R2 Losers -> LB R2
+                // WB R3 Losers -> LB R4
+                // WB R4 Losers -> LB R6
+                loserId = `LB-R${(r-1)*2}-M${i+1}`; 
+                // NOTE: This automatic ID generation is an approximation. 
+                // For precise brackets, you might need hardcoded maps or a library.
+                // But for now, we ensure the IDs exist below.
             }
 
             let m = {
@@ -727,57 +667,74 @@ function generateDoubleEliminationMatches(participants) {
                 round: r,
                 bracket: 'upper',
                 matchNumber: matchIdCounter++,
-                team1: (r === 1) ? orderedTeams[i * 2] : 'TBD',
-                team2: (r === 1) ? orderedTeams[i * 2 + 1] : 'TBD',
+                team1: (r === 1) ? orderedTeams[i*2] : 'TBD',
+                team2: (r === 1) ? orderedTeams[i*2+1] : 'TBD',
                 score1: null, score2: null, winner: null,
                 nextMatchId: nextId,
-                loserMatchId: loserId
+                loserMatchId: loserId 
             };
             wbMatches.push(m);
             matches.push(m);
         }
     }
 
-    // --- LOWER BRACKET ---
+    // --- LOWER BRACKET GENERATION ---
+    // Total LB Rounds = (WB Rounds - 1) * 2
     let lbRounds = (wbRounds - 1) * 2;
+    let lbCount = size / 2; // Starts with half the WB R1 size
     
     for (let r = 1; r <= lbRounds; r++) {
-        let power = Math.ceil(r / 2);
+        // In LB, the number of matches halves every TWO rounds
+        // R1: N/4 matches. R2: N/4 matches. R3: N/8 matches. R4: N/8 matches.
+        let power = Math.ceil(r/2);
         let count = (size / 2) / Math.pow(2, power);
-
+        
         for (let i = 0; i < count; i++) {
-            let id = `LB-R${r}-M${i + 1}`;
-            let nextId;
+            let id = `LB-R${r}-M${i+1}`;
+            let nextId = (r < lbRounds) ? `LB-R${r+1}-M${(r%2!==0) ? i+1 : Math.floor(i/2)+1}` : `GF-1`; // Last LB winner goes to GF
             
-            // Logic for LB progression
-            if (r === lbRounds) nextId = 'GF-1';
-            else if (r % 2 !== 0) nextId = `LB-R${r + 1}-M${i + 1}`;
-            else nextId = `LB-R${r + 1}-M${Math.floor(i / 2) + 1}`;
+            // Logic correction for Next ID mapping in LB is tricky:
+            // Odd Rounds (1, 3, 5): Winners just move across to Even rounds (same match index usually)
+            // Even Rounds (2, 4, 6): Winners halve/merge into next Odd round
+            if (r % 2 !== 0) {
+                 nextId = `LB-R${r+1}-M${i+1}`;
+            } else {
+                 nextId = `LB-R${r+1}-M${Math.floor(i/2)+1}`;
+            }
 
             let m = {
                 id: id,
                 round: r,
                 bracket: 'lower',
                 matchNumber: matchIdCounter++,
-                team1: 'TBD',
-                team2: 'TBD',
+                team1: 'TBD', // Fed by previous LB or Drop
+                team2: 'TBD', // Fed by previous LB or Drop
                 score1: null, score2: null, winner: null,
-                nextMatchId: nextId
+                nextMatchId: (r === lbRounds) ? 'GF-1' : nextId
             };
             matches.push(m);
         }
     }
 
-    // --- FIX SPECIFIC DROP TARGETS ---
-    // Ensure losers drop to specific matches in LB
+    // --- FIX WB DROP TARGETS (Manual Mapping for 8/16 teams) ---
+    // The loop above guessed the loserId. We need to be precise so the LB matches actually exist.
+    // WB R1 losers -> LB R1 (Teams 1 & 2)
+    // WB R2 losers -> LB R2 (Team 1 or 2 depending on flow)
+    // WB R3 losers -> LB R4
     matches.forEach(m => {
         if (m.bracket === 'upper') {
             if (m.round === 1) {
+                // WB R1 M1 & M2 -> LB R1 M1
+                // WB R1 M3 & M4 -> LB R1 M2
                 let lbMatchNum = Math.ceil(parseInt(m.id.split('-M')[1]) / 2);
                 m.loserMatchId = `LB-R1-M${lbMatchNum}`;
             } else {
+                // WB R2 losers -> Drop to LB R2
+                // WB R3 losers -> Drop to LB R4
+                // Formula: Drop to LB Round (r-1)*2
                 let targetLBRound = (m.round - 1) * 2;
-                m.loserMatchId = `LB-R${targetLBRound}-M${m.id.split('-M')[1]}`;
+                // We need to distribute them evenly
+                m.loserMatchId = `LB-R${targetLBRound}-M${m.id.split('-M')[1]}`; 
             }
         }
     });
@@ -794,6 +751,10 @@ function generateDoubleEliminationMatches(participants) {
         nextMatchId: null
     });
 
+    // --- HANDLE BYES FOR DOUBLE ELIM ---
+    // This is tricky. For now, we will let the admin manually score BYEs or write a simple auto-advancer similar to your single elim one, but adapted.
+    // Simpler: Just ensure matches array is valid.
+    
     return matches;
 }
 
@@ -820,7 +781,7 @@ window.saveMatchScore = async function () {
         if (winnerVal) {
             const winnerName = (winnerVal === "1") ? match.team1 : match.team2;
             const loserName = (winnerVal === "1") ? match.team2 : match.team1;
-
+            
             match.winner = winnerName;
 
             // 1. ADVANCE WINNER
@@ -828,36 +789,12 @@ window.saveMatchScore = async function () {
                 let nextIndex = matches.findIndex(m => m.id === match.nextMatchId);
                 if (nextIndex !== -1) {
                     let nextMatch = matches[nextIndex];
-
-                    // --- NEW LOGIC START: Strict Slot Assignment ---
-                    let targetSlot = 'team2'; // Default to team 2
-
-                    // STRICT DOUBLE ELIMINATION LOGIC
-                    if (match.bracket === 'upper' && nextMatch.bracket === 'final') {
-                        // Upper Bracket Winner -> ALWAYS Top Slot (Team 1)
-                        targetSlot = 'team1';
-                    } else if (match.bracket === 'lower' && nextMatch.bracket === 'final') {
-                        // Lower Bracket Winner -> ALWAYS Bottom Slot (Team 2)
-                        targetSlot = 'team2';
-                    }
-                    // STANDARD LOGIC (Single Elim or internal bracket moves)
-                    else {
-                        // If team1 is TBD, or a Placeholder, or currently holds this team's name -> take Team 1
-                        if (nextMatch.team1 === 'TBD' ||
-                            nextMatch.team1 === 'Winner Upper' ||
-                            nextMatch.team1 === match.team1 ||
-                            nextMatch.team1 === match.team2) {
-                            targetSlot = 'team1';
-                        } else {
-                            targetSlot = 'team2';
-                        }
-                    }
-
-                    // Apply the winner name to the determined slot
-                    if (targetSlot === 'team1') nextMatch.team1 = winnerName;
+                    // Logic to find empty slot: If team1 is TBD, take it. 
+                    // Better logic: Based on match number parity or specific slot assignment
+                    // For now, we simple-fill the first available 'TBD' or specific slot logic
+                    if (nextMatch.team1 === 'TBD' || nextMatch.team1 === match.team1 || nextMatch.team1 === match.team2) nextMatch.team1 = winnerName;
                     else nextMatch.team2 = winnerName;
-                    // --- NEW LOGIC END ---
-
+                    
                     matches[nextIndex] = nextMatch;
                 }
             } else {
@@ -904,70 +841,6 @@ async function openModal(t) {
     window.history.pushState({ path: newUrl }, '', newUrl);
     document.getElementById('detailsModal').classList.remove('hidden');
     document.getElementById('detailsModal').classList.add('flex');
-}
-
-async function saveMatchScoreLogic(matchId, s1, s2, winnerVal, allMatches) {
-    let matchIndex = allMatches.findIndex(m => m.id === matchId);
-    if (matchIndex === -1) return allMatches;
-
-    let match = allMatches[matchIndex];
-    match.score1 = s1;
-    match.score2 = s2;
-
-    if (winnerVal) {
-        const winnerName = (winnerVal === "1") ? match.team1 : match.team2;
-        const loserName = (winnerVal === "1") ? match.team2 : match.team1;
-
-        match.winner = winnerName;
-
-        // 1. ADVANCE WINNER
-        if (match.nextMatchId) {
-            let nextIndex = allMatches.findIndex(m => m.id === match.nextMatchId);
-            if (nextIndex !== -1) {
-                let nextMatch = allMatches[nextIndex];
-                let targetSlot = 'team2'; 
-
-                // --- GRAND FINAL SLOT LOGIC ---
-                if (match.bracket === 'upper' && nextMatch.bracket === 'final') {
-                    targetSlot = 'team1'; // WB Winner always Top
-                } else if (match.bracket === 'lower' && nextMatch.bracket === 'final') {
-                    targetSlot = 'team2'; // LB Winner always Bottom
-                } else {
-                    // Standard Progression: Fill first available slot
-                    if (nextMatch.team1 === 'TBD' || 
-                        nextMatch.team1 === 'Winner Upper' || 
-                        nextMatch.team1 === match.team1 || 
-                        nextMatch.team1 === match.team2) {
-                        targetSlot = 'team1';
-                    } else {
-                        targetSlot = 'team2';
-                    }
-                }
-
-                if (targetSlot === 'team1') nextMatch.team1 = winnerName;
-                else nextMatch.team2 = winnerName;
-                allMatches[nextIndex] = nextMatch;
-            }
-        }
-
-        // 2. MOVE LOSER (For Double Elim)
-        if (match.loserMatchId) {
-            let loserIndex = allMatches.findIndex(m => m.id === match.loserMatchId);
-            if (loserIndex !== -1) {
-                let loserMatch = allMatches[loserIndex];
-                
-                // Simple fill logic for Loser Bracket drops
-                if (loserMatch.team1 === 'TBD' || loserMatch.team1 === match.team1 || loserMatch.team1 === match.team2) {
-                    loserMatch.team1 = loserName;
-                } else {
-                    loserMatch.team2 = loserName;
-                }
-                allMatches[loserIndex] = loserMatch;
-            }
-        }
-    }
-    
-    return allMatches;
 }
 
 async function renderTournamentView(t) {
@@ -1400,14 +1273,15 @@ function renderBracket(participants, format, isAdmin, isStarted) {
     if (!container) return;
     container.innerHTML = '';
 
-    // FIX: specific handler for Active Double Elim
+    // FIX: If Double Elimination and Started, use the specialized Live renderer
+    if (isStarted && format === 'Double Elimination' && currentEditingTournament.matches) {
+        renderDoubleEliminationLive(container, currentEditingTournament.matches, isAdmin);
+        return;
+    }
+
+    // Existing Single Elim Logic
     if (isStarted && currentEditingTournament.matches && currentEditingTournament.matches.length > 0) {
-        if (format === 'Double Elimination') {
-            renderLiveDoubleElimination(container, currentEditingTournament.matches, isAdmin);
-        } else {
-            // Default to recursive tree for Single Elim
-            renderMatchesFromDatabase(container, currentEditingTournament.matches, format, isAdmin);
-        }
+        renderMatchesFromDatabase(container, currentEditingTournament.matches, format, isAdmin);
         return;
     }
 
@@ -1420,35 +1294,122 @@ function renderBracket(participants, format, isAdmin, isStarted) {
 // --- NEW RECURSIVE BRACKET LOGIC ---
 
 // 1. Convert Flat Matches to Tree
-function buildMatchTree(matches) {
-    // Find the Grand Final (The match with no nextMatchId)
-    // Note: We sort by round desc to find the last one if nextMatchId logic fails
-    const finalMatch = matches.find(m => !m.nextMatchId) || matches.sort((a, b) => b.round - a.round)[0];
+function buildMatchTree(matches, rootMatchId = null) {
+    // If no specific root is asked for, find the global final (Standard Single Elim)
+    let finalMatch;
+    if (rootMatchId) {
+        finalMatch = matches.find(m => m.id === rootMatchId);
+    } else {
+        // Fallback: Find match with no nextMatchId (Grand Final)
+        finalMatch = matches.find(m => !m.nextMatchId) || matches.sort((a, b) => b.round - a.round)[0];
+    }
 
     if (!finalMatch) return null;
 
     function getSources(targetMatch) {
         // Find matches that feed into this match
-        // Logic: Matches where nextMatchId === targetMatch.id
         const sources = matches.filter(m => m.nextMatchId === targetMatch.id);
 
-        // Sort sources: Odd match numbers (Top/Team1 slot) first, Even (Bottom/Team2 slot) second
-        // This ensures the bracket order is correct vertically
+        // Sort sources: Top slot (Odd) first, Bottom slot (Even) second
         sources.sort((a, b) => {
-            const numA = parseInt(a.matchNumber || a.id.split('-')[1]);
-            const numB = parseInt(b.matchNumber || b.id.split('-')[1]);
+            const numA = parseInt(a.matchNumber || a.id.split('-')[1] || 0);
+            const numB = parseInt(b.matchNumber || b.id.split('-')[1] || 0);
             return numA - numB;
         });
 
         return {
             match: targetMatch,
-            children: sources.map(source => getSources(source)) // Recursion
+            children: sources.map(source => getSources(source))
         };
     }
 
     return getSources(finalMatch);
 }
 
+// 2. Render the Tree (Visuals: Old Design, Logic: New Recursive)
+function renderRecursiveBracket(container, treeNode, isAdmin) {
+    if (!treeNode) return;
+
+    // Create the wrapper for this node
+    const item = document.createElement('div');
+    item.className = 'item';
+
+    // 1. CHILDREN (Left Side)
+    const childrenContainer = document.createElement('div');
+    childrenContainer.className = 'item-childrens';
+
+    if (treeNode.children && treeNode.children.length > 0) {
+        treeNode.children.forEach(childNode => {
+            const childWrapper = document.createElement('div');
+            childWrapper.className = 'item-child';
+
+            // Logic: Skip Double Byes to collapse the tree
+            const isDoubleBye = childNode.match.team1 === 'BYE' && childNode.match.team2 === 'BYE';
+
+            if (!isDoubleBye) {
+                renderRecursiveBracket(childWrapper, childNode, isAdmin);
+                childrenContainer.appendChild(childWrapper);
+            }
+        });
+    }
+
+    // 2. PARENT (Right Side)
+    const parentContainer = document.createElement('div');
+    parentContainer.className = 'item-parent';
+
+    const m = treeNode.match;
+    const isCompleted = !!m.winner;
+    const isByeMatch = (m.team1 === 'BYE' || m.team2 === 'BYE');
+
+    const card = document.createElement('div');
+    // Combine new structure class with your original styles
+    let baseClass = `tree-match-card`;
+    if (isCompleted) baseClass += ` completed`;
+    if (isAdmin && !isByeMatch) baseClass += ` admin-editable cursor-pointer`;
+
+    card.className = baseClass;
+    if (isAdmin && !isByeMatch) card.onclick = () => window.openScoreModal(m.id);
+
+    if (isByeMatch) {
+        // Simple "Advance" Card
+        const realTeam = m.team1 !== 'BYE' ? m.team1 : m.team2;
+        card.className += " bye-card";
+        card.innerHTML = `
+            <div class="flex justify-between items-center text-[10px] text-gray-500 mb-1">
+                <span>R${m.round} • Auto Advance</span>
+            </div>
+            <div class="flex items-center text-[var(--gold)] font-bold">
+                <span>${escapeHtml(realTeam)}</span>
+            </div>
+        `;
+    } else {
+        // Standard Match Card (Original Design)
+        card.innerHTML = `
+            <div class="flex justify-between items-center mb-2 text-[10px] text-gray-500 uppercase tracking-wider">
+                <span>M${m.matchNumber} • R${m.round}</span>
+                ${isCompleted ? '<span class="text-green-400">✔</span>' : ''}
+            </div>
+            <div class="space-y-1 w-full">
+                <div class="flex justify-between items-center ${m.winner === m.team1 ? 'text-[var(--gold)] font-bold' : 'text-gray-300'}">
+                    <span class="text-sm truncate pr-2">${escapeHtml(m.team1)}</span>
+                    <span class="bg-white/10 px-1.5 rounded text-xs font-mono ${m.winner === m.team1 ? 'text-[var(--gold)]' : 'text-gray-400'}">${m.score1 !== null ? m.score1 : '-'}</span>
+                </div>
+                <div class="flex justify-between items-center ${m.winner === m.team2 ? 'text-[var(--gold)] font-bold' : 'text-gray-300'}">
+                    <span class="text-sm truncate pr-2">${escapeHtml(m.team2)}</span>
+                    <span class="bg-white/10 px-1.5 rounded text-xs font-mono ${m.winner === m.team2 ? 'text-[var(--gold)]' : 'text-gray-400'}">${m.score2 !== null ? m.score2 : '-'}</span>
+                </div>
+            </div>
+        `;
+    }
+
+    parentContainer.appendChild(card);
+
+    // DOM Order: Children First (Left), Parent Second (Right) for flex-row
+    item.appendChild(childrenContainer);
+    item.appendChild(parentContainer);
+
+    container.appendChild(item);
+}
 
 // 3. Main Render Function (With Headers & Recursive Logic)
 function renderMatchesFromDatabase(container, matches, format, isAdmin) {
@@ -1458,7 +1419,7 @@ function renderMatchesFromDatabase(container, matches, format, isAdmin) {
     // 1. Calculate Tree Depth to generate headers
     const rootNode = buildMatchTree(matches);
     let maxDepth = 0;
-
+    
     function getDepth(node, currentDepth) {
         if (!node) return;
         if (currentDepth > maxDepth) maxDepth = currentDepth;
@@ -1468,37 +1429,27 @@ function renderMatchesFromDatabase(container, matches, format, isAdmin) {
     }
     getDepth(rootNode, 1);
 
-    if (rootNode) {
-        const rootWrapper = document.createElement('div');
-        rootWrapper.className = 'wrapper'; // Uses the user's .wrapper class
-        
-        // Pass 'true' as the 4th argument to indicate this is the Grand Final (Root)
-        renderRecursiveBracket(rootWrapper, rootNode, isAdmin, true);
-        
-        bracketScrollWrapper.appendChild(rootWrapper);
-    }
-    
     // 2. Build Headers HTML
     const headersDiv = document.createElement('div');
     headersDiv.className = 'bracket-header-row';
-
+    
     // Generate headers from Left (Round 1) to Right (Grand Final)
     // maxDepth is R1, 1 is Final
     for (let i = maxDepth; i >= 1; i--) {
         const hItem = document.createElement('div');
         hItem.className = 'header-item';
-
+        
         if (i === 1) hItem.textContent = "Grand Final";
         else if (i === 2) hItem.textContent = "Semi Finals";
         else hItem.textContent = `Round ${maxDepth - i + 1}`;
-
+        
         headersDiv.appendChild(hItem);
     }
 
     // 3. Build Main Scroll Wrapper
     const bracketScrollWrapper = document.createElement('div');
     bracketScrollWrapper.className = "bracket-scroll-container custom-scrollbar";
-
+    
     // Add Headers
     bracketScrollWrapper.appendChild(headersDiv);
 
@@ -1752,231 +1703,166 @@ function renderDoubleEliminationPlaceholder(container, participants, isEditable)
     container.appendChild(bracketScrollWrapper);
 }
 
-function renderLiveDoubleElimination(container, matches, isAdmin) {
-    // 1. Setup Controls (Tabs)
+function renderDoubleEliminationLive(container, matches, isAdmin) {
+    // 1. Controls (Tabs)
     const controlsDiv = document.createElement('div');
-    controlsDiv.className = "flex gap-3 mb-4 border-b border-white/10 pb-4";
+    controlsDiv.className = "flex gap-3 mb-4 border-b border-white/10 pb-4 sticky top-0 bg-[#121212] z-30 pt-2";
     controlsDiv.innerHTML = `
-        <button id="btn-ub" onclick="window.switchBracketTab('upper')" class="px-6 py-2 rounded-md font-bold text-sm transition-all bg-[var(--gold)] text-black shadow-lg shadow-[var(--gold)]/20 hover:scale-105">Upper Bracket</button>
+        <button id="btn-ub" onclick="window.switchBracketTab('upper')" class="px-6 py-2 rounded-md font-bold text-sm transition-all bg-[var(--gold)] text-black shadow-lg shadow-[var(--gold)]/20">Upper Bracket</button>
         <button id="btn-lb" onclick="window.switchBracketTab('lower')" class="px-6 py-2 rounded-md font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 border border-white/10">Lower Bracket</button>
     `;
     container.appendChild(controlsDiv);
 
-    // 2. Main Wrapper
-    const bracketScrollWrapper = document.createElement('div');
-    bracketScrollWrapper.className = "bracket-wrapper overflow-x-auto custom-scrollbar relative";
-    bracketScrollWrapper.style.width = "100%";
-    bracketScrollWrapper.style.minHeight = "600px";
+    const scrollWrapper = document.createElement('div');
+    scrollWrapper.className = "overflow-auto custom-scrollbar pb-10 h-full";
+    scrollWrapper.style.minHeight = "600px"; 
 
-    // 3. SVG Layer
-    const svgLayer = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-    svgLayer.id = "bracket-lines-layer";
-    svgLayer.style.cssText = "position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0;";
-    bracketScrollWrapper.appendChild(svgLayer);
-
-    // 4. Card Helper
-    const createCardHTML = (m) => {
-        const isCompleted = !!m.winner;
-        const score1 = m.score1 !== null ? m.score1 : '-';
-        const score2 = m.score2 !== null ? m.score2 : '-';
-
-        // Admin logic
-        const onClickAttr = (isAdmin && m.team1 !== 'BYE' && m.team2 !== 'BYE') ? `onclick="window.openScoreModal('${m.id}')"` : '';
-        const cursorClass = (isAdmin && m.team1 !== 'BYE' && m.team2 !== 'BYE') ? 'cursor-pointer hover:border-[var(--gold)]' : '';
-
-        let baseClass = `tree-match-card ${cursorClass}`;
-        if (isCompleted) baseClass += ` completed`;
-
-        // We add 'final-card' class if it is the grand final for easier CSS/JS targeting
-        if (m.bracket === 'final') baseClass += ' border-2 border-[var(--gold)] shadow-lg shadow-[var(--gold)]/20';
-
-        return `
-            <div id="match-card-${m.id}" class="${baseClass} my-4 relative z-10 bg-[var(--dark-card)]" ${onClickAttr} data-bracket="${m.bracket}" data-next="${m.nextMatchId || ''}">
-                <div class="flex justify-between items-center mb-2 text-[10px] text-gray-500 uppercase tracking-wider">
-                    <span>M${m.matchNumber} • ${m.bracket === 'final' ? 'Grand Final' : 'R' + m.round}</span>
-                    ${isCompleted ? '<span class="text-green-400">✔</span>' : ''}
-                </div>
-                <div class="space-y-1 w-full">
-                    <div class="flex justify-between items-center ${m.winner === m.team1 ? 'text-[var(--gold)] font-bold' : 'text-gray-300'}">
-                        <span class="text-sm truncate pr-2">${escapeHtml(m.team1)}</span>
-                        <span class="bg-white/10 px-1.5 rounded text-xs font-mono ${m.winner === m.team1 ? 'text-[var(--gold)]' : 'text-gray-400'}">${score1}</span>
-                    </div>
-                    <div class="flex justify-between items-center ${m.winner === m.team2 ? 'text-[var(--gold)] font-bold' : 'text-gray-300'}">
-                        <span class="text-sm truncate pr-2">${escapeHtml(m.team2)}</span>
-                        <span class="bg-white/10 px-1.5 rounded text-xs font-mono ${m.winner === m.team2 ? 'text-[var(--gold)]' : 'text-gray-400'}">${score2}</span>
-                    </div>
-                </div>
-            </div>`;
-    };
-
-    // Filter Matches
-    const upperMatches = matches.filter(m => m.bracket === 'upper');
-    const lowerMatches = matches.filter(m => m.bracket === 'lower');
-    const finalMatches = matches.filter(m => m.bracket === 'final');
-
-    // --- RENDER UPPER BRACKET TAB ---
+    // --- UPPER BRACKET CONTAINER ---
     const ubContainer = document.createElement('div');
     ubContainer.id = 'ub-container';
-    ubContainer.className = "flex gap-12 p-8 min-w-max items-center"; // items-center helps align the final
+    ubContainer.className = "flex flex-col items-start"; // Changed to flex-col to stack headers on top of tree
 
-    const maxUBRound = Math.max(...upperMatches.map(m => m.round), 0);
-    for (let r = 1; r <= maxUBRound; r++) {
-        const roundDiv = document.createElement('div');
-        roundDiv.className = 'flex flex-col justify-around gap-6';
-        roundDiv.innerHTML = `<div class="text-center text-xs text-[var(--gold)] font-bold uppercase mb-2">WB Round ${r}</div>`;
+    // 1. Identify the "Upper Bracket Final" (The root of the WB Tree)
+    const wbMatches = matches.filter(m => m.bracket === 'upper');
+    const finalWBMatch = wbMatches.sort((a, b) => b.round - a.round)[0];
+    const maxRound = finalWBMatch ? finalWBMatch.round : 0;
 
-        const roundsMatches = upperMatches.filter(m => m.round === r).sort((a, b) => a.matchNumber - b.matchNumber);
-        roundsMatches.forEach(m => roundDiv.innerHTML += createCardHTML(m));
-        ubContainer.appendChild(roundDiv);
+    // --- FIX: GENERATE HEADERS ---
+    if (wbMatches.length > 0) {
+        const headersDiv = document.createElement('div');
+        headersDiv.className = 'bracket-header-row';
+        headersDiv.style.marginBottom = "20px"; // Ensure spacing between header and cards
+
+        // Loop 1 to MaxRound
+        for (let i = 1; i <= maxRound; i++) {
+            const hItem = document.createElement('div');
+            hItem.className = 'header-item';
+            
+            // Naming logic
+            if (i === maxRound) hItem.textContent = "UB Final";
+            else hItem.textContent = `Round ${i}`;
+            
+            headersDiv.appendChild(hItem);
+        }
+
+        // Add Header for Grand Final (Manual append)
+        const gfHeader = document.createElement('div');
+        gfHeader.className = 'header-item';
+        gfHeader.textContent = "Grand Final";
+        // We add a little extra left margin to the GF header to account for the connector line
+        gfHeader.style.marginLeft = "45px"; 
+        headersDiv.appendChild(gfHeader);
+
+        ubContainer.appendChild(headersDiv);
+    }
+    // --- END HEADER FIX ---
+
+    // Wrapper for the actual tree + GF card
+    const treeRowWrapper = document.createElement('div');
+    treeRowWrapper.className = "flex items-center";
+
+    if (finalWBMatch) {
+        // Build the tree specifically ending at the WB Final
+        const ubTree = buildMatchTree(matches, finalWBMatch.id);
+        
+        const treeWrapper = document.createElement('div');
+        treeWrapper.className = 'wrapper';
+        // Reset wrapper padding so it aligns with headers
+        treeWrapper.style.padding = "0"; 
+        treeWrapper.style.paddingRight = "0";
+        
+        renderRecursiveBracket(treeWrapper, ubTree, isAdmin);
+        treeRowWrapper.appendChild(treeWrapper);
+
+        // 2. Append Grand Final manually to the right
+        const gfMatch = matches.find(m => m.bracket === 'final');
+        if (gfMatch) {
+            // Add a connector line
+            const connector = document.createElement('div');
+            connector.className = "w-12 h-0.5 bg-gray-600"; // Horizontal line
+            treeRowWrapper.appendChild(connector);
+
+            // Add the Final Card
+            const finalWrapper = document.createElement('div');
+            finalWrapper.className = "flex flex-col justify-center pl-2";
+            finalWrapper.innerHTML = `<div class="text-center text-red-500 font-bold mb-2 text-xs uppercase tracking-widest">Grand Final</div>`;
+            
+            const card = createLiveMatchCard(gfMatch, isAdmin);
+            card.style.border = "1px solid #ef4444"; 
+            card.style.boxShadow = "0 0 15px rgba(239, 68, 68, 0.2)";
+            
+            finalWrapper.appendChild(card);
+            treeRowWrapper.appendChild(finalWrapper);
+        }
+    } else {
+        treeRowWrapper.innerHTML = '<div class="p-10 text-gray-500">Bracket generation error. No Upper Bracket found.</div>';
     }
 
-    // Append Grand Final to Upper Tab
-    if (finalMatches.length > 0) {
-        const gfDiv = document.createElement('div');
-        gfDiv.className = 'flex flex-col justify-center gap-6 ml-8 pl-8 border-l border-white/10 border-dashed';
-        gfDiv.innerHTML = `<div class="text-center text-xs text-[var(--gold)] font-bold uppercase mb-2">Championship</div>`;
-        finalMatches.forEach(m => gfDiv.innerHTML += createCardHTML(m));
-        ubContainer.appendChild(gfDiv);
-    }
+    ubContainer.appendChild(treeRowWrapper);
+    scrollWrapper.appendChild(ubContainer);
 
-    // --- RENDER LOWER BRACKET TAB ---
+    // --- LOWER BRACKET CONTAINER (Keep existing logic) ---
     const lbContainer = document.createElement('div');
     lbContainer.id = 'lb-container';
-    lbContainer.className = "flex gap-12 p-8 min-w-max hidden items-center";
+    lbContainer.className = "flex gap-10 hidden pt-10 px-10";
 
-    const maxLBRound = Math.max(...lowerMatches.map(m => m.round), 0);
-    for (let r = 1; r <= maxLBRound; r++) {
-        const roundDiv = document.createElement('div');
-        roundDiv.className = 'flex flex-col justify-center gap-6';
-        roundDiv.innerHTML = `<div class="text-center text-xs text-red-400 font-bold uppercase mb-2">LB Round ${r}</div>`;
+    const lbMatches = matches.filter(m => m.bracket === 'lower').sort((a, b) => a.round - b.round);
+    const maxLbRound = Math.max(...lbMatches.map(m => m.round), 0);
 
-        const roundsMatches = lowerMatches.filter(m => m.round === r).sort((a, b) => a.matchNumber - b.matchNumber);
-        roundsMatches.forEach(m => roundDiv.innerHTML += createCardHTML(m));
-        lbContainer.appendChild(roundDiv);
-    }
-
-    // Append Grand Final to Lower Tab as well (So visual flow is complete)
-    if (finalMatches.length > 0) {
-        const gfDivLB = document.createElement('div');
-        gfDivLB.className = 'flex flex-col justify-center gap-6 ml-8 pl-8 border-l border-white/10 border-dashed';
-        gfDivLB.innerHTML = `<div class="text-center text-xs text-[var(--gold)] font-bold uppercase mb-2">Championship</div>`;
-        // Note: We need unique IDs for the logic, but since only one tab is shown at a time, 
-        // the duplicate IDs won't break the CSS query if we are careful, 
-        // BUT for getElementById to work for lines, we should render the GF only once or handle IDs carefully.
-        // TRICK: We will clone the node for display, OR rely on the fact that we only draw lines for visible elements.
-
-        // Actually, simpler approach: Don't duplicate ID.
-        // We will just let the "Upper Bracket" tab show the GF. 
-        // But the user wants the LB winner to flow into it. 
-        // Let's use a specific Class for the LB Final Container to duplicate the view manually.
-        finalMatches.forEach(m => {
-            // We create a visual clone for LB tab with a suffix ID so lines can find it if we want
-            let html = createCardHTML(m);
-            html = html.replace(`id="match-card-${m.id}"`, `id="match-card-${m.id}-LB"`);
-            gfDivLB.innerHTML += html;
+    for (let r = 1; r <= maxLbRound; r++) {
+        const roundMatches = lbMatches.filter(m => m.round === r).sort((a, b) => a.matchNumber - b.matchNumber);
+        const roundCol = document.createElement('div');
+        roundCol.className = "flex flex-col justify-center gap-8 shrink-0";
+        
+        roundCol.innerHTML = `<div class="text-center text-gray-500 font-bold mb-4 uppercase text-xs tracking-wider border-b border-white/10 pb-2">LB Round ${r}</div>`;
+        
+        roundMatches.forEach(m => {
+            const card = createLiveMatchCard(m, isAdmin);
+            card.classList.add('border-l-4', 'border-l-gray-700'); 
+            roundCol.appendChild(card);
         });
-        lbContainer.appendChild(gfDivLB);
+        lbContainer.appendChild(roundCol);
     }
 
-    bracketScrollWrapper.appendChild(ubContainer);
-    bracketScrollWrapper.appendChild(lbContainer);
-    container.appendChild(bracketScrollWrapper);
-
-    // 7. Draw Lines
-    setTimeout(() => drawBracketLines(matches), 100);
-    window.addEventListener('resize', () => drawBracketLines(matches));
+    scrollWrapper.appendChild(lbContainer);
+    container.appendChild(scrollWrapper);
+    
+    injectTreeStyles();
 }
 
-function drawBracketLines(matches) {
-    const svg = document.getElementById('bracket-lines-layer');
-    const wrapper = document.querySelector('.bracket-wrapper');
-    // Check which container is visible to know which lines to draw
-    const ubVisible = !document.getElementById('ub-container').classList.contains('hidden');
+function createLiveMatchCard(m, isAdmin) {
+    const card = document.createElement('div');
+    // Apply your Gold Styles here
+    card.className = "tree-match-card relative flex flex-col justify-center"; 
+    
+    // Admin click to score
+    if (isAdmin && m.team1 !== 'BYE' && m.team2 !== 'BYE') {
+        card.classList.add('cursor-pointer', 'hover:brightness-110');
+        card.onclick = () => window.openScoreModal(m.id);
+    }
 
-    if (!svg || !wrapper) return;
+    const isWinner1 = m.winner === m.team1;
+    const isWinner2 = m.winner === m.team2;
+    const score1 = m.score1 !== null ? m.score1 : '-';
+    const score2 = m.score2 !== null ? m.score2 : '-';
 
-    svg.innerHTML = '';
-    svg.style.width = wrapper.scrollWidth + 'px';
-    svg.style.height = wrapper.scrollHeight + 'px';
-
-    const getCoords = (id) => {
-        const el = document.getElementById(id);
-        if (!el || el.offsetParent === null) return null;
-        const rect = el.getBoundingClientRect();
-        const wrapperRect = wrapper.getBoundingClientRect();
-        return {
-            x: rect.right - wrapperRect.left + wrapper.scrollLeft,
-            xLeft: rect.left - wrapperRect.left + wrapper.scrollLeft,
-            y: rect.top + (rect.height / 2) - wrapperRect.top + wrapper.scrollTop,
-            height: rect.height,
-            top: rect.top - wrapperRect.top + wrapper.scrollTop
-        };
-    };
-
-    matches.forEach(m => {
-        if (m.nextMatchId) {
-            let startId = `match-card-${m.id}`;
-            let endId = `match-card-${m.nextMatchId}`;
-
-            // Handle Grand Final visibility logic
-            if (!ubVisible && m.bracket === 'final') return;
-            if (!ubVisible && document.getElementById(endId + '-LB')) {
-                endId = endId + '-LB';
-            }
-
-            // Logic: Is this the connection to the Grand Final?
-            let isTargetGrandFinal = false;
-            const targetMatch = matches.find(tm => tm.id === m.nextMatchId);
-            if (targetMatch && targetMatch.bracket === 'final') {
-                isTargetGrandFinal = true;
-            }
-
-            const start = getCoords(startId);
-            const end = getCoords(endId);
-
-            if (start && end) {
-                // DEFAULT: Center to Center
-                let targetY = end.y;
-                let startY = start.y;
-
-                // CUSTOM: If targeting Grand Final
-                if (isTargetGrandFinal) {
-                    if (m.bracket === 'upper') {
-                        // Upper Bracket Winner -> Goes to Top Slot
-                        targetY = end.top + (end.height * 0.25);
-                    } else if (m.bracket === 'lower') {
-                        // Lower Bracket Winner -> Goes to Bottom Slot
-                        targetY = end.top + (end.height * 0.75);
-                    }
-                }
-
-                // --- CHANGED LOGIC HERE FOR "BRACKET STYLE" LINES ---
-                const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-
-                // Calculate the midpoint between the columns
-                const midpointX = (start.x + end.xLeft) / 2;
-
-                // Path: 
-                // 1. Move to Start (Right side of source card)
-                // 2. Line Horizontal to Midpoint
-                // 3. Line Vertical to Target Y level
-                // 4. Line Horizontal to End (Left side of target card)
-                const d = `M ${start.x} ${startY} 
-                           H ${midpointX} 
-                           V ${targetY} 
-                           H ${end.xLeft}`;
-
-                path.setAttribute("d", d);
-                path.setAttribute("stroke", "rgba(255, 255, 255, 0.4)"); // Slightly brighter for sharpness
-                path.setAttribute("stroke-width", "2");
-                path.setAttribute("fill", "none");
-                // Optional: Add rounded corners to the bracket joints
-                path.setAttribute("stroke-linejoin", "round");
-
-                svg.appendChild(path);
-            }
-        }
-    });
+    card.innerHTML = `
+        <div class="flex justify-between items-center mb-2 text-[10px] text-gray-500 uppercase tracking-wider">
+            <span>M${m.matchNumber}</span>
+            ${m.winner ? '<span class="text-green-400">✔</span>' : ''}
+        </div>
+        <div class="space-y-2 w-full">
+            <div class="flex justify-between items-center ${isWinner1 ? 'text-[var(--gold)] font-bold' : 'text-gray-300'}">
+                <span class="text-sm truncate w-24">${escapeHtml(m.team1)}</span>
+                <span class="bg-black/40 px-2 py-0.5 rounded text-xs font-mono">${score1}</span>
+            </div>
+            <div class="flex justify-between items-center ${isWinner2 ? 'text-[var(--gold)] font-bold' : 'text-gray-300'}">
+                <span class="text-sm truncate w-24">${escapeHtml(m.team2)}</span>
+                <span class="bg-black/40 px-2 py-0.5 rounded text-xs font-mono">${score2}</span>
+            </div>
+        </div>
+    `;
+    return card;
 }
 
 window.switchBracketTab = function (tabName) {
@@ -1990,26 +1876,28 @@ window.switchBracketTab = function (tabName) {
     if (tabName === 'upper') {
         ubContainer.classList.remove('hidden');
         lbContainer.classList.add('hidden');
-        // Style Buttons
-        btnUb.classList.add('bg-[var(--gold)]', 'text-black', 'border-[var(--gold)]');
-        btnUb.classList.remove('bg-transparent', 'text-gray-400', 'border-gray-600');
-        btnLb.classList.remove('bg-[var(--gold)]', 'text-black', 'border-[var(--gold)]');
-        btnLb.classList.add('bg-transparent', 'text-gray-400', 'border-gray-600');
+        
+        // Active Style UB
+        btnUb.classList.add('bg-[var(--gold)]', 'text-black');
+        btnUb.classList.remove('bg-white/5', 'text-gray-400');
+        
+        // Inactive Style LB
+        btnLb.classList.remove('bg-[var(--gold)]', 'text-black');
+        btnLb.classList.add('bg-white/5', 'text-gray-400');
     } else {
         ubContainer.classList.add('hidden');
         lbContainer.classList.remove('hidden');
-        // Style Buttons
-        btnLb.classList.add('bg-[var(--gold)]', 'text-black', 'border-[var(--gold)]');
-        btnLb.classList.remove('bg-transparent', 'text-gray-400', 'border-gray-600');
-        btnUb.classList.remove('bg-[var(--gold)]', 'text-black', 'border-[var(--gold)]');
-        btnUb.classList.add('bg-transparent', 'text-gray-400', 'border-gray-600');
-    }
-
-    // Redraw lines after the DOM updates visibility
-    if (currentEditingTournament && currentEditingTournament.matches) {
-        setTimeout(() => drawBracketLines(currentEditingTournament.matches), 50);
+        
+        // Active Style LB
+        btnLb.classList.add('bg-[var(--gold)]', 'text-black');
+        btnLb.classList.remove('bg-white/5', 'text-gray-400');
+        
+        // Inactive Style UB
+        btnUb.classList.remove('bg-[var(--gold)]', 'text-black');
+        btnUb.classList.add('bg-white/5', 'text-gray-400');
     }
 }
+
 function renderRoundRobin(container, participants) {
     let targetSize = currentEditingTournament ? (currentEditingTournament.maxTeams || 8) : participants.length;
     if (targetSize < 2) targetSize = 2;
