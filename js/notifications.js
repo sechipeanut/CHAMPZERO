@@ -1,5 +1,5 @@
 import { db } from './firebase-config.js'; 
-import { collection, query, orderBy, limit, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { collection, query, orderBy, limit, onSnapshot, where } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
 const auth = getAuth();
@@ -13,11 +13,14 @@ const feedData = {
     announcements: [] 
 };
 
+// Track personal listener to unsubscribe on logout
+let personalUnsubscribe = null;
+
 document.addEventListener('DOMContentLoaded', () => {
     injectNotificationStyles(); 
     injectNotificationHTML(); 
     setupInteractions();        
-    initRealTimeListeners(); 
+    // Note: initRealTimeListeners is now called inside onAuthStateChanged
 });
 
 // 1. Inject Custom CSS
@@ -139,8 +142,17 @@ function injectNotificationHTML() {
     wrapper.insertBefore(notifContainer, wrapper.firstChild);
     
     onAuthStateChanged(auth, (user) => {
-        if (user) notifContainer.classList.remove('hidden');
-        else notifContainer.classList.add('hidden');
+        if (user) {
+            notifContainer.classList.remove('hidden');
+            initRealTimeListeners(user);
+        } else {
+            notifContainer.classList.add('hidden');
+            if(personalUnsubscribe) {
+                personalUnsubscribe();
+                personalUnsubscribe = null;
+            }
+            feedData.announcements = [];
+        }
     });
 }
 
@@ -183,7 +195,7 @@ function setupInteractions() {
 }
 
 // 4. Real-Time Data Listeners
-function initRealTimeListeners() {
+function initRealTimeListeners(user) {
     const getDate = (d) => {
         // Look for any date field to ensure we get a valid date
         const val = d.createdAt || d.timestamp || d.date;
@@ -204,7 +216,7 @@ function initRealTimeListeners() {
         });
     };
 
-    // Standard Listeners
+    // Standard Listeners (Public Data)
     onSnapshot(query(collection(db, "tournaments"), orderBy("createdAt", "desc"), limit(3)), (snap) => {
         feedData.tournaments = processSnapshot(snap, 'tournament', '🏆');
         renderUnifiedFeed();
@@ -225,30 +237,37 @@ function initRealTimeListeners() {
         renderUnifiedFeed();
     });
 
-    // --- ANNOUNCEMENTS LISTENER (FIXED) ---
-    // Removed 'orderBy' to prevent crash if field is missing. 
-    // Fetches top 10 documents regardless of order, then we sort properly in JS.
-    onSnapshot(query(collection(db, "notifications"), limit(10)), (snap) => {
-        feedData.announcements = snap.docs.map(doc => {
-            const d = doc.data();
-            // Determine icon
-            let icon = '📢'; 
-            if(d.type === 'tournament') icon = '🏆';
-            if(d.type === 'event') icon = '🎉';
-            if(d.type === 'alert') icon = '⚠️';
+    // --- ANNOUNCEMENTS LISTENER (PERSONALIZED) ---
+    // Only fetch notifications meant for this user
+    if (user && !personalUnsubscribe) {
+        const q = query(
+            collection(db, "notifications"),
+            where("targetUserId", "==", user.uid),
+            limit(10)
+        );
 
-            return {
-                id: doc.id, 
-                type: 'announcement',
-                icon: icon,
-                title: d.title || "Announcement",
-                message: d.message || "",
-                dateObj: getDate(d), // Uses the smart date finder
-                dateStr: getDate(d).toLocaleDateString()
-            };
+        personalUnsubscribe = onSnapshot(q, (snap) => {
+            feedData.announcements = snap.docs.map(doc => {
+                const d = doc.data();
+                // Determine icon
+                let icon = '📢'; 
+                if(d.type === 'tournament') icon = '🏆';
+                if(d.type === 'event') icon = '🎉';
+                if(d.type === 'alert') icon = '⚠️';
+
+                return {
+                    id: doc.id, 
+                    type: 'announcement',
+                    icon: icon,
+                    title: d.title || "Notification",
+                    message: d.message || "",
+                    dateObj: getDate(d), 
+                    dateStr: getDate(d).toLocaleDateString()
+                };
+            });
+            renderUnifiedFeed();
         });
-        renderUnifiedFeed();
-    });
+    }
 }
 
 // 5. Render Feed
@@ -258,7 +277,7 @@ function renderUnifiedFeed() {
     if (!list) return;
 
     let combined = [
-        ...feedData.announcements, // Added manual announcements
+        ...feedData.announcements, 
         ...feedData.tournaments, 
         ...feedData.events, 
         ...feedData.careers, 
@@ -284,7 +303,7 @@ function renderUnifiedFeed() {
         if (item.type === 'career') targetUrl = `/careers?id=${item.id}`;
         if (item.type === 'talent') targetUrl = `/rising?id=${item.id}`;
         
-        // Manual announcements don't have a specific page, so they might just close the dropdown or stay put
+        // Manual announcements don't have a specific page
         if (item.type === 'announcement') targetUrl = '#'; 
 
         html += `
