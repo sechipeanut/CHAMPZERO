@@ -5,79 +5,27 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ChampZero — Shop</title>
-
-    <meta name="description"
-        content="ChampZero Armory: Official esports gear, digital goods, and professional rental services.">
-    <meta property="og:title" content="ChampZero — Shop">
-    <meta property="og:description"
-        content="Official gear, digital goods, and professional services to elevate your game.">
-    <meta property="og:image" content="https://champzero.com/pictures/cz_logo.png">
-
     <script src="https://cdn.tailwindcss.com"></script>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap"
-        rel="stylesheet">
-
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        :root {
-            --gold: #FFD700;
-            --gold-darker: #C99700;
-            --dark-bg: #111115;
-            --dark-card: #1A1A1F;
-        }
-
-        body {
-            font-family: 'Poppins', sans-serif;
-        }
-
-        /* Nav Links */
-        .nav-link {
-            position: relative;
-        }
-
-        .nav-link::after {
-            content: '';
-            position: absolute;
-            width: 100%;
-            transform: scaleX(0);
-            height: 2px;
-            bottom: -4px;
-            left: 0;
-            background-color: var(--gold);
-            transform-origin: bottom right;
-            transition: transform 0.25s ease-out;
-        }
-
-        .nav-link:hover::after {
-            transform: scaleX(1);
-            transform-origin: bottom left;
-        }
-
-        /* Focus Accessibility */
-        :focus-visible {
-            outline: 2px solid var(--gold);
-            outline-offset: 4px;
-            border-radius: 4px;
-        }
-
-        .text-glow {
-            text-shadow: 0 0 8px rgba(255, 215, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.4);
-        }
-
-        .futuristic-bg {
-            background-color: var(--dark-bg);
-            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 30px 30px;
-        }
+        :root { --gold: #FFD700; --gold-darker: #C99700; --dark-bg: #111115; --dark-card: #1A1A1F; }
+        body { font-family: 'Poppins', sans-serif; }
+        .nav-link { position: relative; }
+        .nav-link::after { content: ''; position: absolute; width: 100%; transform: scaleX(0); height: 2px; bottom: -4px; left: 0; background-color: var(--gold); transform-origin: bottom right; transition: transform 0.25s ease-out; }
+        .nav-link:hover::after { transform: scaleX(1); transform-origin: bottom left; }
+        :focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
+        .text-glow { text-shadow: 0 0 8px rgba(255, 215, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.4); }
+        .futuristic-bg { background-color: var(--dark-bg); background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px); background-size: 30px 30px; }
+        .badge-pending { @apply bg-yellow-500/20 text-yellow-400 border border-yellow-500/50; }
+        .badge-completed { @apply bg-green-500/20 text-green-400 border border-green-500/50; }
+        .badge-cancelled { @apply bg-red-500/20 text-red-400 border border-red-500/50; }
+        .filter-btn.active { @apply bg-[var(--gold)] text-black border-[var(--gold)]; }
     </style>
 </head>
 
 <body class="bg-[var(--dark-bg)] text-gray-200 antialiased">
 
-    <header id="main-header"
-        class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 transition-all duration-300">
+    <header id="main-header" class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
             <a href="/" class="flex items-center gap-3">
                 <img src="pictures/cz_logo.png" alt="ChampZero Logo" class="w-10 h-10 rounded-md object-cover">
@@ -86,47 +34,34 @@
 
             <nav class="hidden md:flex items-center gap-8 text-sm">
                 <a href="/" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Home</a>
-                <a href="/tournaments"
-                    class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Tournaments</a>
+                <a href="/tournaments" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Tournaments</a>
 
-                <a href="/events"
-                    class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors flex items-center gap-2">
+                <a href="/events" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors flex items-center gap-2">
                     Events
                     <span id="live-badge" class="hidden">
                         <span class="relative flex h-2 w-2">
-                            <span
-                                class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                            <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                             <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                         </span>
                     </span>
                 </a>
 
-                <a href="/teams" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Teams &
-                    Recruitment</a>
-                <a href="/rising" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Rising
-                    Champ</a>
-                <a href="/partners"
-                    class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Partners</a>
+                <a href="/teams" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Teams & Recruitment</a>
+                <a href="/rising" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Rising Champ</a>
+                <a href="/partners" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Partners</a>
                 <a href="/shop" class="nav-link text-[var(--gold)] hover:text-[var(--gold)] transition-colors">Shop</a>
             </nav>
 
             <div class="flex items-center gap-3">
-                <div id="auth-controls-wrapper"
-                    class="transition-opacity duration-500 opacity-0 pointer-events-none md:min-w-[200px] md:flex md:justify-end">
+                <div id="auth-controls-wrapper" class="transition-opacity duration-500 opacity-0 pointer-events-none md:min-w-[200px] md:flex md:justify-end">
                     <div id="auth-controls" class="flex items-center gap-3">
-                        <a href="/login"
-                            class="text-sm px-3 py-1.5 rounded-md text-gray-300 hover:bg-white/10 transition-colors">Log
-                            in</a>
-                        <a href="/signup"
-                            class="hidden sm:inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold hover:opacity-90 transition-opacity">Sign
-                            Up</a>
+                        <a href="/login" class="text-sm px-3 py-1.5 rounded-md text-gray-300 hover:bg-white/10 transition-colors">Log in</a>
+                        <a href="/signup" class="hidden sm:inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold hover:opacity-90 transition-opacity">Sign Up</a>
                     </div>
                 </div>
-                <button id="mobile-menu-button" aria-label="Toggle navigation menu"
-                    class="md:hidden p-2 rounded-md text-gray-300 hover:bg-white/10">
+                <button id="mobile-menu-button" aria-label="Toggle navigation menu" class="md:hidden p-2 rounded-md text-gray-300 hover:bg-white/10">
                     <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 6h16M4 12h16m-7 6h7"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path>
                     </svg>
                 </button>
             </div>
@@ -142,8 +77,7 @@
                 Events
                 <span id="live-badge-mobile" class="hidden">
                     <span class="relative flex h-2 w-2">
-                        <span
-                            class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                         <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                     </span>
                 </span>
@@ -154,43 +88,73 @@
             <a href="/shop" class="text-[var(--gold)] hover:text-[var(--gold)]">Shop</a>
             <div class="border-t border-white/20 mt-6 pt-6 flex gap-4">
                 <a href="/login" class="text-sm px-4 py-2 rounded-md text-gray-300 ring-1 ring-gray-600">Log in</a>
-                <a href="/signup"
-                    class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign
-                    Up</a>
+                <a href="/signup" class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
             </div>
         </nav>
     </div>
 
     <main>
-        <section class="relative futuristic-bg text-white overflow-hidden">
+        <section class="relative futuristic-bg text-white overflow-hidden py-24">
             <div class="absolute inset-0 bg-gradient-to-t from-[var(--dark-bg)] to-transparent"></div>
-            <div class="relative max-w-7xl mx-auto px-6 sm:px-8 py-40 text-center">
+            <div class="relative max-w-7xl mx-auto px-6 sm:px-8 text-center">
                 <h1 class="text-5xl md:text-7xl font-extrabold text-glow text-[var(--gold)]">The ChampZero Armory</h1>
-                <p class="mt-4 text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">Official gear, digital goods, and
-                    professional services to elevate your game.</p>
+                <p class="mt-4 text-lg md:text-xl text-gray-300 max-w-3xl mx-auto">Official gear, digital goods, and professional services to elevate your game.</p>
             </div>
         </section>
 
-        <div class="py-24 bg-[var(--dark-bg)]">
+        <div class="py-12 bg-[var(--dark-bg)]">
             <div class="max-w-7xl mx-auto px-6 sm:px-8 space-y-20">
+                
+                <div class="flex flex-col md:flex-row justify-between items-center gap-4 border-b border-white/10 pb-6 sticky top-20 bg-[var(--dark-bg)] z-30 py-4">
+                    <div class="flex gap-2 overflow-x-auto pb-2 md:pb-0 w-full md:w-auto">
+                        <button onclick="filterShop('all')" class="filter-btn active px-4 py-2 rounded-full border border-white/20 text-sm font-semibold hover:border-[var(--gold)] transition-colors whitespace-nowrap">All Items</button>
+                        <button onclick="filterShop('physical')" class="filter-btn px-4 py-2 rounded-full border border-white/20 text-sm font-semibold hover:border-[var(--gold)] transition-colors whitespace-nowrap">Gear</button>
+                        <button onclick="filterShop('digital')" class="filter-btn px-4 py-2 rounded-full border border-white/20 text-sm font-semibold hover:border-[var(--gold)] transition-colors whitespace-nowrap">Digital</button>
+                        <button onclick="filterShop('services')" class="filter-btn px-4 py-2 rounded-full border border-white/20 text-sm font-semibold hover:border-[var(--gold)] transition-colors whitespace-nowrap">Services</button>
+                    </div>
+                    
+                    <div class="flex gap-3 w-full md:w-auto">
+                        <select id="shop-sort" onchange="applyFilters()" class="bg-[var(--dark-card)] border border-white/10 text-white px-4 py-2 rounded-full text-sm focus:outline-none focus:border-[var(--gold)] cursor-pointer">
+                            <option value="newest">Newest First</option>
+                            <option value="price-low">Price: Low to High</option>
+                            <option value="price-high">Price: High to Low</option>
+                            <option value="name-az">Name: A-Z</option>
+                        </select>
+
+                        <div class="relative flex-1 md:flex-none">
+                            <input type="text" id="shop-search" placeholder="Search products..." class="bg-[var(--dark-card)] border border-white/10 text-white pl-10 pr-4 py-2 rounded-full w-full md:w-64 focus:outline-none focus:border-[var(--gold)] transition-colors">
+                            <svg class="w-4 h-4 text-gray-400 absolute left-4 top-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        </div>
+                    </div>
+                </div>
 
                 <section id="physical-section">
-                    <h2 class="text-3xl font-bold border-b-2 border-[var(--gold)] pb-3 mb-8 text-white">Physical Gear
+                    <h2 class="text-2xl font-bold border-b-2 border-[var(--gold)]/30 pb-2 mb-6 text-white flex items-center gap-2">
+                        <span>📦 Physical Gear</span>
+                        <span class="text-xs font-normal text-gray-500 bg-white/5 px-2 py-1 rounded-full count-badge">0 items</span>
                     </h2>
                     <div id="physical-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 min-h-[200px]">
+                        <p class="text-gray-500 col-span-full text-center py-10">Loading gear...</p>
                     </div>
                 </section>
 
                 <section id="digital-section">
-                    <h2 class="text-3xl font-bold border-b-2 border-white/20 pb-3 mb-8 text-white">Digital Goods</h2>
+                    <h2 class="text-2xl font-bold border-b-2 border-white/10 pb-2 mb-6 text-white flex items-center gap-2">
+                        <span>💻 Digital Goods</span>
+                        <span class="text-xs font-normal text-gray-500 bg-white/5 px-2 py-1 rounded-full count-badge">0 items</span>
+                    </h2>
                     <div id="digital-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 min-h-[200px]">
+                        <p class="text-gray-500 col-span-full text-center py-10">Loading digital items...</p>
                     </div>
                 </section>
 
                 <section id="services-section">
-                    <h2 class="text-3xl font-bold border-b-2 border-white/20 pb-3 mb-8 text-white">Professional Services
+                    <h2 class="text-2xl font-bold border-b-2 border-white/10 pb-2 mb-6 text-white flex items-center gap-2">
+                        <span>🛠️ Professional Services</span>
+                        <span class="text-xs font-normal text-gray-500 bg-white/5 px-2 py-1 rounded-full count-badge">0 items</span>
                     </h2>
                     <div id="services-grid" class="grid grid-cols-1 lg:grid-cols-3 gap-8 min-h-[200px]">
+                        <p class="text-gray-500 col-span-full text-center py-10">Loading services...</p>
                     </div>
                 </section>
 
@@ -198,18 +162,116 @@
         </div>
     </main>
 
+    <button id="cart-btn" onclick="toggleCartModal()" class="fixed bottom-8 right-8 bg-[var(--gold)] text-black p-4 rounded-full shadow-[0_0_20px_rgba(255,215,0,0.3)] z-40 hover:scale-110 transition-transform">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+        <span id="cart-count" class="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center border-2 border-[var(--dark-bg)] hidden">0</span>
+    </button>
+
+    <div id="product-details-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="closeProductDetails()"></div>
+        <div class="relative bg-[var(--dark-card)] border border-white/20 rounded-2xl w-full max-w-2xl p-0 shadow-2xl flex flex-col md:flex-row overflow-hidden">
+            <div class="w-full md:w-1/2 h-64 md:h-auto bg-gray-800 relative flex items-center justify-center">
+                <img id="modal-img" src="" class="absolute inset-0 w-full h-full object-cover">
+                <div id="modal-icon" class="hidden text-9xl"></div>
+            </div>
+            <div class="p-6 md:p-8 flex flex-col w-full md:w-1/2">
+                <button onclick="closeProductDetails()" class="self-end text-gray-400 hover:text-white mb-2">&times;</button>
+                <span id="modal-cat" class="text-xs font-bold text-[var(--gold)] uppercase mb-1">Category</span>
+                <h3 id="modal-title" class="text-2xl font-bold text-white mb-2">Product Name</h3>
+                <p id="modal-price" class="text-xl text-white font-semibold mb-4">$0.00</p>
+                <p id="modal-desc" class="text-gray-400 text-sm mb-6 flex-grow">Description...</p>
+                
+                <div id="modal-variants-container" class="mb-6 hidden">
+                    <label class="block text-sm text-gray-300 mb-2">Select Option</label>
+                    <select id="modal-variant-select" class="w-full bg-white/5 border border-white/20 rounded p-2 text-white text-sm focus:border-[var(--gold)] outline-none"></select>
+                </div>
+
+                <button id="modal-add-btn" class="w-full bg-[var(--gold)] text-black font-bold py-3 rounded-lg hover:bg-yellow-400 transition-colors">Add to Cart</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="shipping-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
+        <div class="relative bg-[var(--dark-card)] border border-[var(--gold)]/30 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h3 class="text-xl font-bold text-white mb-4">Shipping Information 🚚</h3>
+            <form id="shipping-form" class="space-y-3">
+                <div><label class="text-xs text-gray-400">Full Name</label><input id="ship-name" type="text" required class="w-full bg-white/5 border border-white/20 rounded p-2 text-white"></div>
+                <div><label class="text-xs text-gray-400">Address</label><textarea id="ship-address" rows="2" required class="w-full bg-white/5 border border-white/20 rounded p-2 text-white"></textarea></div>
+                <div><label class="text-xs text-gray-400">Phone Number</label><input id="ship-phone" type="tel" required class="w-full bg-white/5 border border-white/20 rounded p-2 text-white"></div>
+                
+                <div class="space-y-3 pt-2 border-t border-white/10">
+                    <h4 class="text-[var(--gold)] text-xs font-bold uppercase tracking-wider">Payment Method</h4>
+                    <div class="grid grid-cols-2 gap-2">
+                        <label class="cursor-pointer">
+                            <input type="radio" name="payment_method" value="COD" class="peer hidden" checked>
+                            <div class="bg-white/5 border border-white/20 rounded p-2 text-center text-xs peer-checked:border-[var(--gold)] peer-checked:text-[var(--gold)] hover:bg-white/10">
+                                💵 COD
+                            </div>
+                        </label>
+                        <label class="cursor-pointer">
+                            <input type="radio" name="payment_method" value="GCash" class="peer hidden">
+                            <div class="bg-white/5 border border-white/20 rounded p-2 text-center text-xs peer-checked:border-[var(--gold)] peer-checked:text-[var(--gold)] hover:bg-white/10">
+                                📱 GCash
+                            </div>
+                        </label>
+                    </div>
+                    <p id="payment-note" class="text-xs text-gray-500 italic mt-1">Pay securely upon delivery.</p>
+                </div>
+
+                <div class="pt-4 flex gap-3">
+                    <button type="button" onclick="closeShippingModal()" class="flex-1 bg-white/10 text-white py-2 rounded">Back</button>
+                    <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-bold py-2 rounded">Confirm Order</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="cart-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="toggleCartModal()"></div>
+        <div class="relative bg-[var(--dark-card)] border border-[var(--gold)]/30 rounded-2xl w-full max-w-lg p-6 shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                <h3 class="text-2xl font-bold text-white">Your Cart 🛒</h3>
+                <button onclick="toggleCartModal()" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            
+            <div id="cart-items" class="flex-1 overflow-y-auto space-y-3 min-h-[100px] pr-2 mb-4">
+                <p class="text-gray-500 text-center py-8">Your cart is empty.</p>
+            </div>
+
+            <div class="border-t border-white/10 pt-4">
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-gray-400">Total:</span>
+                    <span id="cart-total" class="text-xl font-bold text-[var(--gold)]">₱0</span>
+                </div>
+                <div class="flex gap-3">
+                    <button onclick="viewOrderHistory()" class="flex-1 bg-white/10 text-white py-3 rounded-lg font-bold hover:bg-white/20 transition-colors">My Orders</button>
+                    <button onclick="initiateCheckout()" id="checkout-btn" class="flex-1 bg-[var(--gold)] text-black py-3 rounded-lg font-bold hover:bg-yellow-400 transition-colors">Checkout</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="orders-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm" onclick="toggleOrdersModal()"></div>
+        <div class="relative bg-[var(--dark-card)] border border-white/20 rounded-2xl w-full max-w-lg p-6 shadow-2xl flex flex-col max-h-[85vh]">
+            <div class="flex justify-between items-center mb-6 border-b border-white/10 pb-4">
+                <h3 class="text-2xl font-bold text-white">Order History 📦</h3>
+                <button onclick="toggleOrdersModal()" class="text-gray-400 hover:text-white">&times;</button>
+            </div>
+            <div id="orders-list" class="flex-1 overflow-y-auto space-y-3 min-h-[150px] pr-2">
+                <p class="text-gray-500 text-center py-8">Loading orders...</p>
+            </div>
+        </div>
+    </div>
+
     <footer class="border-t border-white/10 bg-[var(--dark-bg)]">
         <div class="max-w-7xl mx-auto px-6 sm:px-8 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-                <div class="flex items-center gap-3"><img src="pictures/cz_logo.png" alt="ChampZero Logo" width="40"
-                        height="40" class="w-10 h-10 rounded-md object-cover">
-                    <div>
-                        <div class="font-bold text-white text-lg">ChampZero</div>
-                        <div class="text-sm text-gray-400">Esports Ecosystem</div>
-                    </div>
+                <div class="flex items-center gap-3"><img src="pictures/cz_logo.png" class="w-10 h-10 rounded-md object-cover">
+                    <div><div class="font-bold text-white text-lg">ChampZero</div><div class="text-sm text-gray-400">Esports Ecosystem</div></div>
                 </div>
-                <p class="mt-4 text-sm text-gray-400">Building community-driven tournaments, talent development, and
-                    esports services.</p>
+                <p class="mt-4 text-sm text-gray-400">Building community-driven tournaments, talent development, and esports services.</p>
                 <div class="mt-4 text-sm text-gray-500">© 2025 ChampZero. All rights reserved.</div>
             </div>
             <div>
@@ -224,41 +286,18 @@
             <div>
                 <h4 class="font-semibold text-white">Follow Us</h4>
                 <div class="mt-3 flex items-center gap-3">
-                    <a href="https://facebook.com/champzeroph" target="_blank" rel="noopener noreferrer"
-                        aria-label="facebook"
-                        class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">FB</a>
-                    <a href="#" target="_blank" rel="noopener noreferrer" aria-label="youtube"
-                        class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">YT</a>
-                    <a href="#" target="_blank" rel="noopener noreferrer" aria-label="twitter"
-                        class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">X</a>
+                    <a href="https://facebook.com/champzeroph" target="_blank" rel="noopener noreferrer" aria-label="facebook" class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">FB</a>
+                    <a href="#" target="_blank" rel="noopener noreferrer" aria-label="youtube" class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">YT</a>
+                    <a href="#" target="_blank" rel="noopener noreferrer" aria-label="twitter" class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">X</a>
                 </div>
             </div>
         </div>
     </footer>
 
+    <script src="js/toast.js"></script>
     <script type="module" src="js/main.js"></script>
     <script type="module" src="js/auth.js"></script>
     <script type="module" src="js/shop.js"></script>
     <script type="module" src="js/notifications.js"></script>
-
-
-    <div id="service-modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onclick="closeServiceModal()">
-        </div>
-
-        <div
-            class="relative bg-[var(--dark-card)] border border-[var(--gold)]/30 rounded-2xl w-full max-w-lg p-8 shadow-2xl transform transition-all scale-100">
-            <button onclick="closeServiceModal()" class="absolute top-4 right-4 text-gray-400 hover:text-white">
-                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
-                    </path>
-                </svg>
-            </button>
-
-            <div id="modal-content" class="text-center">
-            </div>
-        </div>
-    </div>
 </body>
-
 </html>

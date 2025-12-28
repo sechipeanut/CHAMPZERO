@@ -13,8 +13,6 @@
         .dark-input:focus { outline: none; border-color: var(--gold); }
         .admin-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--dark-card); border: 1px solid rgba(255,255,255,0.1); margin-bottom: 0.5rem; border-radius: 0.5rem; }
         .admin-item:hover { border-color: var(--gold); }
-        .message-card { background: var(--dark-card); border: 1px solid rgba(255,255,255,0.1); padding: 1.5rem; border-radius: 0.75rem; transition: border-color 0.2s; }
-        .message-card:hover { border-color: var(--gold); }
         .sidebar { position: fixed; left: 0; top: 64px; bottom: 0; width: var(--sidebar-width); background: var(--dark-card); border-right: 1px solid rgba(255,255,255,0.1); overflow-y: auto; z-index: 40; transition: transform 0.3s ease; }
         .sidebar-item { display: flex; align-items: center; gap: 12px; padding: 14px 24px; color: #9CA3AF; cursor: pointer; transition: all 0.2s; border-left: 3px solid transparent; }
         .sidebar-item:hover { background: rgba(255,215,0,0.05); color: white; }
@@ -35,6 +33,11 @@
         .role-tab { background: transparent; color: #9CA3AF; border: 1px solid transparent; }
         .role-tab:hover { background: rgba(255,255,255,0.05); color: white; }
         .role-tab.active { background: rgba(255,215,0,0.1); color: var(--gold); border-color: var(--gold); font-weight: 600; }
+        
+        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+        .status-pending { background: rgba(255, 166, 0, 0.2); color: orange; border: 1px solid rgba(255, 166, 0, 0.3); }
+        .status-completed { background: rgba(0, 255, 128, 0.2); color: #00ff80; border: 1px solid rgba(0, 255, 128, 0.3); }
+        .status-cancelled { background: rgba(255, 0, 0, 0.2); color: #ff4d4d; border: 1px solid rgba(255, 0, 0, 0.3); }
     </style>
 </head>
 <body class="bg-[var(--dark-bg)] text-gray-200 antialiased">
@@ -81,6 +84,11 @@
         <div class="sidebar-item active" onclick="switchTab('config')" id="nav-config">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
             <span>Home Statistics</span>
+        </div>
+
+        <div class="sidebar-item" onclick="switchTab('shop')" id="nav-shop">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+            <span>Shop Settings</span>
         </div>
 
         <div class="sidebar-item" onclick="switchTab('users')" id="nav-users">
@@ -130,40 +138,45 @@
         <div class="bg-[var(--dark-card)] p-6 rounded-xl border border-white/10 max-w-2xl">
             <form id="configForm" class="space-y-6">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div>
-                        <label class="block text-sm text-gray-400 mb-1">Total Talents</label>
-                        <input id="cfg-talents" type="text" class="dark-input w-full p-3 rounded" required placeholder="e.g. 12+">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-gray-400 mb-1">Combined Followers</label>
-                        <input id="cfg-followers" type="text" class="dark-input w-full p-3 rounded" required placeholder="e.g. 10k+">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-gray-400 mb-1">Prize Pool (₱)</label>
-                        <input id="cfg-prizes" type="text" class="dark-input w-full p-3 rounded" required placeholder="e.g. 250,000+">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-gray-400 mb-1">Events Hosted</label>
-                        <input id="cfg-tournaments" type="text" class="dark-input w-full p-3 rounded" required placeholder="e.g. 50">
-                    </div>
-                    <div>
-                        <label class="block text-sm text-gray-400 mb-1">Registered Players</label>
-                        <input id="cfg-players" type="text" class="dark-input w-full p-3 rounded" required placeholder="e.g. 1500+">
-                    </div>
+                    <div><label class="block text-sm text-gray-400 mb-1">Total Talents</label><input id="cfg-talents" type="text" class="dark-input w-full p-3 rounded" required placeholder="e.g. 12+"></div>
+                    <div><label class="block text-sm text-gray-400 mb-1">Combined Followers</label><input id="cfg-followers" type="text" class="dark-input w-full p-3 rounded" required placeholder="e.g. 10k+"></div>
+                    <div><label class="block text-sm text-gray-400 mb-1">Prize Pool (₱)</label><input id="cfg-prizes" type="text" class="dark-input w-full p-3 rounded" required placeholder="e.g. 250,000+"></div>
+                    <div><label class="block text-sm text-gray-400 mb-1">Events Hosted</label><input id="cfg-tournaments" type="text" class="dark-input w-full p-3 rounded" required placeholder="e.g. 50"></div>
+                    <div><label class="block text-sm text-gray-400 mb-1">Registered Players</label><input id="cfg-players" type="text" class="dark-input w-full p-3 rounded" required placeholder="e.g. 1500+"></div>
                 </div>
                 <div class="pt-4 border-t border-white/10">
-                    <button type="submit" class="bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all flex items-center gap-2">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path></svg>
-                        Update Statistics
-                    </button>
+                    <button type="submit" class="bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all flex items-center gap-2">Update Statistics</button>
                 </div>
             </form>
         </div>
     </section>
 
+    <section id="tab-shop" class="tab-content hidden">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-bold text-white">Shop Management</h2>
+            <div class="flex gap-2">
+                <button onclick="switchShopSubTab('inventory')" id="sub-shop-inventory" class="text-sm px-4 py-2 rounded-lg bg-[var(--gold)] text-black font-bold">Inventory</button>
+                <button onclick="switchShopSubTab('orders')" id="sub-shop-orders" class="text-sm px-4 py-2 rounded-lg bg-white/10 hover:bg-white/20 text-white">Orders</button>
+            </div>
+        </div>
+
+        <div id="shop-inventory-view">
+            <div class="mb-4">
+                <button onclick="openProductModal()" class="bg-[var(--gold)] text-black font-bold px-4 py-2 rounded-lg hover:bg-yellow-400 transition-all flex items-center gap-2 text-sm">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Add Product
+                </button>
+            </div>
+            <div id="shop-inventory-list" class="space-y-2"><p class="text-gray-500">Loading products...</p></div>
+        </div>
+
+        <div id="shop-orders-view" class="hidden">
+            <div id="shop-orders-list" class="space-y-2"><p class="text-gray-500">Loading orders...</p></div>
+        </div>
+    </section>
+
     <section id="tab-users" class="tab-content hidden">
         <h2 class="text-xl font-bold text-white mb-6">User Management</h2>
-        
         <div class="bg-[var(--dark-card)] p-4 rounded-xl border border-white/10 mb-6">
             <div class="flex flex-wrap gap-2 mb-4 border-b border-white/10 pb-4">
                 <button onclick="filterUsersByRole('all')" id="role-tab-all" class="role-tab active px-4 py-2 rounded-lg font-medium transition-all">All Users</button>
@@ -180,7 +193,6 @@
                 <span>Users: <strong id="regular-user-count" class="text-blue-400">0</strong></span>
             </div>
         </div>
-        
         <div class="overflow-x-auto">
             <table class="w-full border-collapse">
                 <thead>
@@ -263,6 +275,62 @@
 
 </div>
 </main>
+
+<div id="productModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+            <h3 id="productModalTitle" class="text-xl font-bold text-white">Add Product</h3>
+            <button onclick="closeModal('productModal')" class="text-gray-400 hover:text-white transition-colors">&times;</button>
+        </div>
+        <form id="productForm" class="p-6 space-y-4" novalidate>
+            <div><label class="block text-sm text-gray-400 mb-1">Product Name</label><input id="p-name" type="text" required class="dark-input w-full p-3 rounded"></div>
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="block text-sm text-gray-400 mb-1">Price (Number)</label><input id="p-price" type="number" step="0.01" required class="dark-input w-full p-3 rounded"></div>
+                <div>
+                    <label class="block text-sm text-gray-400 mb-1">Category</label>
+                    <select id="p-category" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]">
+                        <option value="physical">Physical Gear</option>
+                        <option value="digital">Digital Good</option>
+                        <option value="services">Service</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div><label class="block text-sm text-gray-400 mb-1">Stock Quantity</label><input id="p-stock" type="number" required class="dark-input w-full p-3 rounded" value="10"></div>
+                <div><label class="block text-sm text-gray-400 mb-1">Featured?</label>
+                    <div class="flex items-center h-10">
+                        <input id="p-featured" type="checkbox" class="w-5 h-5 bg-transparent border-gray-600 rounded">
+                        <span class="ml-2 text-gray-300">Show in Carousel</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div><label class="block text-sm text-gray-400 mb-1">Variants (comma separated)</label><input id="p-variants" type="text" placeholder="e.g. S, M, L, XL" class="dark-input w-full p-3 rounded"></div>
+            
+            <div><label class="block text-sm text-gray-400 mb-1">Image URL</label><input id="p-image" type="url" class="dark-input w-full p-3 rounded"></div>
+            <div><label class="block text-sm text-gray-400 mb-1">Description</label><textarea id="p-desc" rows="3" required class="dark-input w-full p-3 rounded"></textarea></div>
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-bold px-6 py-3 rounded-lg hover:bg-yellow-400 transition-all">Save Product</button>
+                <button type="button" onclick="closeModal('productModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-all">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="orderModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-xl max-h-[90vh] overflow-y-auto">
+        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+            <h3 class="text-xl font-bold text-white">Order Details</h3>
+            <button onclick="closeModal('orderModal')" class="text-gray-400 hover:text-white transition-colors">&times;</button>
+        </div>
+        <div id="order-modal-content" class="p-6 text-gray-300 text-sm space-y-4">
+            </div>
+        <div class="p-6 border-t border-white/10 text-right">
+            <button onclick="closeModal('orderModal')" class="bg-white/10 hover:bg-white/20 text-white px-6 py-2 rounded-lg">Close</button>
+        </div>
+    </div>
+</div>
 
 <div id="tournamentModal" class="hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -395,7 +463,6 @@
 </div>
 
 <script>
-    // Tab Switching Logic
     window.switchTab = function(tabName) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
         document.getElementById(`tab-${tabName}`).classList.remove('hidden');
@@ -404,12 +471,27 @@
         const activeItem = document.getElementById(`nav-${tabName}`);
         if(activeItem) activeItem.classList.add('active');
         
-        // Lazy load users if needed
-        if(tabName === 'users' && !window.usersLoaded && window.fetchUsers) {
-            window.fetchUsers();
-        }
+        if(tabName === 'users' && !window.usersLoaded && window.fetchUsers) window.fetchUsers();
+        if(tabName === 'shop') fetchShopData('inventory');
         
         if(window.innerWidth <= 1024) toggleSidebar();
+    }
+    
+    window.switchShopSubTab = function(view) {
+        document.getElementById('shop-inventory-view').classList.toggle('hidden', view !== 'inventory');
+        document.getElementById('shop-orders-view').classList.toggle('hidden', view !== 'orders');
+        
+        document.getElementById('sub-shop-inventory').classList.toggle('bg-[var(--gold)]', view === 'inventory');
+        document.getElementById('sub-shop-inventory').classList.toggle('text-black', view === 'inventory');
+        document.getElementById('sub-shop-inventory').classList.toggle('text-white', view !== 'inventory');
+        document.getElementById('sub-shop-inventory').classList.toggle('bg-white/10', view !== 'inventory');
+        
+        document.getElementById('sub-shop-orders').classList.toggle('bg-[var(--gold)]', view === 'orders');
+        document.getElementById('sub-shop-orders').classList.toggle('text-black', view === 'orders');
+        document.getElementById('sub-shop-orders').classList.toggle('text-white', view !== 'orders');
+        document.getElementById('sub-shop-orders').classList.toggle('bg-white/10', view !== 'orders');
+        
+        if(window.fetchShopData) window.fetchShopData(view);
     }
     
     function toggleSidebar() {
@@ -426,14 +508,13 @@
     
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            ['tournamentModal', 'eventModal', 'jobModal', 'talentModal', 'notificationModal', 'userModal'].forEach(id => {
+            ['tournamentModal', 'eventModal', 'jobModal', 'talentModal', 'notificationModal', 'userModal', 'productModal', 'orderModal'].forEach(id => {
                 const modal = document.getElementById(id);
                 if (modal && !modal.classList.contains('hidden')) closeModal(id);
             });
         }
     });
     
-    // --- Updated Date validation for tournaments (admin.html) ---
     const tStartDate = document.getElementById('t-date');
     const tEndDate = document.getElementById('t-end-date');
     if (tStartDate && tEndDate) {
@@ -442,7 +523,6 @@
         });
     }
 
-    // --- Updated Date validation for events (admin.html) ---
     const eStartDate = document.getElementById('e-date');
     const eEndDate = document.getElementById('e-end-date');
     if (eStartDate && eEndDate) {

@@ -10,11 +10,10 @@ import {
     collection,
     getDocs,
     query,
-    serverTimestamp
+    serverTimestamp,
+    orderBy
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { toDateInputFormat, calculateStatus } from './utils.js';
-// Removed specific tournament imports to avoid dependency errors if file is missing
-// import { setCurrentUserId, openTournamentManager as tmOpenTournamentManager } from './tournament-admin.js';
 
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
@@ -22,208 +21,17 @@ function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>
 // Focus management
 let lastFocusedElement = null;
 
-// ======================
-// LIVESTREAM MANAGEMENT
-// ======================
-
-window.createLivestream = async function(eventId, eventName) {
-    const confirmed = await window.showCustomConfirm("Create Livestream", `Create a new livestream for "${eventName}"?`);
-    if (!confirmed) return;
-    
-    try {
-        window.showSuccessToast("Processing", "Creating livestream...", 3000);
-        
-        // Ensure you have this function deployed or replace with direct API call logic
-        const response = await fetch('/.netlify/functions/create-mux-stream', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ eventId, eventName })
-        });
-        
-        if (!response.ok) throw new Error('Failed to create stream');
-        
-        const streamData = await response.json();
-        
-        const eventRef = doc(db, 'events', eventId);
-        await updateDoc(eventRef, {
-            livestream: {
-                streamId: streamData.streamId,
-                streamKey: streamData.streamKey,
-                playbackId: streamData.playbackId,
-                status: streamData.status,
-                createdAt: serverTimestamp()
-            }
-        });
-        
-        window.showSuccessToast("Success", "Livestream created successfully!", 3000);
-        refreshAllLists();
-        manageLivestream(eventId);
-        
-    } catch (error) {
-        console.error('Error creating livestream:', error);
-        window.showErrorToast("Error", "Failed to create livestream: " + error.message, 5000);
-    }
-};
-
-window.manageLivestream = async function(eventId) {
-    try {
-        const eventRef = doc(db, 'events', eventId);
-        const eventSnap = await getDoc(eventRef);
-        
-        if (!eventSnap.exists()) {
-            window.showErrorToast("Error", "Event not found", 3000);
-            return;
-        }
-        
-        const eventData = eventSnap.data();
-        const livestream = eventData.livestream;
-        
-        if (!livestream || !livestream.streamId) {
-            window.showErrorToast("Error", "No livestream found for this event", 3000);
-            return;
-        }
-        
-        // Mocking status check if endpoint is missing
-        let isActive = false;
-        try {
-            const response = await fetch(`/.netlify/functions/get-mux-stream?streamId=${livestream.streamId}`);
-            if(response.ok) {
-                const streamData = await response.json();
-                isActive = streamData.status === 'active';
-            }
-        } catch(e) { console.warn("Stream status check failed"); }
-        
-        const modal = document.createElement('div');
-        modal.id = 'livestreamModal';
-        modal.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4';
-        modal.innerHTML = `
-            <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-                <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
-                    <h3 class="text-xl font-bold text-white">📡 Livestream Manager</h3>
-                    <button onclick="closeLivestreamModal()" class="text-gray-400 hover:text-white transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
-                </div>
-                <div class="p-6 space-y-4">
-                    <div class="bg-white/5 border border-white/10 rounded-lg p-4">
-                        <div class="flex items-center justify-between mb-2">
-                            <span class="text-gray-400 text-sm">Stream Status</span>
-                            <span class="px-3 py-1 rounded-full text-sm font-semibold ${isActive ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-400'}">
-                                ${isActive ? '🔴 LIVE' : '⚫ Idle'}
-                            </span>
-                        </div>
-                        <div class="text-white font-bold text-lg">${escapeHtml(eventData.name)}</div>
-                    </div>
-                    
-                    <div class="bg-white/5 border border-white/10 rounded-lg p-4">
-                        <label class="text-gray-400 text-sm block mb-2">Stream Key</label>
-                        <div class="flex gap-2">
-                            <input type="password" id="streamKeyInput" readonly value="${livestream.streamKey}" class="flex-1 bg-black/30 border border-white/20 text-white px-3 py-2 rounded text-sm font-mono">
-                            <button onclick="toggleStreamKey()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm">Show</button>
-                            <button onclick="copyToClipboard('${livestream.streamKey}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">Copy</button>
-                        </div>
-                        <p class="text-xs text-gray-500 mt-2">⚠️ Keep this private! Use it in OBS/Streamlabs to start streaming.</p>
-                    </div>
-                    
-                    <div class="flex gap-3 pt-4">
-                        <button onclick="disableLivestream('${eventId}')" class="flex-1 bg-red-900/50 hover:bg-red-600 text-red-200 px-4 py-3 rounded-lg font-bold border border-red-800 transition-all">
-                            🛑 End Stream
-                        </button>
-                        <button onclick="deleteLivestream('${eventId}')" class="flex-1 bg-gray-900/50 hover:bg-gray-600 text-gray-200 px-4 py-3 rounded-lg font-bold border border-gray-800 transition-all">
-                            🗑️ Delete Stream
-                        </button>
-                    </div>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-    } catch (error) {
-        console.error('Error managing livestream:', error);
-        window.showErrorToast("Error", "Failed to load livestream info", 5000);
-    }
-};
-
-window.closeLivestreamModal = function() {
-    const modal = document.getElementById('livestreamModal');
-    if (modal) modal.remove();
-};
-
-window.toggleStreamKey = function() {
-    const input = document.getElementById('streamKeyInput');
-    const btn = event.target;
-    if (input.type === 'password') {
-        input.type = 'text';
-        btn.textContent = 'Hide';
-    } else {
-        input.type = 'password';
-        btn.textContent = 'Show';
-    }
-};
-
-window.copyToClipboard = async function(text) {
-    try {
-        await navigator.clipboard.writeText(text);
-        window.showSuccessToast("Copied!", "Copied to clipboard", 2000);
-    } catch (err) {
-        window.showErrorToast("Error", "Failed to copy", 2000);
-    }
-};
-
-window.disableLivestream = async function(eventId) {
-    const confirmed = await window.showCustomConfirm("End Stream", "This will end the current live broadcast. Continue?");
-    if (!confirmed) return;
-    
-    try {
-        const eventRef = doc(db, 'events', eventId);
-        const eventSnap = await getDoc(eventRef);
-        const livestream = eventSnap.data().livestream;
-        
-        await fetch('/.netlify/functions/disable-mux-stream', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ streamId: livestream.streamId })
-        });
-        
-        await updateDoc(eventRef, { 'livestream.status': 'idle' });
-        window.showSuccessToast("Success", "Stream ended successfully", 3000);
-        closeLivestreamModal();
-        refreshAllLists();
-    } catch (error) {
-        console.error('Error disabling stream:', error);
-    }
-};
-
-window.deleteLivestream = async function(eventId) {
-    const confirmed = await window.showCustomConfirm("Delete Stream", "This will permanently delete the stream. Continue?");
-    if (!confirmed) return;
-    
-    try {
-        const eventRef = doc(db, 'events', eventId);
-        const eventSnap = await getDoc(eventRef);
-        const livestream = eventSnap.data().livestream;
-        
-        await fetch('/.netlify/functions/delete-mux-stream', {
-            method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ streamId: livestream.streamId })
-        });
-        
-        await updateDoc(eventRef, { livestream: null });
-        window.showSuccessToast("Success", "Stream deleted successfully", 3000);
-        closeLivestreamModal();
-        refreshAllLists();
-    } catch (error) {
-        console.error('Error deleting stream:', error);
-    }
-};
+// State
+let editState = { isEditing: false, collection: null, id: null, formId: null, modalId: null };
+let currentUserId = null;
+let allUsers = []; 
+let currentRoleFilter = 'all';
+window.usersLoaded = false;
 
 // ======================
-// END LIVESTREAM MANAGEMENT
+// MODAL & GENERAL ADMIN
 // ======================
 
-// Modal Management
 window.openModal = function (modalId) {
     lastFocusedElement = document.activeElement;
     document.getElementById(modalId).classList.remove('hidden');
@@ -241,7 +49,8 @@ window.closeModal = function (modalId) {
         'eventModal': '#eventForm',
         'jobModal': '#jobForm',
         'talentModal': '#talentForm',
-        'notificationModal': '#notifForm'
+        'notificationModal': '#notifForm',
+        'productModal': '#productForm'
     };
     if(formMap[modalId]) resetFormState(formMap[modalId]);
 }
@@ -251,12 +60,7 @@ window.openEventModal = function () { openModal('eventModal'); }
 window.openJobModal = function () { openModal('jobModal'); }
 window.openTalentModal = function () { openModal('talentModal'); }
 window.openNotificationModal = function () { openModal('notificationModal'); }
-
-// State
-let editState = { isEditing: false, collection: null, id: null, formId: null, modalId: null };
-let currentUserId = null;
-let allUsers = []; 
-let currentRoleFilter = 'all';
+window.openProductModal = function () { openModal('productModal'); }
 
 // --- 1. ADMIN CHECK ---
 onAuthStateChanged(auth, async (user) => {
@@ -265,7 +69,6 @@ onAuthStateChanged(auth, async (user) => {
         return;
     }
     currentUserId = user.uid;
-    // setCurrentUserId(user.uid); // Pass logic if needed
 
     try {
         const userRef = doc(db, "users", user.uid);
@@ -322,7 +125,21 @@ window.editItem = async function (collectionName, docId) {
 
         const data = docSnap.data();
 
-        if (collectionName === 'tournaments') {
+        if (collectionName === 'products') {
+            qs('#p-name').value = data.name;
+            qs('#p-price').value = data.price;
+            qs('#p-category').value = data.category;
+            qs('#p-image').value = data.image;
+            qs('#p-desc').value = data.description;
+            // NEW FIELDS
+            qs('#p-stock').value = data.stock || 0;
+            qs('#p-variants').value = data.variants ? data.variants.join(', ') : '';
+            qs('#p-featured').checked = !!data.isFeatured;
+            
+            prepareEditMode('products', docId, '#productForm', 'productModal');
+            openModal('productModal');
+        }
+        else if (collectionName === 'tournaments') {
             qs('#t-name').value = data.name;
             qs('#t-game').value = data.game;
             qs('#t-format').value = data.format || 'Single Elimination';
@@ -382,9 +199,10 @@ function prepareEditMode(col, id, formSelector, modalId) {
         'eventModal': 'Edit Event',
         'jobModal': 'Edit Job',
         'talentModal': 'Edit Talent',
-        'notificationModal': 'Edit Announcement'
+        'notificationModal': 'Edit Announcement',
+        'productModal': 'Edit Product'
     };
-    if (modalId) qs(`#${modalId.replace('Modal', 'ModalTitle')}`).textContent = modalTitleMap[modalId];
+    if (modalId) qs(`#${modalId}Title`).textContent = modalTitleMap[modalId];
 
     if (btn) btn.textContent = 'Update';
 }
@@ -400,9 +218,10 @@ function resetFormState(formSelector) {
         'eventModal': 'Create Event',
         'jobModal': 'Create Job',
         'talentModal': 'Add Talent',
-        'notificationModal': 'Create Announcement'
+        'notificationModal': 'Create Announcement',
+        'productModal': 'Add Product'
     };
-    if (editState.modalId) qs(`#${editState.modalId.replace('Modal', 'ModalTitle')}`).textContent = modalTitleMap[editState.modalId];
+    if (editState.modalId) qs(`#${editState.modalId}Title`).textContent = modalTitleMap[editState.modalId];
 
     if (form) {
         const btn = form.querySelector('button[type="submit"]');
@@ -411,8 +230,152 @@ function resetFormState(formSelector) {
     editState = { isEditing: false, collection: null, id: null, formId: null, modalId: null };
 }
 
-// --- 3. USER MANAGEMENT FUNCTIONS ---
+// --- 3. SHOP & USER MANAGEMENT ---
 
+window.fetchShopData = async function(view) {
+    if (view === 'inventory') fetchShopProducts();
+    if (view === 'orders') fetchShopOrders();
+}
+
+async function fetchShopProducts() {
+    const list = qs('#shop-inventory-list');
+    list.innerHTML = '<p class="text-gray-500">Loading inventory...</p>';
+    
+    try {
+        const q = query(collection(db, "products"));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+            list.innerHTML = '<p class="text-gray-500">No products found.</p>';
+            return;
+        }
+
+        list.innerHTML = '';
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            list.innerHTML += `
+                <div class="admin-item">
+                    <div class="flex items-center gap-3">
+                        <img src="${data.image || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded object-cover border border-white/10">
+                        <div>
+                            <div class="font-bold text-white">${escapeHtml(data.name)}</div>
+                            <div class="text-xs text-[var(--gold)]">₱${Number(data.price).toLocaleString()} • ${data.category}</div>
+                            <div class="text-xs text-gray-400">Stock: ${data.stock || 0} ${data.isFeatured ? '• ⭐ Featured' : ''}</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editItem('products', '${doc.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
+                        <button onclick="deleteItem('products', '${doc.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
+                    </div>
+                </div>`;
+        });
+    } catch (e) {
+        console.error("Error fetching products:", e);
+        list.innerHTML = '<p class="text-red-500">Error loading products.</p>';
+    }
+}
+
+async function fetchShopOrders() {
+    const list = qs('#shop-orders-list');
+    list.innerHTML = '<p class="text-gray-500">Loading orders...</p>';
+    
+    try {
+        const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+            list.innerHTML = '<p class="text-gray-500">No orders yet.</p>';
+            return;
+        }
+
+        list.innerHTML = '';
+        snapshot.forEach(doc => {
+            const data = doc.data();
+            const dateStr = data.createdAt ? new Date(data.createdAt.toDate()).toLocaleDateString() : 'N/A';
+            const statusClass = data.status === 'completed' ? 'status-completed' : (data.status === 'cancelled' ? 'status-cancelled' : 'status-pending');
+            
+            // Serialize for passing to function
+            const orderData = encodeURIComponent(JSON.stringify({id: doc.id, ...data}));
+
+            list.innerHTML += `
+                <div class="admin-item flex-col items-start gap-3 sm:flex-row sm:items-center">
+                    <div class="flex-1">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-[var(--gold)] font-mono text-sm">#${doc.id.slice(0,8)}</span>
+                            <span class="text-gray-500 text-xs">${dateStr}</span>
+                        </div>
+                        <div class="font-bold text-white mb-1">${escapeHtml(data.itemName)}</div>
+                        <div class="text-sm text-gray-400">User: ${escapeHtml(data.userId)}</div>
+                        <div class="text-sm font-semibold text-white mt-1">Total: ₱${data.amount}</div>
+                    </div>
+                    <div class="flex items-center gap-3 w-full sm:w-auto justify-between">
+                        <span class="status-badge ${statusClass}">${data.status}</span>
+                        <div class="flex gap-1">
+                            <button onclick="viewOrderDetails('${orderData}')" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs border border-gray-600">View</button>
+                            ${data.status !== 'completed' ? `<button onclick="updateOrderStatus('${doc.id}', 'completed')" class="bg-green-900/50 hover:bg-green-600 text-green-200 px-3 py-1 rounded text-xs border border-green-800">✓</button>` : ''}
+                            ${data.status !== 'cancelled' ? `<button onclick="updateOrderStatus('${doc.id}', 'cancelled')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-xs border border-red-800">✕</button>` : ''}
+                        </div>
+                    </div>
+                </div>`;
+        });
+    } catch (e) {
+        console.error("Error fetching orders:", e);
+        list.innerHTML = '<p class="text-red-500">Error loading orders. Check permissions.</p>';
+    }
+}
+
+window.viewOrderDetails = function(orderDataStr) {
+    const order = JSON.parse(decodeURIComponent(orderDataStr));
+    const content = qs('#order-modal-content');
+    
+    // Shipping info block
+    const shippingHtml = order.shipping ? `
+        <div class="bg-white/5 p-3 rounded border border-white/10 mb-4">
+            <h4 class="text-[var(--gold)] font-bold mb-2">Shipping Details</h4>
+            <p><span class="text-gray-400">Name:</span> ${escapeHtml(order.shipping.name)}</p>
+            <p><span class="text-gray-400">Address:</span> ${escapeHtml(order.shipping.address)}</p>
+            <p><span class="text-gray-400">Phone:</span> ${escapeHtml(order.shipping.phone)}</p>
+        </div>
+    ` : '';
+
+    // Items list
+    const itemsHtml = order.items.map(item => `
+        <div class="flex justify-between py-2 border-b border-white/5">
+            <span>${escapeHtml(item.name)} ${item.selectedVariant ? `(${item.selectedVariant})` : ''}</span>
+            <span class="text-[var(--gold)]">₱${item.price.toLocaleString()}</span>
+        </div>
+    `).join('');
+
+    content.innerHTML = `
+        <div class="flex justify-between mb-4">
+            <span class="text-gray-400">Order ID:</span>
+            <span class="font-mono text-white">${order.id}</span>
+        </div>
+        ${shippingHtml}
+        <h4 class="text-gray-300 font-bold mb-2">Items</h4>
+        <div class="space-y-1 mb-4">
+            ${itemsHtml}
+        </div>
+        <div class="flex justify-between pt-4 border-t border-white/10 text-lg font-bold">
+            <span>Total</span>
+            <span class="text-[var(--gold)]">₱${order.amount.toLocaleString()}</span>
+        </div>
+    `;
+    
+    openModal('orderModal');
+}
+
+window.updateOrderStatus = async function(orderId, newStatus) {
+    try {
+        await updateDoc(doc(db, "orders", orderId), { status: newStatus });
+        window.showSuccessToast("Updated", `Order marked as ${newStatus}`, 2000);
+        fetchShopOrders();
+    } catch (e) {
+        window.showErrorToast("Error", "Failed to update order", 3000);
+    }
+}
+
+// User Management Functions (Existing)
 window.fetchUsers = async function() {
     try {
         const q = query(collection(db, "users"));
@@ -430,6 +393,7 @@ window.fetchUsers = async function() {
             return dateB - dateA;
         });
 
+        window.usersLoaded = true;
         displayUsers();
     } catch (error) {
         console.error('Error fetching users:', error);
@@ -571,7 +535,6 @@ if (qs('#user-search')) {
 
 // --- 4. FETCH LISTS ---
 
-// Missing function added here
 async function fetchSiteConfig() {
     try {
         const docRef = doc(db, "site_config", "home_stats");
@@ -597,6 +560,7 @@ async function refreshAllLists() {
     fetchTalents();
     fetchNotifications();
     fetchSiteConfig();
+    fetchShopData('inventory'); // Ensure this is called to init shop
     if(window.fetchUsers) window.fetchUsers();
 }
 
@@ -692,19 +656,14 @@ async function renderEventItem(doc) {
     const hasStream = data.livestream && data.livestream.streamId;
     let isLive = false;
     
-    // Check actual stream status if stream exists
     if (hasStream) {
         try {
-            // Mock check if endpoint unavailable
-            // const response = await fetch(`/.netlify/functions/get-mux-stream?streamId=${data.livestream.streamId}`);
-            // if (response.ok) { ... }
             isLive = data.livestream.status === 'active';
         } catch (err) {
             isLive = false;
         }
     }
     
-    // Fixed HTML string escaping error
     return `
         <div class="admin-item">
             <div>
@@ -827,7 +786,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     await addDoc(collection(db, collectionName), data);
                     window.showSuccessToast("Created", successMsg, 2000);
                     form.reset();
-                    const modalMap = { 'tournamentForm': 'tournamentModal', 'eventForm': 'eventModal', 'jobForm': 'jobModal', 'talentForm': 'talentModal', 'notifForm': 'notificationModal' };
+                    const modalMap = { 'tournamentForm': 'tournamentModal', 'eventForm': 'eventModal', 'jobForm': 'jobModal', 'talentForm': 'talentModal', 'notifForm': 'notificationModal', 'productForm': 'productModal' };
                     if (modalMap[form.id]) closeModal(modalMap[form.id]);
                 }
                 refreshAllLists();
@@ -906,4 +865,14 @@ document.addEventListener('DOMContentLoaded', () => {
     handleForm('#jobForm', 'careers', () => ({ title: qs('#j-title').value, location: qs('#j-location').value, type: qs('#j-type').value }), "Job Posted!");
     handleForm('#talentForm', 'talents', () => ({ name: qs('#tal-name').value, role: qs('#tal-role').value, image: qs('#tal-img').value || "pictures/cz_logo.png", socialLink: qs('#tal-link').value, bio: qs('#tal-bio').value }), "Talent Added!");
     handleForm('#notifForm', 'notifications', () => ({ title: qs('#n-title').value, type: qs('#n-type').value, message: qs('#n-message').value }), "Notification Sent!");
+    handleForm('#productForm', 'products', () => ({ 
+        name: qs('#p-name').value, 
+        price: Number(qs('#p-price').value), 
+        category: qs('#p-category').value, 
+        image: qs('#p-image').value || "pictures/cz_logo.png", 
+        description: qs('#p-desc').value,
+        stock: Number(qs('#p-stock').value) || 0,
+        variants: qs('#p-variants').value.split(',').map(v => v.trim()).filter(v => v),
+        isFeatured: qs('#p-featured').checked
+    }), "Product Added!");
 });
