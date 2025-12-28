@@ -3,6 +3,7 @@ import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/fi
 import {
     doc,
     getDoc,
+    setDoc,
     addDoc,
     updateDoc,
     deleteDoc,
@@ -32,7 +33,6 @@ window.closeModal = function (modalId) {
     document.body.style.overflow = 'auto';
     if (lastFocusedElement) lastFocusedElement.focus();
 
-    // Reset forms
     const formMap = {
         'tournamentModal': '#tournamentForm',
         'eventModal': '#eventForm',
@@ -40,7 +40,7 @@ window.closeModal = function (modalId) {
         'talentModal': '#talentForm',
         'notificationModal': '#notifForm'
     };
-    resetFormState(formMap[modalId]);
+    if(formMap[modalId]) resetFormState(formMap[modalId]);
 }
 
 window.openTournamentModal = function () { openModal('tournamentModal'); }
@@ -52,6 +52,8 @@ window.openNotificationModal = function () { openModal('notificationModal'); }
 // State
 let editState = { isEditing: false, collection: null, id: null, formId: null, modalId: null };
 let currentUserId = null;
+let allUsers = []; 
+let currentRoleFilter = 'all';
 
 // --- 1. ADMIN CHECK ---
 onAuthStateChanged(auth, async (user) => {
@@ -65,9 +67,9 @@ onAuthStateChanged(auth, async (user) => {
         const userRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userRef);
         const adminEmails = ["admin@champzero.com", "owner@champzero.com"];
-        const isAdminRole = userSnap.exists() && userSnap.data().role === 'admin';
+        const isAdminRole = userSnap.exists() && (userSnap.data().role === 'admin' || adminEmails.includes(user.email));
 
-        if (isAdminRole || adminEmails.includes(user.email)) {
+        if (isAdminRole) {
             document.getElementById('auth-loading-screen')?.classList.add('hidden');
             document.getElementById('admin-content')?.classList.remove('hidden');
             updateAdminHeader(user, userSnap.data());
@@ -104,7 +106,6 @@ window.deleteItem = async function (collectionName, docId) {
     }
 }
 
-// EDIT ITEM
 window.editItem = async function (collectionName, docId) {
     try {
         const docRef = doc(db, collectionName, docId);
@@ -120,7 +121,7 @@ window.editItem = async function (collectionName, docId) {
         if (collectionName === 'tournaments') {
             qs('#t-name').value = data.name;
             qs('#t-game').value = data.game;
-            qs('#t-format').value = data.format || 'Single Elimination'; // POPULATE FORMAT
+            qs('#t-format').value = data.format || 'Single Elimination';
             qs('#t-prize').value = data.prize;
             qs('#t-date').value = toDateInputFormat(data.date);
             qs('#t-end-date').value = toDateInputFormat(data.endDate);
@@ -172,7 +173,6 @@ function prepareEditMode(col, id, formSelector, modalId) {
     const form = qs(formSelector);
     const btn = form.querySelector('button[type="submit"]');
     
-    // Update Title
     const modalTitleMap = {
         'tournamentModal': 'Edit Tournament',
         'eventModal': 'Edit Event',
@@ -191,7 +191,6 @@ function resetFormState(formSelector) {
     const form = qs(selector);
     if (form) form.reset();
 
-    // Reset Title
     const modalTitleMap = {
         'tournamentModal': 'Create Tournament',
         'eventModal': 'Create Event',
@@ -208,7 +207,104 @@ function resetFormState(formSelector) {
     editState = { isEditing: false, collection: null, id: null, formId: null, modalId: null };
 }
 
-// --- 3. FETCH LISTS ---
+// --- 3. USER MANAGEMENT FUNCTIONS ---
+
+window.refreshUsers = async function() {
+    const tbody = qs('#users-table-body');
+    const searchVal = qs('#user-search')?.value.toLowerCase() || '';
+    
+    if(!tbody.innerHTML.includes('tr')) {
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center p-8 text-gray-500">Loading users...</td></tr>';
+    }
+
+    try {
+        const q = query(collection(db, "users"));
+        const snapshot = await getDocs(q);
+        
+        allUsers = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
+        allUsers.sort((a, b) => {
+            const dateA = a.createdAt ? a.createdAt.seconds : 0;
+            const dateB = b.createdAt ? b.createdAt.seconds : 0;
+            return dateB - dateA;
+        });
+
+        let filtered = allUsers.filter(u => {
+            const nameMatch = (u.ign || u.username || u.displayName || u.email || '').toLowerCase().includes(searchVal);
+            const roleMatch = currentRoleFilter === 'all' || (u.role || 'user') === currentRoleFilter;
+            return nameMatch && roleMatch;
+        });
+
+        qs('#user-count').textContent = allUsers.length;
+        qs('#admin-count').textContent = allUsers.filter(u => u.role === 'admin').length;
+        qs('#regular-user-count').textContent = allUsers.filter(u => u.role !== 'admin').length;
+
+        if (filtered.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center p-8 text-gray-500">No users found.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filtered.map(u => {
+            const roleColor = u.role === 'admin' ? 'text-yellow-400 border-yellow-400/30' : 'text-blue-400 border-blue-400/30';
+            const dateStr = u.createdAt ? new Date(u.createdAt.toDate()).toLocaleDateString() : 'N/A';
+            const name = escapeHtml(u.ign || u.displayName || u.username || 'Unnamed');
+            
+            return `
+            <tr class="border-b border-white/5 hover:bg-white/5 transition-colors">
+                <td class="p-4 flex items-center gap-3">
+                    <img src="${u.avatar || `https://ui-avatars.com/api/?name=${name}&background=random`}" class="w-8 h-8 rounded-full">
+                    <span class="text-white font-medium">${name}</span>
+                </td>
+                <td class="p-4 text-gray-400 text-sm">${escapeHtml(u.email)}</td>
+                <td class="p-4">
+                    <span class="border ${roleColor} bg-opacity-10 px-2 py-1 rounded text-xs font-bold uppercase">${u.role || 'User'}</span>
+                </td>
+                <td class="p-4 text-gray-500 text-xs">${dateStr}</td>
+                <td class="p-4 flex gap-2">
+                    ${u.role !== 'admin' ? 
+                        `<button onclick="updateUserRole('${u.id}', 'admin')" class="text-green-400 hover:text-green-300 text-xs border border-green-500/30 px-2 py-1 rounded">Promote</button>` : 
+                        `<button onclick="updateUserRole('${u.id}', 'user')" class="text-yellow-400 hover:text-yellow-300 text-xs border border-yellow-500/30 px-2 py-1 rounded">Demote</button>`
+                    }
+                    <button onclick="deleteItem('users', '${u.id}')" class="text-red-400 hover:text-red-300 text-xs border border-red-500/30 px-2 py-1 rounded">Delete</button>
+                </td>
+            </tr>
+            `;
+        }).join('');
+
+    } catch (error) {
+        console.error("Error fetching users:", error);
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center p-8 text-red-500">Failed to load users.</td></tr>';
+    }
+}
+
+window.filterUsersByRole = function(role) {
+    currentRoleFilter = role;
+    document.querySelectorAll('.role-tab').forEach(btn => btn.classList.remove('active', 'text-[var(--gold)]', 'border-[var(--gold)]'));
+    document.getElementById(`role-tab-${role}`).classList.add('active', 'text-[var(--gold)]', 'border-[var(--gold)]');
+    window.refreshUsers();
+}
+
+window.updateUserRole = async function(userId, newRole) {
+    const confirmed = await window.showCustomConfirm("Change Role?", `Are you sure you want to change this user to ${newRole}?`);
+    if (!confirmed) return;
+
+    try {
+        await updateDoc(doc(db, "users", userId), {
+            role: newRole
+        });
+        window.showSuccessToast("Success", "User role updated.", 2000);
+        
+        const userIndex = allUsers.findIndex(u => u.id === userId);
+        if (userIndex > -1) allUsers[userIndex].role = newRole;
+        
+        window.refreshUsers();
+    } catch (error) {
+        console.error("Role update failed:", error);
+        window.showErrorToast("Error", "Failed to update role.", 3000);
+    }
+}
+
+// --- 4. FETCH LISTS ---
 
 async function refreshAllLists() {
     fetchTournaments();
@@ -216,8 +312,26 @@ async function refreshAllLists() {
     fetchJobs();
     fetchMessages();
     fetchTalents();
-    fetchNotifications();
-    if(window.refreshUsers) window.refreshUsers();
+    fetchNotifications(); // UPDATED FUNCTION
+    fetchSiteConfig();
+    window.refreshUsers();
+}
+
+async function fetchSiteConfig() {
+    try {
+        const docRef = doc(db, "site_config", "home_stats");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            if(qs('#cfg-talents')) qs('#cfg-talents').value = data.talentCount || "";
+            if(qs('#cfg-followers')) qs('#cfg-followers').value = data.followerCount || "";
+            if(qs('#cfg-prizes')) qs('#cfg-prizes').value = data.prizePool || "";
+            if(qs('#cfg-tournaments')) qs('#cfg-tournaments').value = data.tournamentCount || "";
+            if(qs('#cfg-players')) qs('#cfg-players').value = data.playerCount || "";
+        }
+    } catch (e) {
+        console.error("Config Fetch Error", e);
+    }
 }
 
 async function fetchTournaments() {
@@ -238,7 +352,61 @@ async function fetchTournaments() {
     });
 }
 
-// (Other fetch functions: fetchEvents, fetchJobs, fetchTalents, fetchNotifications, fetchMessages omitted for brevity as they remain unchanged)
+// Updated Notifications Fetcher (Sorts by date, newest first)
+async function fetchNotifications() {
+    const list = qs('#notifications-list');
+    
+    try {
+        // Fetch all notifications (removed orderBy to prevent missing index errors)
+        const q = query(collection(db, "notifications"));
+        const snapshot = await getDocs(q);
+        
+        if (snapshot.empty) {
+            list.innerHTML = '<p class="text-gray-500">No announcements yet.</p>';
+            return;
+        }
+
+        // Convert to array and sort in JS
+        let notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        notifs.sort((a, b) => {
+            const dateA = a.createdAt ? a.createdAt.seconds : 0;
+            const dateB = b.createdAt ? b.createdAt.seconds : 0;
+            return dateB - dateA; // Newest first
+        });
+
+        list.innerHTML = '';
+        notifs.forEach(data => {
+            let icon = '📢';
+            if (data.type === 'tournament') icon = '🏆';
+            if (data.type === 'event') icon = '🎉';
+            if (data.type === 'alert') icon = '⚠️';
+
+            list.innerHTML += `
+                <div class="admin-item">
+                    <div class="flex items-center gap-3">
+                        <div class="text-xl">${icon}</div>
+                        <div>
+                            <div class="font-bold text-white">${escapeHtml(data.title)}</div>
+                            <div class="text-xs text-gray-400 max-w-xs truncate">${escapeHtml(data.message)}</div>
+                        </div>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="editItem('notifications', '${data.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
+                        <button onclick="deleteItem('notifications', '${data.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
+                    </div>
+                </div>`;
+        });
+    } catch (e) {
+        console.error("Error loading notifications:", e);
+        // Show permission error if that's the cause
+        if(e.code === 'permission-denied') {
+            list.innerHTML = '<p class="text-red-500">Permission Error: Check Firestore Rules.</p>';
+        } else {
+            list.innerHTML = '<p class="text-red-500">Failed to load announcements.</p>';
+        }
+    }
+}
+
 async function fetchEvents() {
     const list = qs('#events-list');
     const q = query(collection(db, "events"));
@@ -293,42 +461,12 @@ async function fetchTalents() {
     });
 }
 
-async function fetchNotifications() {
-    const list = qs('#notifications-list');
-    const q = query(collection(db, "notifications"));
-    const snapshot = await getDocs(q);
-    list.innerHTML = snapshot.empty ? '<p class="text-gray-500">No announcements yet.</p>' : '';
-    snapshot.forEach(doc => {
-        const data = doc.data();
-        let icon = '📢';
-        if (data.type === 'tournament') icon = '🏆';
-        if (data.type === 'event') icon = '🎉';
-        if (data.type === 'alert') icon = '⚠️';
-
-        list.innerHTML += `
-            <div class="admin-item">
-                <div class="flex items-center gap-3">
-                    <div class="text-xl">${icon}</div>
-                    <div>
-                        <div class="font-bold text-white">${escapeHtml(data.title)}</div>
-                        <div class="text-xs text-gray-400 max-w-xs truncate">${escapeHtml(data.message)}</div>
-                    </div>
-                </div>
-                <div class="flex gap-2">
-                    <button onclick="editItem('notifications', '${doc.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
-                    <button onclick="deleteItem('notifications', '${doc.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
-                </div>
-            </div>`;
-    });
-}
-
 async function fetchMessages() {
     const list = qs('#messages-list');
     const q = query(collection(db, "messages"));
     const snapshot = await getDocs(q);
     list.innerHTML = snapshot.empty ? `<div class="text-center py-12 bg-white/5 rounded-lg border border-white/10"><p class="text-gray-400">Inbox is empty.</p></div>` : '';
 
-    // Update Badge
     const badge = qs('#msg-badge');
     if (badge) {
         badge.textContent = snapshot.size;
@@ -406,7 +544,39 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // --- Updated Tournament Logic with Format ---
+    // --- NEW: Handle Config Form ---
+    const configForm = qs('#configForm');
+    if (configForm) {
+        configForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = configForm.querySelector('button[type="submit"]');
+            btn.textContent = "Updating...";
+            btn.disabled = true;
+
+            try {
+                // Use '|| 0' to handle empty strings safely (prevent NaN)
+                const stats = {
+                    talentCount: qs('#cfg-talents').value || "0",
+                    followerCount: qs('#cfg-followers').value || "0",
+                    prizePool: qs('#cfg-prizes').value || "0",
+                    tournamentCount: qs('#cfg-tournaments').value || "0",
+                    playerCount: qs('#cfg-players').value || "0",
+                    updatedAt: serverTimestamp()
+                };
+                
+                await setDoc(doc(db, "site_config", "home_stats"), stats, { merge: true });
+                window.showSuccessToast("Updated", "Home page stats updated!", 2000);
+            } catch (err) {
+                console.error(err);
+                // Show specific error message
+                window.showErrorToast("Error", "Failed to update stats: " + err.message, 4000);
+            } finally {
+                btn.textContent = "Update Statistics";
+                btn.disabled = false;
+            }
+        });
+    }
+
     handleForm('#tournamentForm', 'tournaments', () => {
         const startDate = qs('#t-date').value;
         const endDate = qs('#t-end-date').value || startDate;
@@ -419,7 +589,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return {
             name: qs('#t-name').value,
             game: qs('#t-game').value,
-            format: qs('#t-format').value, // SAVE FORMAT
+            format: qs('#t-format').value,
             prize: Number(qs('#t-prize').value),
             status: status,
             date: startDate,
@@ -428,7 +598,6 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }, "Tournament Created!");
 
-    // (Other handleForm calls remain the same)
     handleForm('#eventForm', 'events', () => {
         const startDate = qs('#e-date').value;
         const endDate = qs('#e-end-date').value || startDate;
