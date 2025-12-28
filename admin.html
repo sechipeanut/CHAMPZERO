@@ -9,8 +9,9 @@
     <style>
         :root { --gold: #FFD700; --gold-darker: #C99700; --dark-bg: #111115; --dark-card: #1A1A1F; --sidebar-width: 280px; }
         body { font-family: 'Poppins', sans-serif; }
-        .dark-input { background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; }
-        .dark-input:focus { outline: none; border-color: var(--gold); }
+        .dark-input, .dark-select { background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; }
+        .dark-input:focus, .dark-select:focus { outline: none; border-color: var(--gold); }
+        .dark-select option { background-color: var(--dark-card); color: white; }
         .admin-item { display: flex; justify-content: space-between; align-items: center; padding: 1rem; background: var(--dark-card); border: 1px solid rgba(255,255,255,0.1); margin-bottom: 0.5rem; border-radius: 0.5rem; }
         .admin-item:hover { border-color: var(--gold); }
         .sidebar { position: fixed; left: 0; top: 64px; bottom: 0; width: var(--sidebar-width); background: var(--dark-card); border-right: 1px solid rgba(255,255,255,0.1); overflow-y: auto; z-index: 40; transition: transform 0.3s ease; }
@@ -198,9 +199,9 @@
                 <thead>
                     <tr class="bg-[var(--dark-card)] border-b border-white/10">
                         <th class="text-left p-4 text-gray-400 font-semibold">User</th>
-                        <th class="text-left p-4 text-gray-400 font-semibold">Email</th>
+                        <th class="text-left p-4 text-gray-400 font-semibold hidden md:table-cell">Email</th>
                         <th class="text-left p-4 text-gray-400 font-semibold">Status</th>
-                        <th class="text-left p-4 text-gray-400 font-semibold">Created</th>
+                        <th class="text-left p-4 text-gray-400 font-semibold hidden lg:table-cell">Created</th>
                         <th class="text-left p-4 text-gray-400 font-semibold">Actions</th>
                     </tr>
                 </thead>
@@ -462,6 +463,15 @@
     </div>
 </div>
 
+<div id="customAlertModal" class="fixed inset-0 z-[110] hidden flex items-center justify-center p-4">
+    <div id="alertBackdrop" class="absolute inset-0 bg-black/90 backdrop-blur-sm"></div>
+    <div id="alertBox" class="relative bg-[var(--dark-card)] border border-white/20 rounded-xl p-6 shadow-2xl max-w-sm w-full text-center transform scale-95 opacity-0 transition-all duration-300">
+        <h3 id="alertTitle" class="text-xl font-bold text-white mb-2">Notification</h3>
+        <p id="alertMessage" class="text-gray-400 text-sm mb-6 leading-relaxed">Message...</p>
+        <div id="alertButtons" class="flex justify-center gap-3"></div>
+    </div>
+</div>
+
 <script>
     window.switchTab = function(tabName) {
         document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -530,11 +540,66 @@
             if (eStartDate.value) eEndDate.setAttribute('min', eStartDate.value);
         });
     }
+
+    // Modal Helper for Custom Confirm
+    function animateGenericOpen(modalId, backdropId, panelId) {
+        const modal = document.getElementById(modalId);
+        const backdrop = document.getElementById(backdropId);
+        const panel = document.getElementById(panelId);
+        if (!modal) return;
+        modal.classList.remove('hidden');
+        setTimeout(() => {
+            backdrop.classList.remove('opacity-0');
+            panel.classList.remove('opacity-0', 'scale-95');
+            panel.classList.add('opacity-100', 'scale-100');
+        }, 10);
+    }
+
+    function animateGenericClose(modalId, backdropId, panelId, callback) {
+        const modal = document.getElementById(modalId);
+        const backdrop = document.getElementById(backdropId);
+        const panel = document.getElementById(panelId);
+        if (!modal) return;
+        backdrop.classList.add('opacity-0');
+        panel.classList.remove('opacity-100', 'scale-100');
+        panel.classList.add('opacity-0', 'scale-95');
+        setTimeout(() => {
+            modal.classList.add('hidden');
+            if (callback) callback();
+        }, 300);
+    }
+
+    window.showCustomConfirm = (title, message) => {
+        return new Promise((resolve) => {
+            const titleEl = document.getElementById('alertTitle');
+            const msgEl = document.getElementById('alertMessage');
+            const btnContainer = document.getElementById('alertButtons');
+            if (!document.getElementById('customAlertModal')) { resolve(confirm(message)); return; }
+            
+            titleEl.textContent = title;
+            msgEl.innerHTML = message;
+            btnContainer.innerHTML = '';
+            
+            const cancelBtn = document.createElement('button');
+            cancelBtn.className = "px-5 py-2 bg-white/10 text-gray-300 rounded-lg text-sm font-bold hover:bg-white/20 transition-colors";
+            cancelBtn.textContent = "Cancel";
+            cancelBtn.onclick = () => { animateGenericClose('customAlertModal', 'alertBackdrop', 'alertBox'); resolve(false); };
+            
+            const confirmBtn = document.createElement('button');
+            confirmBtn.className = "px-5 py-2 bg-[var(--gold)] text-black rounded-lg text-sm font-bold hover:bg-yellow-400 transition-colors shadow-lg";
+            confirmBtn.textContent = "Confirm";
+            confirmBtn.onclick = () => { animateGenericClose('customAlertModal', 'alertBackdrop', 'alertBox'); resolve(true); };
+            
+            btnContainer.appendChild(cancelBtn);
+            btnContainer.appendChild(confirmBtn);
+            
+            animateGenericOpen('customAlertModal', 'alertBackdrop', 'alertBox');
+        });
+    };
 </script>
 
 </div> 
 <script src="js/toast.js"></script>
-<script src="js/alert-compat.js"></script>
 <script type="module" src="js/admin.js"></script>
 </body>
 </html>

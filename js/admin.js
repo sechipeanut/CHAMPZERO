@@ -375,7 +375,7 @@ window.updateOrderStatus = async function(orderId, newStatus) {
     }
 }
 
-// User Management Functions (Existing)
+// User Management Functions
 window.fetchUsers = async function() {
     try {
         const q = query(collection(db, "users"));
@@ -399,7 +399,7 @@ window.fetchUsers = async function() {
         console.error('Error fetching users:', error);
         const tbody = qs('#users-table-body');
         if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-red-400">Error loading users.</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-red-400">Error loading users.</td></tr>';
         }
     }
 }
@@ -441,10 +441,11 @@ function displayUsers() {
     
     // Display users
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="4" class="text-center py-8 text-gray-400">No users found.</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-400">No users found.</td></tr>';
         return;
     }
     
+    // UPDATED TABLE ROW GENERATION
     tbody.innerHTML = '';
     filtered.forEach(user => {
         const createdDate = user.createdAt?.toDate?.() || user.joinedAt ? new Date(user.joinedAt) : null;
@@ -454,8 +455,12 @@ function displayUsers() {
         const role = user.role || 'user';
         const profilePicture = user.avatar || user.photoURL || null;
         
+        // Define roles list for dropdown
+        const roles = ['user', 'admin', 'subscriber', 'moderator', 'organizer'];
+        
         const row = document.createElement('tr');
         row.className = 'border-b border-white/5 hover:bg-white/5';
+        
         row.innerHTML = `
             <td class="p-4">
                 <div class="flex items-center gap-3">
@@ -471,16 +476,20 @@ function displayUsers() {
             <td class="p-4 text-gray-300 hidden md:table-cell">${escapeHtml(email)}</td>
             <td class="p-4">
                 <span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${role === 'admin' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-blue-900/30 text-blue-400'}">
-                    ${role === 'admin' ? '👑' : '👤'} ${escapeHtml(role)}
+                    ${role === 'admin' ? '👑' : '👤'} ${escapeHtml(role.toUpperCase())}
                 </span>
             </td>
+            <td class="p-4 text-gray-400 text-xs hidden lg:table-cell">${dateStr}</td>
             <td class="p-4">
-                <div class="flex gap-2">
-                    <button onclick="toggleUserRole('${user.id}', '${role}')" class="text-xs px-2 py-1 rounded border border-white/20 hover:bg-white/10 text-gray-300">
-                        ${role === 'admin' ? 'Demote' : 'Promote'}
-                    </button>
-                    <button onclick="deleteUserConfirm('${user.id}')" class="text-xs px-2 py-1 rounded border border-red-500/30 hover:bg-red-500/10 text-red-400">
-                        Delete
+                <div class="flex gap-2 items-center">
+                    <select onchange="window.changeUserRole('${user.id}', this.value)" class="dark-select text-xs p-1.5 rounded border border-white/20 bg-black/30 text-white focus:border-[var(--gold)]">
+                        ${roles.map(r => 
+                            `<option value="${r}" ${role === r ? 'selected' : ''}>${r.charAt(0).toUpperCase() + r.slice(1)}</option>`
+                        ).join('')}
+                    </select>
+                    
+                    <button onclick="deleteUserConfirm('${user.id}')" class="text-xs px-2 py-1.5 rounded border border-red-500/30 hover:bg-red-500/10 text-red-400 transition-colors">
+                        🗑
                     </button>
                 </div>
             </td>
@@ -497,20 +506,26 @@ window.filterUsersByRole = function(role) {
     displayUsers();
 }
 
-window.toggleUserRole = async function(userId, currentRole) {
-    if (userId === currentUserId) {
-        window.showWarningToast("Not Allowed", "You cannot change your own role.", 3000);
+// NEW FUNCTION: Handle Dropdown Change
+window.changeUserRole = async function(userId, newRole) {
+    if (userId === currentUserId && newRole !== 'admin') {
+        window.showWarningToast("Not Allowed", "You cannot remove your own Admin access.", 3000);
+        window.fetchUsers(); // Reset UI
         return;
     }
-    const newRole = currentRole === 'admin' ? 'user' : 'admin';
-    const confirmed = await window.showCustomConfirm("Change Role?", `Change user to ${newRole}?`);
-    if (!confirmed) return;
+
+    const confirmed = await window.showCustomConfirm("Update Role?", `Change user to ${newRole.toUpperCase()}?`);
+    if (!confirmed) {
+        window.fetchUsers(); // Reset UI if cancelled
+        return;
+    }
     
     try {
         await updateDoc(doc(db, "users", userId), { role: newRole });
-        window.showSuccessToast("Success", "Role updated", 2000);
+        window.showSuccessToast("Success", `User is now a ${newRole}`, 2000);
         window.fetchUsers();
     } catch (error) {
+        console.error(error);
         window.showErrorToast("Error", "Failed to update role", 3000);
     }
 }
