@@ -5,7 +5,8 @@ import {
     signInWithEmailAndPassword, 
     updateProfile,
     GoogleAuthProvider,
-    signInWithPopup
+    signInWithPopup,
+    sendEmailVerification
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
@@ -54,7 +55,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 btn.disabled = true;
                 
                 const creds = await signInWithEmailAndPassword(auth, email, password);
-                await ensureUserProfile(creds.user); // Check/Create Profile
+                const user = creds.user;
+                
+                // Check if email is verified (skip for Google sign-ins as they're auto-verified)
+                if (!user.emailVerified && !user.providerData.some(p => p.providerId === 'google.com')) {
+                    // Don't sign out - keep them signed in so they can resend verification
+                    window.showErrorToast("Email Not Verified", "Please verify your email before signing in.", 4000);
+                    // Redirect to verify-email page where they can resend
+                    setTimeout(() => {
+                        window.location.href = '/verify-email';
+                    }, 1000);
+                    return;
+                }
+                
+                await ensureUserProfile(user); // Check/Create Profile
                 
                 window.showSuccessToast("Success!", "Login Successful!", 2000);
                 setTimeout(() => window.location.href = "/profile", 1000);
@@ -95,7 +109,13 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Update Display Name
                 await updateProfile(user, { displayName: username });
 
-                // Create Firestore Document (This is what you saw working before!)
+                // Send email verification
+                await sendEmailVerification(user, {
+                    url: window.location.origin + '/login',
+                    handleCodeInApp: false
+                });
+
+                // Create Firestore Document
                 await setDoc(doc(db, "users", user.uid), {
                     username: username,
                     displayName: username,
@@ -109,8 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     lastSignInTime: serverTimestamp()
                 });
 
-                window.showSuccessToast("Success!", "Account Created Successfully!", 2000);
-                setTimeout(() => window.location.href = "/profile", 1000);
+                // Keep user signed in and redirect to verify-email page
+                window.showSuccessToast("Success!", "Account created! Please check your email to verify your account.", 4000);
+                setTimeout(() => window.location.href = "/verify-email?fromSignup=true", 1500);
             } catch (error) {
                 console.error(error);
                 window.showErrorToast("Signup Failed", error.message, 4000);

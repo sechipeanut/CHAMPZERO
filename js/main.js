@@ -1,5 +1,6 @@
 import { auth } from './firebase-config.js';
 import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+import { initLiveScores } from './live-scores.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     
@@ -47,6 +48,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 3. DYNAMIC NAV BAR (Show/Hide Login/Profile) ---
     onAuthStateChanged(auth, async (user) => {
         const authControls = document.getElementById('auth-controls');
+        // NEW: Select the wrapper (Ensure you added id="auth-controls-wrapper" in your HTML)
+        const authWrapper = document.getElementById('auth-controls-wrapper');
+        
         // Mobile Auth Controls (inside the menu)
         const mobileAuth = document.querySelector('#mobile-menu .border-t'); 
 
@@ -162,5 +166,20 @@ document.addEventListener('DOMContentLoaded', () => {
                 <a href="/signup" class="hidden sm:inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
             `;
         }
+
+        if (authWrapper) {
+            // A small timeout ensures the browser has rendered the initial state before fading in
+            setTimeout(() => {
+                authWrapper.classList.remove('opacity-0');
+                authWrapper.classList.remove('pointer-events-none');
+            }, 50); 
+        }
+
+        // --- THE CRITICAL FIX ---
+        // Once all decisions (Profile vs Login) are made, make the wrapper visible
+        if (authWrapper) {
+            authWrapper.style.visibility = 'visible';
+        }
     });
+    initLiveScores();
 });
