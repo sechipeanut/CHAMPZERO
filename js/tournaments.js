@@ -31,84 +31,113 @@ function injectTreeStyles() {
     const style = document.createElement('style');
     style.id = 'tree-bracket-styles';
     style.textContent = `
+        /* --- RESPONSIVE VARIABLES --- */
+        :root {
+            --tree-card-width: 220px;
+            --tree-gap-parent: 50px; /* The gap to the left of a parent */
+            --tree-gap-child: 25px;  /* The gap to the right of a child */
+            /* Total gap = parent + child (75px default) */
+            
+            --gf-connector-width: 48px; /* Width of line connecting UB to Grand Final */
+            --gf-padding-left: 8px;     /* Padding before GF Card */
+            --gf-header-offset: calc(var(--gf-connector-width) + var(--gf-padding-left));
+        }
+
+        /* MOBILE OVERRIDE (Screens smaller than 768px) */
+        @media (max-width: 768px) {
+            :root {
+                --tree-card-width: 150px; /* Smaller cards */
+                --tree-gap-parent: 20px;  /* Tighter structure */
+                --tree-gap-child: 15px;
+                --gf-connector-width: 24px;
+                --gf-padding-left: 4px;
+            }
+            .tree-match-card {
+                font-size: 0.75rem !important; /* Smaller text */
+            }
+            .header-item {
+                font-size: 0.7rem !important;
+            }
+        }
+
         /* Main Container */
         .bracket-scroll-container {
             display: flex;
             flex-direction: column;
-            align-items: flex-start; /* Align left to match tree growth */
-            padding: 40px;
+            align-items: flex-start;
+            padding: 20px; /* Reduced padding for mobile */
             overflow: auto;
+            -webkit-overflow-scrolling: touch; /* Smooth scroll on iOS */
             height: 100%;
-            min-height: 600px;
+            min-height: 500px;
         }
 
         /* HEADER STYLES */
         .bracket-header-row {
             display: flex;
             flex-direction: row;
-            margin-bottom: 30px;
-            padding-left: 20px; /* Aligns with wrapper padding */
-            min-width: max-content; /* Ensure it scrolls with bracket */
+            margin-bottom: 20px;
+            padding-left: 0; 
+            min-width: max-content;
         }
         
         .header-item {
-            width: 220px;
+            width: var(--tree-card-width);
             display: flex;
             justify-content: center;
             align-items: center;
             font-weight: 800;
             color: var(--gold);
             text-transform: uppercase;
-            letter-spacing: 0.15em;
+            letter-spacing: 0.1em;
             font-size: 0.85rem;
-            margin-right: 50px;
+            /* Dynamic Margin based on gaps */
+            margin-right: calc(var(--tree-gap-parent) + var(--tree-gap-child)); 
             flex-shrink: 0;
             position: relative;
             text-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
         }
+
+        /* Special Class for Grand Final Header Alignment */
+        .header-item.gf-header {
+            margin-left: var(--gf-header-offset) !important;
+            margin-right: 0 !important;
+        }
         
-        /* Decorative underline for headers */
         .header-item::after {
             content: '';
             position: absolute;
-            bottom: -10px;
+            bottom: -8px;
             left: 50%;
             transform: translateX(-50%);
-            width: 80px;
-            height: 3px;
+            width: 40%;
+            height: 2px;
             background: var(--gold);
             box-shadow: 0 0 8px var(--gold);
-            border-radius: 2px;
         }
 
         /* BRACKET TREE WRAPPER */
         .wrapper {
             display: flex;
             align-items: center;
-            justify-content: flex-start;
-            padding: 20px;
+            padding: 0; 
             min-width: max-content;
         }
 
-        .item {
-            display: flex;
-            flex-direction: row;
-            align-items: center;
-        }
+        .item { display: flex; flex-direction: row; align-items: center; }
 
         .item-parent {
             position: relative;
-            margin-left: 50px; /* Space between columns */
+            margin-left: var(--tree-gap-parent); /* USE VARIABLE */
             display: flex;
             align-items: center;
             z-index: 10;
         }
 
-        /* Horizontal Line: Parent to Left Fork */
         .item-parent::after {
             position: absolute;
             content: '';
-            width: 50px; /* Half of margin-left */
+            width: var(--tree-gap-parent); /* USE VARIABLE */
             height: 2px;
             left: 0;
             top: 50%;
@@ -116,33 +145,27 @@ function injectTreeStyles() {
             transform: translateX(-100%);
         }
 
-        .item-childrens {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-        }
+        .item-childrens { display: flex; flex-direction: column; justify-content: center; }
         
         .item-child {
             display: flex;
             align-items: center;
             justify-content: flex-end;
-            margin: 10px 0; /* Vertical Gap between matches */
+            margin: 5px 0; /* Tighter vertical margin */
             position: relative;
-            padding-right: 25px; /* Space for horizontal connector */
+            padding-right: var(--tree-gap-child); /* USE VARIABLE */
         }
         
-        /* Horizontal Line: Child to Right Fork */
         .item-child::before {
             content: '';
             position: absolute;
             background-color: var(--line-color, rgba(255, 255, 255, 0.4));
             right: 0;
             top: 50%;
-            width: 25px;
+            width: var(--tree-gap-child); /* USE VARIABLE */
             height: 2px;
         }
         
-        /* VERTICAL FORK LINES (The Fix) */
         .item-child::after {
             content: '';
             position: absolute;
@@ -151,27 +174,20 @@ function injectTreeStyles() {
             width: 2px;
         }
         
-        /* Top Child: Line goes from center DOWN to gap */
-        .item-child:first-child::after {
-            top: 50%;
-            height: calc(50% + 10px); /* 50% of child height + margin gap */
+        .item-child:first-child::after { top: 50%; height: calc(50% + 6px); }
+        .item-child:last-child::after { top: auto; bottom: 50%; height: calc(50% + 6px); }
+        .item-child:only-child::after { display: none; }
+        .item-childrens:empty + .item-parent::after { display: none; }
+
+        /* Grand Final Connector Line Class */
+        .gf-connector-line {
+            width: var(--gf-connector-width);
+            height: 2px;
+            background-color: #4b5563; /* gray-600 */
         }
-        
-        /* Bottom Child: Line goes from center UP to gap */
-        .item-child:last-child::after {
-            top: auto;
-            bottom: 50%;
-            height: calc(50% + 10px); /* 50% of child height + margin gap */
-        }
-        
-        /* Single Child (Bye): No vertical line, making it straight */
-        .item-child:only-child::after {
-            display: none;
-        }
-        
-        /* Remove connectors for the very first round (leaves) */
-        .item-childrens:empty + .item-parent::after {
-            display: none;
+
+        .gf-wrapper {
+            padding-left: var(--gf-padding-left);
         }
 
         /* CARD STYLES */
@@ -180,8 +196,8 @@ function injectTreeStyles() {
             border: 1px solid var(--gold, #FFD700);
             border-left: 3px solid var(--gold, #FFD700);
             border-radius: 4px;
-            padding: 8px 12px;
-            width: 220px;
+            padding: 8px 10px;
+            width: var(--tree-card-width); /* USE VARIABLE */
             flex-shrink: 0;
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
             display: flex;
@@ -189,26 +205,18 @@ function injectTreeStyles() {
             justify-content: center;
             position: relative;
             z-index: 20;
-            transition: transform 0.2s, box-shadow 0.2s;
+            transition: transform 0.2s;
         }
-        .tree-match-card:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.6);
-            border-color: rgba(255, 215, 0, 0.3);
-        }
-        .tree-match-card.completed {
-            border-right: 1px solid rgba(74, 222, 128, 0.3);
-        }
+        .tree-match-card:hover { transform: translateY(-2px); }
         .tree-match-card.bye-card {
-            border-left: 3px solid transparent;
             border: 1px dashed rgba(255, 255, 255, 0.2);
-            opacity: 0.6;
             background: transparent;
             box-shadow: none;
         }
     `;
     document.head.appendChild(style);
 }
+
 // Call init
 document.addEventListener('DOMContentLoaded', injectTreeStyles);
 
@@ -1717,49 +1725,60 @@ function renderDoubleEliminationLive(container, matches, isAdmin) {
     scrollWrapper.className = "overflow-auto custom-scrollbar pb-10 h-full";
     scrollWrapper.style.minHeight = "600px"; 
 
-    // --- UPPER BRACKET CONTAINER ---
+    // --- UPPER BRACKET HEADER CONTAINER ---
+    // This now only holds the headers
     const ubContainer = document.createElement('div');
     ubContainer.id = 'ub-container';
-    ubContainer.className = "flex flex-col items-start"; // Changed to flex-col to stack headers on top of tree
+    ubContainer.className = "flex flex-col items-start"; 
 
     // 1. Identify the "Upper Bracket Final" (The root of the WB Tree)
     const wbMatches = matches.filter(m => m.bracket === 'upper');
     const finalWBMatch = wbMatches.sort((a, b) => b.round - a.round)[0];
     const maxRound = finalWBMatch ? finalWBMatch.round : 0;
 
-    // --- FIX: GENERATE HEADERS ---
+    // --- GENERATE HEADERS ---
     if (wbMatches.length > 0) {
         const headersDiv = document.createElement('div');
         headersDiv.className = 'bracket-header-row';
-        headersDiv.style.marginBottom = "20px"; // Ensure spacing between header and cards
+        headersDiv.style.marginBottom = "20px";
+        headersDiv.style.paddingLeft = "0";
 
         // Loop 1 to MaxRound
         for (let i = 1; i <= maxRound; i++) {
             const hItem = document.createElement('div');
             hItem.className = 'header-item';
             
-            // Naming logic
             if (i === maxRound) hItem.textContent = "UB Final";
             else hItem.textContent = `Round ${i}`;
             
             headersDiv.appendChild(hItem);
         }
 
-        // Add Header for Grand Final (Manual append)
+        // Add Header for Grand Final
         const gfHeader = document.createElement('div');
-        gfHeader.className = 'header-item';
+        // Apply special class 'gf-header' for responsive positioning
+        gfHeader.className = 'header-item gf-header'; 
         gfHeader.textContent = "Grand Final";
-        // We add a little extra left margin to the GF header to account for the connector line
-        gfHeader.style.marginLeft = "45px"; 
-        headersDiv.appendChild(gfHeader);
+        
+        // Remove standard margin from the previous item
+        if (headersDiv.lastChild) {
+            headersDiv.lastChild.style.marginRight = "0";
+        }
 
+        // NOTE: removed manual .style.marginLeft assignment here
+        // The CSS class .gf-header handles it via variables now.
+
+        headersDiv.appendChild(gfHeader);
         ubContainer.appendChild(headersDiv);
     }
-    // --- END HEADER FIX ---
 
-    // Wrapper for the actual tree + GF card
+    // --- BRACKET TREE WRAPPER ---
+    // This holds the actual lines and matches
     const treeRowWrapper = document.createElement('div');
     treeRowWrapper.className = "flex items-center";
+    
+    // OPTIONAL: If you need to move the whole tree left/right, add margin here:
+    // treeRowWrapper.style.marginLeft = "20px"; 
 
     if (finalWBMatch) {
         // Build the tree specifically ending at the WB Final
@@ -1767,7 +1786,6 @@ function renderDoubleEliminationLive(container, matches, isAdmin) {
         
         const treeWrapper = document.createElement('div');
         treeWrapper.className = 'wrapper';
-        // Reset wrapper padding so it aligns with headers
         treeWrapper.style.padding = "0"; 
         treeWrapper.style.paddingRight = "0";
         
@@ -1777,19 +1795,19 @@ function renderDoubleEliminationLive(container, matches, isAdmin) {
         // 2. Append Grand Final manually to the right
         const gfMatch = matches.find(m => m.bracket === 'final');
         if (gfMatch) {
-            // Add a connector line
+            // 1. Connector Line (Use CSS Class instead of Tailwind w-12)
             const connector = document.createElement('div');
-            connector.className = "w-12 h-0.5 bg-gray-600"; // Horizontal line
+            connector.className = "gf-connector-line"; // Defines width responsively
             treeRowWrapper.appendChild(connector);
 
-            // Add the Final Card
+            // 2. Final Wrapper (Use CSS Class instead of Tailwind pl-2)
             const finalWrapper = document.createElement('div');
-            finalWrapper.className = "flex flex-col justify-center pl-2";
-            finalWrapper.innerHTML = `<div class="text-center text-red-500 font-bold mb-2 text-xs uppercase tracking-widest">Grand Final</div>`;
+            finalWrapper.className = "gf-wrapper flex flex-col justify-center"; 
+            
+            finalWrapper.innerHTML = `<div class="text-center text-red-500 font-bold mb-2 text-[10px] uppercase tracking-widest">Grand Final</div>`;
             
             const card = createLiveMatchCard(gfMatch, isAdmin);
             card.style.border = "1px solid #ef4444"; 
-            card.style.boxShadow = "0 0 15px rgba(239, 68, 68, 0.2)";
             
             finalWrapper.appendChild(card);
             treeRowWrapper.appendChild(finalWrapper);
@@ -1798,10 +1816,15 @@ function renderDoubleEliminationLive(container, matches, isAdmin) {
         treeRowWrapper.innerHTML = '<div class="p-10 text-gray-500">Bracket generation error. No Upper Bracket found.</div>';
     }
 
-    ubContainer.appendChild(treeRowWrapper);
+    // --- CRITICAL CHANGE: Append separately ---
+    // 1. Append Headers first
     scrollWrapper.appendChild(ubContainer);
+    
+    // 2. Append Tree second (As a sibling, not a child)
+    scrollWrapper.appendChild(treeRowWrapper);
 
-    // --- LOWER BRACKET CONTAINER (Keep existing logic) ---
+
+    // --- LOWER BRACKET CONTAINER ---
     const lbContainer = document.createElement('div');
     lbContainer.id = 'lb-container';
     lbContainer.className = "flex gap-10 hidden pt-10 px-10";
