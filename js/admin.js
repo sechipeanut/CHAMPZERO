@@ -610,9 +610,9 @@ window.fetchUsers = async function() {
         displayUsers();
     } catch (error) {
         console.error('Error fetching users:', error);
-        const tbody = qs('#users-table-body');
-        if (tbody) {
-            tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-red-400">Error loading users.</td></tr>';
+        const container = qs('#users-list-view');
+        if (container) {
+            container.innerHTML = '<div class="text-center py-12 text-red-400">Error loading users.</div>';
         }
     }
 }
@@ -631,8 +631,8 @@ window.refreshUsers = async function() {
 }
 
 function displayUsers() {
-    const tbody = qs('#users-table-body');
-    if (!tbody) return;
+    const container = qs('#users-list-view');
+    if (!container) return;
     
     const searchTerm = qs('#user-search')?.value?.toLowerCase() || '';
     
@@ -645,16 +645,18 @@ function displayUsers() {
         return matchesRole && matchesSearch;
     });
     
+    // Update Stats
     if (qs('#user-count')) qs('#user-count').textContent = allUsers.length;
     if (qs('#admin-count')) qs('#admin-count').textContent = allUsers.filter(u => u.role === 'admin').length;
     if (qs('#regular-user-count')) qs('#regular-user-count').textContent = allUsers.filter(u => u.role !== 'admin').length;
     
     if (filtered.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-400">No users found.</td></tr>';
+        container.innerHTML = '<div class="text-center py-12 bg-[var(--dark-card)] rounded-xl border border-white/5 text-gray-400">No users found matching your criteria.</div>';
         return;
     }
     
-    tbody.innerHTML = '';
+    container.innerHTML = '';
+    
     filtered.forEach(user => {
         const createdDate = user.createdAt?.toDate?.() || user.joinedAt ? new Date(user.joinedAt) : null;
         const dateStr = createdDate ? createdDate.toLocaleDateString() : 'Unknown';
@@ -664,42 +666,49 @@ function displayUsers() {
         const profilePicture = user.avatar || user.photoURL || null;
         const roles = ['user', 'admin', 'subscriber', 'moderator', 'organizer'];
         
-        const row = document.createElement('tr');
-        row.className = 'border-b border-white/5 hover:bg-white/5';
+        // Mobile-First Card Design
+        const card = document.createElement('div');
+        card.className = 'bg-[var(--dark-card)] p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center gap-4 transition-all hover:border-[var(--gold)]/30';
         
-        row.innerHTML = `
-            <td class="p-4">
-                <div class="flex items-center gap-3">
-                    ${profilePicture ? 
-                        `<img src="${escapeHtml(profilePicture)}" alt="${escapeHtml(displayName)}" class="w-10 h-10 rounded-full object-cover border-2 border-white/10">` :
-                        `<div class="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-orange-500/20 flex items-center justify-center text-lg font-bold text-white border-2 border-white/10">
-                            ${escapeHtml(displayName.charAt(0).toUpperCase())}
-                        </div>`
-                    }
-                    <div class="font-semibold text-white">${escapeHtml(displayName)}</div>
+        card.innerHTML = `
+            <div class="flex items-center gap-4 flex-1 overflow-hidden">
+                ${profilePicture ? 
+                    `<img src="${escapeHtml(profilePicture)}" alt="${escapeHtml(displayName)}" class="w-12 h-12 rounded-full object-cover border-2 border-white/10 shrink-0">` :
+                    `<div class="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-orange-500/20 flex items-center justify-center text-lg font-bold text-[var(--gold)] border-2 border-[var(--gold)]/30 shrink-0">
+                        ${escapeHtml(displayName.charAt(0).toUpperCase())}
+                    </div>`
+                }
+                <div class="min-w-0">
+                    <div class="font-bold text-white truncate text-base">${escapeHtml(displayName)}</div>
+                    <div class="text-sm text-gray-400 truncate">${escapeHtml(email)}</div>
+                    <div class="md:hidden mt-1 text-xs text-gray-500">Joined: ${dateStr}</div>
                 </div>
-            </td>
-            <td class="p-4 text-gray-300 hidden md:table-cell">${escapeHtml(email)}</td>
-            <td class="p-4">
-                <span class="inline-flex items-center gap-1 px-2 py-1 rounded text-xs ${role === 'admin' ? 'bg-yellow-900/30 text-yellow-400' : 'bg-blue-900/30 text-blue-400'}">
-                    ${role === 'admin' ? '👑' : '👤'} ${escapeHtml(role.toUpperCase())}
+            </div>
+
+            <div class="flex items-center justify-between md:justify-start md:w-1/4">
+                <span class="md:hidden text-sm text-gray-400 font-medium">Role</span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${role === 'admin' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}">
+                    ${role === 'admin' ? '👑' : '👤'} ${escapeHtml(role)}
                 </span>
-            </td>
-            <td class="p-4 text-gray-400 text-xs hidden lg:table-cell">${dateStr}</td>
-            <td class="p-4">
-                <div class="flex gap-2 items-center">
-                    <select onchange="window.changeUserRole('${user.id}', this.value)" class="dark-select text-xs p-1.5 rounded border border-white/20 bg-black/30 text-white focus:border-[var(--gold)]">
-                        ${roles.map(r => 
-                            `<option value="${r}" ${role === r ? 'selected' : ''}>${r.charAt(0).toUpperCase() + r.slice(1)}</option>`
-                        ).join('')}
-                    </select>
-                    <button onclick="window.deleteUserConfirm('${user.id}')" class="text-xs px-2 py-1.5 rounded border border-red-500/30 hover:bg-red-500/10 text-red-400 transition-colors">
-                        🗑
-                    </button>
-                </div>
-            </td>
+            </div>
+
+            <div class="hidden md:block w-1/6 text-sm text-gray-400">
+                ${dateStr}
+            </div>
+
+            <div class="flex flex-col sm:flex-row gap-2 mt-2 md:mt-0 md:w-1/4 justify-end">
+                <select onchange="window.changeUserRole('${user.id}', this.value)" class="dark-select w-full sm:w-auto text-sm py-2 px-3 rounded-lg border border-white/10 bg-black/20 text-white focus:border-[var(--gold)] cursor-pointer">
+                    ${roles.map(r => 
+                        `<option value="${r}" ${role === r ? 'selected' : ''}>${r.charAt(0).toUpperCase() + r.slice(1)}</option>`
+                    ).join('')}
+                </select>
+                <button onclick="window.deleteUserConfirm('${user.id}')" class="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-colors" title="Delete User">
+                    <span class="md:hidden font-bold text-sm">Delete</span>
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                </button>
+            </div>
         `;
-        tbody.appendChild(row);
+        container.appendChild(card);
     });
 }
 
