@@ -6,30 +6,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>ChampZero — Teams & Recruitment</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap"
+        rel="stylesheet">
     <style>
-        :root { 
-            --gold: #FFD700; 
-            --gold-darker: #C99700; 
-            --dark-bg: #111115; 
-            --dark-card: #1A1A1F; 
+        :root {
+            --gold: #FFD700;
+            --gold-darker: #C99700;
+            --dark-bg: #111115;
+            --dark-card: #1A1A1F;
         }
-        body { font-family: 'Poppins', sans-serif; }
-        
+
+        body {
+            font-family: 'Poppins', sans-serif;
+        }
+
         /* Navigation (Preserved) */
-        .nav-link { position: relative; }
-        .nav-link::after { content: ''; position: absolute; width: 100%; transform: scaleX(0); height: 2px; bottom: -4px; left: 0; background-color: var(--gold); transform-origin: bottom right; transition: transform 0.25s ease-out; }
-        .nav-link:hover::after { transform: scaleX(1); transform-origin: bottom left; }
-        :focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; border-radius: 4px; }
-        
-        /* Branding Utilities */
-        .text-glow { text-shadow: 0 0 10px rgba(255, 215, 0, 0.5); }
-        .futuristic-bg { 
-            background-color: var(--dark-bg); 
-            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px); 
-            background-size: 30px 30px; 
+        .nav-link {
+            position: relative;
         }
-        
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            transform: scaleX(0);
+            height: 2px;
+            bottom: -4px;
+            left: 0;
+            background-color: var(--gold);
+            transform-origin: bottom right;
+            transition: transform 0.25s ease-out;
+        }
+
+        .nav-link:hover::after {
+            transform: scaleX(1);
+            transform-origin: bottom left;
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--gold);
+            outline-offset: 4px;
+            border-radius: 4px;
+        }
+
+        /* Branding Utilities */
+        .text-glow {
+            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+        }
+
+        .futuristic-bg {
+            background-color: var(--dark-bg);
+            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+
         /* Glass Panel */
         .glass-panel {
             background: rgba(26, 26, 31, 0.85);
@@ -39,36 +69,110 @@
         }
 
         /* Inputs & Selects */
-        .dark-input, .dark-select { 
-            background-color: rgba(255, 255, 255, 0.05); 
-            border: 1px solid rgba(255, 255, 255, 0.1); 
-            color: #fff; 
+        .dark-input,
+        .dark-select {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
             transition: all 0.2s;
         }
-        .dark-input:focus, .dark-select:focus { 
-            outline: none; 
-            border-color: var(--gold); 
+
+        .dark-input:focus,
+        .dark-select:focus {
+            outline: none;
+            border-color: var(--gold);
             box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.3);
-            background-color: rgba(255, 255, 255, 0.1); 
+            background-color: rgba(255, 255, 255, 0.1);
         }
-        .dark-select option { background-color: var(--dark-card); color: white; }
-        
+
+        .dark-select option {
+            background-color: var(--dark-card);
+            color: white;
+        }
+
         /* Chat Bubble */
-        .chat-bubble { max-width: 85%; padding: 10px 14px; border-radius: 12px; font-size: 0.9rem; line-height: 1.4; }
-        .chat-bubble.mine { background: linear-gradient(135deg, var(--gold), var(--gold-darker)); color: black; align-self: flex-end; border-bottom-right-radius: 2px; font-weight: 500; }
-        .chat-bubble.theirs { background-color: rgba(255, 255, 255, 0.1); border: 1px solid rgba(255,255,255,0.05); color: white; align-self: flex-start; border-bottom-left-radius: 2px; }
-        
+        .chat-bubble {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+
+        .chat-bubble.mine {
+            background: linear-gradient(135deg, var(--gold), var(--gold-darker));
+            color: black;
+            align-self: flex-end;
+            border-bottom-right-radius: 2px;
+            font-weight: 500;
+        }
+
+        .chat-bubble.theirs {
+            background-color: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            color: white;
+            align-self: flex-start;
+            border-bottom-left-radius: 2px;
+        }
+
         /* Scrollbars */
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-        .custom-scrollbar::-webkit-scrollbar-track { background: rgba(255,255,255,0.02); }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.2); }
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: rgba(255, 255, 255, 0.02);
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* BLIMP NOTIFICATIONS */
+    .blimp-container {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        display: flex;
+        gap: 8px; /* Space between red and blue if both are present */
+        z-index: 20;
+    }
+
+    .blimp {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid var(--dark-card); /* Border makes it pop against bg */
+        animation: blimp-pulse 1.5s infinite;
+    }
+
+    .blimp.red {
+        background-color: #ef4444; /* Red-500 */
+        box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+    }
+
+    .blimp.blue {
+        background-color: #3b82f6; /* Blue-500 */
+        box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+    }
+
+    @keyframes blimp-pulse {
+        0% { transform: scale(1); opacity: 1; }
+        50% { transform: scale(1.3); opacity: 0.8; }
+        100% { transform: scale(1); opacity: 1; }
+    }
     </style>
 </head>
 
 <body class="bg-[var(--dark-bg)] text-gray-200 antialiased flex flex-col min-h-screen futuristic-bg">
 
-    <header id="main-header" class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 transition-all duration-300">
+    <header id="main-header"
+        class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 transition-all duration-300">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
             <a href="/" class="flex items-center gap-3">
                 <img src="pictures/cz_logo.png" alt="ChampZero Logo" class="w-10 h-10 rounded-md object-cover">
@@ -77,23 +181,36 @@
 
             <nav class="hidden md:flex items-center gap-8 text-sm">
                 <a href="/" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Home</a>
-                <a href="/tournaments" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Tournaments</a>
-                <a href="/events" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors flex items-center gap-2">Events</a>
-                <a href="/teams" class="nav-link text-[var(--gold)] hover:text-[var(--gold)] transition-colors">Teams & Recruitment</a>
-                <a href="/rising" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Rising Champ</a>
-                <a href="/partners" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Partners</a>
+                <a href="/tournaments"
+                    class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Tournaments</a>
+                <a href="/events"
+                    class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors flex items-center gap-2">Events</a>
+                <a href="/teams" class="nav-link text-[var(--gold)] hover:text-[var(--gold)] transition-colors">Teams &
+                    Recruitment</a>
+                <a href="/rising" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Rising
+                    Champ</a>
+                <a href="/partners"
+                    class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Partners</a>
                 <a href="/shop" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Shop</a>
             </nav>
 
             <div class="flex items-center gap-3">
-                <div id="auth-controls-wrapper" class="transition-opacity duration-500 opacity-0 pointer-events-none md:min-w-[200px] md:flex md:justify-end">
+                <div id="auth-controls-wrapper"
+                    class="transition-opacity duration-500 opacity-0 pointer-events-none md:min-w-[200px] md:flex md:justify-end">
                     <div id="auth-controls" class="flex items-center gap-3">
-                        <a href="/login" class="text-sm px-3 py-1.5 rounded-md text-gray-300 hover:bg-white/10 transition-colors">Log in</a>
-                        <a href="/signup" class="hidden sm:inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold hover:opacity-90 transition-opacity">Sign Up</a>
+                        <a href="/login"
+                            class="text-sm px-3 py-1.5 rounded-md text-gray-300 hover:bg-white/10 transition-colors">Log
+                            in</a>
+                        <a href="/signup"
+                            class="hidden sm:inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold hover:opacity-90 transition-opacity">Sign
+                            Up</a>
                     </div>
                 </div>
                 <button id="mobile-menu-button" class="md:hidden p-2 rounded-md text-gray-300 hover:bg-white/10">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16m-7 6h7"></path></svg>
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16m-7 6h7"></path>
+                    </svg>
                 </button>
             </div>
         </div>
@@ -110,7 +227,9 @@
             <a href="/shop" class="text-gray-300 hover:text-[var(--gold)]">Shop</a>
             <div class="border-t border-white/20 mt-6 pt-6 flex gap-4">
                 <a href="/login" class="text-sm px-4 py-2 rounded-md text-gray-300 ring-1 ring-gray-600">Log in</a>
-                <a href="/signup" class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
+                <a href="/signup"
+                    class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign
+                    Up</a>
             </div>
         </nav>
     </div>
@@ -124,10 +243,12 @@
                 The ultimate hub to find teammates, recruit rising talent, and build the next champion squad.
             </p>
             <div class="flex flex-col sm:flex-row justify-center gap-4">
-                <a href="#finder" class="bg-[var(--gold)] text-black font-extrabold px-8 py-4 rounded-full shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:scale-105 transition-transform duration-300">
+                <a href="#finder"
+                    class="bg-[var(--gold)] text-black font-extrabold px-8 py-4 rounded-full shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:scale-105 transition-transform duration-300">
                     Find Players & Teams
                 </a>
-                <button onclick="openCreateModal()" class="bg-white/5 border border-white/20 backdrop-blur-sm text-white font-semibold px-8 py-4 rounded-full hover:bg-white/10 hover:border-[var(--gold)] transition-all duration-300">
+                <button onclick="openCreateModal()"
+                    class="bg-white/5 border border-white/20 backdrop-blur-sm text-white font-semibold px-8 py-4 rounded-full hover:bg-white/10 hover:border-[var(--gold)] transition-all duration-300">
                     Post a Listing
                 </button>
             </div>
@@ -135,33 +256,51 @@
 
         <section id="finder" class="pb-24 -mt-6">
             <div class="max-w-7xl mx-auto px-4 sm:px-6">
-                
-                <div class="sticky top-20 z-30 glass-panel rounded-xl p-4 mb-8 shadow-lg transition-all duration-300 flex flex-col xl:flex-row gap-4 justify-between items-center">
-                    
-                    <div class="flex flex-wrap justify-center gap-2 w-full xl:w-auto bg-black/40 p-1.5 rounded-xl border border-white/5">
-                        <button onclick="window.setTab('find-teams')" id="tab-find-teams" class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-[var(--gold)] text-black shadow-lg shadow-yellow-500/20">Find a Team</button>
-                        <button onclick="window.setTab('find-players')" id="tab-find-players" class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10">Find Players</button>
-                        <button onclick="window.setTab('my-teams')" id="tab-my-teams" class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10">My Teams</button>
-                        <button onclick="window.setTab('my-lft')" id="tab-my-lft" class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10">My Listings</button>
+
+                <div
+                    class="sticky top-20 z-30 glass-panel rounded-xl p-4 mb-8 shadow-lg transition-all duration-300 flex flex-col xl:flex-row gap-4 justify-between items-center">
+
+                    <div
+                        class="flex flex-wrap justify-center gap-2 w-full xl:w-auto bg-black/40 p-1.5 rounded-xl border border-white/5">
+                        <button onclick="window.setTab('find-teams')" id="tab-find-teams"
+                            class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-[var(--gold)] text-black shadow-lg shadow-yellow-500/20">Find
+                            a Team</button>
+                        <button onclick="window.setTab('find-players')" id="tab-find-players"
+                            class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10">Find
+                            Players</button>
+                        <button onclick="window.setTab('my-teams')" id="tab-my-teams"
+                            class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10">My
+                            Teams</button>
+                        <button onclick="window.setTab('my-lft')" id="tab-my-lft"
+                            class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10">My
+                            Listings</button>
                     </div>
 
                     <div class="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
-                        <select onchange="window.setGameFilter(this.value)" class="dark-select rounded-lg text-sm px-4 py-2.5 font-medium cursor-pointer w-full sm:w-auto">
+                        <select onchange="window.setGameFilter(this.value)"
+                            class="dark-select rounded-lg text-sm px-4 py-2.5 font-medium cursor-pointer w-full sm:w-auto">
                             <option value="all">All Games</option>
                             <option value="Valorant">Valorant</option>
                             <option value="MLBB">MLBB</option>
                             <option value="HoK">HoK</option>
                         </select>
                         <div class="relative flex-grow sm:w-64">
-                            <input type="text" id="team-search" placeholder="Search name, rank..." class="dark-input w-full pl-4 pr-10 py-2.5 rounded-lg text-sm">
-                            <svg class="w-4 h-4 text-gray-500 absolute right-3 top-3 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <input type="text" id="team-search" placeholder="Search name, rank..."
+                                class="dark-input w-full pl-4 pr-10 py-2.5 rounded-lg text-sm">
+                            <svg class="w-4 h-4 text-gray-500 absolute right-3 top-3 pointer-events-none" fill="none"
+                                stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                            </svg>
                         </div>
                     </div>
                 </div>
 
-                <div id="recruitment-board" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr min-h-[400px]">
+                <div id="recruitment-board"
+                    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 auto-rows-fr min-h-[400px]">
                     <div class="col-span-full py-20 text-center flex flex-col items-center justify-center opacity-60">
-                        <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[var(--gold)] mb-4"></div>
+                        <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[var(--gold)] mb-4">
+                        </div>
                         <p class="text-gray-400 text-sm">Loading recruitment data...</p>
                     </div>
                 </div>
@@ -170,21 +309,31 @@
         </section>
     </main>
 
-    <div id="createTeamModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-        <div id="createTeamBackdrop" class="fixed inset-0 bg-black/90 backdrop-blur-sm transition-opacity duration-300 opacity-0" onclick="window.closeCreateModal()"></div>
+    <div id="createTeamModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog"
+        aria-modal="true">
+        <div id="createTeamBackdrop"
+            class="fixed inset-0 bg-black/90 backdrop-blur-sm transition-opacity duration-300 opacity-0"
+            onclick="window.closeCreateModal()"></div>
         <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
             <div class="flex min-h-full items-center justify-center p-4">
-                <div id="createTeamPanel" class="bg-[var(--dark-card)] border border-white/20 rounded-xl w-full max-w-2xl transform shadow-2xl transition-all duration-300 ease-out opacity-0 scale-95 p-0 overflow-hidden">
-                    
-                    <div class="bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+                <div id="createTeamPanel"
+                    class="bg-[var(--dark-card)] border border-white/20 rounded-xl w-full max-w-2xl transform shadow-2xl transition-all duration-300 ease-out opacity-0 scale-95 p-0 overflow-hidden">
+
+                    <div
+                        class="bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
                         <h3 class="text-xl font-bold text-white">Post Recruitment Listing</h3>
-                        <button onclick="window.closeCreateModal()" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                        <button onclick="window.closeCreateModal()"
+                            class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
                     </div>
 
                     <div class="p-6">
                         <div class="grid grid-cols-2 gap-2 mb-6 bg-black/30 p-1.5 rounded-lg border border-white/5">
-                            <button type="button" onclick="toggleFormType('team')" id="btn-type-team" class="py-2.5 text-sm font-bold rounded bg-[var(--gold)] text-black shadow-md transition-all">Recruit Team</button>
-                            <button type="button" onclick="toggleFormType('lft')" id="btn-type-lft" class="py-2.5 text-sm font-bold rounded text-gray-400 hover:text-white transition-all">Player LFT</button>
+                            <button type="button" onclick="toggleFormType('team')" id="btn-type-team"
+                                class="py-2.5 text-sm font-bold rounded bg-[var(--gold)] text-black shadow-md transition-all">Recruit
+                                Team</button>
+                            <button type="button" onclick="toggleFormType('lft')" id="btn-type-lft"
+                                class="py-2.5 text-sm font-bold rounded text-gray-400 hover:text-white transition-all">Player
+                                LFT</button>
                         </div>
 
                         <form id="createTeamForm" class="space-y-4">
@@ -201,32 +350,52 @@
                             </div>
 
                             <div id="team-fields" class="space-y-4">
-                                <div><label class="block text-sm text-gray-400 mb-1">Team Name</label><input id="create-name" type="text" class="dark-input w-full p-3 rounded" placeholder="e.g. Sentinels PH"></div>
+                                <div><label class="block text-sm text-gray-400 mb-1">Team Name</label><input
+                                        id="create-name" type="text" class="dark-input w-full p-3 rounded"
+                                        placeholder="e.g. Sentinels PH"></div>
                                 <div class="grid grid-cols-2 gap-4">
-                                    <div><label class="block text-sm text-gray-400 mb-1">Max Members</label><input id="create-max" type="number" min="1" value="5" class="dark-input w-full p-3 rounded"></div>
-                                    <div><label class="block text-sm text-gray-400 mb-1">Roles Needed</label><input id="create-roles" type="text" placeholder="Duelist, Flex" class="dark-input w-full p-3 rounded"></div>
+                                    <div><label class="block text-sm text-gray-400 mb-1">Max Members</label><input
+                                            id="create-max" type="number" min="1" value="5"
+                                            class="dark-input w-full p-3 rounded"></div>
+                                    <div><label class="block text-sm text-gray-400 mb-1">Roles Needed</label><input
+                                            id="create-roles" type="text" placeholder="Duelist, Flex"
+                                            class="dark-input w-full p-3 rounded"></div>
                                 </div>
                             </div>
 
                             <div id="lft-fields" class="hidden space-y-4">
-                                <div><label class="block text-sm text-gray-400 mb-1">IGN (In-Game Name)</label><input id="create-ign" type="text" class="dark-input w-full p-3 rounded"></div>
+                                <div><label class="block text-sm text-gray-400 mb-1">IGN (In-Game Name)</label><input
+                                        id="create-ign" type="text" class="dark-input w-full p-3 rounded"></div>
                                 <div class="grid grid-cols-2 gap-4">
-                                    <div><label class="block text-sm text-gray-400 mb-1">Current Rank</label><input id="create-rank" type="text" placeholder="e.g. Immortal" class="dark-input w-full p-3 rounded"></div>
-                                    <div><label class="block text-sm text-gray-400 mb-1">Main Role</label><input id="create-main-role" type="text" placeholder="e.g. Controller" class="dark-input w-full p-3 rounded"></div>
+                                    <div><label class="block text-sm text-gray-400 mb-1">Current Rank</label><input
+                                            id="create-rank" type="text" placeholder="e.g. Immortal"
+                                            class="dark-input w-full p-3 rounded"></div>
+                                    <div><label class="block text-sm text-gray-400 mb-1">Main Role</label><input
+                                            id="create-main-role" type="text" placeholder="e.g. Controller"
+                                            class="dark-input w-full p-3 rounded"></div>
                                 </div>
                             </div>
 
                             <div>
-                                <label class="block text-sm text-[var(--gold)] mb-1">Direct Invite Link (Premium)</label>
-                                <input id="create-link" type="url" placeholder="https://discord.gg/..." class="dark-input w-full p-3 rounded border-[var(--gold)]/30 focus:border-[var(--gold)]">
+                                <label class="block text-sm text-[var(--gold)] mb-1">Direct Invite Link
+                                    (Premium)</label>
+                                <input id="create-link" type="url" placeholder="https://discord.gg/..."
+                                    class="dark-input w-full p-3 rounded border-[var(--gold)]/30 focus:border-[var(--gold)]">
                             </div>
 
-                            <div><label class="block text-sm text-gray-400 mb-1">Description</label><textarea id="create-desc" rows="3" required class="dark-input w-full p-3 rounded" placeholder="Tell us about your goals..."></textarea></div>
-                            <div><label class="block text-sm text-gray-400 mb-1">Image URL (Optional)</label><input id="create-img" type="url" class="dark-input w-full p-3 rounded" placeholder="https://..."></div>
+                            <div><label class="block text-sm text-gray-400 mb-1">Description</label><textarea
+                                    id="create-desc" rows="3" required class="dark-input w-full p-3 rounded"
+                                    placeholder="Tell us about your goals..."></textarea></div>
+                            <div><label class="block text-sm text-gray-400 mb-1">Image URL (Optional)</label><input
+                                    id="create-img" type="url" class="dark-input w-full p-3 rounded"
+                                    placeholder="https://..."></div>
 
                             <div class="pt-4 flex gap-3">
-                                <button type="button" onclick="window.closeCreateModal()" class="flex-1 py-3 bg-white/10 rounded-lg text-sm font-bold hover:bg-white/20 transition-colors text-white">Cancel</button>
-                                <button type="submit" class="flex-1 py-3 bg-[var(--gold)] text-black rounded-lg text-sm font-bold hover:bg-yellow-400 transition-colors shadow-lg">Post Listing</button>
+                                <button type="button" onclick="window.closeCreateModal()"
+                                    class="flex-1 py-3 bg-white/10 rounded-lg text-sm font-bold hover:bg-white/20 transition-colors text-white">Cancel</button>
+                                <button type="submit"
+                                    class="flex-1 py-3 bg-[var(--gold)] text-black rounded-lg text-sm font-bold hover:bg-yellow-400 transition-colors shadow-lg">Post
+                                    Listing</button>
                             </div>
                         </form>
                     </div>
@@ -236,22 +405,31 @@
     </div>
 
     <div id="applicationModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/90 backdrop-blur-sm" onclick="document.getElementById('applicationModal').classList.add('hidden')"></div>
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-sm"
+            onclick="document.getElementById('applicationModal').classList.add('hidden')"></div>
         <div class="relative bg-[var(--dark-card)] border border-white/20 rounded-xl w-full max-w-md p-6 shadow-2xl">
             <h3 class="text-xl font-bold text-white mb-2">Apply to Join</h3>
-            <p class="text-sm text-gray-400 mb-6">Requesting to join <span id="app-team-name" class="text-[var(--gold)] font-bold">Team</span></p>
-            
+            <p class="text-sm text-gray-400 mb-6">Requesting to join <span id="app-team-name"
+                    class="text-[var(--gold)] font-bold">Team</span></p>
+
             <form id="applicationForm" class="space-y-4">
                 <input type="hidden" id="app-team-id">
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-xs text-gray-500 uppercase font-bold mb-1">Rank</label><input id="app-rank" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
-                    <div><label class="block text-xs text-gray-500 uppercase font-bold mb-1">Role</label><input id="app-role" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
+                    <div><label class="block text-xs text-gray-500 uppercase font-bold mb-1">Rank</label><input
+                            id="app-rank" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
+                    <div><label class="block text-xs text-gray-500 uppercase font-bold mb-1">Role</label><input
+                            id="app-role" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
                 </div>
-                <div><label class="block text-xs text-gray-500 uppercase font-bold mb-1">Message</label><textarea id="app-note" rows="3" required class="dark-input w-full p-3 rounded-lg text-sm" placeholder="Why should they pick you?"></textarea></div>
-                
+                <div><label class="block text-xs text-gray-500 uppercase font-bold mb-1">Message</label><textarea
+                        id="app-note" rows="3" required class="dark-input w-full p-3 rounded-lg text-sm"
+                        placeholder="Why should they pick you?"></textarea></div>
+
                 <div class="flex gap-3 pt-2">
-                    <button type="button" onclick="document.getElementById('applicationModal').classList.add('hidden')" class="flex-1 py-2.5 bg-white/10 rounded-lg text-sm font-bold text-white hover:bg-white/20">Cancel</button>
-                    <button type="submit" class="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-500 shadow-lg">Send Request</button>
+                    <button type="button" onclick="document.getElementById('applicationModal').classList.add('hidden')"
+                        class="flex-1 py-2.5 bg-white/10 rounded-lg text-sm font-bold text-white hover:bg-white/20">Cancel</button>
+                    <button type="submit"
+                        class="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-500 shadow-lg">Send
+                        Request</button>
                 </div>
             </form>
         </div>
@@ -259,55 +437,93 @@
 
     <div id="manageTeamModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
         <div class="absolute inset-0 bg-black/90 backdrop-blur-sm" onclick="closeManageModal()"></div>
-        <div class="relative bg-[var(--dark-card)] border border-white/20 rounded-xl w-full md:w-3/4 lg:w-1/2 shadow-2xl h-[85vh] flex flex-col overflow-hidden">
-            
+        <div
+            class="relative bg-[var(--dark-card)] border border-white/20 rounded-xl w-full md:w-3/4 lg:w-1/2 shadow-2xl h-[85vh] flex flex-col overflow-hidden">
+
             <div class="p-5 border-b border-white/10 flex justify-between items-center bg-black/20">
                 <div>
                     <h3 class="text-lg font-bold text-white">Team Dashboard</h3>
-                    <p id="manage-team-name" class="text-[var(--gold)] text-xs font-bold uppercase tracking-wider mt-1">Loading...</p>
+                    <p id="manage-team-name" class="text-[var(--gold)] text-xs font-bold uppercase tracking-wider mt-1">
+                        Loading...</p>
                 </div>
-                <button onclick="closeManageModal()" class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                <button onclick="closeManageModal()"
+                    class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
             </div>
 
             <div class="flex border-b border-white/10 bg-black/40">
-                <button onclick="switchManageTab('chat')" id="tab-chat" class="flex-1 py-3 text-sm font-bold text-[var(--gold)] border-b-2 border-[var(--gold)] bg-white/5 transition-all">Chat</button>
-                <button onclick="switchManageTab('roster')" id="tab-roster" class="flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all">Roster</button>
-                <button onclick="switchManageTab('applications')" id="tab-applications" class="admin-only flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all">
-                    Requests <span id="badge-apps" class="ml-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded hidden">0</span>
+                <button onclick="switchManageTab('chat')" id="tab-chat"
+                    class="flex-1 py-3 text-sm font-bold text-[var(--gold)] border-b-2 border-[var(--gold)] bg-white/5 transition-all">Chat</button>
+                <button onclick="switchManageTab('roster')" id="tab-roster"
+                    class="flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all">Roster</button>
+                <button onclick="switchManageTab('applications')" id="tab-applications"
+                    class="admin-only flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all">
+                    Requests <span id="badge-apps"
+                        class="ml-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded hidden">0</span>
                 </button>
-                <button onclick="switchManageTab('settings')" id="tab-settings" class="admin-only flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all">Settings</button>
+                <button onclick="switchManageTab('settings')" id="tab-settings"
+                    class="admin-only flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all">Settings</button>
             </div>
 
             <div class="p-0 overflow-y-auto flex-1 bg-black/20 relative custom-scrollbar">
-                
+
                 <div id="view-chat" class="manage-view h-full flex flex-col">
-                    <div id="chat-messages" class="flex-1 p-6 overflow-y-auto space-y-4 flex flex-col custom-scrollbar"></div>
+                    <div id="chat-messages" class="flex-1 p-6 overflow-y-auto space-y-4 flex flex-col custom-scrollbar">
+                    </div>
                     <form id="chatForm" class="p-4 border-t border-white/10 bg-[var(--dark-card)] flex gap-3">
-                        <input type="text" id="chat-input" placeholder="Type a message..." class="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[var(--gold)] text-sm">
-                        <button type="submit" class="bg-[var(--gold)] text-black font-bold px-6 py-2 rounded-lg hover:bg-yellow-400 shadow-lg transition-colors">Send</button>
+                        <input type="text" id="chat-input" placeholder="Type a message..."
+                            class="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[var(--gold)] text-sm">
+                        <button type="submit"
+                            class="bg-[var(--gold)] text-black font-bold px-6 py-2 rounded-lg hover:bg-yellow-400 shadow-lg transition-colors">Send</button>
                     </form>
                 </div>
 
                 <div id="view-roster" class="manage-view hidden p-6">
-                    <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-white/10 pb-2">Active Members</h4>
+                    <h4
+                        class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-white/10 pb-2">
+                        Active Members</h4>
                     <div id="roster-list" class="space-y-3"></div>
                 </div>
 
                 <div id="view-applications" class="manage-view hidden p-6">
-                    <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-white/10 pb-2">Pending Requests</h4>
+                    <h4
+                        class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-white/10 pb-2">
+                        Pending Requests</h4>
                     <div id="applications-list" class="space-y-3"></div>
                 </div>
 
                 <div id="view-settings" class="manage-view hidden p-6">
-                    <form id="editTeamForm" class="space-y-5 max-w-lg mx-auto bg-white/5 p-6 rounded-xl border border-white/10">
-                        <input type="hidden" id="edit-team-id">
-                        <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Team Description</label><textarea id="edit-desc" rows="4" class="dark-input w-full p-3 rounded text-sm"></textarea></div>
-                        <div class="grid grid-cols-2 gap-4">
-                            <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Capacity</label><input id="edit-max" type="number" class="dark-input w-full p-3 rounded text-sm"></div>
-                            <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Status</label><select id="edit-status" class="dark-select w-full p-3 rounded text-sm"><option value="Open">Open</option><option value="Closed">Closed</option></select></div>
+                    <div id="edit-form-container">
+                        <form id="editTeamForm"
+                            class="space-y-5 max-w-lg mx-auto bg-white/5 p-6 rounded-xl border border-white/10">
+                            <input type="hidden" id="edit-team-id">
+                            <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Team
+                                    Description</label><textarea id="edit-desc" rows="4"
+                                    class="dark-input w-full p-3 rounded text-sm"></textarea></div>
+                            <div class="grid grid-cols-2 gap-4">
+                                <div><label
+                                        class="block text-xs font-bold text-gray-400 uppercase mb-1">Capacity</label><input
+                                        id="edit-max" type="number" class="dark-input w-full p-3 rounded text-sm"></div>
+                                <div><label
+                                        class="block text-xs font-bold text-gray-400 uppercase mb-1">Status</label><select
+                                        id="edit-status" class="dark-select w-full p-3 rounded text-sm">
+                                        <option value="Open">Open</option>
+                                        <option value="Closed">Closed</option>
+                                    </select></div>
+                            </div>
+                            <button type="submit"
+                                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg transition shadow-lg mt-2">Save
+                                Changes</button>
+                        </form>
+
+                        <div class="max-w-lg mx-auto mt-8 pt-8 border-t border-white/10">
+                            <h4 class="text-red-500 font-bold text-sm mb-2 uppercase">Danger Zone</h4>
+                            <p class="text-gray-500 text-xs mb-4">Disbanding the team will delete the listing and remove
+                                all members. This cannot be undone.</p>
+                            <button id="btn-disband" onclick="window.disbandTeam()"
+                                class="w-full bg-red-900/20 hover:bg-red-900/40 text-red-500 border border-red-900/50 font-bold py-3 rounded-lg transition">Disband
+                                Team</button>
                         </div>
-                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg transition shadow-lg mt-2">Save Changes</button>
-                    </form>
+                    </div>
                 </div>
             </div>
         </div>
@@ -315,7 +531,8 @@
 
     <div id="customAlertModal" class="fixed inset-0 z-[110] hidden flex items-center justify-center p-4">
         <div id="alertBackdrop" class="absolute inset-0 bg-black/90 backdrop-blur-sm"></div>
-        <div id="alertBox" class="relative bg-[var(--dark-card)] border border-white/20 rounded-xl p-6 shadow-2xl max-w-sm w-full text-center transform scale-95 opacity-0 transition-all duration-300">
+        <div id="alertBox"
+            class="relative bg-[var(--dark-card)] border border-white/20 rounded-xl p-6 shadow-2xl max-w-sm w-full text-center transform scale-95 opacity-0 transition-all duration-300">
             <h3 id="alertTitle" class="text-xl font-bold text-white mb-2">Notification</h3>
             <p id="alertMessage" class="text-gray-400 text-sm mb-6 leading-relaxed">Message...</p>
             <div id="alertButtons" class="flex justify-center gap-3"></div>
@@ -325,10 +542,15 @@
     <footer class="border-t border-white/10 bg-[var(--dark-bg)] mt-auto">
         <div class="max-w-7xl mx-auto px-6 sm:px-8 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
             <div>
-                <div class="flex items-center gap-3"><img src="pictures/cz_logo.png" class="w-10 h-10 rounded-md object-cover">
-                    <div><div class="font-bold text-white text-lg">ChampZero</div><div class="text-sm text-gray-400">Esports Ecosystem</div></div>
+                <div class="flex items-center gap-3"><img src="pictures/cz_logo.png"
+                        class="w-10 h-10 rounded-md object-cover">
+                    <div>
+                        <div class="font-bold text-white text-lg">ChampZero</div>
+                        <div class="text-sm text-gray-400">Esports Ecosystem</div>
+                    </div>
                 </div>
-                <p class="mt-4 text-sm text-gray-400">Building community-driven tournaments, talent development, and esports services.</p>
+                <p class="mt-4 text-sm text-gray-400">Building community-driven tournaments, talent development, and
+                    esports services.</p>
                 <div class="mt-4 text-sm text-gray-500">© 2025 ChampZero. All rights reserved.</div>
             </div>
             <div>
@@ -343,9 +565,13 @@
             <div>
                 <h4 class="font-semibold text-white">Follow Us</h4>
                 <div class="mt-3 flex items-center gap-3">
-                    <a href="https://facebook.com/champzeroph" target="_blank" rel="noopener noreferrer" aria-label="facebook" class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">FB</a>
-                    <a href="#" target="_blank" rel="noopener noreferrer" aria-label="youtube" class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">YT</a>
-                    <a href="#" target="_blank" rel="noopener noreferrer" aria-label="twitter" class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">X</a>
+                    <a href="https://facebook.com/champzeroph" target="_blank" rel="noopener noreferrer"
+                        aria-label="facebook"
+                        class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">FB</a>
+                    <a href="#" target="_blank" rel="noopener noreferrer" aria-label="youtube"
+                        class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">YT</a>
+                    <a href="#" target="_blank" rel="noopener noreferrer" aria-label="twitter"
+                        class="p-2 border border-white/20 rounded-md hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors">X</a>
                 </div>
             </div>
         </div>
@@ -357,4 +583,5 @@
     <script type="module" src="js/teams.js"></script>
     <script type="module" src="js/notifications.js"></script>
 </body>
+
 </html>
