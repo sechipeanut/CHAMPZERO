@@ -29,6 +29,221 @@ let currentRoleFilter = 'all';
 window.usersLoaded = false;
 
 // ======================
+// LIVESTREAM MANAGEMENT (Restored)
+// ======================
+
+window.createLivestream = async function(eventId, eventName) {
+    const confirmed = await window.showCustomConfirm("Create Livestream", `Create a new livestream for "${eventName}"?`);
+    if (!confirmed) return;
+    
+    try {
+        window.showSuccessToast("Processing", "Creating livestream...", 3000);
+        
+        const response = await fetch('/.netlify/functions/create-mux-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ eventId, eventName })
+        });
+        
+        if (!response.ok) throw new Error('Failed to create stream');
+        
+        const streamData = await response.json();
+        
+        // Update Firestore with stream info
+        const eventRef = doc(db, 'events', eventId);
+        await updateDoc(eventRef, {
+            livestream: {
+                streamId: streamData.streamId,
+                streamKey: streamData.streamKey,
+                playbackId: streamData.playbackId,
+                status: streamData.status,
+                createdAt: serverTimestamp()
+            }
+        });
+        
+        window.showSuccessToast("Success", "Livestream created successfully!", 3000);
+        refreshAllLists();
+        manageLivestream(eventId);
+        
+    } catch (error) {
+        console.error('Error creating livestream:', error);
+        window.showErrorToast("Error", "Failed to create livestream: " + error.message, 5000);
+    }
+};
+
+window.manageLivestream = async function(eventId) {
+    try {
+        const eventRef = doc(db, 'events', eventId);
+        const eventSnap = await getDoc(eventRef);
+        
+        if (!eventSnap.exists()) {
+            window.showErrorToast("Error", "Event not found", 3000);
+            return;
+        }
+        
+        const eventData = eventSnap.data();
+        const livestream = eventData.livestream;
+        
+        if (!livestream || !livestream.streamId) {
+            window.showErrorToast("Error", "No livestream found for this event", 3000);
+            return;
+        }
+        
+        // Fetch current stream status from Mux
+        const response = await fetch(`/.netlify/functions/get-mux-stream?streamId=${livestream.streamId}`);
+        const streamData = await response.json();
+        
+        const isActive = streamData.status === 'active';
+        
+        const modal = document.createElement('div');
+        modal.id = 'livestreamModal';
+        modal.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4';
+        modal.innerHTML = `
+            <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+                <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+                    <h3 class="text-xl font-bold text-white">📡 Livestream Manager</h3>
+                    <button onclick="closeLivestreamModal()" class="text-gray-400 hover:text-white transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+                        <div class="flex items-center justify-between mb-2">
+                            <span class="text-gray-400 text-sm">Stream Status</span>
+                            <span class="px-3 py-1 rounded-full text-sm font-semibold ${isActive ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-400'}">
+                                ${isActive ? '🔴 LIVE' : '⚫ Idle'}
+                            </span>
+                        </div>
+                        <div class="text-white font-bold text-lg">${escapeHtml(eventData.name)}</div>
+                    </div>
+                    
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+                        <label class="text-gray-400 text-sm block mb-2">Stream URL</label>
+                        <div class="flex gap-2">
+                            <input type="text" readonly value="rtmp://push-global.rtmp.franzvallesmedia.com" class="flex-1 bg-black/30 border border-white/20 text-white px-3 py-2 rounded text-sm">
+                            <button onclick="copyToClipboard('rtmp://push-global.rtmp.franzvallesmedia.com')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">Copy</button>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-white/5 border border-white/10 rounded-lg p-4">
+                        <label class="text-gray-400 text-sm block mb-2">Stream Key</label>
+                        <div class="flex gap-2">
+                            <input type="password" id="streamKeyInput" readonly value="${livestream.streamKey}" class="flex-1 bg-black/30 border border-white/20 text-white px-3 py-2 rounded text-sm font-mono">
+                            <button onclick="toggleStreamKey()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm">Show</button>
+                            <button onclick="copyToClipboard('${livestream.streamKey}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">Copy</button>
+                        </div>
+                        <p class="text-xs text-gray-500 mt-2">⚠️ Keep this private! Use it in OBS/Streamlabs to start streaming.</p>
+                    </div>
+                    
+                    <div class="flex gap-3 pt-4">
+                        <button onclick="disableLivestream('${eventId}')" class="flex-1 bg-red-900/50 hover:bg-red-600 text-red-200 px-4 py-3 rounded-lg font-bold border border-red-800 transition-all">
+                            🛑 End Stream
+                        </button>
+                        <button onclick="deleteLivestream('${eventId}')" class="flex-1 bg-gray-900/50 hover:bg-gray-600 text-gray-200 px-4 py-3 rounded-lg font-bold border border-gray-800 transition-all">
+                            🗑️ Delete Stream
+                        </button>
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+    } catch (error) {
+        console.error('Error managing livestream:', error);
+        window.showErrorToast("Error", "Failed to load livestream info: " + error.message, 5000);
+    }
+};
+
+window.closeLivestreamModal = function() {
+    const modal = document.getElementById('livestreamModal');
+    if (modal) modal.remove();
+};
+
+window.toggleStreamKey = function() {
+    const input = document.getElementById('streamKeyInput');
+    const btn = event.target;
+    if (input.type === 'password') {
+        input.type = 'text';
+        btn.textContent = 'Hide';
+    } else {
+        input.type = 'password';
+        btn.textContent = 'Show';
+    }
+};
+
+window.copyToClipboard = async function(text) {
+    try {
+        await navigator.clipboard.writeText(text);
+        window.showSuccessToast("Copied!", "Copied to clipboard", 2000);
+    } catch (err) {
+        window.showErrorToast("Error", "Failed to copy", 2000);
+    }
+};
+
+window.disableLivestream = async function(eventId) {
+    const confirmed = await window.showCustomConfirm("End Stream", "This will end the current live broadcast. Continue?");
+    if (!confirmed) return;
+    
+    try {
+        const eventRef = doc(db, 'events', eventId);
+        const eventSnap = await getDoc(eventRef);
+        const livestream = eventSnap.data().livestream;
+        
+        const response = await fetch('/.netlify/functions/disable-mux-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ streamId: livestream.streamId })
+        });
+        
+        if (!response.ok) throw new Error('Failed to disable stream');
+        
+        await updateDoc(eventRef, {
+            'livestream.status': 'idle'
+        });
+        
+        window.showSuccessToast("Success", "Stream ended successfully", 3000);
+        closeLivestreamModal();
+        refreshAllLists();
+        
+    } catch (error) {
+        console.error('Error disabling stream:', error);
+        window.showErrorToast("Error", "Failed to end stream: " + error.message, 5000);
+    }
+};
+
+window.deleteLivestream = async function(eventId) {
+    const confirmed = await window.showCustomConfirm("Delete Stream", "This will permanently delete the stream and its key. Continue?");
+    if (!confirmed) return;
+    
+    try {
+        const eventRef = doc(db, 'events', eventId);
+        const eventSnap = await getDoc(eventRef);
+        const livestream = eventSnap.data().livestream;
+        
+        const response = await fetch('/.netlify/functions/delete-mux-stream', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ streamId: livestream.streamId })
+        });
+        
+        if (!response.ok) throw new Error('Failed to delete stream');
+        
+        await updateDoc(eventRef, {
+            livestream: null
+        });
+        
+        window.showSuccessToast("Success", "Stream deleted successfully", 3000);
+        closeLivestreamModal();
+        refreshAllLists();
+        
+    } catch (error) {
+        console.error('Error deleting stream:', error);
+        window.showErrorToast("Error", "Failed to delete stream: " + error.message, 5000);
+    }
+};
+
+// ======================
 // MODAL & GENERAL ADMIN
 // ======================
 
@@ -131,7 +346,6 @@ window.editItem = async function (collectionName, docId) {
             qs('#p-category').value = data.category;
             qs('#p-image').value = data.image;
             qs('#p-desc').value = data.description;
-            // NEW FIELDS
             qs('#p-stock').value = data.stock || 0;
             qs('#p-variants').value = data.variants ? data.variants.join(', ') : '';
             qs('#p-featured').checked = !!data.isFeatured;
@@ -294,7 +508,6 @@ async function fetchShopOrders() {
             const dateStr = data.createdAt ? new Date(data.createdAt.toDate()).toLocaleDateString() : 'N/A';
             const statusClass = data.status === 'completed' ? 'status-completed' : (data.status === 'cancelled' ? 'status-cancelled' : 'status-pending');
             
-            // Serialize for passing to function
             const orderData = encodeURIComponent(JSON.stringify({id: doc.id, ...data}));
 
             list.innerHTML += `
@@ -328,7 +541,6 @@ window.viewOrderDetails = function(orderDataStr) {
     const order = JSON.parse(decodeURIComponent(orderDataStr));
     const content = qs('#order-modal-content');
     
-    // Shipping info block
     const shippingHtml = order.shipping ? `
         <div class="bg-white/5 p-3 rounded border border-white/10 mb-4">
             <h4 class="text-[var(--gold)] font-bold mb-2">Shipping Details</h4>
@@ -338,7 +550,6 @@ window.viewOrderDetails = function(orderDataStr) {
         </div>
     ` : '';
 
-    // Items list
     const itemsHtml = order.items.map(item => `
         <div class="flex justify-between py-2 border-b border-white/5">
             <span>${escapeHtml(item.name)} ${item.selectedVariant ? `(${item.selectedVariant})` : ''}</span>
@@ -375,7 +586,10 @@ window.updateOrderStatus = async function(orderId, newStatus) {
     }
 }
 
-// User Management Functions
+// ======================
+// USER MANAGEMENT
+// ======================
+
 window.fetchUsers = async function() {
     try {
         const q = query(collection(db, "users"));
@@ -386,7 +600,6 @@ window.fetchUsers = async function() {
             allUsers.push({ id: doc.id, ...doc.data() });
         });
         
-        // Sort safely
         allUsers.sort((a, b) => {
             const dateA = a.createdAt ? a.createdAt.seconds : 0;
             const dateB = b.createdAt ? b.createdAt.seconds : 0;
@@ -404,7 +617,6 @@ window.fetchUsers = async function() {
     }
 }
 
-// Alias for backwards compatibility
 window.refreshUsers = async function() {
     const btn = event?.target;
     if (btn && btn.tagName === 'BUTTON') {
@@ -424,7 +636,6 @@ function displayUsers() {
     
     const searchTerm = qs('#user-search')?.value?.toLowerCase() || '';
     
-    // Filter by role and search
     let filtered = allUsers.filter(user => {
         const matchesRole = currentRoleFilter === 'all' || (user.role || 'user') === currentRoleFilter;
         const matchesSearch = !searchTerm || 
@@ -434,18 +645,15 @@ function displayUsers() {
         return matchesRole && matchesSearch;
     });
     
-    // Update counts
     if (qs('#user-count')) qs('#user-count').textContent = allUsers.length;
     if (qs('#admin-count')) qs('#admin-count').textContent = allUsers.filter(u => u.role === 'admin').length;
     if (qs('#regular-user-count')) qs('#regular-user-count').textContent = allUsers.filter(u => u.role !== 'admin').length;
     
-    // Display users
     if (filtered.length === 0) {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-400">No users found.</td></tr>';
         return;
     }
     
-    // UPDATED TABLE ROW GENERATION
     tbody.innerHTML = '';
     filtered.forEach(user => {
         const createdDate = user.createdAt?.toDate?.() || user.joinedAt ? new Date(user.joinedAt) : null;
@@ -454,8 +662,6 @@ function displayUsers() {
         const email = user.email || 'No email';
         const role = user.role || 'user';
         const profilePicture = user.avatar || user.photoURL || null;
-        
-        // Define roles list for dropdown
         const roles = ['user', 'admin', 'subscriber', 'moderator', 'organizer'];
         
         const row = document.createElement('tr');
@@ -487,8 +693,7 @@ function displayUsers() {
                             `<option value="${r}" ${role === r ? 'selected' : ''}>${r.charAt(0).toUpperCase() + r.slice(1)}</option>`
                         ).join('')}
                     </select>
-                    
-                    <button onclick="deleteUserConfirm('${user.id}')" class="text-xs px-2 py-1.5 rounded border border-red-500/30 hover:bg-red-500/10 text-red-400 transition-colors">
+                    <button onclick="window.deleteUserConfirm('${user.id}')" class="text-xs px-2 py-1.5 rounded border border-red-500/30 hover:bg-red-500/10 text-red-400 transition-colors">
                         🗑
                     </button>
                 </div>
@@ -498,35 +703,31 @@ function displayUsers() {
     });
 }
 
-window.filterUsersByRole = function(role) {
-    currentRoleFilter = role;
-    document.querySelectorAll('.role-tab').forEach(tab => tab.classList.remove('active'));
-    const activeTab = qs(`#role-tab-${role}`);
-    if (activeTab) activeTab.classList.add('active');
-    displayUsers();
-}
-
-// NEW FUNCTION: Handle Dropdown Change
 window.changeUserRole = async function(userId, newRole) {
     if (userId === currentUserId && newRole !== 'admin') {
         window.showWarningToast("Not Allowed", "You cannot remove your own Admin access.", 3000);
-        window.fetchUsers(); // Reset UI
+        displayUsers(); 
         return;
     }
 
     const confirmed = await window.showCustomConfirm("Update Role?", `Change user to ${newRole.toUpperCase()}?`);
     if (!confirmed) {
-        window.fetchUsers(); // Reset UI if cancelled
+        displayUsers(); 
         return;
     }
     
     try {
+        // Optimistic Update: Change local state immediately so UI responds instantly
+        const userIndex = allUsers.findIndex(u => u.id === userId);
+        if (userIndex !== -1) allUsers[userIndex].role = newRole;
+        displayUsers(); 
+
         await updateDoc(doc(db, "users", userId), { role: newRole });
         window.showSuccessToast("Success", `User is now a ${newRole}`, 2000);
-        window.fetchUsers();
     } catch (error) {
         console.error(error);
         window.showErrorToast("Error", "Failed to update role", 3000);
+        window.fetchUsers(); // Revert to server data on error
     }
 }
 
@@ -544,11 +745,19 @@ window.deleteUserConfirm = async function(userId) {
     }
 }
 
+window.filterUsersByRole = function(role) {
+    currentRoleFilter = role;
+    document.querySelectorAll('.role-tab').forEach(tab => tab.classList.remove('active'));
+    const activeTab = qs(`#role-tab-${role}`);
+    if (activeTab) activeTab.classList.add('active');
+    displayUsers();
+}
+
 if (qs('#user-search')) {
     qs('#user-search').addEventListener('input', () => displayUsers());
 }
 
-// --- 4. FETCH LISTS ---
+// --- 4. FETCH OTHER LISTS ---
 
 async function fetchSiteConfig() {
     try {
@@ -575,7 +784,7 @@ async function refreshAllLists() {
     fetchTalents();
     fetchNotifications();
     fetchSiteConfig();
-    fetchShopData('inventory'); // Ensure this is called to init shop
+    fetchShopData('inventory');
     if(window.fetchUsers) window.fetchUsers();
 }
 
@@ -597,33 +806,27 @@ async function fetchTournaments() {
     });
 }
 
-// Updated Notifications Fetcher (Sorts by date, newest first)
 async function fetchNotifications() {
     const list = qs('#notifications-list');
-    
     try {
         const q = query(collection(db, "notifications"));
         const snapshot = await getDocs(q);
-        
         if (snapshot.empty) {
             list.innerHTML = '<p class="text-gray-500">No announcements yet.</p>';
             return;
         }
-
         let notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
         notifs.sort((a, b) => {
             const dateA = a.createdAt ? a.createdAt.seconds : 0;
             const dateB = b.createdAt ? b.createdAt.seconds : 0;
             return dateB - dateA; 
         });
-
         list.innerHTML = '';
         notifs.forEach(data => {
             let icon = '📢';
             if (data.type === 'tournament') icon = '🏆';
             if (data.type === 'event') icon = '🎉';
             if (data.type === 'alert') icon = '⚠️';
-
             list.innerHTML += `
                 <div class="admin-item">
                     <div class="flex items-center gap-3">
@@ -641,20 +844,18 @@ async function fetchNotifications() {
         });
     } catch (e) {
         console.error("Error loading notifications:", e);
-        if(e.code === 'permission-denied') {
-            list.innerHTML = '<p class="text-red-500">Permission Error: Check Firestore Rules.</p>';
-        } else {
-            list.innerHTML = '<p class="text-red-500">Failed to load announcements.</p>';
-        }
+        list.innerHTML = '<p class="text-red-500">Failed to load announcements.</p>';
     }
 }
 
+// RESTORED: Sourced from OLD admin.js to include stream buttons
 async function fetchEvents() {
     const list = qs('#events-list');
     const q = query(collection(db, "events"));
     const snapshot = await getDocs(q);
     list.innerHTML = snapshot.empty ? '<p class="text-gray-500 italic">No events found.</p>' : '';
     
+    // Fetch all events and check their stream status asynchronously
     const eventPromises = [];
     snapshot.forEach(doc => {
         eventPromises.push(renderEventItem(doc));
@@ -666,16 +867,38 @@ async function fetchEvents() {
     });
 }
 
+// RESTORED: Helper to render event item with stream controls
 async function renderEventItem(doc) {
     const data = doc.data();
     const hasStream = data.livestream && data.livestream.streamId;
+    let streamStatus = 'idle';
     let isLive = false;
     
+    // Check actual stream status from Mux if stream exists
     if (hasStream) {
         try {
-            isLive = data.livestream.status === 'active';
+            // Using a timeout to prevent blocking loading for too long
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 2000);
+            
+            const response = await fetch(`/.netlify/functions/get-mux-stream?streamId=${data.livestream.streamId}`, { signal: controller.signal });
+            clearTimeout(timeoutId);
+
+            if (response.ok) {
+                const streamData = await response.json();
+                streamStatus = streamData.status;
+                isLive = streamStatus === 'active';
+                
+                // Update Firestore if status changed locally to keep it somewhat synced
+                if (data.livestream.status !== streamStatus) {
+                    // Note: We don't await this to keep UI snappy
+                    updateDoc(doc.ref, { 'livestream.status': streamStatus }).catch(console.error);
+                }
+            }
         } catch (err) {
-            isLive = false;
+            console.warn('Could not fetch stream status:', err);
+            streamStatus = data.livestream?.status || 'idle';
+            isLive = streamStatus === 'active';
         }
     }
     
@@ -689,7 +912,10 @@ async function renderEventItem(doc) {
                 <div class="text-sm text-gray-400">${escapeHtml(data.date)}</div>
             </div>
             <div class="flex gap-2">
-                ${hasStream ? `<button onclick="manageLivestream('${doc.id}')" class="bg-purple-900/50 hover:bg-purple-600 text-purple-200 px-3 py-1 rounded text-sm border border-purple-800">Stream</button>` : `<button onclick="createLivestream('${doc.id}', '${escapeHtml(data.name).replace(/'/g, "\\'")}')" class="bg-green-900/50 hover:bg-green-600 text-green-200 px-3 py-1 rounded text-sm border border-green-800">+ Stream</button>`}
+                ${hasStream ? 
+                    `<button onclick="manageLivestream('${doc.id}')" class="bg-purple-900/50 hover:bg-purple-600 text-purple-200 px-3 py-1 rounded text-sm border border-purple-800">Stream</button>` : 
+                    `<button onclick="createLivestream('${doc.id}', '${escapeHtml(data.name).replace(/'/g, "\\'")}')" class="bg-green-900/50 hover:bg-green-600 text-green-200 px-3 py-1 rounded text-sm border border-green-800">+ Stream</button>`
+                }
                 <button onclick="editItem('events', '${doc.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
                 <button onclick="deleteItem('events', '${doc.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
             </div>
@@ -737,13 +963,11 @@ async function fetchMessages() {
     const q = query(collection(db, "messages"));
     const snapshot = await getDocs(q);
     list.innerHTML = snapshot.empty ? `<div class="text-center py-12 bg-white/5 rounded-lg border border-white/10"><p class="text-gray-400">Inbox is empty.</p></div>` : '';
-
     const badge = qs('#msg-badge');
     if (badge) {
         badge.textContent = snapshot.size;
         badge.classList.remove('hidden');
     }
-
     snapshot.forEach(doc => {
         const data = doc.data();
         const dateStr = data.sentAt ? new Date(data.sentAt).toLocaleString() : 'No Date';
@@ -772,22 +996,17 @@ async function fetchMessages() {
 
 // --- 5. FORM HANDLING ---
 document.addEventListener('DOMContentLoaded', () => {
-
     const handleForm = (formId, collectionName, getDataFn, successMsg) => {
         const form = qs(formId);
         if (!form) return;
-
         const btn = form.querySelector('button[type="submit"]');
         btn.setAttribute('data-original-text', btn.textContent);
-
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             let data;
             try { data = getDataFn(); } catch (err) { if (err.message === 'silent-cancel') return; console.error(err); return; }
-
             btn.disabled = true;
             btn.textContent = "Processing...";
-
             try {
                 if (editState.isEditing && editState.collection === collectionName && editState.formId === formId) {
                     const docRef = doc(db, collectionName, editState.id);
@@ -815,7 +1034,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     };
 
-    // Config Form
     const configForm = qs('#configForm');
     if (configForm) {
         configForm.addEventListener('submit', async (e) => {
@@ -823,7 +1041,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const btn = configForm.querySelector('button[type="submit"]');
             btn.textContent = "Updating...";
             btn.disabled = true;
-
             try {
                 const stats = {
                     talentCount: qs('#cfg-talents').value || "0",
@@ -833,12 +1050,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     playerCount: qs('#cfg-players').value || "0",
                     updatedAt: serverTimestamp()
                 };
-                
                 await setDoc(doc(db, "site_config", "home_stats"), stats, { merge: true });
                 window.showSuccessToast("Updated", "Home page stats updated!", 2000);
             } catch (err) {
                 console.error(err);
-                window.showErrorToast("Error", "Failed to update stats: " + err.message, 4000);
+                window.showErrorToast("Error", "Failed to update stats.", 4000);
             } finally {
                 btn.textContent = "Update Statistics";
                 btn.disabled = false;
@@ -853,14 +1069,12 @@ document.addEventListener('DOMContentLoaded', () => {
             window.showErrorToast("Date Error", "End date cannot be earlier than start date.");
             throw new Error("silent-cancel");
         }
-        const status = calculateStatus(startDate, endDate);
-
         return {
             name: qs('#t-name').value,
             game: qs('#t-game').value,
             format: qs('#t-format').value,
             prize: Number(qs('#t-prize').value),
-            status: status,
+            status: calculateStatus(startDate, endDate),
             date: startDate,
             endDate: endDate,
             banner: qs('#t-banner').value || "pictures/cz_logo.png"
