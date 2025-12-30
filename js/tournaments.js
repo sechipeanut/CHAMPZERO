@@ -11,6 +11,7 @@ let userTeams = [];
 let currentUserTeamIds = new Set();
 let adminUnsubscribe = null;
 let tournamentUnsubscribe = null;
+let pendingApplicationsMap = new Map();
 
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
@@ -447,9 +448,9 @@ function selectTeamForSwap(index) {
     renderTournamentView(currentEditingTournament);
 }
 
-// --- START TOURNAMENT LOGIC ---
+// --- FIND THIS FUNCTION AND UPDATE THE LOGIC ---
 async function startTournament() {
-    const confirmStart = await window.showCustomConfirm("Start Tournament?", "This will close registration and generate the official bracket.");
+    const confirmStart = await window.showCustomConfirm("Start Tournament?", "This will close registration and generate the matches.");
     if (!confirmStart) return;
 
     try {
@@ -458,12 +459,16 @@ async function startTournament() {
         if (participants.length < 2) { alert("Need at least 2 teams to start."); return; }
 
         let matches;
-        // CHECK FORMAT HERE
+
+        // --- UPDATED LOGIC HERE ---
         if (currentEditingTournament.format === 'Double Elimination') {
             matches = generateDoubleEliminationMatches(participants);
+        } else if (currentEditingTournament.format === 'Round Robin') {
+            matches = generateRoundRobinMatches(participants);
         } else {
             matches = generateInitialMatches(participants, currentEditingTournament.format);
         }
+        // ---------------------------
 
         await updateDoc(ref, { isStarted: true, status: 'Ongoing', matches: matches });
         if (window.showSuccessToast) window.showSuccessToast("Success", "Tournament Started!");
@@ -647,6 +652,48 @@ window.openScoreModal = function (matchId) {
 
     document.getElementById('scoreModal').classList.remove('hidden');
     document.getElementById('scoreModal').classList.add('flex');
+}
+
+// --- NEW: ROUND ROBIN GENERATION ---
+function generateRoundRobinMatches(participants) {
+    // 1. Get Names and Handle Odd Numbers
+    let teams = participants.map(p => typeof p === 'object' ? p.name : p);
+    if (teams.length % 2 !== 0) teams.push("BYE"); // Add dummy for odd numbers
+    
+    const n = teams.length;
+    const rounds = n - 1;
+    const matchesPerRound = n / 2;
+    let matches = [];
+    let matchIdCounter = 1;
+
+    for (let r = 0; r < rounds; r++) {
+        for (let i = 0; i < matchesPerRound; i++) {
+            const t1 = teams[i];
+            const t2 = teams[n - 1 - i];
+
+            // Only create match if neither team is "BYE"
+            // (Or keep it if you want to show "Bye Rounds", but usually we skip saving them)
+            if (t1 !== "BYE" && t2 !== "BYE") {
+                matches.push({
+                    id: `RR-R${r + 1}-M${i + 1}`,
+                    round: r + 1,
+                    matchNumber: matchIdCounter++,
+                    team1: t1,
+                    team2: t2,
+                    score1: null,
+                    score2: null,
+                    winner: null,
+                    nextMatchId: null // Round Robin doesn't advance
+                });
+            }
+        }
+
+        // Rotate Teams (Keep index 0 fixed, rotate the rest)
+        // [0, 1, 2, 3] -> [0, 3, 1, 2]
+        teams.splice(1, 0, teams.pop());
+    }
+
+    return matches;
 }
 
 function generateDoubleEliminationMatches(participants) {
@@ -1001,61 +1048,72 @@ window.saveMatchScore = async function () {
 
             match.winner = winnerName;
 
-            // 1. ADVANCE WINNER
-            if (match.nextMatchId) {
-                let nextIndex = matches.findIndex(m => m.id === match.nextMatchId);
-                if (nextIndex !== -1) {
-                    let nextMatch = matches[nextIndex];
+            // --- CHANGED: CHECK FORMAT BEFORE ADVANCING ---
+            const isRoundRobin = currentEditingTournament.format === 'Round Robin';
 
-                    // --- FIX START: ENFORCE GRAND FINAL SLOTS ---
-                    // This block ensures Upper Bracket Winner -> Team 1, Lower Bracket Winner -> Team 2
-                    if (nextMatch.id === 'GF-1') {
-                        if (match.bracket === 'upper') {
-                            nextMatch.team1 = winnerName;
-                        } else if (match.bracket === 'lower') {
-                            nextMatch.team2 = winnerName;
-                        }
-                    } 
-                    // --- STANDARD LOGIC FOR ALL OTHER MATCHES ---
-                    else {
+            if (!isRoundRobin) {
+                // === STANDARD BRACKET LOGIC (Single/Double Elim) ===
+                
+                // 1. ADVANCE WINNER
+                if (match.nextMatchId) {
+                    let nextIndex = matches.findIndex(m => m.id === match.nextMatchId);
+                    if (nextIndex !== -1) {
+                        let nextMatch = matches[nextIndex];
+
+                        // Enforce Grand Final Slots
+                        if (nextMatch.id === 'GF-1') {
+                            if (match.bracket === 'upper') {
+                                nextMatch.team1 = winnerName;
+                            } else if (match.bracket === 'lower') {
+                                nextMatch.team2 = winnerName;
+                            }
+                        } 
                         // Standard logic: fill first available TBD slot
-                        if (nextMatch.team1 === 'TBD' || nextMatch.team1 === 'BYE' || 
-                            nextMatch.team1 === match.team1 || nextMatch.team1 === match.team2) {
-                            nextMatch.team1 = winnerName;
-                        } else {
-                            nextMatch.team2 = winnerName;
+                        else {
+                            if (nextMatch.team1 === 'TBD' || nextMatch.team1 === 'BYE' || 
+                                nextMatch.team1 === match.team1 || nextMatch.team1 === match.team2) {
+                                nextMatch.team1 = winnerName;
+                            } else {
+                                nextMatch.team2 = winnerName;
+                            }
                         }
+                        matches[nextIndex] = nextMatch;
                     }
-                    // --- FIX END ---
-                    
-                    matches[nextIndex] = nextMatch;
+                } else {
+                    // Handle Champion Logic (Grand Final has no nextMatchId)
+                    matches.status = 'Completed';
                 }
+
+                // 2. MOVE LOSER (Double Elimination Logic)
+                if (match.loserMatchId) {
+                    let loserIndex = matches.findIndex(m => m.id === match.loserMatchId);
+                    if (loserIndex !== -1) {
+                        let loserMatch = matches[loserIndex];
+                        // Check slot 1, if taken check slot 2
+                        if (loserMatch.team1 === 'TBD' || loserMatch.team1 === match.team1 || loserMatch.team1 === match.team2) {
+                            loserMatch.team1 = loserName;
+                        } else {
+                            loserMatch.team2 = loserName;
+                        }
+                        matches[loserIndex] = loserMatch;
+                    }
+                }
+
+                // 3. RUN AUTO-ADVANCE FOR CHAIN REACTIONS
+                resolveByes(matches);
+
             } else {
-                // Handle Champion Logic (Grand Final has no nextMatchId)
-                matches.status = 'Completed';
-            }
-
-            // 2. MOVE LOSER (Double Elimination Logic)
-            if (match.loserMatchId) {
-                let loserIndex = matches.findIndex(m => m.id === match.loserMatchId);
-                if (loserIndex !== -1) {
-                    let loserMatch = matches[loserIndex];
-                    // Check slot 1, if taken check slot 2 (simplified logic)
-                    if (loserMatch.team1 === 'TBD' || loserMatch.team1 === match.team1 || loserMatch.team1 === match.team2) {
-                        loserMatch.team1 = loserName;
-                    } else {
-                        loserMatch.team2 = loserName;
-                    }
-                    matches[loserIndex] = loserMatch;
+                // === ROUND ROBIN LOGIC ===
+                // We do not advance teams. We just check if the tournament is over.
+                const allComplete = matches.every(m => m.winner !== null);
+                if (allComplete) {
+                    matches.status = 'Completed';
                 }
             }
-
-            // 3. RUN AUTO-ADVANCE FOR CHAIN REACTIONS
-            // This ensures that if the loser drops into a BYE, they immediately advance.
-            resolveByes(matches);
         }
 
         let updatePayload = { matches: matches };
+        // If we set a temporary status property on the array, extract it for the top-level update
         if (matches.status) updatePayload.status = matches.status; 
 
         await updateDoc(tourneyRef, updatePayload);
@@ -1541,6 +1599,44 @@ function viewTeamMembers(index) {
     document.getElementById('viewMembersModal').classList.add('flex');
 }
 
+window.viewPendingApplication = function(appId) {
+    const app = pendingApplicationsMap.get(appId);
+    if (!app) return;
+
+    const list = document.getElementById('vm-list');
+    const title = document.getElementById('vm-teamName');
+    
+    // Set Title
+    title.textContent = `Application: ${app.name}`;
+    list.innerHTML = '';
+
+    // 1. Add Captain & Contact Info
+    const infoHtml = `
+        <li class="p-2 mb-2 bg-[var(--gold)]/10 border border-[var(--gold)]/30 rounded flex flex-col gap-1">
+            <div class="text-xs text-[var(--gold)] uppercase font-bold">Team Details</div>
+            <div class="text-sm text-white"><span class="text-gray-400">Captain:</span> ${escapeHtml(app.captain)}</div>
+            <div class="text-sm text-white"><span class="text-gray-400">Contact:</span> ${escapeHtml(app.contact || 'N/A')}</div>
+        </li>
+        <li class="mt-3 mb-1 text-xs text-gray-500 uppercase font-bold">Roster Members</li>
+    `;
+    list.innerHTML += infoHtml;
+
+    // 2. Add Members List
+    if (app.members && app.members.length > 0) {
+        list.innerHTML += app.members.map(m => 
+            `<li class="p-2 bg-white/5 rounded border border-white/5 flex items-center gap-2 mb-1">
+                <span class="text-[var(--gold)]">➜</span> ${escapeHtml(m)}
+            </li>`
+        ).join('');
+    } else { 
+        list.innerHTML += '<li class="text-center text-gray-500 italic">No members listed.</li>'; 
+    }
+
+    // Open the existing modal
+    document.getElementById('viewMembersModal').classList.remove('hidden');
+    document.getElementById('viewMembersModal').classList.add('flex');
+};
+
 // ----------------------------------------------------
 // ADMIN DASHBOARD
 // ----------------------------------------------------
@@ -1551,15 +1647,41 @@ function initAdminDashboard(tournamentId) {
     if (adminUnsubscribe) adminUnsubscribe();
 
     const q = query(collection(db, "tournaments", tournamentId, "applications"), where("status", "in", ["pending", "pending_update"]));
+    
     adminUnsubscribe = onSnapshot(q, (snap) => {
-        if (snap.empty) { list.innerHTML = '<div class="text-gray-500 text-sm italic">No pending applications.</div>'; return; }
+        // Clear previous cache
+        pendingApplicationsMap.clear();
+
+        if (snap.empty) { 
+            list.innerHTML = '<div class="text-gray-500 text-sm italic">No pending applications.</div>'; 
+            return; 
+        }
+        
         list.innerHTML = '';
         snap.forEach(docSnap => {
             const app = docSnap.data();
+            
+            // Store app data in map for the "View" button to use
+            pendingApplicationsMap.set(docSnap.id, app);
+
             const isUpdate = app.status === 'pending_update';
             const item = document.createElement('div');
             item.className = "flex items-center justify-between bg-black/30 p-3 rounded border border-white/10";
-            item.innerHTML = `<div><div class="font-bold text-white text-sm flex items-center gap-2">${escapeHtml(app.name)} ${isUpdate ? '<span class="text-[10px] bg-yellow-600 px-1 rounded text-white">UPDATE REQ</span>' : '<span class="text-[10px] bg-blue-600 px-1 rounded text-white">NEW</span>'}</div><div class="text-xs text-gray-400">Cap: ${escapeHtml(app.captain)}</div></div><div class="flex gap-2"><button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', true)" class="bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1 rounded">Approve</button><button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', false)" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1 rounded">Reject</button></div>`;
+            
+            // Added the View Button in the HTML below
+            item.innerHTML = `
+                <div>
+                    <div class="font-bold text-white text-sm flex items-center gap-2">
+                        ${escapeHtml(app.name)} 
+                        ${isUpdate ? '<span class="text-[10px] bg-yellow-600 px-1 rounded text-white">UPDATE REQ</span>' : '<span class="text-[10px] bg-blue-600 px-1 rounded text-white">NEW</span>'}
+                    </div>
+                    <div class="text-xs text-gray-400">Cap: ${escapeHtml(app.captain)}</div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="window.viewPendingApplication('${docSnap.id}')" class="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1 rounded border border-white/10 transition-colors">View</button>
+                    <button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', true)" class="bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1 rounded transition-colors">Approve</button>
+                    <button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', false)" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1 rounded transition-colors">Reject</button>
+                </div>`;
             list.appendChild(item);
         });
     });
@@ -1594,27 +1716,36 @@ async function processApplication(tourneyId, appId, isApproved) {
     } catch (e) { console.error(e); alert("Action failed: " + e.message); }
 }
 
-// --- BRACKET RENDERER (Updated) ---
+// --- FIND THIS FUNCTION AND UPDATE ---
 function renderBracket(participants, format, isAdmin, isStarted) {
     const container = qs('#bracketContainer');
     if (!container) return;
     container.innerHTML = '';
 
-    // FIX: If Double Elimination and Started, use the specialized Live renderer
-    if (isStarted && format === 'Double Elimination' && currentEditingTournament.matches) {
+    const safeFormat = (format || '').trim();
+
+    // 1. ROUND ROBIN PRIORITY (UPDATED)
+    if (safeFormat === 'Round Robin') {
+        // PASS 'isAdmin' TO THE FUNCTION HERE
+        renderRoundRobin(container, participants, isAdmin);
+        return;
+    }
+
+    // 2. DOUBLE ELIMINATION LIVE
+    if (isStarted && safeFormat === 'Double Elimination' && currentEditingTournament.matches) {
         renderDoubleEliminationLive(container, currentEditingTournament.matches, isAdmin);
         return;
     }
 
-    // Existing Single Elim Logic
+    // 3. STANDARD SINGLE ELIMINATION (STARTED)
     if (isStarted && currentEditingTournament.matches && currentEditingTournament.matches.length > 0) {
-        renderMatchesFromDatabase(container, currentEditingTournament.matches, format, isAdmin);
+        renderMatchesFromDatabase(container, currentEditingTournament.matches, safeFormat, isAdmin);
         return;
     }
 
+    // 4. PREVIEWS (NOT STARTED)
     let teams = participants.map(p => typeof p === 'object' ? p.name : p);
-    if (format === 'Round Robin') renderRoundRobin(container, teams);
-    else if (format === 'Double Elimination') renderDoubleEliminationPlaceholder(container, teams);
+    if (safeFormat === 'Double Elimination') renderDoubleEliminationPlaceholder(container, teams, isAdmin);
     else renderSingleEliminationPlaceholder(container, teams, isAdmin);
 }
 
@@ -2328,46 +2459,169 @@ window.switchBracketTab = function (tabName) {
     }
 }
 
-function renderRoundRobin(container, participants) {
-    let targetSize = currentEditingTournament ? (currentEditingTournament.maxTeams || 8) : participants.length;
-    if (targetSize < 2) targetSize = 2;
-
-    const teamNames = [];
-    for (let i = 0; i < targetSize; i++) {
-        const p = participants[i];
-        if (p) {
-            teamNames.push(typeof p === 'object' ? p.name : p);
+// --- UPDATE THIS FUNCTION COMPLETELY ---
+// --- UPDATE THIS FUNCTION COMPLETELY ---
+function renderRoundRobin(container, participants, isAdmin) {
+    container.innerHTML = '';
+    const matches = currentEditingTournament.matches || [];
+    
+    // Safety Check for Data Mismatch
+    const hasBadData = matches.some(m => m.bracket || m.nextMatchId); 
+    if (hasBadData && matches.length > 0) {
+        // Only show the "Fix Data" button to Admins
+        if (isAdmin) {
+            container.innerHTML = `
+                <div class="w-full flex flex-col items-center justify-center p-8 bg-red-900/20 border border-red-500/50 rounded-lg text-center gap-4">
+                    <h3 class="text-red-400 font-bold text-xl">⚠️ Format Mismatch Detected</h3>
+                    <p class="text-gray-300 text-sm max-w-md">Data mismatch detected (Bracket vs Round Robin).</p>
+                    <button onclick="window.resetTournament('${currentEditingTournament.id}')" class="px-4 py-2 bg-red-600 hover:bg-red-500 text-white font-bold rounded shadow-lg transition-all">Reset & Fix Data</button>
+                </div>`;
         } else {
-            teamNames.push(`Slot ${i + 1}`);
+            container.innerHTML = `<div class="w-full text-center text-gray-500 py-10">Tournament data is currently being updated.</div>`;
+        }
+        return;
+    }
+
+    // 1. DETERMINE TABLE SIZE
+    const settingSize = parseInt(currentEditingTournament.maxTeams) || 8;
+    const actualCount = participants.length;
+    const targetSize = Math.max(settingSize, actualCount);
+
+    // 2. PREPARE DISPLAY LIST
+    const displayTeams = [];
+    for (let i = 0; i < targetSize; i++) {
+        if (participants[i]) {
+            displayTeams.push(typeof participants[i] === 'object' ? participants[i].name : participants[i]);
+        } else {
+            displayTeams.push("Empty"); 
         }
     }
 
-    let html = `
-    <div class="overflow-x-auto">
-        <table class="rr-table min-w-full">
-            <thead>
-                <tr>
-                    <th class="w-32 bg-black/20 border-white/10">Team</th>`;
-    teamNames.forEach((_, i) => {
-        html += `<th class="w-16 bg-black/20 border-white/10">${i + 1}</th>`;
+    // 3. CALCULATE STANDINGS
+    let stats = {};
+    displayTeams.forEach(name => {
+        if (name !== "Empty") stats[name] = { name: name, played: 0, w: 0, l: 0, pts: 0 };
     });
 
-    html += `       <th class="w-16 bg-[var(--gold)]/10 text-[var(--gold)] border-white/10">W-L</th>
-                </tr>
-            </thead>
-            <tbody>`;
-    teamNames.forEach((teamA, i) => {
-        html += `<tr>
-            <td class="font-bold text-white text-left px-3 border-white/10 truncate max-w-[150px]" title="${escapeHtml(teamA)}">
-                <span class="text-[var(--gold)] mr-2">${i + 1}</span>${escapeHtml(teamA)}
-            </td>`;
-        teamNames.forEach((teamB, j) => {
-            if (i === j) html += `<td class="bg-white/5 border-white/10"></td>`;
-            else html += `<td class="border-white/10 text-xs text-gray-500 hover:bg-white/5 cursor-pointer" title="${escapeHtml(teamA)} vs ${escapeHtml(teamB)}">vs</td>`;
-        });
-        html += `<td class="font-bold text-[var(--gold)] border-white/10">0-0</td></tr>`;
+    matches.forEach(m => {
+        if (m.winner) {
+            if (stats[m.winner]) { stats[m.winner].played++; stats[m.winner].w++; stats[m.winner].pts += 1; }
+            const loser = m.winner === m.team1 ? m.team2 : m.team1;
+            if (stats[loser]) { stats[loser].played++; stats[loser].l++; }
+        }
     });
-    html += '</tbody></table></div>';
+
+    const sortedStats = Object.values(stats).sort((a, b) => (b.pts - a.pts) || (b.w - a.w));
+
+    // 4. RENDER HTML
+    let html = `<div class="flex flex-col gap-8 w-full">`;
+
+    // --- CROSS TABLE ---
+    html += `
+        <div class="overflow-x-auto bg-[var(--dark-card)] rounded-lg border border-white/10 p-4">
+            <div class="flex justify-between items-center mb-4 border-b border-white/10 pb-2">
+                <h3 class="text-white font-bold uppercase tracking-widest text-sm">Cross Table</h3>
+                ${isAdmin ? `<span class="text-[10px] text-gray-500 uppercase">Table Size: ${targetSize} Teams</span>` : ''}
+            </div>
+            <table class="rr-table min-w-full border-collapse">
+                <thead>
+                    <tr>
+                        <th class="p-3 bg-black/40 border border-white/10 text-left w-32 sticky left-0 z-10">Team</th>
+                        ${displayTeams.map((_, i) => `<th class="p-3 bg-black/40 border border-white/10 w-16 text-center text-xs text-gray-400">${i + 1}</th>`).join('')}
+                        <th class="p-3 bg-[var(--gold)]/10 border border-white/10 w-16 text-center text-[var(--gold)]">Pts</th>
+                    </tr>
+                </thead>
+                <tbody>
+    `;
+
+    displayTeams.forEach((teamA, i) => {
+        const isEmptyA = teamA === "Empty";
+        const rowClass = isEmptyA ? "bg-black/20" : "";
+        
+        const nameDisplay = isEmptyA 
+            ? `<span class="text-gray-600 italic text-[10px] border border-white/5 px-2 py-1 rounded bg-black/20">EMPTY</span>` 
+            : `<span class="text-[var(--gold)] text-xs mr-2">${i + 1}</span>${escapeHtml(teamA)}`;
+
+        html += `<tr class="${rowClass}">
+            <td class="p-3 border border-white/10 font-bold text-white truncate max-w-[150px] bg-[var(--dark-card)] sticky left-0 z-10">
+                ${nameDisplay}
+            </td>`;
+        
+        displayTeams.forEach((teamB, j) => {
+            const isEmptyB = teamB === "Empty";
+
+            if (i === j) {
+                html += `<td class="bg-white/5 border border-white/10"></td>`; 
+            } else if (isEmptyA || isEmptyB) {
+                html += `<td class="border border-white/10 text-center text-gray-800 text-[10px]">-</td>`;
+            } else {
+                const match = matches.find(m => 
+                    (m.team1 === teamA && m.team2 === teamB) || 
+                    (m.team1 === teamB && m.team2 === teamA)
+                );
+
+                if (match) {
+                    const hasScores = (match.score1 !== null && match.score1 !== undefined) || 
+                                      (match.score2 !== null && match.score2 !== undefined);
+
+                    // --- ADMIN PERMISSION CHECK ---
+                    // Only add onclick and hover effects if isAdmin is true
+                    const clickAttr = isAdmin ? `onclick="window.openScoreModal('${match.id}')"` : '';
+                    const cursorClass = isAdmin ? 'cursor-pointer hover:bg-white/10 shadow-[inset_0_0_10px_rgba(0,0,0,0.2)]' : 'cursor-default';
+                    // ------------------------------
+
+                    if (hasScores || match.winner) {
+                        const s1 = match.score1 !== null ? match.score1 : 0;
+                        const s2 = match.score2 !== null ? match.score2 : 0;
+                        const scoreDisplay = (match.team1 === teamA) ? `${s1}-${s2}` : `${s2}-${s1}`;
+                        
+                        let colorClass = 'text-white font-mono'; 
+                        if (match.winner) {
+                            colorClass = (match.winner === teamA) ? 'text-green-400 font-bold' : 'text-red-400';
+                        }
+                        
+                        html += `<td ${clickAttr} class="p-2 border border-white/10 text-center text-xs ${colorClass} ${cursorClass} transition-colors">${scoreDisplay}</td>`;
+                    } else {
+                        // Pending Match
+                        const textClass = isAdmin ? 'text-gray-500 hover:text-[var(--gold)]' : 'text-gray-600';
+                        html += `<td ${clickAttr} class="p-2 border border-white/10 text-center text-xs ${textClass} ${cursorClass} transition-colors">vs</td>`;
+                    }
+                } else {
+                    html += `<td class="border border-white/10 text-center text-gray-700">-</td>`;
+                }
+            }
+        });
+        
+        const teamStats = stats[teamA] || { pts: 0 };
+        const ptsDisplay = isEmptyA ? "-" : teamStats.pts;
+        html += `<td class="p-3 border border-white/10 text-center font-bold text-[var(--gold)]">${ptsDisplay}</td></tr>`;
+    });
+
+    html += `</tbody></table></div>`;
+
+    // --- STANDINGS LIST ---
+    html += `
+        <div class="bg-[var(--dark-card)] rounded-lg border border-white/10 p-4">
+             <h3 class="text-white font-bold mb-4 uppercase tracking-widest text-sm border-b border-white/10 pb-2">Standings</h3>
+             <div class="space-y-1">
+                ${sortedStats.length > 0 ? sortedStats.map((s, i) => `
+                    <div class="flex justify-between items-center p-2 bg-white/5 rounded border border-white/5">
+                        <div class="flex items-center gap-3">
+                            <span class="font-mono text-gray-500 w-4 text-right">${i + 1}</span>
+                            <span class="font-bold text-white">${escapeHtml(s.name)}</span>
+                        </div>
+                        <div class="flex gap-4 text-sm">
+                            <span class="text-green-400">W: ${s.w}</span>
+                            <span class="text-red-400">L: ${s.l}</span>
+                            <span class="text-[var(--gold)] font-bold w-8 text-right">${s.pts} pts</span>
+                        </div>
+                    </div>
+                `).join('') : '<div class="text-gray-500 text-sm italic p-2">Waiting for teams...</div>'}
+             </div>
+        </div>
+    `;
+
+    html += `</div>`;
     container.innerHTML = html;
 }
 
