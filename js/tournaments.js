@@ -243,6 +243,47 @@ window.showCustomConfirm = (title, message) => {
 
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', () => {
+
+    // ==========================================
+// ROBUST MOBILE MENU LOGIC (Run Immediately)
+// ==========================================
+function initMobileMenu() {
+    const mobileBtn = document.getElementById('mobile-menu-button');
+    const mobileMenu = document.getElementById('mobile-menu');
+    const closeMobileBtn = document.getElementById('close-mobile-menu');
+
+    if (mobileBtn && mobileMenu) {
+        // Remove any existing listeners to prevent duplicates (optional safety)
+        const newBtn = mobileBtn.cloneNode(true);
+        mobileBtn.parentNode.replaceChild(newBtn, mobileBtn);
+
+        newBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            mobileMenu.classList.toggle('hidden');
+        });
+
+        if (closeMobileBtn) {
+            closeMobileBtn.addEventListener('click', () => {
+                mobileMenu.classList.add('hidden');
+            });
+        }
+
+        // Close when clicking outside
+        mobileMenu.addEventListener('click', (e) => {
+            if (e.target === mobileMenu) {
+                mobileMenu.classList.add('hidden');
+            }
+        });
+        
+        console.log("Mobile menu initialized"); // Debug log
+    } else {
+        console.warn("Mobile menu elements not found");
+    }
+}
+
+// Run immediately (Modules are deferred, so elements exist)
+initMobileMenu();
+
     fetchTournaments();
     const auth = getAuth();
     onAuthStateChanged(auth, async (user) => {

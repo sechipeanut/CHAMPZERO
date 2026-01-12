@@ -11,6 +11,7 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@mux/mux-node@7",
         "npm:body-parser@^1.20.2",
         "npm:cors@^2.8.5",
         "npm:dotenv@^16.3.1",
