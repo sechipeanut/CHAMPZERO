@@ -1,7 +1,7 @@
 import { db, auth } from './firebase-config.js';
 import {
     collection, getDocs, doc, addDoc, updateDoc, deleteDoc,
-    serverTimestamp, arrayUnion, arrayRemove, getDoc, onSnapshot, query, orderBy, collectionGroup, where
+    serverTimestamp, arrayUnion, arrayRemove, getDoc, onSnapshot, query, orderBy, collectionGroup, where, setDoc
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 function qs(sel) { return document.querySelector(sel); }
@@ -11,14 +11,14 @@ let currentUserRole = null;
 let chatUnsubscribe = null;
 let kickUnsubscribe = null;
 let currentManageId = null;
-let myTeamRole = null; 
-let activeTeamFilter = 'available'; 
-let activeGameFilter = 'all'; 
-let activeView = 'teams'; 
+let myTeamRole = null;
+let activeTeamFilter = 'available';
+let activeGameFilter = 'all';
+let activeView = 'teams';
 let searchTerm = '';
 
 // STORE CARD LISTENERS TO CLEAN UP LATER
-let cardListeners = []; 
+let cardListeners = [];
 
 // --- 1. ANIMATION HELPERS ---
 function animateGenericOpen(modalId, backdropId, panelId) {
@@ -104,9 +104,13 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (snap.exists()) currentUserRole = snap.data().role;
                 startKickListener(user.uid);
             } catch (e) { console.error("Error fetching role:", e); }
-        } else { if (kickUnsubscribe) kickUnsubscribe(); }
-        
-        window.setTab('find-teams');
+        } else {
+            if (kickUnsubscribe) kickUnsubscribe();
+            currentUserRole = null; // Clear role on logout
+        }
+
+        // Re-render the current view to reflect login/logout status
+        renderTeams();
     });
     setupForms();
 });
@@ -134,7 +138,23 @@ window.setGameFilter = (game) => { activeGameFilter = game; renderTeams(); }
 async function renderTeams() {
     const board = qs('#recruitment-board');
     if (!board) return;
-    
+    if ((activeTeamFilter === 'mine') && !auth.currentUser) {
+        board.innerHTML = `
+            <div class="col-span-full py-20 text-center flex flex-col items-center justify-center">
+                <div class="bg-white/5 p-8 rounded-2xl border border-white/10 max-w-sm">
+                    <svg class="w-12 h-12 text-gray-500 mb-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <h3 class="text-xl font-bold text-white mb-2">Sign in to view teams</h3>
+                    <p class="text-gray-400 text-sm mb-6">You need to be logged in to manage your team memberships and listings.</p>
+                    <a href="/login" class="inline-block bg-[var(--gold)] text-black font-bold px-8 py-3 rounded-lg hover:bg-yellow-400 transition-transform active:scale-95 shadow-lg">
+                        Log In Now
+                    </a>
+                </div>
+            </div>`;
+        return;
+    }
+
     // Clear existing real-time listeners for cards
     cardListeners.forEach(unsub => unsub());
     cardListeners = [];
@@ -156,7 +176,7 @@ async function renderTeams() {
         board.innerHTML = '';
         const myUid = auth.currentUser ? auth.currentUser.uid : null;
         let count = 0;
-        
+
         // We will collect joined teams to attach listeners later
         let joinedTeamsToListen = [];
 
@@ -173,24 +193,24 @@ async function renderTeams() {
                 const searchTarget = (post.name || post.ign || '').toLowerCase();
                 if (!searchTarget.includes(searchTerm)) return;
             }
-            
+
             count++;
 
             // Check role for blimp permissions
             const myRole = isAuthor ? 'Captain' : (myMemberData ? myMemberData.role : 'Member');
             const canSeeApps = (myRole === 'Captain' || myRole === 'Vice Captain');
 
-            const cardHTML = activeView === 'teams' 
-                ? renderTeamCard(post, isAuthor, isMember) 
+            const cardHTML = activeView === 'teams'
+                ? renderTeamCard(post, isAuthor, isMember)
                 : renderPlayerCard(post, isAuthor);
-            
+
             board.innerHTML += cardHTML;
 
             // If we are part of this team, add to list for real-time monitoring
             if (isJoined && activeView === 'teams') {
-                joinedTeamsToListen.push({ 
-                    id: post.id, 
-                    canSeeApps: canSeeApps 
+                joinedTeamsToListen.push({
+                    id: post.id,
+                    canSeeApps: canSeeApps
                 });
             }
         });
@@ -200,9 +220,9 @@ async function renderTeams() {
         // Start Real-time Listeners for Blimps
         subscribeToCardUpdates(joinedTeamsToListen);
 
-    } catch (error) { 
-        console.error("Render Error:", error); 
-        board.innerHTML = '<div class="col-span-full py-20 text-center"><p class="text-red-500">Failed to load listings.</p></div>'; 
+    } catch (error) {
+        console.error("Render Error:", error);
+        board.innerHTML = '<div class="col-span-full py-20 text-center"><p class="text-red-500">Failed to load listings.</p></div>';
     }
 }
 
@@ -317,12 +337,25 @@ function renderTeamCard(post, isAuthor, isMember) {
 function renderPlayerCard(post, isAuthor) {
     const borderClass = post.isPremium ? "border-[var(--gold)] shadow-[0_0_20px_rgba(255,215,0,0.15)]" : "border-white/10 hover:border-[var(--gold)]";
     const verifiedBadge = post.isPremium ? `<span class="bg-[var(--gold)] text-black text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold">PRO</span>` : '';
-    const contactBtn = (post.isPremium && post.contactLink && !isAuthor) ? `<a href="${escapeHtml(post.contactLink)}" target="_blank" class="block w-full text-center text-[var(--gold)] text-xs font-bold border border-[var(--gold)] py-2 rounded-lg mb-3 hover:bg-[var(--gold)] hover:text-black transition-colors">Direct Message ↗</a>` : '';
+
+    // Admin check for Logs button
+    const adminLogsBtn = currentUserRole === 'admin'
+        ? `<button onclick="window.openLftAdminLogs('${post.id}')" class="w-full mb-2 bg-white/5 text-gray-400 text-xs py-2 rounded border border-white/10 hover:bg-white/10 transition-colors">View Chat Logs (Admin)</button>`
+        : '';
+
+    // Message Button Logic
+    let actionBtn = '';
+    if (isAuthor) {
+        actionBtn = `<button onclick="window.openLftManageModal('${post.id}')" class="w-full bg-[var(--gold)] text-black font-bold py-2.5 rounded-lg text-sm hover:bg-yellow-400 transition-colors shadow-lg">Manage Messages</button>`;
+    } else {
+        actionBtn = `<button onclick="window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" class="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-lg text-sm hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/20">Message Player</button>`;
+    }
 
     return `
-        <article class="bg-[var(--dark-card)] border rounded-xl overflow-hidden transition-all duration-300 flex flex-col hover:-translate-y-1 ${borderClass}">
-            <div class="p-6 flex items-center gap-4 border-b border-white/5 bg-gradient-to-r from-[var(--dark-bg)] to-white/5">
-                <img src="${escapeHtml(post.image || 'https://ui-avatars.com/api/?name='+post.ign+'&background=random')}" class="w-14 h-14 rounded-md border border-[var(--gold)] object-cover shadow-lg">
+        <article data-id="${post.id}" class="bg-[var(--dark-card)] border rounded-xl overflow-hidden transition-all duration-300 flex flex-col hover:-translate-y-1 ${borderClass} relative">
+            <div class="p-6 flex items-center gap-4 border-b border-white/5 bg-gradient-to-r from-[var(--dark-bg)] to-white/5 relative">
+                <div class="blimp-container"></div>
+                <img src="${escapeHtml(post.image || 'https://ui-avatars.com/api/?name=' + post.ign + '&background=random')}" class="w-14 h-14 rounded-md border border-[var(--gold)] object-cover shadow-lg">
                 <div>
                     <h3 class="text-lg font-bold text-white flex items-center">${escapeHtml(post.ign)} ${verifiedBadge}</h3>
                     <span class="text-[10px] font-bold bg-white/10 text-gray-300 px-2 py-0.5 rounded uppercase tracking-wider">${escapeHtml(post.game)}</span>
@@ -334,11 +367,183 @@ function renderPlayerCard(post, isAuthor) {
                     <div class="bg-black/20 p-2 rounded-lg text-center border border-white/5"><p class="text-[10px] text-gray-500 uppercase font-bold">Role</p><p class="text-sm text-white font-bold truncate">${escapeHtml(post.role)}</p></div>
                 </div>
                 <div class="mb-6 flex-grow"><p class="text-sm text-gray-400 italic text-center">"${escapeHtml(post.description)}"</p></div>
-                ${contactBtn}
-                ${isAuthor ? `<button onclick="window.deleteListing('${post.id}')" class="w-full bg-red-900/30 text-red-200 font-bold py-2.5 rounded-lg text-sm hover:bg-red-900/50 transition-colors border border-red-900/30">Delete Listing</button>` : ''}
+                ${adminLogsBtn}
+                ${actionBtn}
+                ${isAuthor ? `<button onclick="window.deleteListing('${post.id}')" class="mt-3 w-full bg-red-900/10 text-red-500/50 text-[10px] font-bold py-1 hover:text-red-500 transition-colors">Delete Listing</button>` : ''}
             </div>
         </article>`;
 }
+
+let activeLftChatId = null; // Stores the UID of the person the creator is chatting with
+
+// 1. For a user to start a chat with the lister
+window.startLftChat = async (listingId, ign) => {
+    if (!auth.currentUser) return window.showCustomAlert("Login Required", "Please log in to message players.");
+
+    currentManageId = listingId;
+    activeLftChatId = auth.currentUser.uid; // Set the conversation ID to the sender's UID
+
+    document.querySelector('#manageTeamModal h3').textContent = "Listing Dashboard";
+
+    document.getElementById('manage-team-name').textContent = `Chat with ${ign}`;
+
+    // --- UI CLEANUP FOR PRIVATE CHAT ---
+    const tabsToHide = ['tab-roster', 'tab-applications', 'tab-settings'];
+    tabsToHide.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.style.display = 'none';
+    });
+
+    // Ensure Chat tab is visible and active
+    const chatTab = document.getElementById('tab-chat');
+    chatTab.style.display = 'block';
+    chatTab.classList.remove('hidden');
+
+    document.getElementById('manageTeamModal').classList.remove('hidden');
+
+    window.switchManageTab('chat');
+    startLftChatListener(listingId, activeLftChatId);
+};
+
+// 2. For the creator to see who messaged them
+window.openLftManageModal = async (listingId) => {
+    currentManageId = listingId;
+    activeLftChatId = null;
+
+    // Use the NEW modal ID
+    document.getElementById('manageLftModal').classList.remove('hidden');
+    switchLftTab('inbox');
+    loadLftInboxes(listingId);
+};
+
+//close
+window.closeLftModal = () => {
+    document.getElementById('manageLftModal').classList.add('hidden');
+    if (chatUnsubscribe) chatUnsubscribe();
+};
+
+window.switchLftTab = (tab) => {
+    document.querySelectorAll('.lft-manage-view').forEach(el => el.classList.add('hidden'));
+    document.getElementById(`lft-view-${tab}`).classList.remove('hidden');
+
+    // Style the two tabs
+    const tabs = ['inbox', 'chat'];
+    tabs.forEach(t => {
+        const btn = document.getElementById(`lft-tab-${t}`);
+        btn.className = (t === tab)
+            ? "flex-1 py-3 text-sm font-bold text-[var(--gold)] border-b-2 border-[var(--gold)] bg-white/5"
+            : "flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5";
+    });
+};
+
+// 3. Listener specifically for Private LFT Chats
+function startLftChatListener(listingId, participantUid) {
+    const chatContainer = document.getElementById('lft-chat-messages');
+    const isCreator = !auth.currentUser || auth.currentUser.uid !== participantUid;
+    const backBtnHtml = isCreator ?
+        `<button onclick="window.switchLftTab('inbox')" class="mb-4 text-[var(--gold)] text-xs font-bold flex items-center gap-1 hover:underline">← Back to Inboxes</button>` : '';
+
+    const q = query(
+        collection(db, "recruitment", listingId, "private_chats", participantUid, "messages"),
+        orderBy("createdAt", "asc")
+    );
+
+    if (chatUnsubscribe) chatUnsubscribe();
+    chatUnsubscribe = onSnapshot(q, (snapshot) => {
+        chatContainer.innerHTML = backBtnHtml;
+        let lastDateLabel = null;
+
+        snapshot.forEach(doc => {
+            const msg = doc.data();
+            const isMe = auth.currentUser && msg.senderId === auth.currentUser.uid;
+            const dateObj = msg.createdAt ? msg.createdAt.toDate() : new Date();
+            
+            const dateLabel = dateObj.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
+            const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+            // DATE DIVIDER LOGIC
+            if (dateLabel !== lastDateLabel) {
+                const dateDivider = document.createElement('div');
+                dateDivider.className = "flex justify-center my-6";
+                dateDivider.innerHTML = `<span class="bg-white/5 text-gray-500 text-[9px] px-3 py-1 rounded-full border border-white/5 uppercase tracking-widest font-bold">${dateLabel}</span>`;
+                chatContainer.appendChild(dateDivider);
+                lastDateLabel = dateLabel;
+            }
+
+            const bubble = document.createElement('div');
+            bubble.className = `chat-bubble ${isMe ? 'mine' : 'theirs'} mb-3 shadow-md flex flex-col`;
+            bubble.innerHTML = `
+                <div class="flex justify-between items-baseline mb-1 w-full gap-4">
+                    <span class="font-bold text-[10px] opacity-75">${escapeHtml(msg.senderName)}</span>
+                    <span class="text-[9px] opacity-50 font-mono">${timeString}</span>
+                </div>
+                <div class="leading-relaxed break-words">${escapeHtml(msg.text)}</div>`;
+            chatContainer.appendChild(bubble);
+        });
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+    });
+}
+
+async function loadLftInboxes(listingId) {
+    // CHANGE: Target 'lft-inbox-list' instead of 'applications-list'
+    const list = document.getElementById('lft-inbox-list');
+    list.innerHTML = '<p class="text-center text-gray-500 py-4 text-sm animate-pulse">Checking messages...</p>';
+
+    try {
+        const chatCollectionRef = collection(db, "recruitment", listingId, "private_chats");
+        const snap = await getDocs(chatCollectionRef);
+        list.innerHTML = '';
+
+        if (snap.empty) {
+            list.innerHTML = '<p class="text-center text-gray-500 py-4 text-sm">No messages yet.</p>';
+            return;
+        }
+
+        snap.forEach(chatDoc => {
+            const chatData = chatDoc.data();
+            const participantName = chatData.participantName || "Interested Player";
+            const lastMsg = chatData.lastMessage || "Sent a message...";
+
+            const div = document.createElement('div');
+            div.className = "bg-black/20 p-4 rounded-lg border border-white/5 mb-3 hover:border-[var(--gold)] cursor-pointer transition-all flex justify-between items-center";
+            div.innerHTML = `
+                <div>
+                    <div class="font-bold text-white text-sm">${escapeHtml(participantName)}</div>
+                    <div class="text-[10px] text-gray-400 truncate max-w-[200px]">${escapeHtml(lastMsg)}</div>
+                </div>
+                <div class="text-[var(--gold)] text-xs font-bold">Open Chat</div>
+            `;
+            div.onclick = () => {
+                activeLftChatId = chatDoc.id;
+                window.switchLftTab('chat'); // Use the LFT switch function
+                startLftChatListener(listingId, activeLftChatId); // Start listener
+            };
+            list.appendChild(div);
+        });
+    } catch (err) {
+        console.error("Inbox Load Error:", err);
+    }
+}
+
+// Admin function to view all private conversations for a specific LFT listing
+window.openLftAdminLogs = async (listingId) => {
+    if (currentUserRole !== 'admin') return;
+
+    currentManageId = listingId;
+    const modal = document.getElementById('manageTeamModal');
+    modal.classList.remove('hidden');
+
+    // Set UI title
+    document.getElementById('manage-team-name').textContent = "ADMIN LOGS: Private Chats";
+
+    // Reuse the "Inboxes" logic but with Admin permissions
+    const inboxTab = document.getElementById('tab-applications');
+    inboxTab.style.display = 'block';
+    inboxTab.textContent = "All Chat Logs";
+
+    window.switchManageTab('applications');
+    loadLftInboxes(listingId); // This will now fetch all private_chats sub-collections
+};
 
 // --- UTILS ---
 window.toggleFormType = (type) => {
@@ -347,7 +552,7 @@ window.toggleFormType = (type) => {
     const btnLft = document.getElementById('btn-type-lft');
     const teamFields = document.getElementById('team-fields');
     const lftFields = document.getElementById('lft-fields');
-    
+
     if (type === 'team') {
         btnTeam.classList.add('bg-[var(--gold)]', 'text-black', 'shadow-md');
         btnTeam.classList.remove('text-gray-400', 'hover:text-white');
@@ -367,7 +572,7 @@ window.toggleFormType = (type) => {
 
 window.openCreateModal = async () => {
     if (!auth.currentUser) { window.showCustomAlert("Login Required", "Please log in to post a listing."); return; }
-    
+
     if (currentUserRole !== 'admin' && currentUserRole !== 'subscriber') {
         toggleFormType('lft');
         const btnTeam = document.getElementById('btn-type-team');
@@ -377,14 +582,14 @@ window.openCreateModal = async () => {
         const btnTeam = document.getElementById('btn-type-team');
         btnTeam.classList.remove('opacity-50', 'cursor-not-allowed');
         btnTeam.onclick = () => toggleFormType('team');
-        toggleFormType('team'); 
+        toggleFormType('team');
     }
     animateGenericOpen('createTeamModal', 'createTeamBackdrop', 'createTeamPanel');
 }
 
 window.closeCreateModal = () => { animateGenericClose('createTeamModal', 'createTeamBackdrop', 'createTeamPanel', () => { qs('#createTeamForm').reset(); }); }
 
-function startKickListener(uid) { 
+function startKickListener(uid) {
     const q = query(collectionGroup(db, 'applications'), where('applicantId', '==', uid), where('status', '==', 'kicked'));
     kickUnsubscribe = onSnapshot(q, async (snapshot) => {
         for (const change of snapshot.docChanges()) {
@@ -399,16 +604,18 @@ function startKickListener(uid) {
 
 // --- MANAGEMENT LOGIC ---
 
-window.openManageModal = async (teamId) => { 
+window.openManageModal = async (teamId) => {
     currentManageId = teamId;
-    
+
     // --- INSTANT UI UPDATE: CLEAR RED BLIMP ---
     localStorage.setItem(`lastRead_${teamId}`, Date.now().toString());
-    updateBlimpUI(teamId, 'red', false); 
+    updateBlimpUI(teamId, 'red', false);
     // ------------------------------------------
 
     document.getElementById('manageTeamModal').classList.remove('hidden');
-    
+
+    document.querySelector('#manageTeamModal h3').textContent = "Team Dashboard";
+
     // Hide administrative elements by default
     document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
     document.getElementById('btn-disband').style.display = 'none';
@@ -418,7 +625,7 @@ window.openManageModal = async (teamId) => {
         if (snap.exists()) {
             const data = snap.data();
             document.getElementById('manage-team-name').textContent = data.name;
-            
+
             // Determine Role: Captain, Vice Captain, or Member
             myTeamRole = 'Member';
             if (auth.currentUser && data.authorId === auth.currentUser.uid) {
@@ -432,11 +639,11 @@ window.openManageModal = async (teamId) => {
 
             // Logic for Captains and Vice Captains
             const canManage = myTeamRole === 'Captain' || myTeamRole === 'Vice Captain';
-            
+
             if (canManage) {
                 document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'block'); // Show Requests/Settings tabs
                 loadApplications(teamId);
-                
+
                 // Only Captain can edit Team Info and Disband
                 if (myTeamRole === 'Captain') {
                     document.getElementById('edit-team-id').value = teamId;
@@ -460,8 +667,8 @@ window.openManageModal = async (teamId) => {
     } catch (err) { console.error(err); }
 }
 
-window.closeManageModal = () => { 
-    document.getElementById('manageTeamModal').classList.add('hidden'); 
+window.closeManageModal = () => {
+    document.getElementById('manageTeamModal').classList.add('hidden');
     if (chatUnsubscribe) chatUnsubscribe();
     currentManageId = null;
     myTeamRole = null;
@@ -474,17 +681,30 @@ window.closeManageModal = () => {
 window.switchManageTab = (tabName) => {
     document.querySelectorAll('.manage-view').forEach(el => el.classList.add('hidden'));
     document.getElementById(`view-${tabName}`).classList.remove('hidden');
-    ['chat','roster','applications','settings'].forEach(t => {
+
+    // Style tabs
+    ['chat', 'roster', 'applications', 'settings'].forEach(t => {
         const btn = document.getElementById(`tab-${t}`);
-        if(btn) {
+        if (btn) {
             btn.className = "flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all";
             btn.style.borderBottom = "none";
         }
     });
     const activeBtn = document.getElementById(`tab-${tabName}`);
-    if(activeBtn) {
+    if (activeBtn) {
         activeBtn.className = "flex-1 py-3 text-sm font-bold text-[var(--gold)] bg-white/5 transition-all";
         activeBtn.style.borderBottom = "2px solid var(--gold)";
+    }
+
+    // NEW: If switching to Chat, ensure we use the correct listener
+    if (tabName === 'chat' && currentManageId) {
+        if (activeLftChatId) {
+            // It's a private LFT chat
+            startLftChatListener(currentManageId, activeLftChatId);
+        } else {
+            // It's a standard team chat
+            startChatListener(currentManageId);
+        }
     }
 }
 
@@ -493,8 +713,8 @@ window.handleApp = async (appId, applicantId, applicantName, isAccept) => {
     if (!currentManageId) return;
     // Security check: Only Captain or Vice Captain
     if (myTeamRole !== 'Captain' && myTeamRole !== 'Vice Captain') {
-         await window.showCustomAlert("Unauthorized", "Only Captains and Vice Captains can manage requests.");
-         return;
+        await window.showCustomAlert("Unauthorized", "Only Captains and Vice Captains can manage requests.");
+        return;
     }
 
     const action = isAccept ? "Accept" : "Reject";
@@ -508,7 +728,7 @@ window.handleApp = async (appId, applicantId, applicantName, isAccept) => {
             const teamSnap = await getDoc(teamRef);
             if (!teamSnap.exists()) return;
             const data = teamSnap.data();
-            
+
             if ((data.members || []).length >= data.maxMembers) {
                 await window.showCustomAlert("Roster Full", "Cannot accept more members. The team is full.");
                 return;
@@ -544,8 +764,8 @@ window.handleApp = async (appId, applicantId, applicantName, isAccept) => {
 
 window.deleteListing = async (docId) => {
     // Standard delete for LFT players
-    if(!await window.showCustomConfirm("Delete Listing?", "Are you sure?")) return;
-    try { await deleteDoc(doc(db, "recruitment", docId)); await window.showCustomAlert("Deleted", "Listing removed."); renderTeams(); } catch(e) { console.error(e); }
+    if (!await window.showCustomConfirm("Delete Listing?", "Are you sure?")) return;
+    try { await deleteDoc(doc(db, "recruitment", docId)); await window.showCustomAlert("Deleted", "Listing removed."); renderTeams(); } catch (e) { console.error(e); }
 };
 
 window.disbandTeam = async () => {
@@ -577,18 +797,18 @@ window.openApplicationModal = (teamId, teamName) => {
 window.promoteMember = async (uid) => {
     if (myTeamRole !== 'Captain') return;
     if (!await window.showCustomConfirm("Promote Member?", "Promote this player to Vice Captain? They will be able to Accept applicants and Kick members.")) return;
-    
+
     try {
         const teamRef = doc(db, "recruitment", currentManageId);
         const snap = await getDoc(teamRef);
         let members = snap.data().members;
-        
+
         const index = members.findIndex(m => m.uid === uid);
         if (index !== -1) {
             // 1. Perform the update
             members[index].role = 'Vice Captain';
             await updateDoc(teamRef, { members: members });
-            
+
             // 2. Send System Message
             // We use the name found in the array index we just modified
             const memberName = members[index].name;
@@ -604,12 +824,12 @@ window.promoteMember = async (uid) => {
 window.demoteMember = async (uid) => {
     if (myTeamRole !== 'Captain') return;
     if (!await window.showCustomConfirm("Demote Member?", "Remove Vice Captain status?")) return;
-    
+
     try {
         const teamRef = doc(db, "recruitment", currentManageId);
         const snap = await getDoc(teamRef);
         let members = snap.data().members;
-        
+
         const index = members.findIndex(m => m.uid === uid);
         if (index !== -1) {
             // 1. Perform the update
@@ -627,7 +847,7 @@ window.demoteMember = async (uid) => {
     } catch (error) { console.error(error); }
 }
 
-window.kickMember = async (uid, memberRole) => { 
+window.kickMember = async (uid, memberRole) => {
     if (myTeamRole === 'Member') return;
     if (myTeamRole === 'Vice Captain' && (memberRole === 'Captain' || memberRole === 'Vice Captain')) {
         window.showCustomAlert("Permission Denied", "Vice Captains cannot kick the Captain or other Vice Captains.");
@@ -643,14 +863,14 @@ window.kickMember = async (uid, memberRole) => {
         const q = query(appsRef, where("applicantId", "==", uid));
         const appSnaps = await getDocs(q);
         await Promise.all(appSnaps.docs.map(d => updateDoc(d.ref, { status: 'kicked' })));
-        
+
         // Remove from array
         const snap = await getDoc(teamRef);
         const mems = snap.data().members.filter(m => m.uid !== uid);
         await updateDoc(teamRef, { members: mems, currentMembers: mems.length });
 
         await sendSystemMessage(currentManageId, `${kickedName} has been kicked from the team`);
-        
+
         renderRosterList(mems);
         window.showCustomAlert("Kicked", "Member removed.");
     } catch (error) { console.error(error); }
@@ -671,7 +891,7 @@ window.leaveTeam = async () => {
         const snap = await getDoc(teamRef);
         const mems = snap.data().members.filter(m => m.uid !== auth.currentUser.uid);
         await updateDoc(teamRef, { members: mems, currentMembers: mems.length });
-        
+
         window.closeManageModal();
         await window.showCustomAlert("Success", "You left the team.");
     } catch (error) { console.error(error); }
@@ -685,7 +905,7 @@ function setupForms() {
             const btn = createForm.querySelector('button[type="submit"]');
             btn.textContent = "Posting..."; btn.disabled = true;
             try {
-                const type = document.getElementById('create-type').value; 
+                const type = document.getElementById('create-type').value;
                 const isPremium = currentUserRole === 'admin' || currentUserRole === 'subscriber';
                 const baseData = {
                     type: type,
@@ -722,7 +942,7 @@ function setupForms() {
             finally { btn.textContent = "Post Listing"; btn.disabled = false; }
         });
     }
-    
+
     // Application Form Listener
     const appForm = document.getElementById('applicationForm');
     if (appForm) {
@@ -732,7 +952,7 @@ function setupForms() {
             const note = document.getElementById('app-note').value;
             const rank = document.getElementById('app-rank').value;
             const role = document.getElementById('app-role').value;
-            
+
             const btn = appForm.querySelector('button[type="submit"]');
             btn.textContent = "Sending..."; btn.disabled = true;
 
@@ -742,36 +962,100 @@ function setupForms() {
                     applicantName: auth.currentUser.displayName || auth.currentUser.email,
                     rank: rank,
                     role: role,
-                    note: note, 
-                    status: 'pending', 
+                    note: note,
+                    status: 'pending',
                     appliedAt: serverTimestamp()
                 });
                 await window.showCustomAlert("Success", "Application sent successfully!");
                 document.getElementById('applicationModal').classList.add('hidden');
                 appForm.reset();
-            } catch (error) { console.error(error); await window.showCustomAlert("Error", error.message); } 
+            } catch (error) { console.error(error); await window.showCustomAlert("Error", error.message); }
             finally { btn.textContent = "Send Request"; btn.disabled = false; }
         });
     }
 
     // Chat Form Listener
     const chatForm = document.getElementById('chatForm');
-    if (chatForm) {
-        chatForm.addEventListener('submit', async (e) => {
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const input = document.getElementById('chat-input');
+        const text = input.value.trim();
+        if (!text || !currentManageId) return;
+
+        input.value = '';
+        try {
+            if (activeLftChatId) {
+                // 1. Reference the parent chat document (the one that shows up in the inbox)
+                const chatDocRef = doc(db, "recruitment", currentManageId, "private_chats", activeLftChatId);
+
+                // 2. IMPORTANT: "Anchor" the document by saving metadata.
+                // This makes the document "real" so loadLftInboxes can find it.
+                await setDoc(chatDocRef, {
+                    lastMessage: text,
+                    lastMessageTime: serverTimestamp(),
+                    participantId: activeLftChatId,
+                    participantName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0]
+                }, { merge: true });
+
+                // 3. Add the actual message to the sub-collection as before
+                const messagesRef = collection(chatDocRef, "messages");
+                await addDoc(messagesRef, {
+                    text: text,
+                    senderId: auth.currentUser.uid,
+                    senderName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
+                    createdAt: serverTimestamp()
+                });
+            } else {
+                // Standard team chat logic remains same
+                await addDoc(collection(db, "recruitment", currentManageId, "messages"), {
+                    text: text,
+                    senderId: auth.currentUser.uid,
+                    senderName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
+                    createdAt: serverTimestamp()
+                });
+            }
+
+            // Update the listing's last active time to trigger notifications/blimps
+            await updateDoc(doc(db, "recruitment", currentManageId), { lastActive: serverTimestamp() });
+        } catch (err) {
+            console.error("Chat error", err);
+        }
+    });
+
+    // Add this inside your setupForms() function in teams.js
+    const lftChatForm = document.getElementById('lftChatForm');
+    if (lftChatForm) {
+        lftChatForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            const input = document.getElementById('chat-input');
+            const input = document.getElementById('lft-chat-input');
             const text = input.value.trim();
-            if (!text || !currentManageId) return;
+            if (!text || !currentManageId || !activeLftChatId) return;
+
             input.value = '';
             try {
-                await addDoc(collection(db, "recruitment", currentManageId, "messages"), {
-                    text: text, senderId: auth.currentUser.uid, senderName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0], createdAt: serverTimestamp()
+                const chatDocRef = doc(db, "recruitment", currentManageId, "private_chats", activeLftChatId);
+
+                await setDoc(chatDocRef, {
+                    lastMessage: text,
+                    lastMessageTime: serverTimestamp(),
+                    participantId: activeLftChatId,
+                    participantName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0]
+                }, { merge: true });
+
+                await addDoc(collection(chatDocRef, "messages"), {
+                    text: text,
+                    senderId: auth.currentUser.uid,
+                    senderName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
+                    createdAt: serverTimestamp()
                 });
+
                 await updateDoc(doc(db, "recruitment", currentManageId), { lastActive: serverTimestamp() });
-            } catch (err) { console.error("Chat error", err); }
+            } catch (err) {
+                console.error("LFT Chat error", err);
+            }
         });
     }
-    
+
     // Edit Team Form Listener
     const editForm = document.getElementById('editTeamForm');
     if (editForm) {
@@ -780,11 +1064,11 @@ function setupForms() {
             const id = document.getElementById('edit-team-id').value;
             const desc = document.getElementById('edit-desc').value;
             const max = parseInt(document.getElementById('edit-max').value);
-            
+
             try {
                 await updateDoc(doc(db, "recruitment", id), { description: desc, maxMembers: max });
                 window.showCustomAlert("Saved", "Team settings updated.");
-            } catch(e) { console.error(e); }
+            } catch (e) { console.error(e); }
         });
     }
 }
@@ -793,7 +1077,7 @@ function setupForms() {
 function renderRosterList(members) {
     const list = document.getElementById('roster-list');
     list.innerHTML = '';
-    
+
     // Only regular members see the Leave button in this list (Admins usually have a disband or separate logic, 
     // but Captain shouldn't leave their own team without disbanding or passing lead)
     if (myTeamRole === 'Member' || myTeamRole === 'Vice Captain') {
@@ -806,15 +1090,15 @@ function renderRosterList(members) {
     members.forEach(m => {
         const isMe = auth.currentUser && m.uid === auth.currentUser.uid;
         const targetRole = m.role || 'Member';
-        const roleBadge = targetRole === 'Captain' 
-            ? '<span class="text-[10px] bg-yellow-600/30 text-[var(--gold)] border border-[var(--gold)]/30 px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Captain</span>' 
-            : targetRole === 'Vice Captain' 
-            ? '<span class="text-[10px] bg-purple-600/30 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Vice</span>'
-            : '';
-            
+        const roleBadge = targetRole === 'Captain'
+            ? '<span class="text-[10px] bg-yellow-600/30 text-[var(--gold)] border border-[var(--gold)]/30 px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Captain</span>'
+            : targetRole === 'Vice Captain'
+                ? '<span class="text-[10px] bg-purple-600/30 text-purple-300 border border-purple-500/30 px-1.5 py-0.5 rounded ml-2 uppercase font-bold">Vice</span>'
+                : '';
+
         const item = document.createElement('div');
         item.className = "flex justify-between items-center bg-black/20 p-4 rounded-lg border border-white/5 hover:border-white/10 transition-colors";
-        
+
         let buttons = '';
         if (!isMe) {
             // Captain Logic
@@ -825,7 +1109,7 @@ function renderRosterList(members) {
                     buttons += `<button onclick="window.demoteMember('${m.uid}')" class="text-xs bg-gray-600/20 text-gray-400 border border-gray-600/30 px-2 py-1.5 rounded hover:bg-gray-600/40 mr-2 transition font-bold">Demote</button>`;
                 }
                 buttons += `<button onclick="window.kickMember('${m.uid}', '${targetRole}')" class="text-xs bg-red-900/30 text-red-300 border border-red-900/50 px-2 py-1.5 rounded hover:bg-red-900/50 transition font-bold">Kick</button>`;
-            } 
+            }
             // Vice Captain Logic (Can only kick Members)
             else if (myTeamRole === 'Vice Captain' && targetRole === 'Member') {
                 buttons += `<button onclick="window.kickMember('${m.uid}', '${targetRole}')" class="text-xs bg-red-900/30 text-red-300 border border-red-900/50 px-2 py-1.5 rounded hover:bg-red-900/50 transition font-bold">Kick</button>`;
@@ -849,30 +1133,37 @@ function renderRosterList(members) {
 function startChatListener(teamId) {
     const chatContainer = document.getElementById('chat-messages');
     const q = query(collection(db, "recruitment", teamId, "messages"), orderBy("createdAt", "asc"));
-    
+
     chatUnsubscribe = onSnapshot(q, (snapshot) => {
         chatContainer.innerHTML = '';
+        let lastDateLabel = null;
+
         snapshot.forEach((doc) => {
             const msg = doc.data();
             const isMe = auth.currentUser && msg.senderId === auth.currentUser.uid;
-            
-            // --- 1. TIMESTAMP LOGIC ---
-            // Handle case where serverTimestamp is null (latency) by using current time
             const dateObj = msg.createdAt ? msg.createdAt.toDate() : new Date();
+            
+            // Format for date divider (e.g., "January 16, 2026")
+            const dateLabel = dateObj.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
             const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-            // --- 2. RENDER LOGIC ---
-            const bubble = document.createElement('div');
+            // ADD DATE DIVIDER if the date changed
+            if (dateLabel !== lastDateLabel) {
+                const dateDivider = document.createElement('div');
+                dateDivider.className = "flex justify-center my-6";
+                dateDivider.innerHTML = `<span class="bg-white/5 text-gray-500 text-[9px] px-3 py-1 rounded-full border border-white/5 uppercase tracking-widest font-bold">${dateLabel}</span>`;
+                chatContainer.appendChild(dateDivider);
+                lastDateLabel = dateLabel;
+            }
 
+            const bubble = document.createElement('div');
             if (msg.isSystem) {
-                // SYSTEM MESSAGE STYLE (Centered, Gray)
                 bubble.className = "flex justify-center my-4 opacity-75";
                 bubble.innerHTML = `
                     <div class="bg-white/10 text-gray-300 text-[10px] px-3 py-1 rounded-full border border-white/5 font-bold uppercase tracking-wide">
                         ${escapeHtml(msg.text)} <span class="opacity-50 border-l border-white/20 pl-2 ml-2">${timeString}</span>
                     </div>`;
             } else {
-                // USER MESSAGE STYLE (With Timestamp)
                 bubble.className = `chat-bubble ${isMe ? 'mine' : 'theirs'} mb-3 shadow-md flex flex-col`;
                 bubble.innerHTML = `
                     <div class="flex justify-between items-baseline mb-1 w-full gap-4">
@@ -886,6 +1177,8 @@ function startChatListener(teamId) {
         chatContainer.scrollTop = chatContainer.scrollHeight;
     });
 }
+
+
 
 async function loadApplications(teamId) {
     const list = document.getElementById('applications-list');
@@ -913,7 +1206,7 @@ async function loadApplications(teamId) {
             list.appendChild(div);
         }
     });
-    
+
     // Update badge count
     const badge = document.getElementById('badge-apps');
     if (hasPending) {
