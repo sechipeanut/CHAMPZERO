@@ -90,26 +90,39 @@ window.showCustomConfirm = (title, message) => {
     });
 };
 
-// --- INITIALIZATION ---
+// --- UPDATED INITIALIZATION WITH DEBUG LOGS ---
 document.addEventListener('DOMContentLoaded', async () => {
-    qs('#team-search')?.addEventListener('input', (e) => {
-        searchTerm = e.target.value.toLowerCase();
-        renderTeams();
-    });
+    console.log("🛠️ DOM Loaded: Initializing Teams & Recruitment...");
 
     auth.onAuthStateChanged(async (user) => {
         if (user) {
+            console.log(`👤 Auth State: User ${user.uid} is logged in.`);
             try {
                 const snap = await getDoc(doc(db, "users", user.uid));
                 if (snap.exists()) currentUserRole = snap.data().role;
                 startKickListener(user.uid);
-            } catch (e) { console.error("Error fetching role:", e); }
-        } else {
-            if (kickUnsubscribe) kickUnsubscribe();
-            currentUserRole = null; // Clear role on logout
-        }
 
-        // Re-render the current view to reflect login/logout status
+                // --- SESSION RESTORATION LOGIC ---
+                const savedTeamId = sessionStorage.getItem('active_chat_teamId');
+                const savedLftId = sessionStorage.getItem('active_chat_lftId');
+
+                if (savedTeamId) {
+                    console.log(`🔄 Session Found: Attempting to reopen ID ${savedTeamId}`);
+                    if (savedLftId) {
+                        activeLftChatId = savedLftId;
+                        window.startLftChat(savedTeamId, "User");
+                    } else {
+                        window.openManageModal(savedTeamId);
+                    }
+                }
+            } catch (e) {
+                console.error("❌ Error fetching role or session:", e);
+            }
+        } else {
+            console.log("👤 Auth State: No user logged in.");
+            if (kickUnsubscribe) kickUnsubscribe();
+            currentUserRole = null;
+        }
         renderTeams();
     });
     setupForms();
@@ -381,28 +394,25 @@ window.startLftChat = async (listingId, ign) => {
     if (!auth.currentUser) return window.showCustomAlert("Login Required", "Please log in to message players.");
 
     currentManageId = listingId;
-    activeLftChatId = auth.currentUser.uid; // Set the conversation ID to the sender's UID
+    activeLftChatId = auth.currentUser.uid;
 
-    document.querySelector('#manageTeamModal h3').textContent = "Listing Dashboard";
+    // CHANGE: Open the LFT Modal, not the Manage Team Modal
+    const lftModal = document.getElementById('manageLftModal');
+    if (lftModal) {
+        lftModal.classList.remove('hidden');
 
-    document.getElementById('manage-team-name').textContent = `Chat with ${ign}`;
+        // Set the UI labels
+        document.getElementById('lft-manage-name').textContent = `Chat with ${ign}`;
 
-    // --- UI CLEANUP FOR PRIVATE CHAT ---
-    const tabsToHide = ['tab-roster', 'tab-applications', 'tab-settings'];
-    tabsToHide.forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.style.display = 'none';
-    });
+        // Switch to the chat tab in the LFT modal
+        window.switchLftTab('chat');
 
-    // Ensure Chat tab is visible and active
-    const chatTab = document.getElementById('tab-chat');
-    chatTab.style.display = 'block';
-    chatTab.classList.remove('hidden');
+        // Hide the "Inboxes" tab button because the sender doesn't need to see other people's chats
+        const inboxTabBtn = document.getElementById('lft-tab-inbox');
+        if (inboxTabBtn) inboxTabBtn.style.display = 'none';
 
-    document.getElementById('manageTeamModal').classList.remove('hidden');
-
-    window.switchManageTab('chat');
-    startLftChatListener(listingId, activeLftChatId);
+        startLftChatListener(listingId, activeLftChatId);
+    }
 };
 
 // 2. For the creator to see who messaged them
@@ -457,7 +467,7 @@ function startLftChatListener(listingId, participantUid) {
             const msg = doc.data();
             const isMe = auth.currentUser && msg.senderId === auth.currentUser.uid;
             const dateObj = msg.createdAt ? msg.createdAt.toDate() : new Date();
-            
+
             const dateLabel = dateObj.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
             const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
@@ -606,6 +616,7 @@ function startKickListener(uid) {
 
 window.openManageModal = async (teamId) => {
     currentManageId = teamId;
+    activeLftChatId = null;
 
     // --- INSTANT UI UPDATE: CLEAR RED BLIMP ---
     localStorage.setItem(`lastRead_${teamId}`, Date.now().toString());
@@ -980,16 +991,18 @@ function setupForms() {
         e.preventDefault();
         const input = document.getElementById('chat-input');
         const text = input.value.trim();
+
+        // Safety checks
         if (!text || !currentManageId) return;
 
-        input.value = '';
+        input.value = ''; // Clear input immediately for better UX
+
         try {
+            // 1. Check if we are currently in an LFT Private Chat session
+            // If activeLftChatId is set, we use the private_chats sub-collection
             if (activeLftChatId) {
-                // 1. Reference the parent chat document (the one that shows up in the inbox)
                 const chatDocRef = doc(db, "recruitment", currentManageId, "private_chats", activeLftChatId);
 
-                // 2. IMPORTANT: "Anchor" the document by saving metadata.
-                // This makes the document "real" so loadLftInboxes can find it.
                 await setDoc(chatDocRef, {
                     lastMessage: text,
                     lastMessageTime: serverTimestamp(),
@@ -997,16 +1010,16 @@ function setupForms() {
                     participantName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0]
                 }, { merge: true });
 
-                // 3. Add the actual message to the sub-collection as before
-                const messagesRef = collection(chatDocRef, "messages");
-                await addDoc(messagesRef, {
+                await addDoc(collection(chatDocRef, "messages"), {
                     text: text,
                     senderId: auth.currentUser.uid,
                     senderName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
                     createdAt: serverTimestamp()
                 });
-            } else {
-                // Standard team chat logic remains same
+            }
+            // 2. STANDARD TEAM CHAT LOGIC
+            // If activeLftChatId is null, we are in a regular Team Dashboard
+            else {
                 await addDoc(collection(db, "recruitment", currentManageId, "messages"), {
                     text: text,
                     senderId: auth.currentUser.uid,
@@ -1015,10 +1028,13 @@ function setupForms() {
                 });
             }
 
-            // Update the listing's last active time to trigger notifications/blimps
-            await updateDoc(doc(db, "recruitment", currentManageId), { lastActive: serverTimestamp() });
+            // 3. Update the main listing's heartbeat
+            await updateDoc(doc(db, "recruitment", currentManageId), {
+                lastActive: serverTimestamp()
+            });
+
         } catch (err) {
-            console.error("Chat error", err);
+            console.error("Chat transmission error:", err);
         }
     });
 
@@ -1142,7 +1158,7 @@ function startChatListener(teamId) {
             const msg = doc.data();
             const isMe = auth.currentUser && msg.senderId === auth.currentUser.uid;
             const dateObj = msg.createdAt ? msg.createdAt.toDate() : new Date();
-            
+
             // Format for date divider (e.g., "January 16, 2026")
             const dateLabel = dateObj.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
             const timeString = dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
