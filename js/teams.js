@@ -3,6 +3,7 @@ import {
     collection, getDocs, doc, addDoc, updateDoc, deleteDoc,
     serverTimestamp, arrayUnion, arrayRemove, getDoc, onSnapshot, query, orderBy, collectionGroup, where, setDoc
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { uploadImage } from './utils.js';
 
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
@@ -955,6 +956,29 @@ function setupForms() {
     }
 
     // Application Form Listener
+    // Handle create-img upload
+    const createImgUpload = document.getElementById('create-img-upload');
+    if (createImgUpload) {
+        createImgUpload.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const statusEl = document.getElementById('create-img-status');
+            statusEl.textContent = "Uploading image...";
+            statusEl.classList.replace('text-red-500', 'text-gray-500');
+            statusEl.classList.replace('text-green-500', 'text-gray-500');
+            try {
+                const url = await uploadImage(file, 'teams');
+                document.getElementById('create-img').value = url;
+                statusEl.textContent = "Upload successful!";
+                statusEl.classList.replace('text-gray-500', 'text-green-500');
+            } catch (error) {
+                console.error(error);
+                statusEl.textContent = "Upload failed.";
+                statusEl.classList.replace('text-gray-500', 'text-red-500');
+            }
+        });
+    }
+
     const appForm = document.getElementById('applicationForm');
     if (appForm) {
         appForm.addEventListener('submit', async (e) => {

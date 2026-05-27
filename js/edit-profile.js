@@ -1,4 +1,5 @@
 import { auth, db } from './firebase-config.js';
+import { uploadImage } from './utils.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import { doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
@@ -39,12 +40,36 @@ async function loadUserProfile(uid, email) {
             qs('#display-name-header').textContent = data.ign || data.displayName || "New Champion";
             if(data.avatar) qs('#profile-avatar').src = data.avatar;
         } else {
-            // New User - No data yet
-            qs('#display-name-header').textContent = "New Champion";
+            // Visual logic omitted
         }
     } catch (error) {
         console.error("Error fetching profile:", error);
     }
+}
+
+// Handle Avatar Upload
+const avatarInput = qs('#avatarImage');
+if (avatarInput) {
+    avatarInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        
+        const statusEl = qs('#avatarStatus');
+        statusEl.textContent = "Uploading image...";
+        
+        try {
+            const url = await uploadImage(file, 'avatars');
+            qs('#avatarUrl').value = url;
+            qs('#profile-avatar').src = url; // Show immediate preview
+            statusEl.textContent = "Upload successful!";
+            statusEl.classList.replace('text-gray-500', 'text-green-500');
+        } catch (error) {
+            console.error(error);
+            statusEl.textContent = "Upload failed.";
+            statusEl.classList.replace('text-gray-500', 'text-red-500');
+            window.showErrorToast("Error", "Failed to upload image.");
+        }
+    });
 }
 
 // 3. SAVE PROFILE DATA

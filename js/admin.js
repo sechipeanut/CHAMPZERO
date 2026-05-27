@@ -13,7 +13,7 @@ import {
     serverTimestamp,
     orderBy
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
-import { toDateInputFormat, calculateStatus } from './utils.js';
+import { toDateInputFormat, calculateStatus, uploadImage } from './utils.js';
 
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
@@ -1105,12 +1105,42 @@ document.addEventListener('DOMContentLoaded', () => {
     handleForm('#notifForm', 'notifications', () => ({ title: qs('#n-title').value, type: qs('#n-type').value, message: qs('#n-message').value }), "Notification Sent!");
     handleForm('#productForm', 'products', () => ({ 
         name: qs('#p-name').value, 
-        price: Number(qs('#p-price').value), 
+        price: Number(qs('#p-price').value) || qs('#p-price').value, 
         category: qs('#p-category').value, 
         image: qs('#p-image').value || "pictures/cz_logo.png", 
         description: qs('#p-desc').value,
-        stock: Number(qs('#p-stock').value) || 0,
-        variants: qs('#p-variants').value.split(',').map(v => v.trim()).filter(v => v),
-        isFeatured: qs('#p-featured').checked
+        shopLink: qs('#p-link') ? qs('#p-link').value : null,
+        stock: qs('#p-stock') ? Number(qs('#p-stock').value) || 0 : 0,
+        variants: qs('#p-variants') ? qs('#p-variants').value.split(',').map(v => v.trim()).filter(v => v) : [],
+        isFeatured: qs('#p-featured') ? qs('#p-featured').checked : false
     }), "Product Added!");
+
+    // Helper for image uploads
+    function setupImageUpload(inputId, hiddenInputId, statusId, folder) {
+        const input = qs(inputId);
+        if (!input) return;
+        input.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const statusEl = qs(statusId);
+            statusEl.textContent = "Uploading image...";
+            statusEl.classList.replace('text-red-500', 'text-gray-500');
+            statusEl.classList.replace('text-green-500', 'text-gray-500');
+            try {
+                const url = await uploadImage(file, folder);
+                qs(hiddenInputId).value = url;
+                statusEl.textContent = "Upload successful!";
+                statusEl.classList.replace('text-gray-500', 'text-green-500');
+            } catch (error) {
+                console.error(error);
+                statusEl.textContent = "Upload failed.";
+                statusEl.classList.replace('text-gray-500', 'text-red-500');
+            }
+        });
+    }
+
+    setupImageUpload('#p-image-upload', '#p-image', '#p-image-status', 'products');
+    setupImageUpload('#t-banner-upload', '#t-banner', '#t-banner-status', 'tournaments');
+    setupImageUpload('#e-banner-upload', '#e-banner', '#e-banner-status', 'events');
+    setupImageUpload('#tal-img-upload', '#tal-img', '#tal-img-status', 'talents');
 });

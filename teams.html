@@ -401,9 +401,14 @@
                             <div><label class="block text-sm text-gray-400 mb-1">Description</label><textarea
                                     id="create-desc" rows="3" required class="dark-input w-full p-3 rounded"
                                     placeholder="Tell us about your goals..."></textarea></div>
-                            <div><label class="block text-sm text-gray-400 mb-1">Image URL (Optional)</label><input
-                                    id="create-img" type="url" class="dark-input w-full p-3 rounded"
-                                    placeholder="https://..."></div>
+                            <div>
+                                <label class="block text-sm text-gray-400 mb-1">Image Upload (Optional)</label>
+                                <div class="flex items-center gap-4">
+                                    <input id="create-img-upload" type="file" accept="image/*" class="dark-input w-full p-2 rounded">
+                                    <input id="create-img" type="hidden">
+                                </div>
+                                <span id="create-img-status" class="text-xs text-gray-500 mt-1 block"></span>
+                            </div>
 
                             <div class="pt-4 flex gap-3">
                                 <button type="button" onclick="window.closeCreateModal()"

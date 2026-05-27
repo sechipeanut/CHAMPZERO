@@ -56,3 +56,29 @@ export function escapeCssUrl(url) {
     // Escape backslashes, single quotes, and parentheses
     return url.replace(/[\\\'()]/g, '\\$&');
 }
+
+/**
+ * Uploads an image file to Firebase Storage
+ * @param {File} file - The file to upload
+ * @param {string} folderPath - The folder path in the storage bucket (e.g. "avatars", "banners")
+ * @returns {Promise<string>} - The download URL of the uploaded image
+ */
+import { storage } from './firebase-config.js';
+import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-storage.js";
+
+export async function uploadImage(file, folderPath) {
+    if (!file) throw new Error("No file selected for upload.");
+    
+    // Create a unique filename
+    const uniqueFileName = `${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, `${folderPath}/${uniqueFileName}`);
+    
+    try {
+        const snapshot = await uploadBytes(storageRef, file);
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        return downloadURL;
+    } catch (error) {
+        console.error("Error uploading image:", error);
+        throw error;
+    }
+}

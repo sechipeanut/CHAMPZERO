@@ -41,3 +41,6 @@ TOAST_NOTIFICATIONS.md
 FIREBASE_AUTH_SETUP.md
 # Local Netlify folder
 .netlify
+
+# GitHub Files
+.github/
