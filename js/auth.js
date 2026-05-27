@@ -1,12 +1,13 @@
 // js/auth.js
-import { auth, db } from './firebase-config.js';
+import { auth, db } from './firebase-config.js'; //[cite: 3]
 import { 
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword, 
     updateProfile,
     GoogleAuthProvider,
     signInWithPopup,
-    sendEmailVerification
+    sendEmailVerification,
+    onAuthStateChanged // ➜ ADDED IMPORT
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
@@ -37,6 +38,32 @@ async function ensureUserProfile(user) {
     }
 }
 
+// --- NEW: GLOBAL SESSION ROLE LISTENER ---
+// Tracks user identity shifts across pages and caches their database roles
+onAuthStateChanged(auth, async (user) => {
+    if (user) {
+        try {
+            const userDocRef = doc(db, "users", user.uid);
+            const docSnap = await getDoc(userDocRef);
+            
+            if (docSnap.exists()) {
+                // Attach the role directly to the global window context
+                window.currentUserRole = docSnap.data().role;
+            } else {
+                window.currentUserRole = 'user';
+            }
+        } catch (error) {
+            console.error("Error updating user role session layout context:", error);
+            window.currentUserRole = 'user';
+        }
+    } else {
+        window.currentUserRole = null;
+    }
+    
+    // Dispatches a custom event to alert other modules (like tournaments.js) that permissions are resolved
+    window.dispatchEvent(new CustomEvent('authRoleReady'));
+});
+
 document.addEventListener('DOMContentLoaded', () => {
     console.log("Auth script loaded");
 
@@ -59,9 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 // Check if email is verified (skip for Google sign-ins as they're auto-verified)
                 if (!user.emailVerified && !user.providerData.some(p => p.providerId === 'google.com')) {
-                    // Don't sign out - keep them signed in so they can resend verification
                     window.showErrorToast("Email Not Verified", "Please verify your email before signing in.", 4000);
-                    // Redirect to verify-email page where they can resend
                     setTimeout(() => {
                         window.location.href = '/verify-email';
                     }, 1000);
@@ -129,7 +154,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     lastSignInTime: serverTimestamp()
                 });
 
-                // Keep user signed in and redirect to verify-email page
                 window.showSuccessToast("Success!", "Account created! Please check your email to verify your account.", 4000);
                 setTimeout(() => window.location.href = "/verify-email?fromSignup=true", 1500);
             } catch (error) {

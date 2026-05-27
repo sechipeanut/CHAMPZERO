@@ -405,86 +405,93 @@
     </main>
 
     <div id="detailsModal"
-        class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-[60] p-4 transition-opacity duration-300"
-        onclick="if(event.target.id === 'detailsModal') closeModal('detailsModal')">
-        <div class="bg-[var(--dark-card)] border border-white/10 rounded-xl w-[98%] h-[95vh] max-w-none p-6 relative overflow-auto shadow-2xl flex flex-col"
-            onclick="event.stopPropagation()">
+    class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-[60] p-4 transition-opacity duration-300"
+    onclick="if(event.target.id === 'detailsModal') closeModal('detailsModal')">
+    <div class="bg-[var(--dark-card)] border border-white/10 rounded-xl w-[90%] md:w-[70%] lg:w-[60%] h-[95vh] max-w-none p-6 relative overflow-auto shadow-2xl flex flex-col"
+        onclick="event.stopPropagation()">
 
-            <div id="detailBanner" class="mb-4"></div>
-            <div class="flex flex-col md:flex-row justify-between items-start gap-4 mb-2">
-                <h3 id="detailTitle" class="text-3xl font-bold text-white"></h3>
-                <div id="detailFormatBadge"
-                    class="bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 py-1 rounded text-xs uppercase font-bold tracking-wider">
-                </div>
+        <div class="flex flex-col md:flex-row gap-6 mb-6 items-stretch">
+            
+            <div id="detailBanner" class="w-full md:w-[60%] min-h-[200px] md:min-h-full flex-shrink-0 overflow-hidden rounded-xl relative">
             </div>
-            <div id="detailMeta" class="mb-4 text-sm text-gray-300 flex flex-wrap gap-x-6 gap-y-2"></div>
-
-            <div id="adminDashboard" class="hidden mb-6 p-4 bg-indigo-900/20 border border-indigo-500/30 rounded-lg">
-                <h4 class="text-indigo-300 font-bold mb-3 flex items-center gap-2">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                    Organizer Dashboard
-                </h4>
-                <div id="adminAppList" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                    <div class="text-gray-500 text-sm">Loading applications...</div>
-                </div>
-            </div>
-
-            <div class="border-t border-white/10 my-4"></div>
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-6">
-                <div class="lg:col-span-2">
-                    <h4 class="font-semibold text-white mb-2">Overview</h4>
-                    <div id="detailDesc" class="mb-6 text-gray-300 leading-relaxed text-sm"></div>
-                    <div id="actionArea" class="mb-6"></div>
-                </div>
-                <div class="lg:col-span-1">
-                    <h4 class="font-semibold text-white mb-2">Registered Teams</h4>
-                    <ul id="participantsList"
-                        class="bg-black/20 p-4 rounded-lg space-y-2 text-sm text-gray-300 max-h-60 overflow-y-auto border border-white/5">
-                    </ul>
-                </div>
-            </div>
-
-            <div id="championSection"
-                class="hidden mb-8 text-center border border-[var(--gold)]/30 bg-[var(--gold)]/5 rounded-xl p-10 relative overflow-hidden min-h-[200px] flex flex-col justify-center items-center shadow-[0_0_30px_rgba(255,215,0,0.1)]">
-
-                <div
-                    class="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--gold)]/10 to-transparent animate-pulse pointer-events-none">
-                </div>
-
-                <div class="relative z-10 w-full">
-                    <h2
-                        class="text-[var(--gold)] font-extrabold text-3xl md:text-5xl uppercase tracking-[0.2em] mb-4 text-glow drop-shadow-md">
-                        Tournament Champion
-                    </h2>
-
-                    <h3 id="champName"
-                        class="text-4xl md:text-6xl font-black text-white mb-6 drop-shadow-lg tracking-wide">
-                    </h3>
-
-                    <div class="flex justify-center w-full">
-                        <div id="champRoster" class="flex flex-wrap justify-center gap-3">
+            
+            <div class="flex flex-col justify-between flex-1 py-10">
+                <div>
+                    <div class="flex flex-col sm:flex-row justify-between items-start gap-4 mb-3">
+                        <h3 id="detailTitle" class="text-3xl font-bold text-white tracking-tight leading-tight"></h3>
+                        
+                        <div id="detailStatus"
+                            class="flex items-center justify-center bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 px-3 h-7 rounded text-xs uppercase font-bold tracking-wider whitespace-nowrap">
                         </div>
+                    </div>
+                    
+                    <div class="text-sm text-gray-300 flex flex-wrap gap-x-6 gap-y-2 mb-4 items-center">
+                        <div id="detailGame"></div>
+                        
+                        <div id="detailFormatBadge" class="flex items-center justify-center bg-white/10 px-2 h-7 rounded text-xs text-white uppercase font-medium"></div>
+                        
+                        <div id="detailPrize"></div>
+                    </div>
+
+                    <div class="lg:col-span-2">
+                        <h4 class="font-semibold text-white mb-2">Overview</h4>
+                        <div id="detailDesc" class="mb-6 text-gray-300 leading-relaxed text-sm"></div>
+                        <div id="actionArea" class="mb-6"></div>
                     </div>
                 </div>
             </div>
+        </div>
 
-            <div id="bracketSection" class="hidden border-t border-white/10 pt-6 flex-1 flex flex-col">
-                <div class="flex justify-between items-center mb-4">
-                    <h4 class="font-semibold text-white flex items-center gap-2">Tournament Bracket</h4>
-                    <div id="adminBracketToolbar" class="hidden flex gap-2 items-center"></div>
-                </div>
-                <div class="overflow-x-auto pb-4 custom-scrollbar w-full flex-1 h-full flex flex-col">
-                    <div id="bracketContainer" class="w-full flex-grow flex flex-col"></div>
+        <div id="adminDashboard" class="hidden mb-6 p-4 bg-indigo-900/20 border border-indigo-500/30 rounded-lg">
+            <h4 class="text-indigo-300 font-bold mb-3 flex items-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                Organizer Dashboard
+            </h4>
+            <div id="adminAppList" class="space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                <div class="text-gray-500 text-sm">Loading applications...</div>
+            </div>
+        </div>
+
+        <div class="border-t border-white/10 my-4"></div>
+        
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-6">
+            <div class="lg:col-span-2">
+                <h4 class="font-semibold text-white mb-2">Registered Teams</h4>
+                <ul id="participantsList"
+                    class="bg-black/20 p-4 rounded-lg space-y-2 text-sm text-gray-300 max-h-60 w-full overflow-y-auto border border-white/5">
+                </ul>
+            </div>
+        </div>
+
+        <div id="championSection"
+            class="hidden mb-8 text-center border border-[var(--gold)]/30 bg-[var(--gold)]/5 rounded-xl p-10 relative overflow-hidden min-h-[200px] flex flex-col justify-center items-center shadow-[0_0_30px_rgba(255,215,0,0.1)]">
+            <div class="absolute inset-0 bg-gradient-to-r from-transparent via-[var(--gold)]/10 to-transparent animate-pulse pointer-events-none"></div>
+            <div class="relative z-10 w-full">
+                <h2 class="text-[var(--gold)] font-extrabold text-3xl md:text-5xl uppercase tracking-[0.2em] mb-4 text-glow drop-shadow-md">Tournament Champion</h2>
+                <h3 id="champName" class="text-4xl md:text-6xl font-black text-white mb-6 drop-shadow-lg tracking-wide"></h3>
+                <div class="flex justify-center w-full">
+                    <div id="champRoster" class="flex flex-wrap justify-center gap-3"></div>
                 </div>
             </div>
-
-            <button onclick="closeModal('detailsModal')"
-                class="absolute top-4 right-4 text-gray-400 hover:text-white font-bold text-2xl">&times;</button>
         </div>
+
+        <div id="bracketSection" class="hidden border-t border-white/10 pt-6 flex-1 flex flex-col">
+            <div class="flex justify-between items-center mb-4">
+                <h4 class="font-semibold text-white flex items-center gap-2">Tournament Bracket</h4>
+                <div id="adminBracketToolbar" class="hidden flex gap-2 items-center"></div>
+            </div>
+            <div class="overflow-x-auto pb-4 custom-scrollbar w-full flex-1 h-full flex flex-col">
+                <div id="bracketContainer" class="w-full flex-grow flex flex-col"></div>
+            </div>
+        </div>
+
+        <button onclick="closeModal('detailsModal')"
+            class="absolute top-4 right-4 text-gray-400 hover:text-white font-bold text-2xl">&times;</button>
     </div>
+</div>
 
     <div id="joinModal"
         class="fixed inset-0 bg-black/90 backdrop-blur-md hidden flex items-center justify-center z-[60] p-4"
@@ -515,6 +522,12 @@
                 <div>
                     <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Contact Info</label>
                     <input type="text" id="joinContact" required
+                        class="dark-input w-full p-3 rounded-lg bg-black/30 focus:border-[var(--gold)]">
+                </div>
+                <div>
+                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Phone Number</label>
+                    <input type="tel" id="joinPhone" required
+                        placeholder="e.g., 09xx xxx xxxx"
                         class="dark-input w-full p-3 rounded-lg bg-black/30 focus:border-[var(--gold)]">
                 </div>
                 <div class="border-t border-white/10 pt-4 mt-2">

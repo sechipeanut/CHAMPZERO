@@ -442,35 +442,75 @@ function renderTournaments() {
     });
 
     grid.innerHTML = '';
-    if (filtered.length === 0) { grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-12">No tournaments found.</div>'; return; }
+    if (filtered.length === 0) { 
+        grid.innerHTML = '<div class="col-span-full text-center text-gray-500 py-12">No tournaments found.</div>'; 
+        return; 
+    }
 
     filtered.forEach(t => {
         const actualStatus = getTournamentStatus(t);
         const statusColor = actualStatus === 'Ongoing' ? 'text-green-400' : (actualStatus === 'Completed' ? 'text-gray-400' : 'text-[var(--gold)]');
 
         const card = document.createElement('article');
-        card.className = "bg-[var(--dark-card)] rounded-xl border border-white/10 overflow-hidden hover:border-[var(--gold)]/30 transition-all group relative flex flex-col h-full";
+        card.className = "bg-[var(--dark-card)] rounded-xl border border-white/10 overflow-hidden hover:border-[var(--gold)]/30 transition-all group relative flex flex-col h-96 w-full cursor-pointer";
+        
         card.innerHTML = `
-            <div class="h-48 bg-cover bg-center relative" style="background-image:url('${escapeCssUrl(t.banner || 'pictures/cz_logo.png')}')">
-                <div class="absolute inset-0 bg-black/40 group-hover:bg-black/20 transition-colors"></div>
-                <span class="absolute top-3 right-3 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white uppercase tracking-wide border border-white/10">${escapeHtml(t.game)}</span>
+            <div class="absolute inset-0 bg-cover bg-center transition-all duration-500 group-hover:scale-105 group-hover:blur-sm" 
+                 style="background-image:url('${escapeCssUrl(t.banner || 'pictures/cz_logo.png')}')">
             </div>
-            <div class="p-6 flex-1 flex flex-col">
-                <h3 class="font-bold text-xl text-white mb-2 group-hover:text-[var(--gold)] transition-colors line-clamp-1">${escapeHtml(t.name)}</h3>
-                <div class="flex justify-between items-center text-sm mb-4 border-b border-white/10 pb-4">
-                    <span class="text-gray-400 flex items-center gap-2">📅 ${formatDateRange(t.date, t.endDate)}</span>
-                    <span class="font-bold ${statusColor}">${actualStatus}</span>
-                </div>
-                <div class="flex justify-between items-center mt-auto">
-                    <div>
-                        <p class="text-xs text-gray-500 uppercase font-bold">Prize Pool</p>
-                        <p class="text-[var(--gold)] font-bold text-lg">₱${Number(t.prize || 0).toLocaleString()}</p>
+            
+            <div class="absolute inset-0 bg-gradient-to-t from-black/90 via-black/50 to-black/20 group-hover:from-black/95 group-hover:via-black/70 group-hover:to-black/40 transition-all duration-300"></div>
+
+            <span class="absolute top-3 right-3 z-10 bg-black/60 backdrop-blur-md px-3 py-1 rounded-full text-xs font-bold text-white uppercase tracking-wide border border-white/10">
+                ${escapeHtml(t.game)}
+            </span>
+
+            <div class="relative z-10 p-6 mt-auto flex flex-col h-full justify-end">
+                
+                <h3 class="font-bold text-xl text-white mb-2 transition-transform duration-300 group-hover:-translate-y-1 line-clamp-2">
+                    ${escapeHtml(t.name)}
+                </h3>
+
+                <div class="max-h-0 opacity-0 overflow-hidden group-hover:max-h-64 group-hover:opacity-100 transition-all duration-500 ease-in-out">
+                    <div class="flex justify-between items-center text-sm mb-4 border-b border-white/10 pb-4">
+                        <span class="text-gray-300 flex items-center gap-2">📅 ${formatDateRange(t.date, t.endDate)}</span>
+                        <span class="font-bold ${statusColor}">${actualStatus}</span>
                     </div>
-                    <button class="details-btn px-4 py-2 bg-white/10 hover:bg-white/20 text-white text-sm font-semibold rounded-lg transition-colors">Details</button>
+                    
+                    <div class="flex justify-between items-center mb-4">
+                        <div>
+                            <p class="text-[10px] text-gray-400 uppercase font-bold tracking-wider">Prize Pool</p>
+                            <p class="text-[var(--gold)] font-bold text-lg">₱${Number(t.prize || 0).toLocaleString()}</p>
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 mt-2">
+                        <button class="details-btn flex-1 px-3 py-2 bg-white/10 hover:bg-white/20 text-white text-xs font-semibold rounded-lg transition-colors">
+                            Details
+                        </button>
+                        <button class="register-btn flex-1 px-3 py-2 bg-[var(--gold)] hover:bg-[var(--gold-darker)] text-black text-xs font-bold rounded-lg transition-colors">
+                            Register
+                        </button>
+                    </div>
                 </div>
             </div>
         `;
-        card.querySelector('.details-btn').addEventListener('click', () => openModal(t));
+
+        // Event Listeners
+        card.querySelector('.details-btn').addEventListener('click', (e) => {
+            e.stopPropagation(); 
+            openModal(t);
+        });
+
+        card.querySelector('.register-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (typeof openJoinForm === 'function') {
+                openJoinForm(t.id);
+            }
+        });
+
+        card.addEventListener('click', () => openModal(t));
+
         grid.appendChild(card);
     });
 }
@@ -1216,11 +1256,19 @@ async function renderTournamentView(t) {
     if (!t.participants) t.participants = [];
 
     // 1. Basic Info Rendering
-    qs('#detailTitle').textContent = t.name;
-    qs('#detailFormatBadge').textContent = format;
-    qs('#detailBanner').innerHTML = `<img src="${t.banner || 'pictures/cz_logo.png'}" class="w-full h-64 object-cover rounded-lg">`;
-    qs('#detailMeta').innerHTML = `<span class="bg-[var(--gold)] text-black px-2 py-1 rounded font-bold text-xs uppercase">${t.game}</span> <span class="bg-white/10 px-2 py-1 rounded text-xs text-white uppercase">${actualStatus}</span> <span class="text-[var(--gold)] font-bold">🏆 ₱${Number(t.prize).toLocaleString()}</span>`;
-    qs('#detailDesc').textContent = t.description || "No specific details provided.";
+        qs('#detailTitle').textContent = t.name;
+
+        // CHANGED: Use .textContent so text aligns directly to the flex-centered box
+        qs('#detailStatus').textContent = actualStatus; 
+
+        qs('#detailBanner').innerHTML = `<img src="${escapeCssUrl(t.banner || 'pictures/cz_logo.png')}" class="w-full h-full object-cover rounded-xl border border-white/10" />`;
+        qs('#detailGame').innerHTML = `<span class="bg-[var(--gold)] text-black px-2 py-1 rounded font-bold text-xs uppercase">${t.game}</span>`;
+
+        // CHANGED: Use .textContent so text aligns perfectly inside the sub-meta bar
+        qs('#detailFormatBadge').textContent = format;
+
+        qs('#detailPrize').innerHTML = `<span class="text-[var(--gold)] font-bold">🏆 ₱${Number(t.prize).toLocaleString()}</span>`;
+        qs('#detailDesc').textContent = t.description || "No specific details provided.";
 
     const auth = getAuth();
     const user = auth.currentUser;
@@ -1490,6 +1538,7 @@ async function openJoinForm(id, isEdit = false, specificAppId = null) {
 
                 qs('#joinCaptain').value = data.captain || '';
                 qs('#joinContact').value = data.contact || '';
+                qs('#joinPhone').value = data.phone || '';
                 const membersContainer = qs('#membersContainer');
                 membersContainer.innerHTML = '';
                 if (data.members && data.members.length > 0) {
@@ -1504,6 +1553,7 @@ async function openJoinForm(id, isEdit = false, specificAppId = null) {
         } catch (e) { console.error(e); }
     } else {
         qs('#joinTeamName').value = ''; qs('#joinCaptain').value = user.displayName || ''; qs('#joinContact').value = user.email || '';
+        qs('#joinPhone').value = '';
         qs('#membersContainer').innerHTML = `<div class="flex gap-2"><input type="text" name="memberIgn[]" placeholder="Member IGN" class="dark-input w-full p-2 rounded text-sm bg-black/30" required></div>`;
         if (window.toggleTeamInput) window.toggleTeamInput(select);
     }
@@ -1547,14 +1597,22 @@ async function submitJoinRequest() {
 
     const captain = qs('#joinCaptain').value;
     const contact = qs('#joinContact').value;
+    const phone = qs('#joinPhone').value;
     const memberInputs = document.querySelectorAll('input[name="memberIgn[]"]');
     const membersList = [];
     memberInputs.forEach(input => { if (input.value.trim()) membersList.push(input.value.trim()); });
 
     const appData = {
-        name: teamName, captain: captain, contact: contact, members: membersList,
-        teamId: dbTeamId, registeredBy: user.uid, status: isEdit ? 'pending_update' : 'pending', submittedAt: serverTimestamp()
-    };
+    name: teamName, 
+    captain: captain, 
+    contact: contact, 
+    phone: phone,          
+    members: membersList,
+    teamId: dbTeamId, 
+    registeredBy: user.uid, 
+    status: isEdit ? 'pending_update' : 'pending', 
+    submittedAt: serverTimestamp()
+};
 
     const submitBtn = qs('#joinForm button[type="submit"]');
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
@@ -1625,17 +1683,73 @@ function renderParticipantsList(participants) {
     } else { pList.innerHTML = '<li class="text-gray-500 italic text-center py-4">No teams registered yet.</li>'; }
 }
 
-function viewTeamMembers(index) {
+// Helper to check if current user has management privileges for this tournament
+function isUserAdminOrOrganizer() {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user) return false;
+
+    // Convert value to lowercase safely to avoid casing mismatch bugs
+    const userRole = String(window.currentUserRole || '').toLowerCase();
+    const isAdminRole = (userRole === 'admin');
+
+    // Check if they are the tournament creator/organizer
+    const isOrganizer = currentEditingTournament && currentEditingTournament.createdBy === user.uid;
+
+    return isAdminRole || isOrganizer;
+}
+
+async function viewTeamMembers(index) {
     if (!currentEditingTournament || !currentEditingTournament.participants) return;
     const team = currentEditingTournament.participants[index];
     if (!team || typeof team !== 'object') { if (window.showErrorToast) window.showErrorToast("Info", "No member details available."); return; }
+    
     const list = document.getElementById('vm-list');
     const title = document.getElementById('vm-teamName');
     title.textContent = team.name;
 
+    let contactDiv = document.getElementById('vm-contactInfo');
+    if (!contactDiv) {
+        contactDiv = document.createElement('div');
+        contactDiv.id = 'vm-contactInfo';
+        contactDiv.className = 'mb-4 p-3 bg-black/40 rounded-lg border border-white/10 text-sm space-y-1';
+        list.parentNode.insertBefore(contactDiv, list);
+    }
+
+    // Default the block to hidden
+    contactDiv.innerHTML = '';
+    contactDiv.classList.add('hidden');
+
+    // Fetch details directly from the secure applications subcollection if user is authorized
+    if (isUserAdminOrOrganizer()) {
+        try {
+            // Find application matching this team name
+            const appsRef = collection(db, "tournaments", currentEditingTournament.id, "applications");
+            const q = query(appsRef, where("name", "==", team.name));
+            const snap = await getDocs(q);
+            
+            if (!snap.empty) {
+                const appData = snap.docs[0].data();
+                
+                const emailStr = appData.contact ? `<div><span class="text-gray-400">Email:</span> <span class="text-white">${escapeHtml(appData.contact)}</span></div>` : '';
+                const phoneStr = appData.phone ? `<div><span class="text-gray-400">Phone:</span> <span class="text-white">${escapeHtml(appData.phone)}</span></div>` : '<div><span class="text-gray-400">Phone:</span> <span class="text-gray-500 italic">None provided</span></div>';
+                
+                contactDiv.innerHTML = `${emailStr}${phoneStr}`;
+                contactDiv.classList.remove('hidden');
+            } else {
+                contactDiv.innerHTML = '<div class="text-gray-500 italic">Application document not found.</div>';
+                contactDiv.classList.remove('hidden');
+            }
+        } catch (err) {
+            console.error("Error loading secure contact data:", err);
+        }
+    }
+
+    // Render roster (visible to everyone)
     if (team.members && team.members.length > 0) {
         list.innerHTML = team.members.map(m => `<li class="p-2 bg-white/5 rounded border border-white/5 flex items-center gap-2"><span class="text-[var(--gold)]">➜</span> ${escapeHtml(m)}</li>`).join('');
     } else { list.innerHTML = '<li class="text-center text-gray-500 italic">No specific members listed.</li>'; }
+    
     document.getElementById('viewMembersModal').classList.remove('hidden');
     document.getElementById('viewMembersModal').classList.add('flex');
 }
@@ -1657,6 +1771,8 @@ window.viewPendingApplication = function(appId) {
             <div class="text-xs text-[var(--gold)] uppercase font-bold">Team Details</div>
             <div class="text-sm text-white"><span class="text-gray-400">Captain:</span> ${escapeHtml(app.captain)}</div>
             <div class="text-sm text-white"><span class="text-gray-400">Contact:</span> ${escapeHtml(app.contact || 'N/A')}</div>
+            <div class="text-sm text-white"><span class="text-gray-400">Contact:</span> ${escapeHtml(app.phone || 'N/A')}</div>
+
         </li>
         <li class="mt-3 mb-1 text-xs text-gray-500 uppercase font-bold">Roster Members</li>
     `;
