@@ -340,20 +340,7 @@ window.editItem = async function (collectionName, docId) {
 
         const data = docSnap.data();
 
-        if (collectionName === 'products') {
-            qs('#p-name').value = data.name;
-            qs('#p-price').value = data.price;
-            qs('#p-category').value = data.category;
-            qs('#p-image').value = data.image;
-            qs('#p-desc').value = data.description;
-            qs('#p-stock').value = data.stock || 0;
-            qs('#p-variants').value = data.variants ? data.variants.join(', ') : '';
-            qs('#p-featured').checked = !!data.isFeatured;
-            
-
-
-        }
-        else if (collectionName === 'tournaments') {
+        if (collectionName === 'tournaments') {
             qs('#t-name').value = data.name;
             qs('#t-game').value = data.game;
             qs('#t-format').value = data.format || 'Single Elimination';
@@ -442,148 +429,6 @@ function resetFormState(formSelector) {
         if (btn) btn.textContent = 'Save';
     }
     editState = { isEditing: false, collection: null, id: null, formId: null, modalId: null };
-}
-
-// --- 3. SHOP & USER MANAGEMENT ---
-
-
-    if (view === 'inventory') fetchShopProducts();
-    if (view === 'orders') fetchShopOrders();
-}
-
-async function fetchShopProducts() {
-    const list = qs('#shop-inventory-list');
-    list.innerHTML = '<p class="text-gray-500">Loading inventory...</p>';
-    
-    try {
-        const q = query(collection(db, "products"));
-        const snapshot = await getDocs(q);
-        
-        if (snapshot.empty) {
-            list.innerHTML = '<p class="text-gray-500">No products found.</p>';
-            return;
-        }
-
-        list.innerHTML = '';
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            list.innerHTML += `
-                <div class="admin-item">
-                    <div class="flex items-center gap-3">
-                        <img src="${data.image || 'https://via.placeholder.com/40'}" class="w-10 h-10 rounded object-cover border border-white/10">
-                        <div>
-                            <div class="font-bold text-white">${escapeHtml(data.name)}</div>
-                            <div class="text-xs text-[var(--gold)]">₱${Number(data.price).toLocaleString()} • ${data.category}</div>
-                            <div class="text-xs text-gray-400">Stock: ${data.stock || 0} ${data.isFeatured ? '• ⭐ Featured' : ''}</div>
-                        </div>
-                    </div>
-                    <div class="flex gap-2">
-                        <button onclick="editItem('products', '${doc.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
-                        <button onclick="deleteItem('products', '${doc.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
-                    </div>
-                </div>`;
-        });
-    } catch (e) {
-        console.error("Error fetching products:", e);
-        list.innerHTML = '<p class="text-red-500">Error loading products.</p>';
-    }
-}
-
-async function fetchShopOrders() {
-    const list = qs('#shop-orders-list');
-    list.innerHTML = '<p class="text-gray-500">Loading orders...</p>';
-    
-    try {
-        const q = query(collection(db, "orders"), orderBy("createdAt", "desc"));
-        const snapshot = await getDocs(q);
-        
-        if (snapshot.empty) {
-            list.innerHTML = '<p class="text-gray-500">No orders yet.</p>';
-            return;
-        }
-
-        list.innerHTML = '';
-        snapshot.forEach(doc => {
-            const data = doc.data();
-            const dateStr = data.createdAt ? new Date(data.createdAt.toDate()).toLocaleDateString() : 'N/A';
-            const statusClass = data.status === 'completed' ? 'status-completed' : (data.status === 'cancelled' ? 'status-cancelled' : 'status-pending');
-            
-            const orderData = encodeURIComponent(JSON.stringify({id: doc.id, ...data}));
-
-            list.innerHTML += `
-                <div class="admin-item flex-col items-start gap-3 sm:flex-row sm:items-center">
-                    <div class="flex-1">
-                        <div class="flex justify-between items-start mb-1">
-                            <span class="text-[var(--gold)] font-mono text-sm">#${doc.id.slice(0,8)}</span>
-                            <span class="text-gray-500 text-xs">${dateStr}</span>
-                        </div>
-                        <div class="font-bold text-white mb-1">${escapeHtml(data.itemName)}</div>
-                        <div class="text-sm text-gray-400">User: ${escapeHtml(data.userId)}</div>
-                        <div class="text-sm font-semibold text-white mt-1">Total: ₱${data.amount}</div>
-                    </div>
-                    <div class="flex items-center gap-3 w-full sm:w-auto justify-between">
-                        <span class="status-badge ${statusClass}">${data.status}</span>
-                        <div class="flex gap-1">
-                            <button onclick="viewOrderDetails('${orderData}')" class="bg-gray-700 hover:bg-gray-600 text-white px-3 py-1 rounded text-xs border border-gray-600">View</button>
-                            ${data.status !== 'completed' ? `<button onclick="updateOrderStatus('${doc.id}', 'completed')" class="bg-green-900/50 hover:bg-green-600 text-green-200 px-3 py-1 rounded text-xs border border-green-800">✓</button>` : ''}
-                            ${data.status !== 'cancelled' ? `<button onclick="updateOrderStatus('${doc.id}', 'cancelled')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-xs border border-red-800">✕</button>` : ''}
-                        </div>
-                    </div>
-                </div>`;
-        });
-    } catch (e) {
-        console.error("Error fetching orders:", e);
-        list.innerHTML = '<p class="text-red-500">Error loading orders. Check permissions.</p>';
-    }
-}
-
-window.viewOrderDetails = function(orderDataStr) {
-    const order = JSON.parse(decodeURIComponent(orderDataStr));
-    const content = qs('#order-modal-content');
-    
-    const shippingHtml = order.shipping ? `
-        <div class="bg-white/5 p-3 rounded border border-white/10 mb-4">
-            <h4 class="text-[var(--gold)] font-bold mb-2">Shipping Details</h4>
-            <p><span class="text-gray-400">Name:</span> ${escapeHtml(order.shipping.name)}</p>
-            <p><span class="text-gray-400">Address:</span> ${escapeHtml(order.shipping.address)}</p>
-            <p><span class="text-gray-400">Phone:</span> ${escapeHtml(order.shipping.phone)}</p>
-        </div>
-    ` : '';
-
-    const itemsHtml = order.items.map(item => `
-        <div class="flex justify-between py-2 border-b border-white/5">
-            <span>${escapeHtml(item.name)} ${item.selectedVariant ? `(${item.selectedVariant})` : ''}</span>
-            <span class="text-[var(--gold)]">₱${item.price.toLocaleString()}</span>
-        </div>
-    `).join('');
-
-    content.innerHTML = `
-        <div class="flex justify-between mb-4">
-            <span class="text-gray-400">Order ID:</span>
-            <span class="font-mono text-white">${order.id}</span>
-        </div>
-        ${shippingHtml}
-        <h4 class="text-gray-300 font-bold mb-2">Items</h4>
-        <div class="space-y-1 mb-4">
-            ${itemsHtml}
-        </div>
-        <div class="flex justify-between pt-4 border-t border-white/10 text-lg font-bold">
-            <span>Total</span>
-            <span class="text-[var(--gold)]">₱${order.amount.toLocaleString()}</span>
-        </div>
-    `;
-    
-    openModal('orderModal');
-}
-
-window.updateOrderStatus = async function(orderId, newStatus) {
-    try {
-        await updateDoc(doc(db, "orders", orderId), { status: newStatus });
-        window.showSuccessToast("Updated", `Order marked as ${newStatus}`, 2000);
-        fetchShopOrders();
-    } catch (e) {
-        window.showErrorToast("Error", "Failed to update order", 3000);
-    }
 }
 
 // ======================
@@ -1104,17 +949,6 @@ document.addEventListener('DOMContentLoaded', () => {
     handleForm('#talentForm', 'talents', () => ({ name: qs('#tal-name').value, role: qs('#tal-role').value, image: qs('#tal-img').value || "pictures/cz_logo.png", socialLink: qs('#tal-link').value, bio: qs('#tal-bio').value }), "Talent Added!");
     handleForm('#notifForm', 'notifications', () => ({ title: qs('#n-title').value, type: qs('#n-type').value, message: qs('#n-message').value }), "Notification Sent!");
 
-        name: qs('#p-name').value, 
-        price: Number(qs('#p-price').value) || qs('#p-price').value, 
-        category: qs('#p-category').value, 
-        image: qs('#p-image').value || "pictures/cz_logo.png", 
-        description: qs('#p-desc').value,
-        shopLink: qs('#p-link') ? qs('#p-link').value : null,
-        stock: qs('#p-stock') ? Number(qs('#p-stock').value) || 0 : 0,
-        variants: qs('#p-variants') ? qs('#p-variants').value.split(',').map(v => v.trim()).filter(v => v) : [],
-        isFeatured: qs('#p-featured') ? qs('#p-featured').checked : false
-    }), "Product Added!");
-
     // Helper for image uploads
     function setupImageUpload(inputId, hiddenInputId, statusId, folder) {
         const input = qs(inputId);
@@ -1139,7 +973,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    setupImageUpload('#p-image-upload', '#p-image', '#p-image-status', 'products');
     setupImageUpload('#t-banner-upload', '#t-banner', '#t-banner-status', 'tournaments');
     setupImageUpload('#e-banner-upload', '#e-banner', '#e-banner-status', 'events');
     setupImageUpload('#tal-img-upload', '#tal-img', '#tal-img-status', 'talents');
