@@ -265,7 +265,7 @@ window.closeModal = function (modalId) {
         'jobModal': '#jobForm',
         'talentModal': '#talentForm',
         'notificationModal': '#notifForm',
-        'productModal': '#productForm'
+
     };
     if(formMap[modalId]) resetFormState(formMap[modalId]);
 }
@@ -275,7 +275,7 @@ window.openEventModal = function () { openModal('eventModal'); }
 window.openJobModal = function () { openModal('jobModal'); }
 window.openTalentModal = function () { openModal('talentModal'); }
 window.openNotificationModal = function () { openModal('notificationModal'); }
-window.openProductModal = function () { openModal('productModal'); }
+
 
 // --- 1. ADMIN CHECK ---
 onAuthStateChanged(auth, async (user) => {
@@ -350,8 +350,8 @@ window.editItem = async function (collectionName, docId) {
             qs('#p-variants').value = data.variants ? data.variants.join(', ') : '';
             qs('#p-featured').checked = !!data.isFeatured;
             
-            prepareEditMode('products', docId, '#productForm', 'productModal');
-            openModal('productModal');
+
+
         }
         else if (collectionName === 'tournaments') {
             qs('#t-name').value = data.name;
@@ -414,7 +414,7 @@ function prepareEditMode(col, id, formSelector, modalId) {
         'jobModal': 'Edit Job',
         'talentModal': 'Edit Talent',
         'notificationModal': 'Edit Announcement',
-        'productModal': 'Edit Product'
+
     };
     if (modalId) qs(`#${modalId}Title`).textContent = modalTitleMap[modalId];
 
@@ -433,7 +433,7 @@ function resetFormState(formSelector) {
         'jobModal': 'Create Job',
         'talentModal': 'Add Talent',
         'notificationModal': 'Create Announcement',
-        'productModal': 'Add Product'
+
     };
     if (editState.modalId) qs(`#${editState.modalId}Title`).textContent = modalTitleMap[editState.modalId];
 
@@ -446,7 +446,7 @@ function resetFormState(formSelector) {
 
 // --- 3. SHOP & USER MANAGEMENT ---
 
-window.fetchShopData = async function(view) {
+
     if (view === 'inventory') fetchShopProducts();
     if (view === 'orders') fetchShopOrders();
 }
@@ -793,7 +793,7 @@ async function refreshAllLists() {
     fetchTalents();
     fetchNotifications();
     fetchSiteConfig();
-    fetchShopData('inventory');
+
     if(window.fetchUsers) window.fetchUsers();
 }
 
@@ -1029,7 +1029,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     await addDoc(collection(db, collectionName), data);
                     window.showSuccessToast("Created", successMsg, 2000);
                     form.reset();
-                    const modalMap = { 'tournamentForm': 'tournamentModal', 'eventForm': 'eventModal', 'jobForm': 'jobModal', 'talentForm': 'talentModal', 'notifForm': 'notificationModal', 'productForm': 'productModal' };
+
                     if (modalMap[form.id]) closeModal(modalMap[form.id]);
                 }
                 refreshAllLists();
@@ -1103,7 +1103,7 @@ document.addEventListener('DOMContentLoaded', () => {
     handleForm('#jobForm', 'careers', () => ({ title: qs('#j-title').value, location: qs('#j-location').value, type: qs('#j-type').value }), "Job Posted!");
     handleForm('#talentForm', 'talents', () => ({ name: qs('#tal-name').value, role: qs('#tal-role').value, image: qs('#tal-img').value || "pictures/cz_logo.png", socialLink: qs('#tal-link').value, bio: qs('#tal-bio').value }), "Talent Added!");
     handleForm('#notifForm', 'notifications', () => ({ title: qs('#n-title').value, type: qs('#n-type').value, message: qs('#n-message').value }), "Notification Sent!");
-    handleForm('#productForm', 'products', () => ({ 
+
         name: qs('#p-name').value, 
         price: Number(qs('#p-price').value) || qs('#p-price').value, 
         category: qs('#p-category').value, 
