@@ -2886,6 +2886,83 @@ window.closeMatchChat = function () {
     currentMatchId = null;
 }
 
+// Global bridge tracking from Score Modal into the Active Match Chat room
+window.openMatchChatFromModal = async function() {
+    const matchId = document.getElementById('scoreMatchId').value;
+    if (!matchId || !currentEditingTournament) {
+        if (typeof window.showToast === 'function') window.showToast("No active match found.", "error");
+        return;
+    }
+
+    // Close the score modal visually
+    if (document.getElementById('scoreModal')) {
+        document.getElementById('scoreModal').classList.add('hidden');
+    }
+
+    try {
+        // Find the active match data structural elements from your bracket arrangement
+        let matchData = null;
+        if (currentEditingTournament.brackets) {
+            for (const round of currentEditingTournament.brackets) {
+                // Ensure round is an array before searching
+                if (Array.isArray(round)) {
+                    matchData = round.find(m => m.id === matchId);
+                    if (matchData) break;
+                }
+            }
+        }
+
+        // Fallback: If brackets searching yielded nothing, try flat matches list
+        if (!matchData && currentEditingTournament.matches) {
+            matchData = currentEditingTournament.matches.find(m => m.id === matchId);
+        }
+
+        // Extract registeredBy user IDs (Captains) from competing teams
+        const authorizedCaptains = [];
+        if (matchData?.team1?.registeredBy) authorizedCaptains.push(matchData.team1.registeredBy);
+        if (matchData?.team2?.registeredBy) authorizedCaptains.push(matchData.team2.registeredBy);
+
+        // --- FIXED: Dynamically import ALL required methods safely ---
+        const { doc, setDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js");
+        
+        const chatDocRef = doc(db, "tournaments", currentEditingTournament.id, "matchChats", matchId);
+
+        // --- FIXED: Use setDoc with merge:true instead of getDoc checking ---
+        // This avoids throwing a permission error on an empty room initialization
+        await setDoc(chatDocRef, {
+            matchId: matchId,
+            authorizedCaptains: authorizedCaptains,
+            initializedAt: serverTimestamp()
+        }, { merge: true });
+
+        // Fire your system's built-in live match streaming snapshot chat wrapper
+        if (typeof window.openMatchChat === 'function') {
+            window.openMatchChat(matchId);
+        } else {
+            console.error("The standard openMatchChat function was not exposed globally.");
+        }
+
+    } catch (error) {
+        console.error("Failed to safely bridge match context initialization maps:", error);
+        if (typeof window.showToast === 'function') window.showToast("Chat system setup failed.", "error");
+    }
+};
+
+// Locate or edit your bracket node click handler (e.g., when clicking a match card)
+function handleMatchCardClick(matchId) {
+    const user = getAuth().currentUser;
+    const userRole = window.currentUserRole; // Replace with your structural global role variable
+    
+    if (userRole === 'admin' || userRole === 'Admin') {
+        // Open the score management admin control hub room directly
+        window.openScoreModal(matchId); 
+    } else {
+        // Bypass UI completely for Team Captains: route them straight to their allowed chat room!
+        document.getElementById('scoreMatchId').value = matchId;
+        window.openMatchChatFromModal();
+    }
+}
+
 // --- Window Exposure ---
 window.openJoinForm = openJoinForm;
 window.processApplication = processApplication;

@@ -313,78 +313,140 @@ function renderTeamCard(post, isAuthor, isMember) {
     let actionBtn = '';
 
     if (isAuthor || isMember) {
-        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="w-full bg-[var(--gold)] text-black font-bold py-2.5 rounded-lg mt-auto hover:bg-yellow-400 transition-transform active:scale-95 shadow-lg">Manage Team</button>`;
+        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="w-full bg-[var(--gold)] text-black font-bold py-1.5 rounded-md mt-2 hover:bg-yellow-400 transition-transform active:scale-95 shadow-lg text-xs">Manage Team</button>`;
     } else if (isFull) {
-        actionBtn = `<button disabled class="w-full bg-red-900/20 text-red-500 font-bold py-2.5 rounded-lg mt-auto border border-red-900/50 cursor-not-allowed">Roster Full</button>`;
+        actionBtn = `<button disabled class="w-full bg-red-900/20 text-red-500 font-bold py-1.5 rounded-md mt-2 border border-red-900/50 cursor-not-allowed text-xs">Roster Full</button>`;
     } else {
-        actionBtn = `<button onclick="window.openApplicationModal('${post.id}', '${escapeHtml(post.name)}')" class="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-lg mt-auto hover:bg-indigo-500 transition-transform active:scale-95 shadow-lg shadow-indigo-500/20">Apply to Join</button>`;
+        actionBtn = `<button onclick="window.openApplicationModal('${post.id}', '${escapeHtml(post.name)}')" class="w-full bg-indigo-600 text-white font-bold py-1.5 rounded-md mt-2 hover:bg-indigo-500 transition-transform active:scale-95 shadow-lg shadow-indigo-500/20 text-xs">Apply to Join</button>`;
     }
 
     const borderClass = post.isPremium ? "border-[var(--gold)] shadow-[0_0_20px_rgba(255,215,0,0.15)]" : "border-white/10 hover:border-[var(--gold)]";
-    const verifiedBadge = post.isPremium ? `<span class="bg-[var(--gold)] text-black text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold">VERIFIED</span>` : '';
-    const rolesHtml = post.roles ? post.roles.map(r => `<span class="bg-indigo-900/50 text-indigo-200 text-[10px] px-2 py-1 rounded border border-indigo-700/50">${escapeHtml(r.trim())}</span>`).join('') : '';
-    const contactBtn = (post.isPremium && post.contactLink && !isAuthor && !isMember) ? `<a href="${escapeHtml(post.contactLink)}" target="_blank" class="block w-full text-center text-[var(--gold)] text-xs font-bold border border-[var(--gold)] py-2 rounded-lg mb-3 hover:bg-[var(--gold)] hover:text-black transition-colors">Connect Directly ↗</a>` : '';
+    const verifiedBadge = post.isPremium ? `<span class="bg-[var(--gold)] text-black text-[9px] px-1 py-0.5 rounded ml-1.5 font-bold">VERIFIED</span>` : '';
+    const rolesHtml = post.roles ? post.roles.map(r => `<span class="bg-indigo-900/50 text-indigo-200 text-[9px] px-1.5 py-0.5 rounded border border-indigo-700/50">${escapeHtml(r.trim())}</span>`).join('') : '';
+    const contactBtn = (post.isPremium && post.contactLink && !isAuthor && !isMember) ? `<a href="${escapeHtml(post.contactLink)}" target="_blank" class="block w-full text-center text-[var(--gold)] text-[11px] font-bold border border-[var(--gold)] py-1.5 rounded-md mb-1 hover:bg-[var(--gold)] hover:text-black transition-colors">Connect Directly ↗</a>` : '';
 
-    // NOTE: We added data-id="${post.id}" to the article tag below
     return `
-        <article data-id="${post.id}" class="bg-[var(--dark-card)] border rounded-xl overflow-hidden transition-all duration-300 flex flex-col hover:-translate-y-1 group relative ${borderClass}">
-            <div class="h-40 bg-cover bg-center relative" style="background-image: url('${escapeHtml(post.image || 'pictures/cz_logo.png')}');">
-                <div class="blimp-container"></div>
+        <article data-id="${post.id}" class="bg-[var(--dark-card)] border rounded-xl overflow-hidden transition-all duration-300 h-40 hover:h-64 group relative ${borderClass}">
+            <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" style="background-image: url('${escapeHtml(post.image || 'pictures/cz_logo.png')}');"></div>
+            <div class="blimp-container"></div>
+            
+            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/20 z-10"></div>
+            
+            <div class="absolute top-2.5 right-2.5 bg-black/60 px-2 py-0.5 rounded text-[9px] text-white font-bold backdrop-blur-sm border border-white/10 uppercase z-10">${escapeHtml(post.game)}</div>
+            
+            <div class="absolute inset-x-0 bottom-0 p-3 flex flex-col justify-end z-20">
                 
-                <div class="absolute inset-0 bg-black/50 group-hover:bg-black/30 transition-colors"></div>
-                <div class="absolute top-3 right-3 bg-black/60 px-2.5 py-1 rounded text-[10px] text-white font-bold backdrop-blur-sm border border-white/10 uppercase">${escapeHtml(post.game)}</div>
-                <div class="absolute bottom-3 left-3 flex flex-wrap gap-1.5">${rolesHtml}</div>
-            </div>
-            <div class="p-5 flex-1 flex flex-col">
-                <div class="flex justify-between items-start mb-3"><h3 class="text-xl font-bold text-white truncate flex items-center group-hover:text-[var(--gold)] transition-colors">${escapeHtml(post.name)} ${verifiedBadge}</h3></div>
-                <div class="mb-5">
-                    <div class="flex justify-between text-xs text-gray-400 mb-1.5 font-bold uppercase tracking-wider"><span>Roster</span><span class="${isFull ? 'text-red-400' : 'text-[var(--gold)]'}">${memberCount} / ${maxMembers}</span></div>
-                    <div class="w-full bg-white/5 h-1.5 rounded-full overflow-hidden"><div class="bg-[var(--gold)] h-full transition-all duration-500" style="width: ${(memberCount / maxMembers) * 100}%"></div></div>
+                <div class="flex flex-wrap gap-1 mb-1.5">${rolesHtml}</div>
+                <div class="flex justify-between items-start mb-1.5">
+                    <h3 class="text-base font-bold text-white truncate flex items-center group-hover:text-[var(--gold)] transition-colors">${escapeHtml(post.name)} ${verifiedBadge}</h3>
                 </div>
-                <p class="text-sm text-gray-400 line-clamp-2 mb-6 h-10 leading-relaxed">${escapeHtml(post.description)}</p>
-                ${contactBtn}
-                ${actionBtn}
+                
+                <div class="max-h-0 opacity-0 overflow-hidden group-hover:max-h-32 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                    <div class="mb-2">
+                        <div class="flex justify-between text-[9px] text-gray-400 mb-1 font-bold uppercase tracking-wider">
+                            <span>Roster</span>
+                            <span class="${isFull ? 'text-red-400' : 'text-[var(--gold)]'}">${memberCount} / ${maxMembers}</span>
+                        </div>
+                        <div class="w-full bg-white/10 h-1 rounded-full overflow-hidden">
+                            <div class="bg-[var(--gold)] h-full transition-all duration-500" style="width: ${(memberCount / maxMembers) * 100}%"></div>
+                        </div>
+                    </div>
+                    
+                    <p class="text-[11px] text-gray-400 line-clamp-1 mb-1 leading-relaxed">${escapeHtml(post.description)}</p>
+                    
+                    ${contactBtn}
+                    ${actionBtn}
+                </div>
+
             </div>
         </article>`;
 }
 
 function renderPlayerCard(post, isAuthor) {
     const borderClass = post.isPremium ? "border-[var(--gold)] shadow-[0_0_20px_rgba(255,215,0,0.15)]" : "border-white/10 hover:border-[var(--gold)]";
-    const verifiedBadge = post.isPremium ? `<span class="bg-[var(--gold)] text-black text-[10px] px-1.5 py-0.5 rounded ml-2 font-bold">PRO</span>` : '';
+    const verifiedBadge = post.isPremium ? `<span class="bg-[var(--gold)] text-black text-[9px] px-1 py-0.5 rounded ml-1.5 font-bold">PRO</span>` : '';
 
-    // Admin check for Logs button
-    const adminLogsBtn = currentUserRole === 'admin'
-        ? `<button onclick="window.openLftAdminLogs('${post.id}')" class="w-full mb-2 bg-white/5 text-gray-400 text-xs py-2 rounded border border-white/10 hover:bg-white/10 transition-colors">View Chat Logs (Admin)</button>`
-        : '';
+    const adminLogsBtn = currentUserRole === 'admin' ? '' : ''; 
 
-    // Message Button Logic
+    // Compact SVG Icon Buttons
     let actionBtn = '';
     if (isAuthor) {
-        actionBtn = `<button onclick="window.openLftManageModal('${post.id}')" class="w-full bg-[var(--gold)] text-black font-bold py-2.5 rounded-lg text-sm hover:bg-yellow-400 transition-colors shadow-lg">Manage Messages</button>`;
+        actionBtn = `
+            <button onclick="window.openLftManageModal('${post.id}')" title="Manage Messages" class="p-2 bg-[var(--gold)] text-black rounded-lg hover:bg-yellow-400 transition-transform active:scale-95 shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
+                </svg>
+            </button>`;
     } else {
-        actionBtn = `<button onclick="window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" class="w-full bg-indigo-600 text-white font-bold py-2.5 rounded-lg text-sm hover:bg-indigo-500 transition-colors shadow-lg shadow-indigo-500/20">Message Player</button>`;
+        actionBtn = `
+            <button onclick="window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" title="Message Player" class="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-transform active:scale-95 shadow-lg shadow-indigo-500/20">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                </svg>
+            </button>`;
     }
 
+    const deleteBtn = isAuthor ? `
+        <button onclick="window.deleteListing('${post.id}')" title="Delete Listing" class="p-2 bg-red-950/40 text-red-400 border border-red-900/30 rounded-lg hover:bg-red-900/40 transition-colors">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
+            </svg>
+        </button>` : '';
+
+    // Check if description exists and has text content
+    const hasDescription = post.description && post.description.trim().length > 0;
+    
+    // Dynamic height class: only expand if a description is present
+    const heightHoverClass = hasDescription ? "hover:h-28" : "hover:h-20";
+
+    const descriptionHtml = hasDescription ? `
+        <!-- State C: Hidden Dropdown Description (Revealed vertically on hover) -->
+        <div class="absolute bottom-2.5 left-4 right-4 max-h-0 opacity-0 overflow-hidden group-hover:max-h-8 group-hover:opacity-100 transition-all duration-300 ease-in-out border-t border-white/5 pt-1.5 z-10">
+            <p class="text-[11px] text-gray-400 italic truncate">"${escapeHtml(post.description)}"</p>
+        </div>` : '';
+
     return `
-        <article data-id="${post.id}" class="bg-[var(--dark-card)] border rounded-xl overflow-hidden transition-all duration-300 flex flex-col hover:-translate-y-1 ${borderClass} relative">
-            <div class="p-6 flex items-center gap-4 border-b border-white/5 bg-gradient-to-r from-[var(--dark-bg)] to-white/5 relative">
-                <div class="blimp-container"></div>
-                <img src="${escapeHtml(post.image || 'https://ui-avatars.com/api/?name=' + post.ign + '&background=random')}" class="w-14 h-14 rounded-md border border-[var(--gold)] object-cover shadow-lg">
-                <div>
-                    <h3 class="text-lg font-bold text-white flex items-center">${escapeHtml(post.ign)} ${verifiedBadge}</h3>
-                    <span class="text-[10px] font-bold bg-white/10 text-gray-300 px-2 py-0.5 rounded uppercase tracking-wider">${escapeHtml(post.game)}</span>
+        <article data-id="${post.id}" class="bg-[var(--dark-card)] border rounded-xl overflow-hidden transition-all duration-300 h-20 group flex flex-col justify-start relative ${borderClass} ${heightHoverClass}">
+            <div class="blimp-container"></div>
+            
+            <!-- Top Control Row -->
+            <div class="w-full flex items-center justify-between px-4 h-20 shrink-0 relative z-10">
+                <!-- Left Side: Profile Info -->
+                <div class="flex items-center gap-3 min-w-0">
+                    <img src="${escapeHtml(post.image || 'https://ui-avatars.com/api/?name=' + post.ign + '&background=random')}" class="w-11 h-11 rounded-md border border-[var(--gold)] object-cover shadow-lg shrink-0">
+                    <div class="min-w-0">
+                        <h3 class="text-sm font-bold text-white flex items-center group-hover:text-[var(--gold)] transition-colors truncate">
+                            ${escapeHtml(post.ign)} ${verifiedBadge}
+                        </h3>
+                        <span class="text-[9px] font-bold bg-white/10 text-gray-300 px-1.5 py-0.5 rounded uppercase tracking-wider block w-fit mt-0.5">${escapeHtml(post.game)}</span>
+                    </div>
+                </div>
+                
+                <!-- Right Side: Sliding Interactive Deck -->
+                <div class="relative w-36 h-11 shrink-0 overflow-hidden">
+                    <!-- State A: Rank & Role Stats -->
+                    <div class="absolute inset-0 flex gap-2 transition-all duration-300 transform translate-x-0 opacity-100 group-hover:-translate-x-4 group-hover:opacity-0 ease-in-out">
+                        <div class="flex-1 bg-black/20 px-2 py-1 rounded-md text-center border border-white/5 min-w-0 flex flex-col justify-center">
+                            <p class="text-[8px] text-gray-500 uppercase font-bold tracking-tight">Rank</p>
+                            <p class="text-xs text-[var(--gold)] font-bold truncate leading-none mt-0.5">${escapeHtml(post.rank)}</p>
+                        </div>
+                        <div class="flex-1 bg-black/20 px-2 py-1 rounded-md text-center border border-white/5 min-w-0 flex flex-col justify-center">
+                            <p class="text-[8px] text-gray-500 uppercase font-bold tracking-tight">Role</p>
+                            <p class="text-xs text-white font-bold truncate leading-none mt-0.5">${escapeHtml(post.role)}</p>
+                        </div>
+                    </div>
+                    
+                    <!-- State B: Action Logo Buttons -->
+                    <div class="absolute inset-0 flex gap-2 items-center justify-end transition-all duration-300 transform translate-x-8 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 ease-in-out">
+                        ${adminLogsBtn}    
+                        ${deleteBtn}
+                        ${actionBtn}
+                    </div>
                 </div>
             </div>
-            <div class="p-6 flex-1 flex flex-col">
-                <div class="grid grid-cols-2 gap-4 mb-6">
-                    <div class="bg-black/20 p-2 rounded-lg text-center border border-white/5"><p class="text-[10px] text-gray-500 uppercase font-bold">Rank</p><p class="text-sm text-[var(--gold)] font-bold truncate">${escapeHtml(post.rank)}</p></div>
-                    <div class="bg-black/20 p-2 rounded-lg text-center border border-white/5"><p class="text-[10px] text-gray-500 uppercase font-bold">Role</p><p class="text-sm text-white font-bold truncate">${escapeHtml(post.role)}</p></div>
-                </div>
-                <div class="mb-6 flex-grow"><p class="text-sm text-gray-400 italic text-center">"${escapeHtml(post.description)}"</p></div>
-                ${adminLogsBtn}
-                ${actionBtn}
-                ${isAuthor ? `<button onclick="window.deleteListing('${post.id}')" class="mt-3 w-full bg-red-900/10 text-red-500/50 text-[10px] font-bold py-1 hover:text-red-500 transition-colors">Delete Listing</button>` : ''}
-            </div>
+
+            <!-- Conditional Dropdown Section -->
+            ${descriptionHtml}
         </article>`;
 }
 
