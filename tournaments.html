@@ -303,6 +303,34 @@
                 -webkit-box-orient: vertical;  
                 overflow: hidden;
             }
+
+                        /* Custom Styled Dropdowns matching ChampZero theme */
+            .custom-roster-select {
+                appearance: none;
+                -webkit-appearance: none;
+                -moz-appearance: none;
+                /* Clean white chevron icon positioned on the left side */
+                background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='24' height='24' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'></polyline></svg>");
+                background-repeat: no-repeat;
+                background-position: left 0.75rem center; /* Moves arrow hook layout to the left */
+                background-size: 1rem;
+                padding-left: 2.25rem; /* Pushes text right so it doesn't overlap the arrow */
+            }
+
+            /* Ensure dropdown options have dark readable backgrounds in all browsers */
+            .custom-roster-select option {
+                background-color: #1A1A1F !important;
+                color: #ffffff !important;
+            }
+
+            /* Smooth fade slide insertion microanimation */
+            @keyframes rowFadeIn {
+                from { opacity: 0; transform: translateY(-6px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            .animate-row-in {
+                animation: rowFadeIn 0.25s ease-out forwards;
+            }
     </style>
 </head>
 
@@ -533,15 +561,10 @@
                 <div>
                     <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Select Team</label>
                     <select id="joinTeamSelect"
-                        class="dark-select w-full p-3 rounded-lg bg-black/30 focus:border-[var(--gold)]"
-                        onchange="toggleTeamInput(this)">
-                        <option value="custom">Create Custom Team</option>
+                            class="dark-select appearance-none cursor-pointer w-full p-3 rounded-lg bg-black/30 focus:border-[var(--gold)] text-white"
+                            onchange="toggleTeamInput(this)">
+                        <option value="custom" class="bg-[#1a1a1f] text-white">-- Select Team --</option>
                     </select>
-                </div>
-                <div id="customTeamInputContainer">
-                    <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Team Name</label>
-                    <input type="text" id="joinTeamName"
-                        class="dark-input w-full p-3 rounded-lg bg-black/30 focus:border-[var(--gold)]">
                 </div>
                 <div>
                     <label class="block text-xs uppercase text-gray-500 font-bold mb-1">Captain / IGN</label>
@@ -829,38 +852,151 @@
         </div>
 
     <script>
+    function toggleTeamInput(select) {
+    const membersContainer = document.getElementById('membersContainer');
+
+    // --- POPULATE A SINGLE EMPTY DROPDOWN ROW FROM ROSTER ---
+    if (window.userTeams && Array.isArray(window.userTeams)) {
+        const selectedTeam = window.userTeams.find(t => t.id === select.value);
+        
+        if (selectedTeam && selectedTeam.members && selectedTeam.members.length > 0) {
+            membersContainer.innerHTML = ''; // Clear default placeholders
+
+            const div = document.createElement('div');
+            div.className = 'flex gap-2 items-center animate-row-in w-full';
+
+            const selectEl = document.createElement('select');
+            selectEl.name = 'memberIgn[]';
+            selectEl.className = 'dark-input appearance-none w-full p-2 rounded text-sm bg-black/50 border border-white/10 text-white focus:border-[var(--gold)] outline-none transition-all duration-200 cursor-pointer';
+            selectEl.style.webkitAppearance = 'none';
+            selectEl.style.appearance = 'none';
+            selectEl.style.backgroundImage = 'none';
+            selectEl.required = true;
+
+            // Add a default unselected prompt option
+            const defaultOpt = document.createElement('option');
+            defaultOpt.value = '';
+            defaultOpt.textContent = '-- Select Team Member --';
+            defaultOpt.disabled = true;
+            defaultOpt.selected = true;
+            defaultOpt.className = 'bg-[#1a1a1f] text-white'; 
+            selectEl.appendChild(defaultOpt);
+
+            // Populate the available drop choices
+            selectedTeam.members.forEach(m => {
+                const memberName = typeof m === 'string' ? m : (m.ign || m.name || 'Unknown');
+                const option = document.createElement('option');
+                option.value = memberName;
+                option.textContent = memberName;
+                option.className = 'bg-[#1a1a1f] text-white'; 
+                selectEl.appendChild(option);
+            });
+
+            const deleteBtn = document.createElement('button');
+            deleteBtn.type = 'button';
+            deleteBtn.className = 'text-red-400 hover:text-red-300 px-2 text-xl transition-colors';
+            deleteBtn.innerHTML = '&times;';
+            deleteBtn.onclick = function() { this.parentElement.remove(); };
+
+            div.appendChild(selectEl);
+            div.appendChild(deleteBtn);
+            membersContainer.appendChild(div);
+        } else {
+            membersContainer.innerHTML = `
+                <div class="flex gap-2 animate-row-in">
+                    <input type="text" name="memberIgn[]" placeholder="Member IGN" class="dark-input w-full p-2 rounded text-sm bg-black/50 border border-white/10 text-white focus:border-[var(--gold)] outline-none" required>
+                </div>
+            `;
+        }
+    }
+}
+
+        function addMemberInput() {
+                    const container = document.getElementById('membersContainer');
+                    const teamSelect = document.getElementById('joinTeamSelect');
+                    const div = document.createElement('div');
+                    div.className = 'flex gap-2 items-center animate-row-in w-full';
+
+                    if (teamSelect && teamSelect.value !== 'custom' && window.userTeams) {
+                        const selectedTeam = window.userTeams.find(t => t.id === teamSelect.value);
+                        
+                        if (selectedTeam && selectedTeam.members && selectedTeam.members.length > 0) {
+                            const selectEl = document.createElement('select');
+                            selectEl.name = 'memberIgn[]';
+                            selectEl.className = 'dark-input appearance-none cursor-pointer w-full p-2 rounded text-sm bg-black/50 border border-white/10 text-white focus:border-[var(--gold)] outline-none transition-all duration-200';
+                            selectEl.required = true;
+
+                            const defaultOpt = document.createElement('option');
+                            defaultOpt.value = '';
+                            defaultOpt.textContent = '-- Select Team Member --';
+                            defaultOpt.disabled = true;
+                            defaultOpt.selected = true;
+                            defaultOpt.className = 'bg-[#1a1a1f] text-white'; 
+                            selectEl.appendChild(defaultOpt);
+
+                            selectedTeam.members.forEach(m => {
+                                const memberName = typeof m === 'string' ? m : (m.ign || m.name || 'Unknown');
+                                const option = document.createElement('option');
+                                option.value = memberName;
+                                option.textContent = memberName;
+                                option.className = 'bg-[#1a1a1f] text-white'; 
+                                selectEl.appendChild(option);
+                            });
+
+                            div.appendChild(selectEl);
+                        } else {
+                            div.innerHTML = `<input type="text" name="memberIgn[]" placeholder="Member IGN" class="dark-input w-full p-2 rounded text-sm bg-black/30 border border-white/10 text-white focus:border-[var(--gold)] outline-none" required>`;
+                        }
+                    } else {
+                        div.innerHTML = `<input type="text" name="memberIgn[]" placeholder="Member IGN" class="dark-input w-full p-2 rounded text-sm bg-black/30 border border-white/10 text-white focus:border-[var(--gold)] outline-none" required>`;
+                    }
+
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.type = 'button';
+                    deleteBtn.className = 'text-red-400 hover:text-red-300 px-2 text-xl transition-colors';
+                    deleteBtn.innerHTML = '&times;';
+                    deleteBtn.onclick = function() { this.parentElement.remove(); };
+                    
+                    div.appendChild(deleteBtn);
+                    container.appendChild(div);
+        }
         function toggleOtherGameInput() {
             const select = document.getElementById('c-game-select');
             const otherInput = document.getElementById('c-game-other');
-            if (select.value === 'Others') { otherInput.classList.remove('hidden'); otherInput.required = true; }
-            else { otherInput.classList.add('hidden'); otherInput.required = false; otherInput.value = ''; }
-        }
-        function closeModal(modalId) { document.getElementById(modalId).classList.add('hidden'); }
-        function openCreateModal() { document.getElementById('createModal').classList.remove('hidden'); }
-        function closeMatchChat() { document.getElementById('matchChatModal').classList.add('hidden'); }
-
-        function toggleTeamInput(select) {
-            const container = document.getElementById('customTeamInputContainer');
-            const input = document.getElementById('joinTeamName');
-            if (select.value === 'custom') {
-                container.classList.remove('hidden');
-                input.required = true;
+            if (select.value === 'Others') {
+                otherInput.classList.remove('hidden');
+                otherInput.required = true;
             } else {
-                container.classList.add('hidden');
-                input.required = false;
+                otherInput.classList.add('hidden');
+                otherInput.required = false;
+                otherInput.value = '';
             }
         }
 
-        function addMemberInput() {
-            const container = document.getElementById('membersContainer');
-            const div = document.createElement('div');
-            div.className = 'flex gap-2';
-            div.innerHTML = `
-                <input type="text" name="memberIgn[]" placeholder="Member IGN" class="dark-input w-full p-2 rounded text-sm bg-black/30" required>
-                <button type="button" onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-300 px-2">&times;</button>
-            `;
-            container.appendChild(div);
+        function closeModal(modalId) {
+            const modal = document.getElementById(modalId);
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
         }
+
+        function openCreateModal() {
+            const modal = document.getElementById('createModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+
+        function closeMatchChat() {
+            const modal = document.getElementById('matchChatModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+
 
         window.toggleOtherGameInput = toggleOtherGameInput;
         window.closeModal = closeModal;

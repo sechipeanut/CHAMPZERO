@@ -1545,24 +1545,33 @@ async function openJoinForm(id, isEdit = false, specificAppId = null) {
     submitBtn.textContent = isEdit ? "Request Update" : "Submit Application";
 
     const select = qs('#joinTeamSelect');
-    select.innerHTML = '<option value="custom">Loading teams...</option>';
+    select.innerHTML = '<option value="custom" class="bg-[#1a1a1f] text-white">Loading teams...</option>';
 
     try {
         const teamsRef = collection(db, "recruitment");
         const snap = await getDocs(teamsRef);
         userTeams = [];
+        
         snap.forEach(doc => {
             const data = doc.data();
+            if (data.type === 'lft' || data.isLft === true) return;
+
             const isAuthor = data.authorId === user.uid;
             const isMember = data.members && Array.isArray(data.members) && data.members.some(m => m.uid === user.uid);
-            if (isAuthor || isMember) userTeams.push({ id: doc.id, ...data });
+            
+            if (isAuthor || isMember) {
+                userTeams.push({ id: doc.id, ...data });
+            }
         });
 
-        select.innerHTML = '<option value="custom">Create Custom Team</option>';
+        window.userTeams = userTeams;
+
+        select.innerHTML = '<option value="custom" class="bg-[#1a1a1f] text-white">-- Select Team --</option>';
         userTeams.forEach(team => {
             const option = document.createElement('option');
             option.value = team.id;
             option.textContent = team.name || "Unnamed Team";
+            option.className = 'bg-[#1a1a1f] text-white';
             select.appendChild(option);
         });
     } catch (e) { console.error("Error fetching teams", e); }
@@ -1575,7 +1584,7 @@ async function openJoinForm(id, isEdit = false, specificAppId = null) {
                 const data = appSnap.data();
                 const matchingTeam = userTeams.find(t => t.name === data.name);
                 if (matchingTeam) { select.value = matchingTeam.id; if (window.toggleTeamInput) window.toggleTeamInput(select); }
-                else { select.value = 'custom'; if (window.toggleTeamInput) window.toggleTeamInput(select); qs('#joinTeamName').value = data.name; }
+                else { if (window.toggleTeamInput) window.toggleTeamInput(select); }
 
                 qs('#joinCaptain').value = data.captain || '';
                 qs('#joinContact').value = data.contact || '';
@@ -1583,19 +1592,48 @@ async function openJoinForm(id, isEdit = false, specificAppId = null) {
                 const membersContainer = qs('#membersContainer');
                 membersContainer.innerHTML = '';
                 if (data.members && data.members.length > 0) {
-                    data.members.forEach(member => {
+                    data.members.forEach((savedMemberName) => {
                         const div = document.createElement('div');
-                        div.className = 'flex gap-2';
-                        div.innerHTML = `<input type="text" name="memberIgn[]" value="${escapeHtml(member)}" class="dark-input w-full p-2 rounded text-sm bg-black/30" required><button type="button" onclick="this.parentElement.remove()" class="text-red-400 hover:text-red-300 px-2">&times;</button>`;
+                        div.className = 'flex gap-2 items-center animate-row-in w-full';
+
+                        if (matchingTeam && matchingTeam.members) {
+                            const selectEl = document.createElement('select');
+                            selectEl.name = 'memberIgn[]';
+                            // Fixed: added 'appearance-none cursor-pointer text-sm bg-black/50 border border-white/10 outline-none focus:border-[var(--gold)]'
+                            selectEl.className = 'dark-input appearance-none w-full p-2 rounded text-sm bg-black/50 border border-white/10 text-white focus:border-[var(--gold)] outline-none transition-all duration-200 cursor-pointer';
+                            selectEl.required = true;
+
+                            matchingTeam.members.forEach(m => {
+                                const memberName = typeof m === 'string' ? m : (m.ign || m.name || '');
+                                const option = document.createElement('option');
+                                option.value = memberName;
+                                option.textContent = memberName;
+                                option.className = 'bg-[#1a1a1f] text-white';
+                                if (memberName === savedMemberName) option.selected = true;
+                                selectEl.appendChild(option);
+                            });
+
+                            div.appendChild(selectEl);
+                        } else {
+                            div.innerHTML = `<input type="text" name="memberIgn[]" value="${escapeHtml(savedMemberName)}" class="dark-input w-full p-2 rounded text-sm bg-black/30 border border-white/10 text-white focus:border-[var(--gold)] outline-none" required>`;
+                        }
+
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.type = 'button';
+                        deleteBtn.className = 'text-red-400 hover:text-red-300 px-2 text-xl transition-colors';
+                        deleteBtn.innerHTML = '&times;';
+                        deleteBtn.onclick = function() { this.parentElement.remove(); };
+                        div.appendChild(deleteBtn);
+
                         membersContainer.appendChild(div);
                     });
-                } else { membersContainer.innerHTML = `<div class="flex gap-2"><input type="text" name="memberIgn[]" placeholder="Member IGN" class="dark-input w-full p-2 rounded text-sm bg-black/30" required></div>`; }
+                }
             }
         } catch (e) { console.error(e); }
     } else {
-        qs('#joinTeamName').value = ''; qs('#joinCaptain').value = user.displayName || ''; qs('#joinContact').value = user.email || '';
+        qs('#joinCaptain').value = user.displayName || ''; qs('#joinContact').value = user.email || '';
         qs('#joinPhone').value = '';
-        qs('#membersContainer').innerHTML = `<div class="flex gap-2"><input type="text" name="memberIgn[]" placeholder="Member IGN" class="dark-input w-full p-2 rounded text-sm bg-black/30" required></div>`;
+        qs('#membersContainer').innerHTML = `<div class="flex gap-2 w-full"><input type="text" name="memberIgn[]" placeholder="Member IGN" class="dark-input w-full p-2 rounded text-sm bg-black/30 border border-white/10 text-white focus:border-[var(--gold)] outline-none" required></div>`;
         if (window.toggleTeamInput) window.toggleTeamInput(select);
     }
     document.getElementById('joinModal').classList.remove('hidden');
@@ -1618,8 +1656,19 @@ async function submitJoinRequest() {
     const specificAppId = qs('#joinForm').dataset.appId;
 
     const teamSelectId = qs('#joinTeamSelect').value;
+
+    // ✅ ADD THIS BLOCK
+    if (!teamSelectId || teamSelectId === '' || teamSelectId === 'custom') {
+        if (window.showErrorToast) {
+            window.showErrorToast('No Team Selected', 'Please select a team. If you have no team, join or create one first.');
+        } else {
+            alert('Please select a team. If you have no team, join or create one first.');
+        }
+        return;
+    }
+    
     const isCustom = teamSelectId === 'custom';
-    let teamName = isCustom ? qs('#joinTeamName').value.trim() : userTeams.find(t => t.id === teamSelectId)?.name || "Unknown";
+    let teamName = userTeams.find(t => t.id === teamSelectId)?.name || "Unknown";
     let dbTeamId = isCustom ? null : teamSelectId;
 
     if (!isEdit) {
