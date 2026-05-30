@@ -326,22 +326,30 @@ function renderTeamCard(post, isAuthor, isMember) {
     const contactBtn = (post.isPremium && post.contactLink && !isAuthor && !isMember) ? `<a href="${escapeHtml(post.contactLink)}" target="_blank" class="block w-full text-center text-[var(--gold)] text-[11px] font-bold border border-[var(--gold)] py-1.5 rounded-md mb-1 hover:bg-[var(--gold)] hover:text-black transition-colors">Connect Directly ↗</a>` : '';
 
     return `
-        <article data-id="${post.id}" class="bg-[var(--dark-card)] border rounded-xl overflow-hidden transition-all duration-300 h-40 hover:h-64 group relative ${borderClass}">
+        <article data-id="${post.id}" class="bg-[var(--dark-card)] border rounded-xl overflow-hidden transition-all duration-300 h-52 group relative ${borderClass}">
             <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" style="background-image: url('${escapeHtml(post.image || 'pictures/cz_logo.png')}');"></div>
             <div class="blimp-container"></div>
             
-            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-black/20 z-10"></div>
+            <!-- Softer base gradient overlay so unhovered cards look identical -->
+            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-10 pointer-events-none"></div>
             
             <div class="absolute top-2.5 right-2.5 bg-black/60 px-2 py-0.5 rounded text-[9px] text-white font-bold backdrop-blur-sm border border-white/10 uppercase z-10">${escapeHtml(post.game)}</div>
             
-            <div class="absolute inset-x-0 bottom-0 p-3 flex flex-col justify-end z-20">
+            <!-- FIXED: Main wrapper now spans the full height, pinning the name header down. 
+                 The background styling shifts cleanly to avoid any height alignment differences. -->
+            <div class="absolute inset-0 p-4 flex flex-col justify-end z-20 transition-all duration-300 bg-black/0 group-hover:bg-black/40 group-hover:backdrop-blur-md">
                 
-                <div class="flex flex-wrap gap-1 mb-1.5">${rolesHtml}</div>
-                <div class="flex justify-between items-start mb-1.5">
-                    <h3 class="text-base font-bold text-white truncate flex items-center group-hover:text-[var(--gold)] transition-colors">${escapeHtml(post.name)} ${verifiedBadge}</h3>
+                <!-- This container holds the Title info which stays firmly anchored at the bottom when not hovered -->
+                <div>
+                    <div class="flex flex-wrap gap-1 mb-1.5">${rolesHtml}</div>
+                    <div class="flex justify-between items-start">
+                        <h3 class="text-base font-bold text-white truncate flex items-center group-hover:text-[var(--gold)] transition-colors">${escapeHtml(post.name)} </h3>
+                    </div>
                 </div>
                 
-                <div class="max-h-0 opacity-0 overflow-hidden group-hover:max-h-32 group-hover:opacity-100 transition-all duration-300 ease-in-out">
+                <!-- FIXED: Instead of sliding the whole card panel, we smoothly transition the max-height and opacity 
+                     of the extra details area below the title. This completely neutralizes structural height differences! -->
+                <div class="w-full max-h-0 opacity-0 group-hover:max-h-[140px] group-hover:opacity-100 transition-all duration-300 ease-in-out overflow-hidden group-hover:mt-3">
                     <div class="mb-2">
                         <div class="flex justify-between text-[9px] text-gray-400 mb-1 font-bold uppercase tracking-wider">
                             <span>Roster</span>
@@ -352,7 +360,7 @@ function renderTeamCard(post, isAuthor, isMember) {
                         </div>
                     </div>
                     
-                    <p class="text-[11px] text-gray-400 line-clamp-1 mb-1 leading-relaxed">${escapeHtml(post.description)}</p>
+                    <p class="text-[11px] text-gray-300 line-clamp-1 mb-2 leading-relaxed">${escapeHtml(post.description)}</p>
                     
                     ${contactBtn}
                     ${actionBtn}
