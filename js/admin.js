@@ -120,8 +120,8 @@ window.manageLivestream = async function(eventId) {
                     <div class="bg-white/5 border border-white/10 rounded-lg p-4">
                         <label class="text-gray-400 text-sm block mb-2">Stream URL</label>
                         <div class="flex gap-2">
-                            <input type="text" readonly value="rtmp://push-global.rtmp.franzvallesmedia.com" class="flex-1 bg-black/30 border border-white/20 text-white px-3 py-2 rounded text-sm">
-                            <button onclick="copyToClipboard('rtmp://push-global.rtmp.franzvallesmedia.com')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">Copy</button>
+                            <input type="text" readonly value="rtmp://rtmp-push.champzero.org" class="flex-1 bg-black/30 border border-white/20 text-white px-3 py-2 rounded text-sm">
+                            <button onclick="copyToClipboard('rtmp://rtmp-push.champzero.org')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">Copy</button>
                         </div>
                     </div>
                     
