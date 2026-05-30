@@ -1266,9 +1266,46 @@ async function renderTournamentView(t) {
 
         // CHANGED: Use .textContent so text aligns perfectly inside the sub-meta bar
         qs('#detailFormatBadge').textContent = format;
-
         qs('#detailPrize').innerHTML = `<span class="text-[var(--gold)] font-bold">🏆 ₱${Number(t.prize).toLocaleString()}</span>`;
-        qs('#detailDesc').textContent = t.description || "No specific details provided.";
+       // --- FIXED: JavaScript-driven string truncation with static "more." positioning ---
+        const descContainer = qs('#detailDesc');
+        const completeText = t.description || "No specific details provided.";
+        descContainer.innerHTML = ''; // Clear container safely
+        
+        // Reset element classes to remove any conflicting line-clamp or block utilities
+        descContainer.className = "text-gray-300 text-sm leading-relaxed block";
+
+        // If description is longer than 150 characters, slice it via JS
+        if (completeText.length > 150) {
+            const truncatedText = completeText.substring(0, 150) + "... ";
+            
+            const textSpan = document.createElement('span');
+            textSpan.textContent = truncatedText;
+            
+            const moreBtn = document.createElement('button');
+            moreBtn.type = "button";
+            moreBtn.className = "text-[var(--gold)] hover:underline ml-1 font-bold text-xs inline-block focus:outline-none cursor-pointer";
+            moreBtn.textContent = "more.";
+            
+            // Open the zoom-in card box overlay modal on click
+            moreBtn.onclick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const zoomModal = document.getElementById('descZoomModal');
+                const zoomText = document.getElementById('descZoomFullText');
+                if (zoomModal && zoomText) {
+                    zoomText.textContent = completeText;
+                    zoomModal.classList.remove('hidden');
+                    zoomModal.classList.add('flex');
+                }
+            };
+            
+            descContainer.appendChild(textSpan);
+            descContainer.appendChild(moreBtn);
+        } else {
+            descContainer.textContent = completeText;
+        }
+        // --- END OF FIX ---
 
     const auth = getAuth();
     const user = auth.currentUser;
@@ -1436,10 +1473,10 @@ async function renderTournamentView(t) {
         adminToolbar.classList.add('hidden');
     }
 
-    // 4. Action Area (Join/Withdraw Buttons)
+    // 4. Action Area (Join/Withdraw Buttons) - FIXED Spacing Layout
     actionArea.innerHTML = '';
     if (t.isStarted || t.status === 'Completed') {
-        actionArea.innerHTML = `<div class="w-full bg-gray-800/50 border border-white/10 text-gray-400 font-bold py-3 rounded-lg text-center cursor-not-allowed">Registration Closed - Tournament Ongoing</div>`;
+        actionArea.innerHTML = `<div class="w-full mt-8 bg-gray-800/50 border border-white/10 text-gray-400 font-bold py-3 rounded-lg text-center cursor-not-allowed">Registration Closed - Tournament Ongoing</div>`;
     } else {
         let userStatus = 'none'; let userAppId = null;
         if (user) {
@@ -1451,18 +1488,22 @@ async function renderTournamentView(t) {
 
         if (userStatus === 'approved') {
             actionArea.innerHTML = `
-                <div class="w-full bg-green-900/20 border border-green-500/30 text-green-400 font-bold py-3 rounded-lg text-center">
+                <div class="w-full mt-8 bg-green-900/20 border border-green-500/30 text-green-400 font-bold py-3 rounded-lg text-center">
                     ✅ Registration Confirmed
                 </div>
                 <p class="text-xs text-center text-gray-500 mt-2">Manage your team in the Registered Teams list.</p>
             `;
         } else if (userStatus === 'pending' || userStatus === 'pending_update') {
-            actionArea.innerHTML = `<button disabled class="w-full bg-yellow-600/50 text-white font-bold py-3 rounded-lg">Pending Approval</button><button onclick="window.withdrawApplication('${t.id}', '${userAppId}')" class="w-full mt-2 text-xs text-red-400 hover:underline">Cancel Application</button>`;
+            actionArea.innerHTML = `
+                <button disabled class="w-full mt-8 bg-yellow-600/50 text-white font-bold py-3 rounded-lg">Pending Approval</button>
+                <button onclick="window.withdrawApplication('${t.id}', '${userAppId}')" class="w-full mt-2 text-xs text-red-400 hover:underline">Cancel Application</button>
+            `;
         } else {
             if (actualStatus === 'Upcoming' || actualStatus === 'Open' || actualStatus === 'Ready to Start') {
-                actionArea.innerHTML = `<button onclick="window.openJoinForm('${t.id}', false)" class="w-full bg-[var(--gold)] hover:bg-[var(--gold-darker)] text-black font-bold py-3 rounded-lg shadow-lg hover:scale-105">Submit Team Application</button>`;
+                // ADDED: mt-8 to give breathing room beneath the overview description text layer
+                actionArea.innerHTML = `<button onclick="window.openJoinForm('${t.id}', false)" class="w-full mt-8 bg-[var(--gold)] hover:bg-[var(--gold-darker)] text-black font-bold py-3 rounded-lg shadow-lg transition-transform hover:scale-105">Submit Team Application</button>`;
             } else {
-                actionArea.innerHTML = `<div class="p-4 bg-white/5 rounded text-center text-gray-400">Registration Closed</div>`;
+                actionArea.innerHTML = `<div class="p-4 mt-8 bg-white/5 rounded text-center text-gray-400">Registration Closed</div>`;
             }
         }
     }
