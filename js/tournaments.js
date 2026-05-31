@@ -319,6 +319,7 @@ async function checkCreatorPermissions(user) {
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
             const role = userSnap.data().role || 'user';
+            window.currentUserRole = role; // ← ADD THIS
             if (['admin', 'org partner', 'tournament organizer'].includes(role) || ["admin@champzero.com"].includes(user.email)) {
                 const controls = qs('#creator-controls');
                 if (controls) controls.classList.remove('hidden');
@@ -714,9 +715,18 @@ function generateInitialMatches(participants, format) {
 // --- SCORE EDITING ---
 window.openScoreModal = function (matchId) {
     const t = currentEditingTournament;
-    const match = t.matches.find(m => m.id === matchId);
-    if (!match) return;
 
+    // Search flat matches first, then bracket rounds (double elim uses brackets)
+    let match = t.matches?.find(m => m.id === matchId);
+    if (!match && t.brackets) {
+        for (const round of t.brackets) {
+            if (Array.isArray(round)) {
+                match = round.find(m => m.id === matchId);
+                if (match) break;
+            }
+        }
+    }
+    if (!match) return;
     if (match.team1 === 'TBD' || match.team2 === 'TBD' || match.team1 === 'BYE' || match.team2 === 'BYE') return;
 
     document.getElementById('scoreMatchId').value = matchId;
@@ -733,6 +743,44 @@ window.openScoreModal = function (matchId) {
 
     document.getElementById('scoreModal').classList.remove('hidden');
     document.getElementById('scoreModal').classList.add('flex');
+
+    // Initialize matchChat doc with authorized emails (admin-only write)
+    (async () => {
+        try {
+            const { doc, getDoc, setDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js");
+
+            const participants = t.participants || [];
+            const authorizedCaptainEmails = [];  // only the two match captains — can send messages
+            const authorizedViewerEmails = [];   // all tournament captains — read only
+
+            for (const p of participants) {
+                if (!p.registeredBy) continue;
+
+                // Fetch the captain's email from the users collection
+                const userSnap = await getDoc(doc(db, "users", p.registeredBy));
+                const email = userSnap.exists() ? userSnap.data().email : null;
+                if (!email) continue;
+
+                authorizedViewerEmails.push(email); // all captains can view
+
+                const teamName = p.name || p.teamName;
+                if (teamName === match.team1 || teamName === match.team2) {
+                    authorizedCaptainEmails.push(email); // only this match's captains can chat
+                }
+            }
+
+            const chatDocRef = doc(db, "tournaments", t.id, "matchChats", matchId);
+            await setDoc(chatDocRef, {
+                matchId,
+                authorizedCaptainEmails,
+                authorizedViewerEmails,
+                initializedAt: serverTimestamp()
+            }, { merge: true });
+
+        } catch (e) {
+            console.warn("matchChat doc init failed (non-critical):", e);
+        }
+    })();
 }
 
 // --- NEW: ROUND ROBIN GENERATION ---
@@ -1688,7 +1736,7 @@ async function submitJoinRequest() {
     const captain = qs('#joinCaptain').value;
     const contact = qs('#joinContact').value;
     const phone = qs('#joinPhone').value;
-    const memberInputs = document.querySelectorAll('input[name="memberIgn[]"]');
+    const memberInputs = document.querySelectorAll('input[name="memberIgn[]"], select[name="memberIgn[]"]');
     const membersList = [];
     memberInputs.forEach(input => { if (input.value.trim()) membersList.push(input.value.trim()); });
 
@@ -2030,6 +2078,60 @@ function buildMatchTree(matches, rootMatchId = null) {
 
     return getSources(finalMatch);
 }
+function isUserInMatch(match) {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!user || !currentEditingTournament) return false;
+    const participants = currentEditingTournament.participants || [];
+    const userTeam = participants.find(p => p.registeredBy === user.uid);
+    if (!userTeam) return false;
+    const teamName = userTeam.name || userTeam.teamName;
+    return match.team1 === teamName || match.team2 === teamName;
+}
+
+function handleMatchCardClick(matchId) {
+    const auth = getAuth();
+    const user = auth.currentUser;
+    const userRole = window.currentUserRole;
+
+    if (!user) return;
+
+    if (userRole === 'admin' || userRole === 'Admin') {
+        window.openScoreModal(matchId);
+        return;
+    }
+
+    // Find the match across flat matches and bracket rounds
+    let match = currentEditingTournament?.matches?.find(m => m.id === matchId);
+    if (!match && currentEditingTournament?.brackets) {
+        for (const round of currentEditingTournament.brackets) {
+            if (Array.isArray(round)) {
+                match = round.find(m => m.id === matchId);
+                if (match) break;
+            }
+        }
+    }
+    if (!match) return;
+
+    const participants = currentEditingTournament.participants || [];
+    const userParticipant = participants.find(p => p.registeredBy === user.uid);
+    const userTeamName = (userParticipant?.name || userParticipant?.teamName || '').trim().toLowerCase();
+    const team1 = (match.team1 || '').trim().toLowerCase();
+    const team2 = (match.team2 || '').trim().toLowerCase();
+    const isCaptainOfThisMatch = userTeamName && (userTeamName === team1 || userTeamName === team2);
+
+    // Debug — remove once working
+    console.log('[handleMatchCardClick]', { userTeamName, team1, team2, isCaptainOfThisMatch, userRole });
+
+    if (!isCaptainOfThisMatch) {
+        if (window.showToast) window.showToast("You can only view your own match chat.", "error");
+        return;
+    }
+
+    document.getElementById('scoreMatchId').value = matchId;
+    window.openMatchChatFromModal();
+}
+window.handleMatchCardClick = handleMatchCardClick;
 
 // 2. Render the Tree (Visuals: Old Design, Logic: New Recursive)
 function renderRecursiveBracket(container, treeNode, isAdmin) {
@@ -2073,7 +2175,7 @@ function renderRecursiveBracket(container, treeNode, isAdmin) {
     if (isAdmin && !isByeMatch) baseClass += ` admin-editable cursor-pointer`;
 
     card.className = baseClass;
-    if (isAdmin && !isByeMatch) card.onclick = () => window.openScoreModal(m.id);
+    if (!isByeMatch) card.onclick = () => handleMatchCardClick(m.id);
 
     if (isByeMatch) {
         // Simple "Advance" Card
@@ -2644,9 +2746,9 @@ function createLiveMatchCard(m, isAdmin) {
     card.className = "tree-match-card relative flex flex-col justify-center";
 
     // Admin click to score
-    if (isAdmin && m.team1 !== 'BYE' && m.team2 !== 'BYE') {
-        card.classList.add('cursor-pointer', 'hover:brightness-110');
-        card.onclick = () => window.openScoreModal(m.id);
+    if (m.team1 !== 'BYE' && m.team2 !== 'BYE') {
+    card.classList.add('cursor-pointer', 'hover:brightness-110');
+    card.onclick = () => handleMatchCardClick(m.id);
     }
 
     const isWinner1 = m.winner === m.team1;
@@ -2813,7 +2915,7 @@ function renderRoundRobin(container, participants, isAdmin) {
 
                     // --- ADMIN PERMISSION CHECK ---
                     // Only add onclick and hover effects if isAdmin is true
-                    const clickAttr = isAdmin ? `onclick="window.openScoreModal('${match.id}')"` : '';
+                    const clickAttr = `onclick="window.handleMatchCardClick('${match.id}')"`;
                     const cursorClass = isAdmin ? 'cursor-pointer hover:bg-white/10 shadow-[inset_0_0_10px_rgba(0,0,0,0.2)]' : 'cursor-default';
                     // ------------------------------
 
@@ -2889,7 +2991,17 @@ let currentMatchId = null;
 
 window.openMatchChat = function (matchId) {
     currentMatchId = matchId;
-    const match = currentEditingTournament?.matches?.find(m => m.id === matchId);
+
+    // Search flat matches first, then bracket rounds
+    let match = currentEditingTournament?.matches?.find(m => m.id === matchId);
+    if (!match && currentEditingTournament?.brackets) {
+        for (const round of currentEditingTournament.brackets) {
+            if (Array.isArray(round)) {
+                match = round.find(m => m.id === matchId);
+                if (match) break;
+            }
+        }
+    }
 
     if (!match) {
         if (window.showErrorToast) window.showErrorToast('Error', 'Match not found.');
@@ -2898,6 +3010,77 @@ window.openMatchChat = function (matchId) {
 
     qs('#chat-match-title').textContent = `${match.team1} vs ${match.team2}`;
     qs('#chat-match-info').textContent = `Match ${match.matchNumber} - Round ${match.round || 1}`;
+
+    // --- Captain check: match team name against ALL participants (case-insensitive) ---
+    const auth = getAuth();
+    const user = auth.currentUser;
+    const participants = currentEditingTournament.participants || [];
+    const userParticipant = participants.find(p => p.registeredBy === user?.uid);
+    const userTeamName = (userParticipant?.name || userParticipant?.teamName || '').trim().toLowerCase();
+    const team1 = (match.team1 || '').trim().toLowerCase();
+    const team2 = (match.team2 || '').trim().toLowerCase();
+    const isCaptainOfThisMatch = userTeamName && (userTeamName === team1 || userTeamName === team2);
+    const isAdminUser = window.currentUserRole === 'admin' || window.currentUserRole === 'Admin';
+    const canSend = isCaptainOfThisMatch || isAdminUser;
+
+    // Show/hide input area
+    const chatFooter = document.getElementById('matchChatModal')?.querySelector('.border-t.p-4');
+    const existingNotice = document.getElementById('chat-readonly-notice');
+    if (existingNotice) existingNotice.remove();
+
+    if (chatFooter) {
+        if (canSend) {
+            chatFooter.classList.remove('hidden');
+        } else {
+            chatFooter.classList.add('hidden');
+            const notice = document.createElement('p');
+            notice.id = 'chat-readonly-notice';
+            notice.className = 'text-center text-gray-500 text-xs py-3 border-t border-white/10 bg-[var(--dark-card)]';
+            notice.textContent = 'Only team captains can send messages. You are in view-only mode.';
+            chatFooter.parentElement?.appendChild(notice);
+        }
+    }
+
+    // If captain, initialize the matchChat doc themselves so they can read/write
+    // This handles the case where the admin hasn't opened the score modal yet
+    if (canSend && !isAdminUser) {
+        (async () => {
+            try {
+                const { doc, getDoc, setDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js");
+                const chatDocRef = doc(db, "tournaments", currentEditingTournament.id, "matchChats", matchId);
+                const chatSnap = await getDoc(chatDocRef);
+
+                // Only initialize if the doc doesn't exist yet
+                if (!chatSnap.exists()) {
+                    // Build email lists from all participants
+                    const authorizedCaptainEmails = [];
+                    const authorizedViewerEmails = [];
+
+                    for (const p of participants) {
+                        if (!p.registeredBy) continue;
+                        const userSnap = await getDoc(doc(db, "users", p.registeredBy));
+                        const email = userSnap.exists() ? userSnap.data().email : null;
+                        if (!email) continue;
+
+                        const pName = (p.name || p.teamName || '').trim().toLowerCase();
+                        if (pName === team1Name.trim().toLowerCase() || pName === team2Name.trim().toLowerCase()) {
+                            authorizedCaptainEmails.push(email);
+                        }
+                    }
+
+                    await setDoc(chatDocRef, {
+                        matchId,
+                        authorizedCaptainEmails,
+                        authorizedViewerEmails: authorizedCaptainEmails, // same list — only match captains
+                        initializedAt: serverTimestamp()
+                    }, { merge: true });
+                }
+            } catch (e) {
+                console.warn("matchChat self-init failed:", e);
+            }
+        })();
+    }
+
     startMatchChatListener(currentEditingTournament.id, matchId);
     document.getElementById('matchChatModal').classList.remove('hidden');
     document.getElementById('matchChatModal').classList.add('flex');
@@ -2977,81 +3160,27 @@ window.closeMatchChat = function () {
 }
 
 // Global bridge tracking from Score Modal into the Active Match Chat room
-window.openMatchChatFromModal = async function() {
-    const matchId = document.getElementById('scoreMatchId').value;
+// Participants click their bracket card → open chat directly (no Firestore write)
+window.openMatchChatFromModal = function() {
+    const matchId = document.getElementById('scoreMatchId')?.value;
     if (!matchId || !currentEditingTournament) {
         if (typeof window.showToast === 'function') window.showToast("No active match found.", "error");
         return;
     }
 
-    // Close the score modal visually
     if (document.getElementById('scoreModal')) {
         document.getElementById('scoreModal').classList.add('hidden');
     }
 
-    try {
-        // Find the active match data structural elements from your bracket arrangement
-        let matchData = null;
-        if (currentEditingTournament.brackets) {
-            for (const round of currentEditingTournament.brackets) {
-                // Ensure round is an array before searching
-                if (Array.isArray(round)) {
-                    matchData = round.find(m => m.id === matchId);
-                    if (matchData) break;
-                }
-            }
-        }
-
-        // Fallback: If brackets searching yielded nothing, try flat matches list
-        if (!matchData && currentEditingTournament.matches) {
-            matchData = currentEditingTournament.matches.find(m => m.id === matchId);
-        }
-
-        // Extract registeredBy user IDs (Captains) from competing teams
-        const authorizedCaptains = [];
-        if (matchData?.team1?.registeredBy) authorizedCaptains.push(matchData.team1.registeredBy);
-        if (matchData?.team2?.registeredBy) authorizedCaptains.push(matchData.team2.registeredBy);
-
-        // --- FIXED: Dynamically import ALL required methods safely ---
-        const { doc, setDoc, serverTimestamp } = await import("https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js");
-        
-        const chatDocRef = doc(db, "tournaments", currentEditingTournament.id, "matchChats", matchId);
-
-        // --- FIXED: Use setDoc with merge:true instead of getDoc checking ---
-        // This avoids throwing a permission error on an empty room initialization
-        await setDoc(chatDocRef, {
-            matchId: matchId,
-            authorizedCaptains: authorizedCaptains,
-            initializedAt: serverTimestamp()
-        }, { merge: true });
-
-        // Fire your system's built-in live match streaming snapshot chat wrapper
-        if (typeof window.openMatchChat === 'function') {
-            window.openMatchChat(matchId);
-        } else {
-            console.error("The standard openMatchChat function was not exposed globally.");
-        }
-
-    } catch (error) {
-        console.error("Failed to safely bridge match context initialization maps:", error);
-        if (typeof window.showToast === 'function') window.showToast("Chat system setup failed.", "error");
+    // Just open the chat — the matchChat doc was already initialized by the admin
+    // via openScoreModal. Participants have no write access to the matchChat doc itself.
+    if (typeof window.openMatchChat === 'function') {
+        window.openMatchChat(matchId);
     }
 };
 
-// Locate or edit your bracket node click handler (e.g., when clicking a match card)
-function handleMatchCardClick(matchId) {
-    const user = getAuth().currentUser;
-    const userRole = window.currentUserRole; // Replace with your structural global role variable
-    
-    if (userRole === 'admin' || userRole === 'Admin') {
-        // Open the score management admin control hub room directly
-        window.openScoreModal(matchId); 
-    } else {
-        // Bypass UI completely for Team Captains: route them straight to their allowed chat room!
-        document.getElementById('scoreMatchId').value = matchId;
-        window.openMatchChatFromModal();
-    }
-}
+// Add this to your window exposures at the bottom:
+window.handleMatchCardClick = handleMatchCardClick;
 
 // --- Window Exposure ---
 window.openJoinForm = openJoinForm;
