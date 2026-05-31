@@ -357,11 +357,21 @@
                             <div>
                                 <label class="block text-sm text-gray-400 mb-1">Game Title</label>
                                 <select id="create-game" class="dark-select w-full p-3 rounded">
-                                    <option value="Valorant">Valorant</option>
-                                    <option value="MLBB">Mobile Legends</option>
-                                    <option value="HoK">Honor of Kings</option>
-                                    <option value="LoL">League of Legends</option>
+                                    <option value="" disabled selected>-- SELECT GAME --</option>
+                                    <option value="valId">Valorant</option>
+                                    <option value="mlbbId">Mobile Legends</option>
+                                    <!-- <option value="HoK">Honor of Kings</option>
+                                    <option value="LoL">League of Legends</option> -->
                                 </select>
+                            </div>
+
+                            <div id="lft-ign-field" class="mt-4">
+                                <label class="block text-sm text-gray-400 mb-1">IGN / User Account</label>
+                                <input id="create-ign" type="text" placeholder="Your in-game username"
+                                    class="dark-input w-full p-3 rounded">
+                                <p id="ign-hint" class="text-xs text-gray-500 mt-1 hidden">
+                                    Auto-filled from your profile. You can edit this manually.
+                                </p>
                             </div>
 
                             <div id="team-fields" class="space-y-4">
@@ -369,9 +379,9 @@
                                         id="create-name" type="text" class="dark-input w-full p-3 rounded"
                                         placeholder="e.g. Sentinels PH"></div>
                                 <div class="grid grid-cols-2 gap-4">
-                                    <div><label class="block text-sm text-gray-400 mb-1">Max Members</label><input
-                                            id="create-max" type="number" min="1" value="5"
-                                            class="dark-input w-full p-3 rounded"></div>
+                                    <div><label class="block text-sm text-gray-400 mb-1">Max Members</label><input id="create-max" type="number" min="1" max="7" value="5"
+                                        oninput="if(this.value>7)this.value=7;"
+                                        class="dark-input w-full p-3 rounded"></div>
                                     <div><label class="block text-sm text-gray-400 mb-1">Roles Needed</label><input
                                             id="create-roles" type="text" placeholder="Duelist, Flex"
                                             class="dark-input w-full p-3 rounded"></div>
@@ -379,8 +389,6 @@
                             </div>
 
                             <div id="lft-fields" class="hidden space-y-4">
-                                <div><label class="block text-sm text-gray-400 mb-1">IGN (In-Game Name)</label><input
-                                        id="create-ign" type="text" class="dark-input w-full p-3 rounded"></div>
                                 <div class="grid grid-cols-2 gap-4">
                                     <div><label class="block text-sm text-gray-400 mb-1">Current Rank</label><input
                                             id="create-rank" type="text" placeholder="e.g. Immortal"

@@ -633,6 +633,7 @@ window.toggleFormType = (type) => {
     const btnLft = document.getElementById('btn-type-lft');
     const teamFields = document.getElementById('team-fields');
     const lftFields = document.getElementById('lft-fields');
+    const ignField = document.getElementById('lft-ign-field');
 
     if (type === 'team') {
         btnTeam.classList.add('bg-[var(--gold)]', 'text-black', 'shadow-md');
@@ -641,6 +642,7 @@ window.toggleFormType = (type) => {
         btnLft.classList.add('text-gray-400', 'hover:text-white');
         teamFields.classList.remove('hidden');
         lftFields.classList.add('hidden');
+        ignField.classList.add('hidden'); 
     } else {
         btnLft.classList.add('bg-[var(--gold)]', 'text-black', 'shadow-md');
         btnLft.classList.remove('text-gray-400', 'hover:text-white');
@@ -648,6 +650,7 @@ window.toggleFormType = (type) => {
         btnTeam.classList.add('text-gray-400', 'hover:text-white');
         lftFields.classList.remove('hidden');
         teamFields.classList.add('hidden');
+        ignField.classList.remove('hidden');
     }
 }
 
@@ -1005,7 +1008,7 @@ function setupForms() {
                 if (type === 'team') {
                     const rolesInput = document.getElementById('create-roles').value;
                     baseData.name = document.getElementById('create-name').value;
-                    baseData.maxMembers = parseInt(document.getElementById('create-max').value);
+                    baseData.maxMembers = Math.min(parseInt(document.getElementById('create-max').value) || 7, 7);
                     baseData.currentMembers = 1;
                     baseData.roles = rolesInput ? rolesInput.split(',').map(r => r.trim()).filter(r => r) : [];
                     baseData.members = [{ uid: auth.currentUser.uid, name: auth.currentUser.displayName || "Captain", role: 'Captain', joinedAt: Date.now() }];
@@ -1022,6 +1025,44 @@ function setupForms() {
                 renderTeams();
             } catch (e) { console.error(e); await window.showCustomAlert("Error", e.message); }
             finally { btn.textContent = "Post Listing"; btn.disabled = false; }
+        });
+    }
+
+    // AUTO-FILL IGN FROM PROFILE BASED ON GAME SELECTION
+    const gameSelect = document.getElementById('create-game');
+    if (gameSelect) {
+        gameSelect.addEventListener('change', async () => {
+            const selectedGame = gameSelect.value; // now "valId" or "mlbbId"
+            const ignInput = document.getElementById('create-ign');
+            const ignHint = document.getElementById('ign-hint');
+
+            const currentType = document.getElementById('create-type').value;
+            if (currentType !== 'lft') return;
+
+            if (!selectedGame || !auth.currentUser) return;
+
+            try {
+                const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
+                if (!userSnap.exists()) return;
+
+                const data = userSnap.data();
+                const fetchedValue = data[selectedGame] || ''; // 👈 directly uses "valId" or "mlbbId" as key
+
+                if (fetchedValue) {
+                    ignInput.value = fetchedValue;
+                    ignHint.classList.remove('hidden');
+                } else {
+                    ignInput.value = '';
+                    ignHint.classList.add('hidden');
+                    await window.showCustomAlert(
+                        "No Account Found",
+                        `There is no User Account set yet. Please set it on your <a href="/edit-profile" class="text-[var(--gold)] underline">Profile</a>, or manually type your User Account below.`
+                    );
+                    ignInput.focus();
+                }
+            } catch (err) {
+                console.error("Failed to fetch profile game ID:", err);
+            }
         });
     }
 
@@ -1173,7 +1214,7 @@ function setupForms() {
             e.preventDefault();
             const id = document.getElementById('edit-team-id').value;
             const desc = document.getElementById('edit-desc').value;
-            const max = parseInt(document.getElementById('edit-max').value);
+            const max = Math.min(parseInt(document.getElementById('edit-max').value) || 7, 7); // 👈 clamp to 7
 
             try {
                 await updateDoc(doc(db, "recruitment", id), { description: desc, maxMembers: max });
