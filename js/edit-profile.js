@@ -32,9 +32,16 @@ async function loadUserProfile(uid, email) {
             qs('#ign').value = data.ign || '';
             qs('#realName').value = data.realName || '';
             qs('#avatarUrl').value = data.avatar || '';
-            qs('#valId').value = data.valId || '';
-            qs('#mlbbId').value = data.mlbbId || '';
             qs('#bio').value = data.bio || '';
+            qs('#valId').value = data.valId || '';
+            qs('#valRank').value = data.valRank || '';
+            qs('#valRole').value = data.valRole || '';
+            qs('#mlbbId').value = data.mlbbId || '';
+            qs('#mlbbRank').value = data.mlbbRank || '';
+            qs('#mlbbRole').value = data.mlbbRole || '';
+            qs('#hokId').value = data.hokId || '';
+            qs('#hokRank').value = data.hokRank || '';
+            qs('#hokRole').value = data.hokRole || '';
 
             // Update Visual Header
             qs('#display-name-header').textContent = data.ign || data.displayName || "New Champion";
@@ -93,7 +100,14 @@ if(form) {
             realName: qs('#realName').value,
             avatar: qs('#avatarUrl').value,
             valId: qs('#valId').value,
+            valRank: qs('#valRank').value,
+            valRole: qs('#valRole').value,
             mlbbId: qs('#mlbbId').value,
+            mlbbRank: qs('#mlbbRank').value,
+            mlbbRole: qs('#mlbbRole').value,
+            hokId: qs('#hokId').value,
+            hokRank: qs('#hokRank').value,
+            hokRole: qs('#hokRole').value,
             bio: qs('#bio').value,
             email: user.email, // Keep email in sync
             updatedAt: new Date().toISOString()

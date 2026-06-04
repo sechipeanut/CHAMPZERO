@@ -376,7 +376,6 @@ function renderPlayerCard(post, isAuthor) {
 
     const adminLogsBtn = currentUserRole === 'admin' ? '' : ''; 
 
-    // Compact SVG Icon Buttons
     let actionBtn = '';
     if (isAuthor) {
         actionBtn = `
@@ -401,25 +400,50 @@ function renderPlayerCard(post, isAuthor) {
             </svg>
         </button>` : '';
 
-    // Check if description exists and has text content
     const hasDescription = post.description && post.description.trim().length > 0;
-    
-    // Dynamic height class: only expand if a description is present
-    const heightHoverClass = hasDescription ? "hover:h-28" : "hover:h-20";
 
-    const descriptionHtml = hasDescription ? `
-        <!-- State C: Hidden Dropdown Description (Revealed vertically on hover) -->
-        <div class="absolute bottom-2.5 left-4 right-4 max-h-0 opacity-0 overflow-hidden group-hover:max-h-8 group-hover:opacity-100 transition-all duration-300 ease-in-out border-t border-white/5 pt-1.5 z-10">
-            <p class="text-[11px] text-gray-400 italic truncate">"${escapeHtml(post.description)}"</p>
-        </div>` : '';
+    // Truncate helper for display safety
+    const truncate = (str, n) => str && str.length > n ? str.substring(0, n) + '…' : (str || '');
+
+    const infoPopoverHtml = `
+        <div id="info-popover-${post.id}" class="absolute bottom-[calc(100%+8px)] right-0 w-52 bg-[#1a1a2e] border border-[var(--gold)]/40 rounded-xl shadow-2xl p-3 z-50 pointer-events-none opacity-0 transition-all duration-200 ease-out" style="transform: scale(0.95); transform-origin: bottom right;">
+            <div class="flex items-center gap-2 mb-2.5 pb-2 border-b border-white/10">
+                <img src="${escapeHtml(post.image || 'https://ui-avatars.com/api/?name=' + post.ign + '&background=random')}" class="w-8 h-8 rounded-md border border-[var(--gold)] object-cover shrink-0">
+                <div class="min-w-0">
+                    <p class="text-xs font-bold text-white truncate">${escapeHtml(truncate(post.ign, 18))}</p>
+                    <span class="text-[9px] font-bold bg-white/10 text-gray-300 px-1.5 py-0.5 rounded uppercase tracking-wider">${escapeHtml(post.game)}</span>
+                </div>
+            </div>
+            <div class="flex gap-2 mb-2">
+                <div class="flex-1 bg-black/30 px-2 py-1.5 rounded-md text-center border border-white/5 min-w-0">
+                    <p class="text-[8px] text-gray-500 uppercase font-bold tracking-tight">Rank</p>
+                    <p class="text-[11px] text-[var(--gold)] font-bold truncate leading-none mt-0.5">${escapeHtml(truncate(post.rank, 16))}</p>
+                </div>
+                <div class="flex-1 bg-black/30 px-2 py-1.5 rounded-md text-center border border-white/5 min-w-0">
+                    <p class="text-[8px] text-gray-500 uppercase font-bold tracking-tight">Role</p>
+                    <p class="text-[11px] text-white font-bold truncate leading-none mt-0.5">${escapeHtml(truncate(post.role, 16))}</p>
+                </div>
+            </div>
+            ${hasDescription ? `<p class="text-[10px] text-gray-400 italic leading-relaxed bg-black/20 rounded-lg px-2 py-1.5 border border-white/5 line-clamp-3">"${escapeHtml(truncate(post.description, 120))}"</p>` : ''}
+        </div>`;
+
+    const infoBtn = `
+        <button
+            onmouseenter="const p=document.getElementById('info-popover-${post.id}'); p.style.opacity='1'; p.style.transform='scale(1)'; p.style.pointerEvents='auto';"
+            onmouseleave="const p=document.getElementById('info-popover-${post.id}'); p.style.opacity='0'; p.style.transform='scale(0.95)'; p.style.pointerEvents='none';"
+            title="View Info" class="p-2 bg-white/10 text-gray-300 rounded-lg hover:bg-white/20 transition-transform active:scale-95 border border-white/10">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
+                <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+            </svg>
+        </button>`;
 
     return `
-        <article data-id="${post.id}" class="bg-[var(--dark-card)] border rounded-xl overflow-hidden transition-all duration-300 h-20 group flex flex-col justify-start relative ${borderClass} ${heightHoverClass}">
+        <article data-id="${post.id}" class="bg-[var(--dark-card)] border rounded-xl transition-all duration-300 h-20 group flex flex-col justify-start relative ${borderClass}" style="overflow:visible;">
             <div class="blimp-container"></div>
-            
-            <!-- Top Control Row -->
-            <div class="w-full flex items-center justify-between px-4 h-20 shrink-0 relative z-10">
-                <!-- Left Side: Profile Info -->
+
+            ${infoPopoverHtml}
+
+            <div class="w-full flex items-center justify-between px-4 h-20 shrink-0 relative z-10 rounded-xl overflow-hidden">
                 <div class="flex items-center gap-3 min-w-0">
                     <img src="${escapeHtml(post.image || 'https://ui-avatars.com/api/?name=' + post.ign + '&background=random')}" class="w-11 h-11 rounded-md border border-[var(--gold)] object-cover shadow-lg shrink-0">
                     <div class="min-w-0">
@@ -430,9 +454,7 @@ function renderPlayerCard(post, isAuthor) {
                     </div>
                 </div>
                 
-                <!-- Right Side: Sliding Interactive Deck -->
                 <div class="relative w-36 h-11 shrink-0 overflow-hidden">
-                    <!-- State A: Rank & Role Stats -->
                     <div class="absolute inset-0 flex gap-2 transition-all duration-300 transform translate-x-0 opacity-100 group-hover:-translate-x-4 group-hover:opacity-0 ease-in-out">
                         <div class="flex-1 bg-black/20 px-2 py-1 rounded-md text-center border border-white/5 min-w-0 flex flex-col justify-center">
                             <p class="text-[8px] text-gray-500 uppercase font-bold tracking-tight">Rank</p>
@@ -444,17 +466,14 @@ function renderPlayerCard(post, isAuthor) {
                         </div>
                     </div>
                     
-                    <!-- State B: Action Logo Buttons -->
                     <div class="absolute inset-0 flex gap-2 items-center justify-end transition-all duration-300 transform translate-x-8 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 ease-in-out">
-                        ${adminLogsBtn}    
+                        ${adminLogsBtn}
                         ${deleteBtn}
+                        ${infoBtn}
                         ${actionBtn}
                     </div>
                 </div>
             </div>
-
-            <!-- Conditional Dropdown Section -->
-            ${descriptionHtml}
         </article>`;
 }
 
@@ -943,15 +962,16 @@ window.kickMember = async (uid, memberRole) => {
     if (!confirm) return;
     try {
         const teamRef = doc(db, "recruitment", currentManageId);
-        // Clean up applications for this user
         const appsRef = collection(db, "recruitment", currentManageId, "applications");
         const q = query(appsRef, where("applicantId", "==", uid));
         const appSnaps = await getDocs(q);
         await Promise.all(appSnaps.docs.map(d => updateDoc(d.ref, { status: 'kicked' })));
 
-        // Remove from array
         const snap = await getDoc(teamRef);
-        const mems = snap.data().members.filter(m => m.uid !== uid);
+        const allMembers = snap.data().members;
+        const kickedMember = allMembers.find(m => m.uid === uid);
+        const kickedName = kickedMember ? kickedMember.name : 'A member';
+        const mems = allMembers.filter(m => m.uid !== uid);
         await updateDoc(teamRef, { members: mems, currentMembers: mems.length });
 
         await sendSystemMessage(currentManageId, `${kickedName} has been kicked from the team`);
@@ -1032,24 +1052,25 @@ function setupForms() {
     const gameSelect = document.getElementById('create-game');
     if (gameSelect) {
         gameSelect.addEventListener('change', async () => {
-            const selectedGame = gameSelect.value; // now "valId" or "mlbbId"
+            const selectedGame = gameSelect.value;
             const ignInput = document.getElementById('create-ign');
             const ignHint = document.getElementById('ign-hint');
+            const rankSel = document.getElementById('create-rank');
+            const roleSel = document.getElementById('create-main-role');
 
             const currentType = document.getElementById('create-type').value;
             if (currentType !== 'lft') return;
-
             if (!selectedGame || !auth.currentUser) return;
 
             try {
                 const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
                 if (!userSnap.exists()) return;
-
                 const data = userSnap.data();
-                const fetchedValue = data[selectedGame] || ''; // 👈 directly uses "valId" or "mlbbId" as key
 
-                if (fetchedValue) {
-                    ignInput.value = fetchedValue;
+                // Autofill IGN
+                const fetchedIgn = data[selectedGame] || '';
+                if (fetchedIgn) {
+                    ignInput.value = fetchedIgn;
                     ignHint.classList.remove('hidden');
                 } else {
                     ignInput.value = '';
@@ -1060,6 +1081,17 @@ function setupForms() {
                     );
                     ignInput.focus();
                 }
+
+                // Autofill Rank & Role from profile
+                const rankMap = { valId: 'valRank', mlbbId: 'mlbbRank', hokId: 'hokRank' };
+                const roleMap = { valId: 'valRole', mlbbId: 'mlbbRole', hokId: 'hokRole' };
+
+                const fetchedRank = data[rankMap[selectedGame]] || '';
+                const fetchedRole = data[roleMap[selectedGame]] || '';
+
+                if (rankSel) rankSel.value = fetchedRank;
+                if (roleSel) roleSel.value = fetchedRole;
+
             } catch (err) {
                 console.error("Failed to fetch profile game ID:", err);
             }

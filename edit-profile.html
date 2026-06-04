@@ -14,6 +14,27 @@
         .nav-link { position: relative; }
         .nav-link::after { content: ''; position: absolute; width: 100%; transform: scaleX(0); height: 2px; bottom: -4px; left: 0; background-color: var(--gold); transform-origin: bottom right; transition: transform 0.25s ease-out; }
         .nav-link:hover::after, .nav-link.active::after { transform: scaleX(1); transform-origin: bottom left; }
+
+        .dark-select {
+            background-color: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #fff;
+            appearance: none;
+            -webkit-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            background-size: 16px;
+            padding-right: 40px;
+        }
+        .dark-select:focus {
+            outline: none;
+            border-color: var(--gold);
+        }
+        .dark-select option {
+            background-color: #1A1A1F;
+            color: #fff;
+        }
     </style>
 </head>
 <body class="bg-[var(--dark-bg)] text-gray-200 antialiased">
@@ -91,19 +112,120 @@
                     <p class="text-xs text-gray-500 mt-1" id="avatarStatus">Select an image to upload</p>
                 </div>
 
-                <div class="bg-black/20 p-6 rounded-lg border border-white/5 space-y-4">
+                <div class="bg-black/20 p-6 rounded-lg border border-white/5 space-y-6">
                     <h3 class="text-[var(--gold)] font-bold text-sm uppercase tracking-wide flex items-center gap-2">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg> 
                         Game IDs
                     </h3>
-                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label class="block text-sm text-gray-400 mb-1">Valorant ID (Name#Tag)</label>
-                            <input type="text" id="valId" class="dark-input w-full p-3 rounded-lg" placeholder="Viper#NA1">
+
+                    <!-- Valorant -->
+                    <div class="border border-white/5 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                            <img src="pictures/logo_valorant.png" class="w-4 h-4 object-contain"> Valorant
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Valorant ID (Name#Tag)</label>
+                                <input type="text" id="valId" class="dark-input w-full p-3 rounded-lg" placeholder="Viper#NA1">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Rank</label>
+                                <select id="valRank" class="dark-select w-full p-3 rounded-lg">
+                                    <option value="" disabled selected>-- Select Rank --</option>
+                                    <option>Iron 1</option><option>Iron 2</option><option>Iron 3</option>
+                                    <option>Bronze 1</option><option>Bronze 2</option><option>Bronze 3</option>
+                                    <option>Silver 1</option><option>Silver 2</option><option>Silver 3</option>
+                                    <option>Gold 1</option><option>Gold 2</option><option>Gold 3</option>
+                                    <option>Platinum 1</option><option>Platinum 2</option><option>Platinum 3</option>
+                                    <option>Diamond 1</option><option>Diamond 2</option><option>Diamond 3</option>
+                                    <option>Ascendant 1</option><option>Ascendant 2</option><option>Ascendant 3</option>
+                                    <option>Immortal 1</option><option>Immortal 2</option><option>Immortal 3</option>
+                                    <option>Radiant</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Main Role</label>
+                                <select id="valRole" class="dark-select w-full p-3 rounded-lg">
+                                    <option value="" disabled selected>-- Select Role --</option>
+                                    <option>Duelist</option>
+                                    <option>Initiator</option>
+                                    <option>Controller</option>
+                                    <option>Sentinel</option>
+                                    <option>Flex</option>
+                                </select>
+                            </div>
                         </div>
-                        <div>
-                            <label class="block text-sm text-gray-400 mb-1">MLBB ID (ID + Server)</label>
-                            <input type="text" id="mlbbId" class="dark-input w-full p-3 rounded-lg" placeholder="123456 (3021)">
+                    </div>
+
+                    <!-- MLBB -->
+                    <div class="border border-white/5 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                            <img src="pictures/logo_mlbb.png" class="w-4 h-4 object-contain"> Mobile Legends
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">MLBB ID (ID + Server)</label>
+                                <input type="text" id="mlbbId" class="dark-select w-full p-3 rounded-lg" placeholder="123456 (3021)">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Rank</label>
+                                <select id="mlbbRank" class="dark-select w-full p-3 rounded-lg">
+                                    <option value="" disabled selected>-- Select Rank --</option>
+                                    <option>Warrior I</option><option>Warrior II</option><option>Warrior III</option>
+                                    <option>Elite I</option><option>Elite II</option><option>Elite III</option>
+                                    <option>Master I</option><option>Master II</option><option>Master III</option>
+                                    <option>Grandmaster I</option><option>Grandmaster II</option><option>Grandmaster III</option>
+                                    <option>Epic I</option><option>Epic II</option><option>Epic III</option>
+                                    <option>Legend I</option><option>Legend II</option><option>Legend III</option>
+                                    <option>Mythic</option><option>Mythic Honor</option><option>Mythic Glory</option>
+                                    <option>Mythical Immortal</option><option>Mythical Glory</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Main Role</label>
+                                <select id="mlbbRole" class="dark-select w-full p-3 rounded-lg">
+                                    <option value="" disabled selected>-- Select Role --</option>
+                                    <option>Gold Lane</option>
+                                    <option>Exp Lane</option>
+                                    <option>Jungler</option>
+                                    <option>Mid Lane</option>
+                                    <option>Roamer</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Honor of Kings -->
+                    <div class="border border-white/5 rounded-lg p-4 space-y-3">
+                        <h4 class="text-sm font-bold text-white flex items-center gap-2">
+                            <img src="pictures/logo_hok.png" class="w-4 h-4 object-contain"> Honor of Kings
+                        </h4>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">HOK ID</label>
+                                <input type="text" id="hokId" class="dark-select w-full p-3 rounded-lg" placeholder="HeroKing#1234">
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Rank</label>
+                                <select id="hokRank" class="dark-select w-full p-3 rounded-lg">
+                                    <option value="" disabled selected>-- Select Rank --</option>
+                                    <option>Bronze</option><option>Silver</option><option>Gold</option>
+                                    <option>Platinum</option><option>Diamond</option>
+                                    <option>Master</option><option>Grandmaster</option>
+                                    <option>Epic</option><option>Supreme</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-xs text-gray-400 mb-1">Main Role</label>
+                                <select id="hokRole" class="dark-select w-full p-3 rounded-lg">
+                                    <option value="" disabled selected>-- Select Role --</option>
+                                    <option>Jungle</option>
+                                    <option>Baron Lane</option>
+                                    <option>Mid Lane</option>
+                                    <option>Dragon Lane</option>
+                                    <option>Support</option>
+                                </select>
+                            </div>
                         </div>
                     </div>
                 </div>

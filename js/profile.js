@@ -65,7 +65,14 @@ async function loadUserProfile(uid, email) {
             qs('#ign-display').textContent = data.ign || '--';
             qs('#real-name-display').textContent = data.realName || '--';
             qs('#val-id-display').textContent = data.valId || 'Not set';
+            qs('#val-rank-display').textContent = data.valRank || '--';
+            qs('#val-role-display').textContent = data.valRole || '--';
             qs('#mlbb-id-display').textContent = data.mlbbId || 'Not set';
+            qs('#mlbb-rank-display').textContent = data.mlbbRank || '--';
+            qs('#mlbb-role-display').textContent = data.mlbbRole || '--';
+            qs('#hok-id-display').textContent = data.hokId || 'Not set';
+            qs('#hok-rank-display').textContent = data.hokRank || '--';
+            qs('#hok-role-display').textContent = data.hokRole || '--';
 
             // Dates
             qs('#joined-display').textContent = formatDate(data.joinedAt || data.createdAt);
