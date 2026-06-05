@@ -487,8 +487,91 @@
     <div id="joinModal"
         class="fixed inset-0 bg-black/90 backdrop-blur-md hidden flex items-center justify-center z-[60] p-4"
         onclick="if(event.target.id === 'joinModal') closeModal('joinModal')">
-        <div class="bg-[var(--dark-card)] border border-[var(--gold)]/50 rounded-xl w-full max-w-md p-8 shadow-[0_0_50px_rgba(255,215,0,0.1)] relative max-h-[90vh] overflow-y-auto"
-            onclick="event.stopPropagation()">
+        <div class="flex flex-col md:flex-row gap-4 items-start w-full max-w-3xl max-h-[90vh] overflow-y-auto" onclick="event.stopPropagation()">
+
+        <!-- QR Payment Panel (shown only for paid tournaments) -->
+        <div id="join-qr-panel" class="hidden flex-shrink-0 w-full md:w-[220px]">
+            <div style="
+                background: linear-gradient(145deg, #1a1a00, #2a2200, #1a1500);
+                border: 1.5px solid var(--gold);
+                border-radius: 16px;
+                padding: 20px 16px 16px;
+                box-shadow: 0 0 30px rgba(255,215,0,0.18), 0 0 60px rgba(255,215,0,0.07), inset 0 0 20px rgba(255,215,0,0.04);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 12px;
+            ">
+                <!-- Gold header -->
+                <div style="text-align:center;">
+                    <div style="font-size:10px;font-weight:800;letter-spacing:0.18em;color:var(--gold);text-transform:uppercase;opacity:0.7;">Payment QR</div>
+                    <div style="font-size:11px;font-weight:700;color:rgba(255,215,0,0.5);margin-top:2px;">Scan to Pay</div>
+                </div>
+
+                <!-- QR Image container — standard QR size ~200px -->
+                <div style="
+                    width: 188px;
+                    height: 188px;
+                    background: #fff;
+                    border-radius: 10px;
+                    padding: 6px;
+                    box-shadow: 0 0 16px rgba(255,215,0,0.25);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    overflow: hidden;
+                ">
+                    <img id="join-qr-img" src="" alt="Payment QR Code"
+                        style="width:100%;height:100%;object-fit:contain;border-radius:6px;display:block;">
+                </div>
+
+                <!-- Gold divider -->
+                <div style="width:100%;height:1px;background:linear-gradient(to right,transparent,rgba(255,215,0,0.4),transparent);"></div>
+
+                <!-- Download button -->
+                <a id="join-qr-download" href="#" download="payment-qr"
+                    style="
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        gap: 6px;
+                        width: 100%;
+                        padding: 8px 0;
+                        background: rgba(255,215,0,0.1);
+                        border: 1px solid rgba(255,215,0,0.35);
+                        border-radius: 8px;
+                        color: var(--gold);
+                        font-size: 11px;
+                        font-weight: 700;
+                        letter-spacing: 0.06em;
+                        text-decoration: none;
+                        transition: background 0.2s, box-shadow 0.2s;
+                        cursor: pointer;
+                    "
+                    onmouseover="this.style.background='rgba(255,215,0,0.2)';this.style.boxShadow='0 0 12px rgba(255,215,0,0.2)'"
+                    onmouseout="this.style.background='rgba(255,215,0,0.1)';this.style.boxShadow='none'"
+                >
+                    <!-- Download icon -->
+                    <svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24">
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="7 10 12 15 17 10"/>
+                        <line x1="12" y1="15" x2="12" y2="3"/>
+                    </svg>
+                    <span id="join-qr-download-label">Download QR</span>
+                </a>
+                <!-- Entry Fee Display -->
+                <div id="join-entry-fee-display" class="hidden w-full" style="border-top:1px solid rgba(255,215,0,0.15);padding-top:10px;text-align:center;">
+                    <div style="font-size:10px;font-weight:800;letter-spacing:0.15em;color:rgba(255,215,0,0.5);text-transform:uppercase;margin-bottom:4px;">Entry Fee</div>
+                    <div style="font-size:22px;font-weight:800;color:var(--gold);letter-spacing:0.02em;">
+                        <span id="join-entry-currency">PHP</span>
+                        <span id="join-entry-fee-amount">0.00</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Join Form Card -->
+        <div class="bg-[var(--dark-card)] border border-[var(--gold)]/50 rounded-xl w-full p-8 shadow-[0_0_50px_rgba(255,215,0,0.1)] relative max-h-[90vh] overflow-y-auto flex-1">
             <h3 class="text-2xl font-bold text-white mb-1">Join Tournament</h3>
             <p class="text-sm text-gray-400 mb-6">Register your team roster.</p>
             <form id="joinForm" class="space-y-4">
@@ -531,6 +614,50 @@
                         </div>
                     </div>
                 </div>
+                <!-- PAYMENT PROOF UPLOAD (shown only for paid tournaments) -->
+                <div id="join-entry-fee-upload" class="hidden border-t border-white/10 pt-4 mt-2">
+                    <label class="block text-xs uppercase text-gray-500 font-bold mb-2">
+                        Payment Proof
+                        <span class="text-[var(--gold)] normal-case font-normal ml-1">(Required for paid tournaments)</span>
+                    </label>
+                    <div id="entry-fee-dropzone"
+                        class="relative flex flex-col items-center justify-center gap-2 p-5 rounded-lg border-2 border-dashed border-white/15 bg-black/20 cursor-pointer transition-all duration-200 hover:border-[var(--gold)]/50"
+                        onclick="document.getElementById('entry-fee-file-input').click()"
+                        ondragover="event.preventDefault(); this.style.borderColor='var(--gold)'"
+                        ondragleave="this.style.borderColor='rgba(255,255,255,0.15)'"
+                        ondrop="handleEntryFeeProofDrop(event)">
+                        <!-- Upload icon -->
+                        <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                        </svg>
+                        <span id="entry-fee-filename" class="text-sm text-gray-400">Click or drag image here</span>
+                        <input type="file" id="entry-fee-file-input" accept="image/*" class="hidden"
+                            onchange="handleEntryFeeProofSelect(event)">
+                    </div>
+                    <!-- Preview button (hidden until file chosen) -->
+                    <div id="entry-fee-preview-btn-wrap" class="hidden mt-2">
+                        <button type="button" onclick="openEntryFeePreview()"
+                            class="text-xs text-[var(--gold)] hover:underline flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                            </svg>
+                            Preview image
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Entry Fee Proof Preview Modal -->
+                <div id="entryFeePreviewModal"
+                    style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.85); z-index:200; align-items:center; justify-content:center;"
+                    onclick="closeEntryFeePreview()">
+                    <img id="entryFeePreviewImg" src="" alt="Payment Proof Preview"
+                        style="max-width:90vw; max-height:85vh; border-radius:12px; box-shadow:0 0 40px rgba(0,0,0,0.8);"
+                        onclick="event.stopPropagation()">
+                </div>
                 <div class="pt-4 flex gap-3">
                     <button type="button" onclick="closeModal('joinModal')"
                         class="flex-1 py-3 rounded-lg bg-white/5 hover:bg-white/10 text-gray-300 font-semibold transition-colors">Cancel</button>
@@ -539,7 +666,8 @@
                         Registration</button>
                 </div>
             </form>
-        </div>
+        </div><!-- end form card -->
+        </div><!-- end flex wrapper -->
     </div>
 
     <div id="viewMembersModal"
@@ -598,6 +726,73 @@
                             type="number" min="2" max="64" value="8" required class="dark-input w-full p-3 rounded"
                             placeholder="Ex: 8, 12, 16..."></div>
                 </div>
+                <!-- Entry Type Toggle + Proof Upload -->
+                <div class="flex flex-col sm:flex-row items-start gap-4">
+                    <!-- Left column: Toggle + Entry Fee stacked -->
+                    <div class="flex flex-col gap-3 flex-shrink-0">
+                        <div>
+                            <label class="block text-sm text-gray-400 mb-2">Entry Type</label>
+                            <div style="position:relative;width:160px;height:36px;background:#2a2a30;border:1px solid rgba(255,255,255,0.15);border-radius:999px;overflow:hidden;cursor:pointer;" onclick="toggleEntryType()">
+                                <div id="toggleThumb" style="position:absolute;top:0;left:0;width:50%;height:100%;background:var(--gold);border-radius:999px;transition:transform 0.3s ease;box-shadow:0 0 10px rgba(255,215,0,0.4);"></div>
+                                <div id="toggle-label-free" style="position:absolute;top:0;left:0;width:50%;height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#111115;z-index:10;transition:color 0.3s ease;pointer-events:none;">FREE</div>
+                                <div id="toggle-label-paid" style="position:absolute;top:0;right:0;width:50%;height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:0.08em;color:rgba(255,255,255,0.4);z-index:10;transition:color 0.3s ease;pointer-events:none;">PAID</div>
+                            </div>
+                            <input type="hidden" id="c-entry-type" value="Free">
+                        </div>
+
+                        <!-- Entry Fee — below toggle, same column -->
+                        <div id="entry-fee-amount-area" class="hidden">
+                            <label class="block text-sm text-gray-400 mb-1">Entry Fee</label>
+                            <div style="display:flex;align-items:center;border:1px solid rgba(255,255,255,0.15);border-radius:8px;overflow:hidden;background:#1a1a1f;width:220px;">
+                                <div style="position:relative;">
+                                    <select id="c-entry-currency"
+                                        style="appearance:none;-webkit-appearance:none;background:#2a2a30;border:none;border-right:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.85);font-size:12px;font-weight:700;letter-spacing:0.05em;padding:0 24px 0 10px;height:46px;cursor:pointer;outline:none;">
+                                        <option value="PHP">PHP</option>
+                                        <option value="USD">USD</option>
+                                    </select>
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="10" height="10" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2.5" viewBox="0 0 24 24"
+                                        style="position:absolute;right:6px;top:50%;transform:translateY(-50%);pointer-events:none;">
+                                        <polyline points="6 9 12 15 18 9"/>
+                                    </svg>
+                                </div>
+                                <input id="c-entry-fee"
+                                    type="number" min="0" step="0.01" placeholder="0.00"
+                                    style="background:transparent;border:none;outline:none;color:white;font-size:15px;font-weight:600;padding:0 10px;height:46px;width:130px;">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Right column: Payment Proof Upload -->
+                    <div id="proof-upload-area" class="hidden flex-1" style="align-self:flex-start;">
+                        <label class="block text-sm text-gray-400 mb-2">Payment Proof QR / Image</label>
+                        <div id="proof-dropzone"
+                            onclick="document.getElementById('c-proof-file').click()"
+                            ondragover="event.preventDefault(); this.style.borderColor='var(--gold)'"
+                            ondragleave="this.style.borderColor='rgba(255,255,255,0.15)'"
+                            ondrop="handleProofDrop(event)"
+                            style="border:2px dashed rgba(255,255,255,0.15);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:border-color 0.2s ease;min-height:110px;min-width:200px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;"
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            <span id="proof-filename" style="font-size:12px;color:rgba(255,255,255,0.35);">Click or drag image here</span>
+                        </div>
+                        <input type="file" id="c-proof-file" accept="image/*" class="hidden" onchange="handleProofSelect(event)">
+                        <div id="proof-preview-btn-wrap" class="hidden mt-2 flex items-center gap-2">
+                            <span style="font-size:11px;color:rgba(255,255,255,0.4);">Image ready</span>
+                            <button type="button" onclick="openProofPreview()"
+                                style="display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:50%;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.7);cursor:pointer;">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Proof Preview Modal -->
+                <div id="proofPreviewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:999;align-items:center;justify-content:center;" onclick="closeProofPreview()">
+                    <div style="position:relative;max-width:90vw;max-height:85vh;" onclick="event.stopPropagation()">
+                        <img id="proofPreviewImg" src="" alt="Payment Proof" style="max-width:100%;max-height:80vh;border-radius:12px;border:1px solid rgba(255,255,255,0.2);">
+                        <button onclick="closeProofPreview()" style="position:absolute;top:-12px;right:-12px;width:28px;height:28px;border-radius:50%;background:#2a2a30;border:1px solid rgba(255,255,255,0.2);color:white;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+                    </div>
+                </div>
+
                 <div><label class="block text-sm text-gray-400 mb-1">Prize Pool (₱)</label><input id="c-prize"
                         type="number" required class="dark-input w-full p-3 rounded"></div>
                 <div class="grid grid-cols-2 gap-4">
@@ -718,6 +913,23 @@
                 </div>
             </div>
         </div>
+    </div>
+
+        <!-- STANDALONE PROOF IMAGE VIEWER (Organizer Dashboard) -->
+    <div id="proofViewerModal"
+        style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.92); z-index:9999;
+            align-items:center; justify-content:center; flex-direction:column; gap:16px;"
+        onclick="if(event.target===this) window.closeProofViewerModal()">
+        <img id="proofViewerImg" src="" alt="Payment Proof"
+            style="max-width:90vw; max-height:80vh; border-radius:12px;
+                box-shadow:0 0 60px rgba(0,0,0,0.9); border:1px solid rgba(255,215,0,0.3);"
+            onclick="event.stopPropagation()">
+        <button onclick="window.closeProofViewerModal()"
+            style="padding:8px 24px; background:rgba(255,215,0,0.15); border:1px solid rgba(255,215,0,0.4);
+                border-radius:8px; color:var(--gold); font-size:13px; font-weight:700;
+                cursor:pointer; letter-spacing:0.05em;">
+            Close
+        </button>
     </div>
 
     <div id="footer-placeholder"></div>
@@ -871,6 +1083,117 @@
                 otherInput.value = '';
             }
         }
+
+        function toggleEntryType() {
+            const thumb = document.getElementById('toggleThumb');
+            const labelFree = document.getElementById('toggle-label-free');
+            const labelPaid = document.getElementById('toggle-label-paid');
+            const input = document.getElementById('c-entry-type');
+            const proofArea = document.getElementById('proof-upload-area');
+            const feeArea = document.getElementById('entry-fee-amount-area'); // NEW
+
+            const isFree = input.value === 'Free';
+
+            if (isFree) {
+                thumb.style.transform = 'translateX(100%)';
+                labelFree.style.color = 'rgba(255,255,255,0.4)';
+                labelPaid.style.color = '#111115';
+                input.value = 'Paid';
+                proofArea.classList.remove('hidden');
+                if (feeArea) feeArea.classList.remove('hidden'); // NEW
+            } else {
+                thumb.style.transform = 'translateX(0)';
+                labelFree.style.color = '#111115';
+                labelPaid.style.color = 'rgba(255,255,255,0.4)';
+                input.value = 'Free';
+                proofArea.classList.add('hidden');
+                if (feeArea) feeArea.classList.add('hidden'); // NEW
+                // Reset fee fields
+                const feeInput = document.getElementById('c-entry-fee');
+                if (feeInput) feeInput.value = '';
+                // Clear any selected file
+                document.getElementById('c-proof-file').value = '';
+                document.getElementById('proof-filename').textContent = 'Click or drag image here';
+                document.getElementById('proof-preview-btn-wrap').classList.add('hidden');
+                window._proofFile = null;
+            }
+        }
+
+        function handleProofSelect(event) {
+            const file = event.target.files[0];
+            if (file) setProofFile(file);
+        }
+
+        function handleProofDrop(event) {
+            event.preventDefault();
+            document.getElementById('proof-dropzone').style.borderColor = 'rgba(255,255,255,0.15)';
+            const file = event.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) setProofFile(file);
+        }
+
+        function setProofFile(file) {
+            window._proofFile = file;
+            document.getElementById('proof-filename').textContent = file.name;
+            document.getElementById('proof-dropzone').style.borderColor = 'var(--gold)';
+            document.getElementById('proof-preview-btn-wrap').classList.remove('hidden');
+
+            // Load preview into memory
+            const reader = new FileReader();
+            reader.onload = (e) => { window._proofPreviewURL = e.target.result; };
+            reader.readAsDataURL(file);
+        }
+
+        function openProofPreview() {
+            if (!window._proofPreviewURL) return;
+            document.getElementById('proofPreviewImg').src = window._proofPreviewURL;
+            const modal = document.getElementById('proofPreviewModal');
+            modal.style.display = 'flex';
+        }
+
+        function closeProofPreview() {
+            document.getElementById('proofPreviewModal').style.display = 'none';
+        }
+
+        // -------------------------------------------------------
+        // ENTRY FEE PROOF HELPERS (participant payment upload)
+        // -------------------------------------------------------
+        function handleEntryFeeProofSelect(event) {
+            const file = event.target.files[0];
+            if (file) setEntryFeeProofFile(file);
+        }
+
+        function handleEntryFeeProofDrop(event) {
+            event.preventDefault();
+            document.getElementById('entry-fee-dropzone').style.borderColor = 'rgba(255,255,255,0.15)';
+            const file = event.dataTransfer.files[0];
+            if (file && file.type.startsWith('image/')) setEntryFeeProofFile(file);
+        }
+
+        function setEntryFeeProofFile(file) {
+            window._entryFeeFile = file;
+            document.getElementById('entry-fee-filename').textContent = file.name;
+            document.getElementById('entry-fee-dropzone').style.borderColor = 'var(--gold)';
+            document.getElementById('entry-fee-preview-btn-wrap').classList.remove('hidden');
+            const reader = new FileReader();
+            reader.onload = (e) => { window._entryFeePreviewURL = e.target.result; };
+            reader.readAsDataURL(file);
+        }
+
+        function openEntryFeePreview() {
+            if (!window._entryFeePreviewURL) return;
+            document.getElementById('entryFeePreviewImg').src = window._entryFeePreviewURL;
+            document.getElementById('entryFeePreviewModal').style.display = 'flex';
+        }
+
+        function closeEntryFeePreview() {
+            document.getElementById('entryFeePreviewModal').style.display = 'none';
+        }
+
+        // Expose to inline HTML handlers
+        window.handleEntryFeeProofSelect = handleEntryFeeProofSelect;
+        window.handleEntryFeeProofDrop   = handleEntryFeeProofDrop;
+        window.openEntryFeePreview        = openEntryFeePreview;
+        window.closeEntryFeePreview       = closeEntryFeePreview;
 
         function closeModal(modalId) {
             const modal = document.getElementById(modalId);

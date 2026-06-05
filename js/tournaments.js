@@ -1,6 +1,7 @@
-import { db } from './firebase-config.js';
+import { db, storage } from './firebase-config.js';
 import { collection, getDocs, doc, getDoc, updateDoc, addDoc, deleteDoc, arrayUnion, arrayRemove, serverTimestamp, query, where, writeBatch, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+import { ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-storage.js";
 import { calculateStatus, escapeCssUrl } from './utils.js';
 
 let allTournaments = [];
@@ -313,18 +314,31 @@ async function fetchUserTeamIds(user) {
     } catch (e) { console.error(e); }
 }
 
+// async function checkCreatorPermissions(user) {
+//     try {
+//         const userRef = doc(db, "users", user.uid);
+//         const userSnap = await getDoc(userRef);
+//         if (userSnap.exists()) {
+//             const role = userSnap.data().role || 'user';
+//             window.currentUserRole = role; // ← ADD THIS
+//             if (['admin', 'org partner', 'tournament organizer'].includes(role) || ["admin@champzero.com"].includes(user.email)) {
+//                 const controls = qs('#creator-controls');
+//                 if (controls) controls.classList.remove('hidden');
+//             }
+//         }
+//     } catch (error) { console.error(error); }
+// }
+
 async function checkCreatorPermissions(user) {
     try {
         const userRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
-            const role = userSnap.data().role || 'user';
-            window.currentUserRole = role; // ← ADD THIS
-            if (['admin', 'org partner', 'tournament organizer'].includes(role) || ["admin@champzero.com"].includes(user.email)) {
-                const controls = qs('#creator-controls');
-                if (controls) controls.classList.remove('hidden');
-            }
+            window.currentUserRole = userSnap.data().role || 'user';
         }
+        // TEMP: Allow all logged-in users to create tournaments
+        const controls = qs('#creator-controls');
+        if (controls) controls.classList.remove('hidden');
     } catch (error) { console.error(error); }
 }
 
@@ -362,6 +376,18 @@ async function handleCreateTournament() {
         const desc = qs('#c-desc').value || "";
         const banner = qs('#c-banner').value || "";
 
+        // Upload payment proof if PAID
+        let proofURL = "";
+        const entryType = qs('#c-entry-type').value;
+        const entryFee = entryType === 'Paid' ? (parseFloat(qs('#c-entry-fee')?.value) || 0) : 0;
+        const entryCurrency = entryType === 'Paid' ? (qs('#c-entry-currency')?.value || 'PHP') : null;
+        if (entryType === 'Paid' && window._proofFile) {
+            const tournamentName = qs('#c-name').value.trim().replace(/\s+/g, '_');
+            const fileRef = storageRef(storage, `payment-proofs/${tournamentName}/${window._proofFile.name}`);
+            const snapshot = await uploadBytes(fileRef, window._proofFile);
+            proofURL = await getDownloadURL(snapshot.ref);
+        }
+
         const newTourney = {
             name: name,
             game: finalGameTitle,
@@ -372,6 +398,10 @@ async function handleCreateTournament() {
             endDate: endDate,
             description: desc,
             banner: banner,
+            entryType: entryType,
+            entryFee: entryFee,        
+            entryCurrency: entryCurrency, 
+            paymentProofURL: proofURL,
             createdBy: user.uid,
             createdAt: serverTimestamp(),
             status: 'Open',
@@ -382,6 +412,10 @@ async function handleCreateTournament() {
 
         await addDoc(collection(db, "tournaments"), newTourney);
 
+        // Reset proof state
+        window._proofFile = null;
+        window._proofPreviewURL = null;
+
         if (window.closeModal) window.closeModal('createModal');
         if (window.showSuccessToast) window.showSuccessToast("Success", "Tournament Created!");
 
@@ -389,6 +423,8 @@ async function handleCreateTournament() {
         qs('#createForm').reset();
         qs('#c-game-select').value = "Valorant";
         qs('#c-game-other').classList.add('hidden');
+        const feeArea = qs('#entry-fee-amount-area');
+        if (feeArea) feeArea.classList.add('hidden');
 
     } catch (error) {
         console.error("Error creating tournament:", error);
@@ -503,11 +539,32 @@ function renderTournaments() {
             openModal(t);
         });
 
-        card.querySelector('.register-btn').addEventListener('click', (e) => {
+        card.querySelector('.register-btn').addEventListener('click', async (e) => {
             e.stopPropagation();
-            if (typeof openJoinForm === 'function') {
-                openJoinForm(t.id);
-            }
+            const auth = getAuth();
+            const user = auth.currentUser;
+            if (!user) { window.location.href = 'login.html'; return; }
+
+           // Check existing application before opening form
+            try {
+                const appsRef = collection(db, "tournaments", t.id, "applications");
+                const appSnap = await getDocs(query(appsRef, where("registeredBy", "==", user.uid)));
+                if (!appSnap.empty) {
+                    const existingStatus = appSnap.docs[0].data().status;
+                    const existingAppId  = appSnap.docs[0].id;
+                    if (existingStatus === 'approved') {
+                        if (window.showErrorToast) window.showErrorToast('Already Registered', 'Your team is already confirmed in this tournament.');
+                        return;
+                    }
+                    if (existingStatus === 'pending' || existingStatus === 'pending_update') {
+                        if (window.showErrorToast) window.showErrorToast('Application Pending', 'Redirecting to edit your existing application.');
+                        openJoinForm(t.id, true, existingAppId);
+                        return;
+                    }
+                }
+            } catch (e) { console.error(e); }
+
+            openJoinForm(t.id);
         });
 
         card.addEventListener('click', () => openModal(t));
@@ -1580,6 +1637,30 @@ async function openJoinForm(id, isEdit = false, specificAppId = null) {
     const user = auth.currentUser;
     if (!user) { if (window.showErrorToast) window.showErrorToast('Login Required', 'Please log in.'); window.location.href = 'login.html'; return; }
 
+    // --- REGISTRATION SECURITY GUARD ---
+    if (!isEdit) {
+        try {
+            const appsRef = collection(db, "tournaments", id, "applications");
+            const q = query(appsRef, where("registeredBy", "==", user.uid));
+            const appSnap = await getDocs(q);
+            if (!appSnap.empty) {
+                const existingStatus = appSnap.docs[0].data().status;
+                const existingAppId  = appSnap.docs[0].id;
+                if (existingStatus === 'approved') {
+                    if (window.showErrorToast) window.showErrorToast('Already Registered', 'Your team is already confirmed in this tournament.');
+                    return;
+                }
+                if (existingStatus === 'pending' || existingStatus === 'pending_update') {
+                    if (window.showErrorToast) window.showErrorToast('Application Pending', 'You already have a pending application. You can edit it instead.');
+                    // Redirect to edit mode
+                    openJoinForm(id, true, existingAppId);
+                    return;
+                }
+            }
+        } catch (e) { console.error("Registration guard check failed:", e); }
+    }
+    // --- END GUARD ---
+
     currentJoiningId = id;
     userTeams = [];
 
@@ -1684,6 +1765,64 @@ async function openJoinForm(id, isEdit = false, specificAppId = null) {
         qs('#membersContainer').innerHTML = `<div class="flex gap-2 w-full"><input type="text" name="memberIgn[]" placeholder="Member IGN" class="dark-input w-full p-2 rounded text-sm bg-black/30 border border-white/10 text-white focus:border-[var(--gold)] outline-none" required></div>`;
         if (window.toggleTeamInput) window.toggleTeamInput(select);
     }
+    // --- QR PAYMENT PANEL ---
+    const qrPanel = document.getElementById('join-qr-panel');
+    const qrImg   = document.getElementById('join-qr-img');
+    const qrDl    = document.getElementById('join-qr-download');
+    const qrLabel = document.getElementById('join-qr-download-label');
+
+    // Look up current tournament data from the live snapshot cache
+    const tournDoc = allTournaments.find(t => t.id === id) || currentEditingTournament;
+    const isPaid = tournDoc && tournDoc.entryType === 'Paid';
+    const qrURL  = tournDoc && tournDoc.paymentProofURL;
+
+    if (isPaid && qrURL && qrPanel && qrImg && qrDl) {
+        qrImg.src = qrURL;
+
+        // Build a clean filename from the tournament name
+        const safeName = (tournDoc.name || 'payment-qr').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
+        qrDl.href     = qrURL;
+        qrDl.download = `${safeName}_QR`;
+        if (qrLabel) qrLabel.textContent = `Download Image`;
+
+        qrPanel.classList.remove('hidden');
+    } else if (qrPanel) {
+        qrPanel.classList.add('hidden');
+    }
+
+    // --- END QR PANEL ---
+
+    // --- ENTRY FEE DISPLAY ---
+    const feeDisplay = document.getElementById('join-entry-fee-display');
+    if (feeDisplay) {
+        if (isPaid && tournDoc.entryFee > 0) {
+            document.getElementById('join-entry-currency').textContent = tournDoc.entryCurrency || 'PHP';
+            document.getElementById('join-entry-fee-amount').textContent = parseFloat(tournDoc.entryFee).toFixed(2);
+            feeDisplay.classList.remove('hidden');
+        } else {
+            feeDisplay.classList.add('hidden');
+        }
+    }
+    // --- END ENTRY FEE DISPLAY ---
+
+    // --- ENTRY FEE UPLOAD PANEL ---
+    const entryFeeUpload = document.getElementById('join-entry-fee-upload');
+    if (entryFeeUpload) {
+        if (isPaid) {
+            entryFeeUpload.classList.remove('hidden');
+        } else {
+            entryFeeUpload.classList.add('hidden');
+        }
+        // Reset state each time modal opens
+        window._entryFeeFile = null;
+        window._entryFeePreviewURL = null;
+        document.getElementById('entry-fee-filename').textContent = 'Click or drag image here';
+        document.getElementById('entry-fee-dropzone').style.borderColor = 'rgba(255,255,255,0.15)';
+        document.getElementById('entry-fee-preview-btn-wrap').classList.add('hidden');
+        document.getElementById('entry-fee-file-input').value = '';
+    }
+    // --- END ENTRY FEE UPLOAD PANEL ---
+
     document.getElementById('joinModal').classList.remove('hidden');
     document.getElementById('joinModal').classList.add('flex');
 }
@@ -1740,17 +1879,57 @@ async function submitJoinRequest() {
     const membersList = [];
     memberInputs.forEach(input => { if (input.value.trim()) membersList.push(input.value.trim()); });
 
-    const appData = {
-    name: teamName, 
-    captain: captain, 
-    contact: contact, 
-    phone: phone,          
-    members: membersList,
-    teamId: dbTeamId, 
-    registeredBy: user.uid, 
-    status: isEdit ? 'pending_update' : 'pending', 
-    submittedAt: serverTimestamp()
-};
+    // --- UPLOAD ENTRY FEE PROOF (if paid tournament & file chosen) ---
+    let entryFeeProofURL = '';
+    const tournDoc = allTournaments.find(t => t.id === currentJoiningId) || currentEditingTournament;
+    const tournamentIsPaid = tournDoc && tournDoc.entryType === 'Paid';
+
+    if (tournamentIsPaid && window._entryFeeFile) {
+        const tournamentName = (tournDoc.name || 'tournament').trim().replace(/\s+/g, '_');
+        const safeName = window._entryFeeFile.name.replace(/\s+/g, '_');
+        const fileRef = storageRef(
+            storage,
+            `payment-proofs/${tournamentName}/entry-fees/${teamName.replace(/\s+/g, '_')}/${safeName}`
+        );
+        const snapshot = await uploadBytes(fileRef, window._entryFeeFile);
+        entryFeeProofURL = await getDownloadURL(snapshot.ref);
+    }
+    // --- END UPLOAD ---
+
+        let appData;
+        if (isEdit) {
+            // Store proposed changes in a staging field, NOT live fields.
+            // The live fields (name, captain, members, etc.) stay unchanged
+            // until the organizer approves.
+            appData = {
+                pendingData: {
+                    name: teamName,
+                    captain: captain,
+                    contact: contact,
+                    phone: phone,
+                    members: membersList,
+                    teamId: dbTeamId,
+                    ...(entryFeeProofURL && { entryFeeProofURL }),
+                },
+                status: 'pending_update',   // ← force back to pending; blocks live changes
+                hasPendingUpdate: true,
+                submittedAt: serverTimestamp(),
+            };
+        } else {
+            appData = {
+                name: teamName,
+                captain: captain,
+                contact: contact,
+                phone: phone,
+                members: membersList,
+                teamId: dbTeamId,
+                registeredBy: user.uid,
+                submittedAt: serverTimestamp(),
+                ...(entryFeeProofURL && { entryFeeProofURL }),
+                status: 'pending',
+                hasPendingUpdate: true,
+            };
+        }
 
     const submitBtn = qs('#joinForm button[type="submit"]');
     if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Submitting...'; }
@@ -1839,9 +2018,25 @@ function isUserAdminOrOrganizer() {
 
 async function viewTeamMembers(index) {
     if (!currentEditingTournament || !currentEditingTournament.participants) return;
-    const team = currentEditingTournament.participants[index];
-    if (!team || typeof team !== 'object') { if (window.showErrorToast) window.showErrorToast("Info", "No member details available."); return; }
-    
+
+    // Always re-fetch the latest participant data from Firestore
+    let team;
+    try {
+        const tourneySnap = await getDoc(doc(db, "tournaments", currentEditingTournament.id));
+        if (tourneySnap.exists()) {
+            const freshParticipants = tourneySnap.data().participants || [];
+            currentEditingTournament.participants = freshParticipants;
+            team = freshParticipants[index];
+        }
+    } catch (e) {
+        team = currentEditingTournament.participants[index];
+    }
+
+    if (!team || typeof team !== 'object') {
+        if (window.showErrorToast) window.showErrorToast("Info", "No member details available.");
+        return;
+    }
+
     const list = document.getElementById('vm-list');
     const title = document.getElementById('vm-teamName');
     title.textContent = team.name;
@@ -1854,25 +2049,58 @@ async function viewTeamMembers(index) {
         list.parentNode.insertBefore(contactDiv, list);
     }
 
-    // Default the block to hidden
     contactDiv.innerHTML = '';
     contactDiv.classList.add('hidden');
 
-    // Fetch details directly from the secure applications subcollection if user is authorized
     if (isUserAdminOrOrganizer()) {
         try {
-            // Find application matching this team name
-            const appsRef = collection(db, "tournaments", currentEditingTournament.id, "applications");
-            const q = query(appsRef, where("name", "==", team.name));
-            const snap = await getDocs(q);
-            
-            if (!snap.empty) {
-                const appData = snap.docs[0].data();
-                
-                const emailStr = appData.contact ? `<div><span class="text-gray-400">Email:</span> <span class="text-white">${escapeHtml(appData.contact)}</span></div>` : '';
-                const phoneStr = appData.phone ? `<div><span class="text-gray-400">Phone:</span> <span class="text-white">${escapeHtml(appData.phone)}</span></div>` : '<div><span class="text-gray-400">Phone:</span> <span class="text-gray-500 italic">None provided</span></div>';
-                
-                contactDiv.innerHTML = `${emailStr}${phoneStr}`;
+            let appData = null;
+
+            // Direct lookup by applicationId (fast & always accurate)
+            if (team.applicationId) {
+                const appDocRef = doc(db, "tournaments", currentEditingTournament.id, "applications", team.applicationId);
+                const appDocSnap = await getDoc(appDocRef);
+                if (appDocSnap.exists()) appData = appDocSnap.data();
+            }
+
+            // Fallback: query by name if no applicationId
+            if (!appData) {
+                const appsRef = collection(db, "tournaments", currentEditingTournament.id, "applications");
+                const q = query(appsRef, where("name", "==", team.name));
+                const snap = await getDocs(q);
+                if (!snap.empty) appData = snap.docs[0].data();
+            }
+
+            if (appData) {
+                const emailStr = appData.contact
+                    ? `<div><span class="text-gray-400">Email:</span> <span class="text-white">${escapeHtml(appData.contact)}</span></div>`
+                    : '';
+                const phoneStr = appData.phone
+                    ? `<div><span class="text-gray-400">Phone:</span> <span class="text-white">${escapeHtml(appData.phone)}</span></div>`
+                    : '<div><span class="text-gray-400">Phone:</span> <span class="text-gray-500 italic">None provided</span></div>';
+
+                // Payment proof — show inline image + view button
+                const proofURL = appData.entryFeeProofURL;
+                const proofStr = proofURL
+                    ? `<div class="mt-2">
+                           <span class="text-gray-400">Payment Proof:</span>
+                           <div class="mt-2">
+                               <img src="${escapeHtml(proofURL)}" alt="Payment Proof"
+                                   class="w-full max-h-48 object-contain rounded-lg border border-white/10 cursor-pointer"
+                                   onclick="window.openEntryFeeProofViewer('${escapeHtml(proofURL)}')" />
+                           </div>
+                           <button onclick="window.openEntryFeeProofViewer('${escapeHtml(proofURL)}')"
+                               class="mt-1 inline-flex items-center gap-1 text-[var(--gold)] hover:underline text-xs">
+                               <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                               </svg>
+                               View Full Size
+                           </button>
+                       </div>`
+                    : `<div><span class="text-gray-400">Payment Proof:</span> <span class="text-gray-500 italic">None submitted</span></div>`;
+
+                contactDiv.innerHTML = `${emailStr}${phoneStr}${proofStr}`;
                 contactDiv.classList.remove('hidden');
             } else {
                 contactDiv.innerHTML = '<div class="text-gray-500 italic">Application document not found.</div>';
@@ -1883,11 +2111,17 @@ async function viewTeamMembers(index) {
         }
     }
 
-    // Render roster (visible to everyone)
+    // Render roster from freshly fetched participant data
     if (team.members && team.members.length > 0) {
-        list.innerHTML = team.members.map(m => `<li class="p-2 bg-white/5 rounded border border-white/5 flex items-center gap-2"><span class="text-[var(--gold)]">➜</span> ${escapeHtml(m)}</li>`).join('');
-    } else { list.innerHTML = '<li class="text-center text-gray-500 italic">No specific members listed.</li>'; }
-    
+        list.innerHTML = team.members.map(m =>
+            `<li class="p-2 bg-white/5 rounded border border-white/5 flex items-center gap-2">
+                <span class="text-[var(--gold)]">➜</span> ${escapeHtml(m)}
+            </li>`
+        ).join('');
+    } else {
+        list.innerHTML = '<li class="text-center text-gray-500 italic">No specific members listed.</li>';
+    }
+
     document.getElementById('viewMembersModal').classList.remove('hidden');
     document.getElementById('viewMembersModal').classList.add('flex');
 }
@@ -1896,38 +2130,66 @@ window.viewPendingApplication = function(appId) {
     const app = pendingApplicationsMap.get(appId);
     if (!app) return;
 
+    // For update requests, the proposed changes are in pendingData.
+    // Fall back to top-level fields for brand-new applications.
+    const pending = app.pendingData || null;
+    const display = pending || app; // what to show
+
     const list = document.getElementById('vm-list');
     const title = document.getElementById('vm-teamName');
-    
-    // Set Title
+
     title.textContent = `Application: ${app.name}`;
     list.innerHTML = '';
 
-    // 1. Add Captain & Contact Info
+    // If this is an update request, show a diff banner
+    const isUpdateReq = app.status === 'pending_update' && pending;
+    if (isUpdateReq) {
+        list.innerHTML += `
+            <li class="p-2 mb-3 bg-yellow-600/20 border border-yellow-500/40 rounded text-xs text-yellow-300 font-semibold">
+                ⚠️ This is an <span class="uppercase">update request</span>. The details below reflect the <u>proposed changes</u>.
+            </li>`;
+    }
+
+    // Build proof row from the correct source
+    const proofURL = display.entryFeeProofURL;
+    const proofRow = proofURL
+        ? `<div class="text-sm mt-1">
+               <span class="text-gray-400">Payment Proof:</span>
+               <button onclick="window.openEntryFeeProofViewer('${escapeHtml(proofURL)}')"
+                   class="ml-2 inline-flex items-center gap-1 text-[var(--gold)] hover:underline text-xs">
+                   <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                   </svg>
+                   View Proof
+               </button>
+           </div>`
+        : `<div class="text-sm mt-1"><span class="text-gray-400">Payment Proof:</span> <span class="text-gray-500 italic">None submitted</span></div>`;
+
     const infoHtml = `
         <li class="p-2 mb-2 bg-[var(--gold)]/10 border border-[var(--gold)]/30 rounded flex flex-col gap-1">
             <div class="text-xs text-[var(--gold)] uppercase font-bold">Team Details</div>
-            <div class="text-sm text-white"><span class="text-gray-400">Captain:</span> ${escapeHtml(app.captain)}</div>
-            <div class="text-sm text-white"><span class="text-gray-400">Contact:</span> ${escapeHtml(app.contact || 'N/A')}</div>
-            <div class="text-sm text-white"><span class="text-gray-400">Contact:</span> ${escapeHtml(app.phone || 'N/A')}</div>
-
+            <div class="text-sm text-white"><span class="text-gray-400">Captain:</span> ${escapeHtml(display.captain)}</div>
+            <div class="text-sm text-white"><span class="text-gray-400">Contact:</span> ${escapeHtml(display.contact || 'N/A')}</div>
+            <div class="text-sm text-white"><span class="text-gray-400">Phone:</span> ${escapeHtml(display.phone || 'N/A')}</div>
+            ${proofRow}
         </li>
         <li class="mt-3 mb-1 text-xs text-gray-500 uppercase font-bold">Roster Members</li>
     `;
     list.innerHTML += infoHtml;
 
-    // 2. Add Members List
-    if (app.members && app.members.length > 0) {
-        list.innerHTML += app.members.map(m => 
+    // Members from the correct source
+    const members = display.members || [];
+    if (members.length > 0) {
+        list.innerHTML += members.map(m =>
             `<li class="p-2 bg-white/5 rounded border border-white/5 flex items-center gap-2 mb-1">
                 <span class="text-[var(--gold)]">➜</span> ${escapeHtml(m)}
             </li>`
         ).join('');
-    } else { 
-        list.innerHTML += '<li class="text-center text-gray-500 italic">No members listed.</li>'; 
+    } else {
+        list.innerHTML += '<li class="text-center text-gray-500 italic">No members listed.</li>';
     }
 
-    // Open the existing modal
     document.getElementById('viewMembersModal').classList.remove('hidden');
     document.getElementById('viewMembersModal').classList.add('flex');
 };
@@ -1941,7 +2203,10 @@ function initAdminDashboard(tournamentId) {
     list.innerHTML = '<div class="text-gray-500 text-sm">Loading...</div>';
     if (adminUnsubscribe) adminUnsubscribe();
 
-    const q = query(collection(db, "tournaments", tournamentId, "applications"), where("status", "in", ["pending", "pending_update"]));
+    const q = query(
+    collection(db, "tournaments", tournamentId, "applications"),
+    where("hasPendingUpdate", "==", true)
+    );
     
     adminUnsubscribe = onSnapshot(q, (snap) => {
         // Clear previous cache
@@ -1959,7 +2224,7 @@ function initAdminDashboard(tournamentId) {
             // Store app data in map for the "View" button to use
             pendingApplicationsMap.set(docSnap.id, app);
 
-            const isUpdate = app.status === 'pending_update';
+            const isUpdate = app.status === 'pending_update'
             const item = document.createElement('div');
             item.className = "flex items-center justify-between bg-black/30 p-3 rounded border border-white/10";
             
@@ -1994,21 +2259,68 @@ async function processApplication(tourneyId, appId, isApproved) {
         const appData = appSnap.data();
 
         if (isApproved) {
-            const newParticipantData = { name: appData.name, captain: appData.captain, contact: appData.contact, members: appData.members, teamId: appData.teamId, registeredBy: appData.registeredBy, applicationId: appId };
-            if (appData.status === 'pending_update') {
+            const source = appData.pendingData || appData;
+            const newParticipantData = {
+                name: source.name,
+                captain: source.captain,
+                contact: source.contact,
+                members: source.members,
+                teamId: source.teamId,
+                registeredBy: appData.registeredBy,
+                applicationId: appId,
+                ...(source.entryFeeProofURL && { entryFeeProofURL: source.entryFeeProofURL }),
+            };
+
+            // Remove old entry if this is a modification approval
+            if (appData.status === 'pending_update' || appData.hasPendingUpdate) {
                 const tSnap = await getDoc(tourneyRef);
                 const participants = tSnap.data().participants || [];
                 const oldEntry = participants.find(p => p.applicationId === appId || p.registeredBy === appData.registeredBy);
                 if (oldEntry) await updateDoc(tourneyRef, { participants: arrayRemove(oldEntry) });
             }
+
+            // Push the updated/new data into the tournament profile
             await updateDoc(tourneyRef, { participants: arrayUnion(newParticipantData) });
-            await updateDoc(appRef, { status: 'approved' });
-            await sendTournamentNotification(appData.registeredBy, tourneyId, 'alert', `Your team "${appData.name}" has been accepted!`);
+
+            // Build the update payload for the application document
+            const appUpdatePayload = {
+                status: 'approved',
+                hasPendingUpdate: false,
+                pendingData: null
+            };
+
+            // If it was an edit request, migrate changes to the root application fields
+            if (appData.status === 'pending_update' || appData.hasPendingUpdate) {
+                appUpdatePayload.name = source.name;
+                appUpdatePayload.captain = source.captain;
+                appUpdatePayload.contact = source.contact;
+                appUpdatePayload.members = source.members;
+                appUpdatePayload.teamId = source.teamId;
+                if (source.entryFeeProofURL) {
+                    appUpdatePayload.entryFeeProofURL = source.entryFeeProofURL;
+                }
+            }
+
+            // Commit the structural changes to the application document
+            await updateDoc(appRef, appUpdatePayload);
+            await sendTournamentNotification(appData.registeredBy, tourneyId, 'alert', `Your team "${source.name}" has been accepted!`);
+
+            // FIX 2: Refresh currentEditingTournament so the open modal reflects new data immediately
+            const refreshedSnap = await getDoc(tourneyRef);
+            if (refreshedSnap.exists()) {
+                currentEditingTournament = { id: tourneyId, ...refreshedSnap.data() };
+            }
+            if (window.showSuccessToast) window.showSuccessToast('Approved', `"${source.name}" has been approved!`);
+
         } else {
-            await updateDoc(appRef, { status: 'rejected' });
+            await updateDoc(appRef, { status: 'rejected', hasPendingUpdate: false });
             await sendTournamentNotification(appData.registeredBy, tourneyId, 'alert', `Your application for "${appData.name}" was declined.`);
+            if (window.showSuccessToast) window.showSuccessToast('Rejected', `Application has been rejected.`);
         }
-    } catch (e) { console.error(e); alert("Action failed: " + e.message); }
+    } catch (e) {
+        console.error(e);
+        alert("Action failed: " + e.message);
+    }
 }
 
 // --- FIND THIS FUNCTION AND UPDATE ---
@@ -3195,6 +3507,22 @@ window.startTournament = startTournament;
 window.openScoreModal = openScoreModal;
 window.saveMatchScore = saveMatchScore;
 window.deleteTournament = deleteTournament;
+
+// -------------------------------------------------------
+// PROOF IMAGE VIEWER (used by organizer dashboard)
+// -------------------------------------------------------
+window.openEntryFeeProofViewer = function(url) {
+    const modal = document.getElementById('proofViewerModal');
+    const img   = document.getElementById('proofViewerImg');
+    if (!modal || !img) return;
+    img.src = url;
+    modal.style.display = 'flex';
+};
+
+window.closeProofViewerModal = function() {
+    const modal = document.getElementById('proofViewerModal');
+    if (modal) modal.style.display = 'none';
+};
 window.closeModal = (id) => {
     document.getElementById(id).classList.add('hidden');
     if (id === 'detailsModal' && tournamentUnsubscribe) {
