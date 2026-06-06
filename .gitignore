@@ -46,5 +46,4 @@ FIREBASE_AUTH_SETUP.md
 .github/
 
 # Text files; for Netlify deployments only
-ads.txt
 robots.txt
