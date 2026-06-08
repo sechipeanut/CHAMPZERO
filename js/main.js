@@ -2,31 +2,8 @@ import { auth } from './firebase-config.js';
 import { signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import { initLiveScores } from './live-scores.js';
 
-// --- 0. INJECT HEADER & FOOTER ---
-async function loadComponents() {
-    const headerPlaceholder = document.getElementById('header-placeholder');
-    const footerPlaceholder = document.getElementById('footer-placeholder');
-
-    if (headerPlaceholder) {
-        const res = await fetch('/header.html');
-        headerPlaceholder.innerHTML = await res.text();
-
-        // Wire up close button (injected into DOM now)
-        document.getElementById('close-mobile-menu')?.addEventListener('click', () => {
-            document.getElementById('mobile-menu')?.classList.add('hidden');
-        });
-    }
-
-    if (footerPlaceholder) {
-        const res = await fetch('/footer.html');
-        footerPlaceholder.innerHTML = await res.text();
-    }
-}
-
-document.addEventListener('DOMContentLoaded', async () => {
-
-    await loadComponents();
-
+document.addEventListener('DOMContentLoaded', () => {
+    
     // --- 1. MOBILE MENU LOGIC ---
     const menuBtn = document.getElementById('mobile-menu-button');
     const mobileMenu = document.getElementById('mobile-menu');
@@ -54,6 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     // --- 2. GLOBAL LOGOUT LOGIC ---
+    // This allows any "Log Out" button on any page to work
     const logoutBtns = document.querySelectorAll('#logout-btn, .logout-link');
     logoutBtns.forEach(btn => {
         btn.addEventListener('click', async (e) => {
@@ -70,10 +48,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     // --- 3. DYNAMIC NAV BAR (Show/Hide Login/Profile) ---
     onAuthStateChanged(auth, async (user) => {
         const authControls = document.getElementById('auth-controls');
+        // NEW: Select the wrapper (Ensure you added id="auth-controls-wrapper" in your HTML)
         const authWrapper = document.getElementById('auth-controls-wrapper');
-        const mobileAuth = document.querySelector('#mobile-menu .border-t');
+        
+        // Mobile Auth Controls (inside the menu)
+        const mobileAuth = document.querySelector('#mobile-menu .border-t'); 
 
         if (user && authControls) {
+            // Check user role from Firestore
             let isAdmin = false;
             let userAvatar = null;
             let displayName = user.displayName || "Champion";
@@ -132,19 +114,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             // Add dropdown toggle functionality
             const dropdownBtn = document.getElementById('profile-dropdown-btn');
             const dropdownMenu = document.getElementById('profile-dropdown-menu');
-
+            
             if (dropdownBtn && dropdownMenu) {
                 dropdownBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     dropdownMenu.classList.toggle('hidden');
                 });
 
+                // Close dropdown when clicking outside
                 document.addEventListener('click', (e) => {
                     if (!dropdownBtn.contains(e.target) && !dropdownMenu.contains(e.target)) {
                         dropdownMenu.classList.add('hidden');
                     }
                 });
 
+                // Logout from dropdown
                 const dropdownLogout = document.getElementById('dropdown-logout-btn');
                 if (dropdownLogout) {
                     dropdownLogout.addEventListener('click', async (e) => {
@@ -158,7 +142,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     });
                 }
             }
-
+            
             // Update Mobile Menu to show "Profile" instead of Login
             if (mobileAuth) {
                 mobileAuth.innerHTML = `
@@ -168,6 +152,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         <button id="mobile-logout" class="text-center text-red-400 text-sm">Log Out</button>
                     </div>
                 `;
+                // Re-attach logout listener for the new mobile button
                 document.getElementById('mobile-logout')?.addEventListener('click', async () => {
                     await signOut(auth);
                     window.location.href = "/login";
@@ -183,13 +168,18 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         if (authWrapper) {
+            // A small timeout ensures the browser has rendered the initial state before fading in
             setTimeout(() => {
                 authWrapper.classList.remove('opacity-0');
                 authWrapper.classList.remove('pointer-events-none');
-            }, 50);
+            }, 50); 
+        }
+
+        // --- THE CRITICAL FIX ---
+        // Once all decisions (Profile vs Login) are made, make the wrapper visible
+        if (authWrapper) {
             authWrapper.style.visibility = 'visible';
         }
     });
-
     initLiveScores();
 });
