@@ -850,6 +850,14 @@ async function fetchMessages() {
 
 // --- 5. FORM HANDLING ---
 document.addEventListener('DOMContentLoaded', () => {
+    const modalMap = {
+        'tournamentForm': 'tournamentModal',
+        'eventForm': 'eventModal',
+        'jobForm': 'jobModal',
+        'talentForm': 'talentModal',
+        'notifForm': 'notificationModal',
+    };
+
     const handleForm = (formId, collectionName, getDataFn, successMsg) => {
         const form = qs(formId);
         if (!form) return;

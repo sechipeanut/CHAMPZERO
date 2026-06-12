@@ -242,7 +242,7 @@ function initRealTimeListeners(user) {
     if (user && !personalUnsubscribe) {
         const q = query(
             collection(db, "notifications"),
-            where("targetUserId", "==", user.uid),
+            orderBy("createdAt", "desc"),
             limit(10)
         );
 
