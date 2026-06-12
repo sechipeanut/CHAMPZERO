@@ -8,6 +8,9 @@ import { uploadImage } from './utils.js';
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
 
+// --- FEATURE FLAGS ---
+const TEAM_RECRUITMENT_ENABLED = true; // Set to true to re-enable
+
 let currentUserRole = null;
 let chatUnsubscribe = null;
 let kickUnsubscribe = null;
@@ -676,17 +679,28 @@ window.toggleFormType = (type) => {
 window.openCreateModal = async () => {
     if (!auth.currentUser) { window.showCustomAlert("Login Required", "Please log in to post a listing."); return; }
 
-    if (currentUserRole !== 'admin' && currentUserRole !== 'subscriber') {
-        toggleFormType('lft');
-        const btnTeam = document.getElementById('btn-type-team');
-        btnTeam.classList.add('opacity-50', 'cursor-not-allowed');
-        btnTeam.onclick = (e) => { e.stopPropagation(); window.showCustomAlert("Premium Feature", "Team Recruitment is available for Subscribers and Admins only."); };
-    } else {
+    const isAdminOrSub = currentUserRole === 'admin' || currentUserRole === 'subscriber';
+
+    if (TEAM_RECRUITMENT_ENABLED) {
+        // Flag ON: everyone can create a team
         const btnTeam = document.getElementById('btn-type-team');
         btnTeam.classList.remove('opacity-50', 'cursor-not-allowed');
         btnTeam.onclick = () => toggleFormType('team');
         toggleFormType('team');
+    } else if (isAdminOrSub) {
+        // Flag OFF but user is admin/subscriber: original premium behavior
+        const btnTeam = document.getElementById('btn-type-team');
+        btnTeam.classList.remove('opacity-50', 'cursor-not-allowed');
+        btnTeam.onclick = () => toggleFormType('team');
+        toggleFormType('team');
+    } else {
+        // Flag OFF and user is a regular member: block team creation
+        toggleFormType('lft');
+        const btnTeam = document.getElementById('btn-type-team');
+        btnTeam.classList.add('opacity-50', 'cursor-not-allowed');
+        btnTeam.onclick = (e) => { e.stopPropagation(); window.showCustomAlert("Premium Feature", "Team Recruitment is available for Subscribers and Admins only."); };
     }
+
     animateGenericOpen('createTeamModal', 'createTeamBackdrop', 'createTeamPanel');
 }
 
