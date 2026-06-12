@@ -9,7 +9,7 @@ function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
 
 // --- FEATURE FLAGS ---
-const TEAM_RECRUITMENT_ENABLED = true; // Set to true to re-enable
+const TEAM_RECRUITMENT_ENABLED = true; // Set to true to enable everyone to create a team
 
 let currentUserRole = null;
 let chatUnsubscribe = null;
