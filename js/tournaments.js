@@ -1844,7 +1844,6 @@ async function submitJoinRequest() {
 
     const teamSelectId = qs('#joinTeamSelect').value;
 
-    // ✅ ADD THIS BLOCK
     if (!teamSelectId || teamSelectId === '' || teamSelectId === 'custom') {
         if (window.showErrorToast) {
             window.showErrorToast('No Team Selected', 'Please select a team. If you have no team, join or create one first.');
@@ -1876,6 +1875,11 @@ async function submitJoinRequest() {
     const contact = qs('#joinContact').value;
     const phone = qs('#joinPhone').value;
     const memberInputs = document.querySelectorAll('input[name="memberIgn[]"], select[name="memberIgn[]"]');
+    const filledMembers = [...memberInputs].filter(input => input.value.trim());
+    if (filledMembers.length !== 5) {
+        if (window.showErrorToast) window.showErrorToast('Invalid Team Size', 'You must have exactly 5-6 members to register.');
+        return;
+    }
     const membersList = [];
     memberInputs.forEach(input => { if (input.value.trim()) membersList.push(input.value.trim()); });
 

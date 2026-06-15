@@ -140,6 +140,42 @@ function injectNotificationHTML() {
     `;
 
     wrapper.insertBefore(notifContainer, wrapper.firstChild);
+
+    // Inject announcement detail modal (once)
+    if (!document.getElementById('announcement-modal')) {
+        const modal = document.createElement('div');
+        modal.id = 'announcement-modal';
+        modal.style.cssText = 'display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;';
+        modal.innerHTML = `
+            <div id="announcement-modal-panel" style="background:#1A1A1F; border:1px solid rgba(255,255,255,0.12); border-radius:1rem; max-width:480px; width:100%; box-shadow:0 25px 50px rgba(0,0,0,0.6); transform:scale(0.95); opacity:0; transition:transform 0.2s cubic-bezier(0.175,0.885,0.32,1.275), opacity 0.2s ease;">
+                <div style="padding:1.25rem 1.5rem; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between; background:#15151a; border-radius:1rem 1rem 0 0;">
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <span id="announcement-modal-icon" style="font-size:1.5rem;"></span>
+                        <h3 id="announcement-modal-title" style="font-weight:700; color:#fff; font-size:1rem; margin:0;"></h3>
+                    </div>
+                    <button id="announcement-modal-close" style="background:transparent; border:none; color:#9CA3AF; cursor:pointer; font-size:1.25rem; line-height:1; padding:0.25rem;" aria-label="Close">&times;</button>
+                </div>
+                <div style="padding:1.5rem;">
+                    <p id="announcement-modal-message" style="color:#D1D5DB; font-size:0.9rem; line-height:1.7; white-space:pre-wrap; margin:0;"></p>
+                    <span id="announcement-modal-date" style="display:block; margin-top:1rem; font-size:0.7rem; color:#4B5563;"></span>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const panel = modal.querySelector('#announcement-modal-panel');
+        const closeBtn = modal.querySelector('#announcement-modal-close');
+
+        const closeModal = () => {
+            panel.style.transform = 'scale(0.95)';
+            panel.style.opacity = '0';
+            setTimeout(() => { modal.style.display = 'none'; }, 200);
+        };
+
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && modal.style.display === 'flex') closeModal(); });
+    }
     
     onAuthStateChanged(auth, (user) => {
         if (user) {
@@ -242,7 +278,7 @@ function initRealTimeListeners(user) {
     if (user && !personalUnsubscribe) {
         const q = query(
             collection(db, "notifications"),
-            where("targetUserId", "==", user.uid),
+            orderBy("createdAt", "desc"),
             limit(10)
         );
 
@@ -270,7 +306,25 @@ function initRealTimeListeners(user) {
     }
 }
 
-// 5. Render Feed
+// 5. Announcement Detail Modal
+function showAnnouncementModal(item) {
+    const modal = document.getElementById('announcement-modal');
+    const panel = document.getElementById('announcement-modal-panel');
+    if (!modal || !panel) return;
+
+    document.getElementById('announcement-modal-icon').textContent = item.icon;
+    document.getElementById('announcement-modal-title').textContent = item.title;
+    document.getElementById('announcement-modal-message').textContent = item.message;
+    document.getElementById('announcement-modal-date').textContent = item.dateStr;
+
+    modal.style.display = 'flex';
+    requestAnimationFrame(() => {
+        panel.style.transform = 'scale(1)';
+        panel.style.opacity = '1';
+    });
+}
+
+// 6. Render Feed
 function renderUnifiedFeed() {
     const list = document.getElementById('notif-list');
     const badge = document.getElementById('notif-badge');
@@ -296,33 +350,53 @@ function renderUnifiedFeed() {
     }
 
     let html = '';
-    finalFeed.forEach(item => {
+    finalFeed.forEach((item, index) => {
         let targetUrl = '#'; 
         if (item.type === 'tournament') targetUrl = `/tournaments?id=${item.id}`;
         if (item.type === 'event') targetUrl = `/events?id=${item.id}`;
         if (item.type === 'career') targetUrl = `/careers?id=${item.id}`;
         if (item.type === 'talent') targetUrl = `/rising?id=${item.id}`;
-        
-        // Manual announcements don't have a specific page
-        if (item.type === 'announcement') targetUrl = '#'; 
 
-        html += `
-            <a href="${targetUrl}" class="notif-item p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer group">
-                <div class="flex gap-3">
-                    <div class="text-xl bg-white/5 h-10 w-10 flex items-center justify-center rounded-lg transition-colors group-hover:bg-[var(--gold)]/10 group-hover:text-[var(--gold)]">
-                        ${item.icon}
-                    </div>
-                    <div>
-                        <h4 class="text-sm font-semibold text-white group-hover:text-[var(--gold)] transition-colors">${item.title}</h4>
-                        <p class="text-xs text-gray-400 mt-1 line-clamp-2">${item.message}</p>
-                        <span class="text-[10px] text-gray-600 mt-2 block">${item.dateStr}</span>
+        if (item.type === 'announcement') {
+            html += `
+                <div class="notif-item p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer group" data-notif-index="${index}">
+                    <div class="flex gap-3">
+                        <div class="text-xl bg-white/5 h-10 w-10 flex items-center justify-center rounded-lg transition-colors group-hover:bg-[var(--gold)]/10 group-hover:text-[var(--gold)]">
+                            ${item.icon}
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-semibold text-white group-hover:text-[var(--gold)] transition-colors">${item.title}</h4>
+                            <p class="text-xs text-gray-400 mt-1 line-clamp-2">${item.message}</p>
+                            <span class="text-[10px] text-gray-600 mt-2 block">${item.dateStr}</span>
+                        </div>
                     </div>
                 </div>
-            </a>
-        `;
+            `;
+        } else {
+            html += `
+                <a href="${targetUrl}" class="notif-item p-4 border-b border-white/5 hover:bg-white/5 transition-colors cursor-pointer group">
+                    <div class="flex gap-3">
+                        <div class="text-xl bg-white/5 h-10 w-10 flex items-center justify-center rounded-lg transition-colors group-hover:bg-[var(--gold)]/10 group-hover:text-[var(--gold)]">
+                            ${item.icon}
+                        </div>
+                        <div>
+                            <h4 class="text-sm font-semibold text-white group-hover:text-[var(--gold)] transition-colors">${item.title}</h4>
+                            <p class="text-xs text-gray-400 mt-1 line-clamp-2">${item.message}</p>
+                            <span class="text-[10px] text-gray-600 mt-2 block">${item.dateStr}</span>
+                        </div>
+                    </div>
+                </a>
+            `;
+        }
     });
 
     list.innerHTML = html;
+
+    // Attach click handlers for announcement modals
+    list.querySelectorAll('[data-notif-index]').forEach(el => {
+        const idx = parseInt(el.dataset.notifIndex);
+        el.addEventListener('click', () => showAnnouncementModal(finalFeed[idx]));
+    });
 
     const lastReadTime = localStorage.getItem('cz_notif_last_read');
     let hasUnread = true;
