@@ -70,6 +70,31 @@
     </div>
 </header>
 
+<div id="mobile-menu"
+    class="hidden md:hidden fixed inset-0 bg-[var(--dark-bg)] z-[9999] p-6 transition-all duration-300">
+    <div class="flex justify-end mb-4">
+        <button id="close-mobile-menu" class="text-gray-400 hover:text-white">
+            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+        </button>
+    </div>
+    <nav class="flex flex-col items-center justify-center h-[80%] gap-6 text-lg">
+        <a href="/"            class="text-gray-300 hover:text-[var(--gold)]">Home</a>
+        <a href="/tournaments" class="text-gray-300 hover:text-[var(--gold)]">Tournaments</a>
+        <a href="/events"      class="text-gray-300 hover:text-[var(--gold)]">Events</a>
+        <a href="/teams"       class="text-gray-300 hover:text-[var(--gold)]">Teams &amp; Recruitment</a>
+        <a href="/rising"      class="text-gray-300 hover:text-[var(--gold)]">Rising Champ</a>
+        <a href="/partners"    class="text-gray-300 hover:text-[var(--gold)]">Partners</a>
+        <div class="border-t border-white/20 mt-6 pt-6 flex gap-4 w-full justify-center">
+            <a href="login.html"
+                class="text-sm px-6 py-2 rounded-md text-gray-300 ring-1 ring-gray-600 hover:bg-white/5">Log in</a>
+            <a href="signup.html"
+                class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-6 py-2 rounded-md text-sm font-bold hover:opacity-90">Sign Up</a>
+        </div>
+    </nav>
+</div>
+
 <main class="py-16 px-6">
     <div class="max-w-5xl mx-auto">
         <!-- Profile Header -->
