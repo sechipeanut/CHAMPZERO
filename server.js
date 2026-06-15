@@ -19,6 +19,9 @@ app.use(bodyParser.json());
 // ✅ Serve static files (pictures, js, etc.)
 app.use('/pictures', express.static(path.join(__dirname, 'pictures')));
 app.use('/js', express.static(path.join(__dirname, 'js')));
+app.get('/favicon.png', (req, res) => {
+  res.sendFile(path.join(__dirname, 'favicon.png'));
+});
 
 // ✅ Log every request
 app.use((req, res, next) => {
