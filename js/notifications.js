@@ -277,7 +277,8 @@ function initRealTimeListeners(user) {
     // Only fetch notifications meant for this user
     if (user && !personalUnsubscribe) {
         const q = query(
-            collection(db, "notifications"),
+            collection(db, "specific-notifications"),
+            where("targetUserId", "==", user.uid),  // only THIS user's alerts
             orderBy("createdAt", "desc"),
             limit(10)
         );

@@ -1876,12 +1876,27 @@ async function submitJoinRequest() {
     const phone = qs('#joinPhone').value;
     const memberInputs = document.querySelectorAll('input[name="memberIgn[]"], select[name="memberIgn[]"]');
     const filledMembers = [...memberInputs].filter(input => input.value.trim());
-    if (filledMembers.length !== 5) {
+    if (filledMembers.length < 5 || filledMembers.length > 6) {
         if (window.showErrorToast) window.showErrorToast('Invalid Team Size', 'You must have exactly 5-6 members to register.');
         return;
     }
+
     const membersList = [];
-    memberInputs.forEach(input => { if (input.value.trim()) membersList.push(input.value.trim()); });
+    const memberUids = [user.uid]; // always include the captain/submitter
+    const selectedTeam = userTeams.find(t => t.id === qs('#joinTeamSelect').value);
+
+    memberInputs.forEach(input => {
+        if (input.value.trim()) {
+            membersList.push(input.value.trim());
+            // Find the UID for this IGN from the team's member list
+            if (selectedTeam && selectedTeam.members) {
+                const match = selectedTeam.members.find(m => 
+                    (typeof m === 'object' ? (m.ign || m.name) : m) === input.value.trim()
+                );
+                if (match && match.uid) memberUids.push(match.uid);
+            }
+        }
+    });
 
     // --- UPLOAD ENTRY FEE PROOF (if paid tournament & file chosen) ---
     let entryFeeProofURL = '';
@@ -1912,6 +1927,7 @@ async function submitJoinRequest() {
                     contact: contact,
                     phone: phone,
                     members: membersList,
+                    memberUids: [...new Set(memberUids)],
                     teamId: dbTeamId,
                     ...(entryFeeProofURL && { entryFeeProofURL }),
                 },
@@ -1926,6 +1942,7 @@ async function submitJoinRequest() {
                 contact: contact,
                 phone: phone,
                 members: membersList,
+                memberUids: [...new Set(memberUids)], 
                 teamId: dbTeamId,
                 registeredBy: user.uid,
                 submittedAt: serverTimestamp(),
@@ -1967,8 +1984,19 @@ async function withdrawApplication(tourneyId, appId) {
     } catch (e) { console.error(e); alert("Error withdrawing: " + e.message); }
 }
 
+// tournaments.js line 1971 - add isGlobal: false
 async function sendTournamentNotification(targetUid, tournamentId, type, message) {
-    try { await addDoc(collection(db, "notifications"), { title: "Tournament Update", type: 'tournament', message: message, tournamentId: tournamentId, targetUserId: targetUid, createdAt: serverTimestamp() }); }
+    try { 
+        await addDoc(collection(db, "specific-notifications"), { 
+            title: "Tournament Update", 
+            type: 'tournament', 
+            message: message, 
+            tournamentId: tournamentId, 
+            targetUserId: targetUid, 
+            isGlobal: false,        // ← ADD THIS
+            createdAt: serverTimestamp() 
+        }); 
+    }
     catch (error) { console.error("Error sending notification:", error); }
 }
 
@@ -2307,7 +2335,13 @@ async function processApplication(tourneyId, appId, isApproved) {
 
             // Commit the structural changes to the application document
             await updateDoc(appRef, appUpdatePayload);
-            await sendTournamentNotification(appData.registeredBy, tourneyId, 'alert', `Your team "${source.name}" has been accepted!`);
+            const uidsToNotify = appData.memberUids && appData.memberUids.length > 0
+                ? appData.memberUids
+                : [appData.registeredBy]; // fallback for old applications without memberUids
+
+            await Promise.all(uidsToNotify.map(uid =>
+                sendTournamentNotification(uid, tourneyId, 'alert', `Your team "${source.name}" has been accepted into "${currentEditingTournament.name}"!`)
+            ));
 
             // FIX 2: Refresh currentEditingTournament so the open modal reflects new data immediately
             const refreshedSnap = await getDoc(tourneyRef);
@@ -2318,7 +2352,13 @@ async function processApplication(tourneyId, appId, isApproved) {
 
         } else {
             await updateDoc(appRef, { status: 'rejected', hasPendingUpdate: false });
-            await sendTournamentNotification(appData.registeredBy, tourneyId, 'alert', `Your application for "${appData.name}" was declined.`);
+            const uidsToNotify = appData.memberUids && appData.memberUids.length > 0
+                ? appData.memberUids
+                : [appData.registeredBy];
+
+            await Promise.all(uidsToNotify.map(uid =>
+                sendTournamentNotification(uid, tourneyId, 'alert', `Your application for "${appData.name}" was declined.`)
+            ));
             if (window.showSuccessToast) window.showSuccessToast('Rejected', `Application has been rejected.`);
         }
     } catch (e) {
