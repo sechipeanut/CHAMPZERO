@@ -1695,6 +1695,31 @@ async function openJoinForm(id, isEdit = false, specificAppId = null) {
 
         window.userTeams = userTeams;
 
+            const enrichedTeams = await Promise.all(userTeams.map(async (team) => {
+            if (!team.members || !Array.isArray(team.members)) return team;
+
+            const enrichedMembers = await Promise.all(team.members.map(async (m) => {
+                const uid = typeof m === 'string' ? null : m.uid;
+                if (!uid) return m; // fallback if no uid
+
+                try {
+                    const userDoc = await getDoc(doc(db, "users", uid));
+                    if (userDoc.exists()) {
+                        const displayName = userDoc.data().displayName || m.ign || m.name || '';
+                        return { ...m, displayName };
+                    }
+                } catch (e) {
+                    console.error("Failed to fetch user displayName:", e);
+                }
+                return m;
+            }));
+
+            return { ...team, members: enrichedMembers };
+        }));
+
+        userTeams = enrichedTeams;
+        window.userTeams = userTeams;
+
         select.innerHTML = '<option value="custom" class="bg-[#1a1a1f] text-white">-- Select Team --</option>';
         userTeams.forEach(team => {
             const option = document.createElement('option');
@@ -1733,7 +1758,7 @@ async function openJoinForm(id, isEdit = false, specificAppId = null) {
                             selectEl.required = true;
 
                             matchingTeam.members.forEach(m => {
-                                const memberName = typeof m === 'string' ? m : (m.ign || m.name || '');
+                                const memberName = typeof m === 'string' ? m : (m.displayName || m.ign || m.name || '');
                                 const option = document.createElement('option');
                                 option.value = memberName;
                                 option.textContent = memberName;

@@ -1147,7 +1147,7 @@
 
             // Populate the available drop choices
             selectedTeam.members.forEach(m => {
-                const memberName = typeof m === 'string' ? m : (m.ign || m.name || 'Unknown');
+                const memberName = typeof m === 'string' ? m : (m.displayName || m.ign || m.name || 'Unknown');
                 const option = document.createElement('option');
                 option.value = memberName;
                 option.textContent = memberName;
@@ -1206,7 +1206,7 @@
                             selectEl.appendChild(defaultOpt);
 
                             selectedTeam.members.forEach(m => {
-                                const memberName = typeof m === 'string' ? m : (m.ign || m.name || 'Unknown');
+                                const memberName = typeof m === 'string' ? m : (m.displayName || m.ign || m.name || 'Unknown');
                                 const option = document.createElement('option');
                                 option.value = memberName;
                                 option.textContent = memberName;
