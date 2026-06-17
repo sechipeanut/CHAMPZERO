@@ -543,7 +543,7 @@
     </footer>
 
     <div id="detailsModal"
-    class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center z-[60] p-4 transition-opacity duration-300"
+    class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center z-[60] p-4 transition-opacity duration-300"
     onclick="if(event.target.id === 'detailsModal') closeModal('detailsModal')">
     <div class="bg-[var(--dark-card)] border border-white/10 rounded-xl w-[90%] md:w-[70%] lg:w-[60%] h-[95vh] max-w-none p-6 relative overflow-auto shadow-2xl flex flex-col"
         onclick="event.stopPropagation()">
@@ -624,7 +624,7 @@
         <div id="bracketSection" class="hidden border-t border-white/10 pt-6 flex-1 flex flex-col">
             <div class="flex justify-between items-center mb-4">
                 <h4 class="font-semibold text-white flex items-center gap-2">Tournament Bracket</h4>
-                <div id="adminBracketToolbar" class="hidden flex gap-2 items-center"></div>
+                <div id="adminBracketToolbar" class="hidden flex-col sm:flex-row gap-2 items-start sm:items-center w-full"></div>
             </div>
             <div class="overflow-x-auto pb-4 custom-scrollbar w-full flex-1 h-full flex flex-col">
                 <div id="bracketContainer" class="w-full flex-grow flex flex-col"></div>

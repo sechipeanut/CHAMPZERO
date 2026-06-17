@@ -626,6 +626,7 @@ async function deleteTournament(id) {
         await deleteDoc(doc(db, "tournaments", id));
         if (window.showSuccessToast) window.showSuccessToast("Deleted", "Tournament successfully removed.");
         window.closeModal('detailsModal');
+        window.history.replaceState({}, '', window.location.pathname);
         fetchTournaments();
     } catch (e) {
         console.error("Delete failed:", e);
@@ -1351,8 +1352,10 @@ async function openModal(t) {
 
     const newUrl = `${window.location.pathname}?id=${t.id}`;
     window.history.pushState({ path: newUrl }, '', newUrl);
-    document.getElementById('detailsModal').classList.remove('hidden');
-    document.getElementById('detailsModal').classList.add('flex');
+    const _modal = document.getElementById('detailsModal');
+    if (!_modal) return;
+    _modal.classList.remove('hidden');
+    _modal.classList.add('flex');
 }
 
 async function renderTournamentView(t) {
@@ -1361,6 +1364,7 @@ async function renderTournamentView(t) {
     if (!t.participants) t.participants = [];
 
     // 1. Basic Info Rendering
+        if (!qs('#detailTitle')) return;
         qs('#detailTitle').textContent = t.name;
 
         // CHANGED: Use .textContent so text aligns directly to the flex-centered box
@@ -1461,16 +1465,16 @@ async function renderTournamentView(t) {
                     Organizer Dashboard
                 </h4>
                 <div class="flex gap-2">
-                    <button onclick="window.resetTournament('${t.id}')" class="bg-orange-900/50 hover:bg-orange-800 text-orange-200 text-xs px-3 py-1.5 rounded border border-orange-500/30 transition-colors flex items-center gap-1" title="Reset Bracket & Status">
-                        <svg class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <button onclick="window.resetTournament('${t.id}')" class="bg-orange-900/50 hover:bg-orange-800 text-orange-200 text-xs px-2 sm:px-3 py-1.5 rounded border border-orange-500/30 transition-colors flex items-center gap-1" title="Reset Bracket & Status">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
-                        Reset
+                        <span class="hidden sm:inline">Reset</span>
                     </button>
 
-                    <button onclick="window.deleteTournament('${t.id}')" class="bg-red-900/50 hover:bg-red-800 text-red-200 text-xs px-3 py-1.5 rounded border border-red-500/30 transition-colors flex items-center gap-1">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                        Delete
+                    <button onclick="window.deleteTournament('${t.id}')" class="bg-red-900/50 hover:bg-red-800 text-red-200 text-xs px-2 sm:px-3 py-1.5 rounded border border-red-500/30 transition-colors flex items-center gap-1" title="Delete Tournament">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        <span class="hidden sm:inline">Delete</span>
                     </button>
                 </div>
             </div>
@@ -1486,23 +1490,23 @@ async function renderTournamentView(t) {
         adminToolbar.innerHTML = '';
 
         if (!t.isStarted) {
-            // 1. Start Button (MOVED TO LEFT)
+            // ROW 1: Start button + Team controls (always visible)
+            const row1 = document.createElement('div');
+            row1.className = "flex items-center gap-2 w-full";
+
             const startBtn = document.createElement('button');
-            startBtn.className = "bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded text-xs font-bold transition-colors shadow-lg flex items-center gap-2";
+            startBtn.className = "bg-green-600 hover:bg-green-500 text-white px-4 py-1.5 rounded text-xs font-bold transition-colors shadow-lg flex items-center gap-1.5 whitespace-nowrap";
             startBtn.innerHTML = `
-                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
+                <svg class="w-3 h-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" /></svg>
                 Start Tournament
             `;
             startBtn.onclick = startTournament;
-            adminToolbar.appendChild(startBtn);
 
-            // 2. Max Teams Controls (+/-)
             const teamControlDiv = document.createElement('div');
-            teamControlDiv.className = "flex items-center gap-2 ml-4 bg-black/40 rounded px-2 py-1 border border-white/10";
-            
+            teamControlDiv.className = "flex items-center gap-1 bg-black/40 rounded px-2 py-1 border border-white/10";
+
             const currentMax = t.maxTeams || 8;
 
-            // Decrease Button
             const btnDec = document.createElement('button');
             btnDec.className = "text-gray-400 hover:text-white px-1.5 transition-colors font-bold text-lg leading-none";
             btnDec.innerHTML = "−";
@@ -1512,12 +1516,10 @@ async function renderTournamentView(t) {
                 }
             };
 
-            // Display Label
             const sizeLabel = document.createElement('span');
-            sizeLabel.className = "text-xs font-mono text-[var(--gold)] font-bold min-w-[60px] text-center";
+            sizeLabel.className = "text-xs font-mono text-[var(--gold)] font-bold min-w-[52px] text-center";
             sizeLabel.textContent = `${currentMax} Teams`;
 
-            // Increase Button
             const btnInc = document.createElement('button');
             btnInc.className = "text-gray-400 hover:text-white px-1.5 transition-colors font-bold text-lg leading-none";
             btnInc.innerHTML = "+";
@@ -1528,16 +1530,17 @@ async function renderTournamentView(t) {
             teamControlDiv.appendChild(btnDec);
             teamControlDiv.appendChild(sizeLabel);
             teamControlDiv.appendChild(btnInc);
-            adminToolbar.appendChild(teamControlDiv);
 
-            // 3. Spacer (Pushes remaining buttons to the right)
-            const spacer = document.createElement('div');
-            spacer.className = "flex-grow";
-            adminToolbar.appendChild(spacer);
+            row1.appendChild(startBtn);
+            row1.appendChild(teamControlDiv);
+            adminToolbar.appendChild(row1);
 
-            // 4. Format Selector
+            // ROW 2: Format dropdown + Shuffle + Save (wraps below on mobile)
+            const row2 = document.createElement('div');
+            row2.className = "flex items-center gap-2 w-full sm:w-auto sm:ml-auto";
+
             const select = document.createElement('select');
-            select.className = "dark-select text-xs p-1.5 rounded bg-black/50 border border-white/10 ml-2 text-white outline-none focus:border-[var(--gold)]";
+            select.className = "dark-select text-xs p-1.5 rounded bg-black/50 border border-white/10 text-white outline-none focus:border-[var(--gold)] flex-1 sm:flex-none";
             select.innerHTML = `
                 <option value="Single Elimination" ${format === 'Single Elimination' ? 'selected' : ''}>Single Elim</option>
                 <option value="Double Elimination" ${format === 'Double Elimination' ? 'selected' : ''}>Double Elim</option>
@@ -1547,11 +1550,10 @@ async function renderTournamentView(t) {
                 await updateDoc(doc(db, "tournaments", t.id), { format: e.target.value });
             };
 
-            // 5. Shuffle Button
             const shuffleBtn = document.createElement('button');
-            shuffleBtn.className = "bg-blue-600/80 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs ml-2 flex items-center gap-1";
+            shuffleBtn.className = "bg-blue-600/80 hover:bg-blue-500 text-white px-3 py-1.5 rounded text-xs flex items-center gap-1 whitespace-nowrap";
             shuffleBtn.innerHTML = `
-                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                 Shuffle
             `;
             shuffleBtn.onclick = async () => {
@@ -1560,15 +1562,15 @@ async function renderTournamentView(t) {
                 await updateDoc(doc(db, "tournaments", t.id), { participants: arr });
             };
 
-            // 6. Save Button
             const saveBtn = document.createElement('button');
-            saveBtn.className = "bg-yellow-600/80 hover:bg-yellow-500 text-white px-3 py-1.5 rounded text-xs font-bold ml-2";
+            saveBtn.className = "bg-yellow-600/80 hover:bg-yellow-500 text-white px-3 py-1.5 rounded text-xs font-bold whitespace-nowrap";
             saveBtn.textContent = "Save Changes";
             saveBtn.onclick = saveBracketChanges;
 
-            adminToolbar.appendChild(select);
-            adminToolbar.appendChild(shuffleBtn);
-            adminToolbar.appendChild(saveBtn);
+            row2.appendChild(select);
+            row2.appendChild(shuffleBtn);
+            row2.appendChild(saveBtn);
+            adminToolbar.appendChild(row2);
         } else {
             adminToolbar.innerHTML = '<span class="text-green-400 text-xs font-bold uppercase border border-green-500/30 px-3 py-1 rounded bg-green-500/10 w-full text-center">Tournament Live - Click Matches to Score</span>';
         }
@@ -2294,10 +2296,19 @@ function initAdminDashboard(tournamentId) {
                     </div>
                     <div class="text-xs text-gray-400">Cap: ${escapeHtml(app.captain)}</div>
                 </div>
-                <div class="flex gap-2">
-                    <button onclick="window.viewPendingApplication('${docSnap.id}')" class="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1 rounded border border-white/10 transition-colors">View</button>
-                    <button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', true)" class="bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1 rounded transition-colors">Approve</button>
-                    <button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', false)" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1 rounded transition-colors">Reject</button>
+                <div class="flex gap-1.5">
+                    <button onclick="window.viewPendingApplication('${docSnap.id}')" class="bg-gray-700 hover:bg-gray-600 text-white text-xs px-2 sm:px-3 py-1 rounded border border-white/10 transition-colors flex items-center gap-1" title="View">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        <span class="hidden sm:inline">View</span>
+                    </button>
+                    <button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', true)" class="bg-green-600 hover:bg-green-500 text-white text-xs px-2 sm:px-3 py-1 rounded transition-colors flex items-center gap-1" title="Approve">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        <span class="hidden sm:inline">Approve</span>
+                    </button>
+                    <button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', false)" class="bg-red-600 hover:bg-red-500 text-white text-xs px-2 sm:px-3 py-1 rounded transition-colors flex items-center gap-1" title="Reject">
+                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        <span class="hidden sm:inline">Reject</span>
+                    </button>
                 </div>`;
             list.appendChild(item);
         });
