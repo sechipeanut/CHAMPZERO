@@ -1487,6 +1487,7 @@ async function renderTournamentView(t) {
 
         // --- RESTORED TOOLBAR LOGIC (Start, Format, Shuffle) ---
         adminToolbar.classList.remove('hidden');
+        adminToolbar.classList.add('flex');
         adminToolbar.innerHTML = '';
 
         if (!t.isStarted) {
