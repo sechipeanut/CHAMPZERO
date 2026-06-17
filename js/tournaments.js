@@ -2284,33 +2284,56 @@ function initAdminDashboard(tournamentId) {
             // Store app data in map for the "View" button to use
             pendingApplicationsMap.set(docSnap.id, app);
 
-            const isUpdate = app.status === 'pending_update'
+const isUpdate = app.status === 'pending_update'
             const item = document.createElement('div');
-            item.className = "flex items-center justify-between bg-black/30 p-3 rounded border border-white/10";
-            
-            // Added the View Button in the HTML below
-            item.innerHTML = `
-                <div>
-                    <div class="font-bold text-white text-sm flex items-center gap-2">
-                        ${escapeHtml(app.name)} 
-                        ${isUpdate ? '<span class="text-[10px] bg-yellow-600 px-1 rounded text-white">UPDATE REQ</span>' : '<span class="text-[10px] bg-blue-600 px-1 rounded text-white">NEW</span>'}
+            const isMobile = window.innerWidth < 640;
+
+            if (isMobile) {
+                item.className = "flex flex-col bg-black/30 p-3 rounded border border-white/10 gap-2";
+                item.innerHTML = `
+                    <div>
+                        <div class="font-bold text-white text-sm flex items-center gap-2">
+                            ${escapeHtml(app.name)} 
+                            ${isUpdate ? '<span class="text-[10px] bg-yellow-600 px-1 rounded text-white">UPDATE REQ</span>' : '<span class="text-[10px] bg-blue-600 px-1 rounded text-white">NEW</span>'}
+                        </div>
+                        <div class="text-xs text-gray-400">Cap: ${escapeHtml(app.captain)}</div>
                     </div>
-                    <div class="text-xs text-gray-400">Cap: ${escapeHtml(app.captain)}</div>
-                </div>
-                <div class="flex gap-1.5">
-                    <button onclick="window.viewPendingApplication('${docSnap.id}')" class="bg-gray-700 hover:bg-gray-600 text-white text-xs px-2 sm:px-3 py-1 rounded border border-white/10 transition-colors flex items-center gap-1" title="View">
-                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                        <span class="hidden sm:inline">View</span>
-                    </button>
-                    <button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', true)" class="bg-green-600 hover:bg-green-500 text-white text-xs px-2 sm:px-3 py-1 rounded transition-colors flex items-center gap-1" title="Approve">
-                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span class="hidden sm:inline">Approve</span>
-                    </button>
-                    <button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', false)" class="bg-red-600 hover:bg-red-500 text-white text-xs px-2 sm:px-3 py-1 rounded transition-colors flex items-center gap-1" title="Reject">
-                        <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                        <span class="hidden sm:inline">Reject</span>
-                    </button>
-                </div>`;
+                    <div class="flex gap-2 w-full">
+                        <button onclick="window.viewPendingApplication('${docSnap.id}')" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white py-2 rounded border border-white/10 transition-colors flex items-center justify-center" title="View">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        </button>
+                        <button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', true)" class="flex-1 bg-green-600 hover:bg-green-500 text-white py-2 rounded transition-colors flex items-center justify-center" title="Approve">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        </button>
+                        <button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', false)" class="flex-1 bg-red-600 hover:bg-red-500 text-white py-2 rounded transition-colors flex items-center justify-center" title="Reject">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                        </button>
+                    </div>`;
+            } else {
+                item.className = "flex items-center justify-between bg-black/30 p-3 rounded border border-white/10";
+                item.innerHTML = `
+                    <div>
+                        <div class="font-bold text-white text-sm flex items-center gap-2">
+                            ${escapeHtml(app.name)} 
+                            ${isUpdate ? '<span class="text-[10px] bg-yellow-600 px-1 rounded text-white">UPDATE REQ</span>' : '<span class="text-[10px] bg-blue-600 px-1 rounded text-white">NEW</span>'}
+                        </div>
+                        <div class="text-xs text-gray-400">Cap: ${escapeHtml(app.captain)}</div>
+                    </div>
+                    <div class="flex gap-1.5">
+                        <button onclick="window.viewPendingApplication('${docSnap.id}')" class="bg-gray-700 hover:bg-gray-600 text-white text-xs px-3 py-1 rounded border border-white/10 transition-colors flex items-center gap-1" title="View">
+                            <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            View
+                        </button>
+                        <button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', true)" class="bg-green-600 hover:bg-green-500 text-white text-xs px-3 py-1 rounded transition-colors flex items-center gap-1" title="Approve">
+                            <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            Approve
+                        </button>
+                        <button onclick="window.processApplication('${tournamentId}', '${docSnap.id}', false)" class="bg-red-600 hover:bg-red-500 text-white text-xs px-3 py-1 rounded transition-colors flex items-center gap-1" title="Reject">
+                            <svg class="w-3.5 h-3.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            Reject
+                        </button>
+                    </div>`;
+            }
             list.appendChild(item);
         });
     });
