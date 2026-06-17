@@ -304,6 +304,10 @@
                         <button onclick="window.setTab('my-lft')" id="tab-my-lft"
                             class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10">My
                             Listings</button>
+                        <button onclick="window.setTab('invites')" id="tab-invites"
+                            class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10">
+                            Invites
+                        </button>
                     </div>
 
                     <div class="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
@@ -323,6 +327,19 @@
                                     d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
                             </svg>
                         </div>
+                    </div>
+                </div>
+        
+                <div id="user-uid-container" class="hidden bg-zinc-900/50 border border-white/10 rounded-lg p-4 mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div>
+                        <h4 class="text-xs font-semibold uppercase tracking-wider text-gray-400">Your Shareable Recruitment ID</h4>
+                        <p class="text-xs text-gray-500">Give this to team leaders so they can invite you directly.</p>
+                    </div>
+                    <div class="flex items-center gap-2 bg-black/40 border border-white/5 rounded px-3 py-2 justify-between min-w-[240px]">
+                        <span id="user-uid-display" class="font-mono text-sm text-[var(--gold)] truncate select-all">Loading ID...</span>
+                        <button id="btn-copy-uid" type="button" class="text-gray-400 hover:text-white transition text-xs font-bold uppercase tracking-tight bg-white/5 px-2 py-1 rounded border border-white/10">
+                            Copy
+                        </button>
                     </div>
                 </div>
 
@@ -530,6 +547,18 @@
                         class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-white/10 pb-2">
                         Pending Requests</h4>
                     <div id="applications-list" class="space-y-3"></div>
+                    <div class="max-w-lg mx-auto mt-8 pt-6 border-t border-white/10" id="invite-by-uid-section">
+                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Invite Player</h4>
+                        <p class="text-gray-500 text-xs mb-3">Enter a player's UID to send them a direct invite. They can join even if applications are closed.</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="invite-uid-input" placeholder="Player UID"
+                                class="dark-input flex-1 p-3 rounded text-sm">
+                            <button type="button" id="btn-invite-uid" onclick="window.inviteByUid()"
+                                class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-5 rounded-lg transition shrink-0">
+                                Invite
+                            </button>
+                        </div>
+                    </div>
                 </div>
 
                 <div id="view-settings" class="manage-view hidden p-6">
@@ -541,21 +570,36 @@
                                     Description</label><textarea id="edit-desc" rows="4"
                                     class="dark-input w-full p-3 rounded text-sm"></textarea></div>
                             <div class="grid grid-cols-2 gap-4">
-                                <div><label
-                                        class="block text-xs font-bold text-gray-400 uppercase mb-1">Capacity</label><input
-                                        id="edit-max" type="number" class="dark-input w-full p-3 rounded text-sm"></div>
-                                <div><label
-                                        class="block text-xs font-bold text-gray-400 uppercase mb-1">Status</label><select
-                                        id="edit-status" class="dark-select w-full p-3 rounded text-sm">
-                                        <option value="Open">Open</option>
-                                        <option value="Closed">Closed</option>
-                                    </select></div>
+                                <div class="col-span-2">
+                                    <label class="block text-xs font-bold text-gray-400 uppercase mb-1">Capacity</label>
+                                    <input id="edit-max" type="number" class="dark-input w-full p-3 rounded text-sm">
+                                </div>
                             </div>
                             <button type="submit"
                                 class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg transition shadow-lg mt-2">Save
                                 Changes</button>
                         </form>
-
+                        <div class="max-w-lg mx-auto mt-6 pt-6 border-t border-white/10">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-sm font-bold text-white">Accept Applications</p>
+                                    <p class="text-xs text-gray-500 mt-0.5">Allow other users to apply to join this team</p>
+                                </div>
+                                <button type="button" id="toggle-applications"
+                                    onclick="window.toggleApplications()"
+                                    class="relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none bg-white/20"
+                                    role="switch" aria-checked="true">
+                                    <span id="toggle-applications-knob"
+                                        class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition duration-200 ease-in-out translate-x-0"></span>
+                                </button>
+                            </div>
+                            <div id="unsaved-warning" class="hidden mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-400 font-medium flex items-center gap-2 transition-all duration-200">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 shrink-0">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
+                                </svg>
+                                <span>Change is not saved, press "Save Changes".</span>
+                            </div>
+                        </div>
                         <div class="max-w-lg mx-auto mt-8 pt-8 border-t border-white/10">
                             <h4 class="text-red-500 font-bold text-sm mb-2 uppercase">Danger Zone</h4>
                             <p class="text-gray-500 text-xs mb-4">Disbanding the team will delete the listing and remove
