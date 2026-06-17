@@ -1916,7 +1916,7 @@ async function submitJoinRequest() {
             // Find the UID for this IGN from the team's member list
             if (selectedTeam && selectedTeam.members) {
                 const match = selectedTeam.members.find(m => 
-                    (typeof m === 'object' ? (m.ign || m.name) : m) === input.value.trim()
+                    (typeof m === 'object' ? (m.displayName || m.ign || m.name) : m) === input.value.trim()
                 );
                 if (match && match.uid) memberUids.push(match.uid);
             }
@@ -2009,18 +2009,18 @@ async function withdrawApplication(tourneyId, appId) {
     } catch (e) { console.error(e); alert("Error withdrawing: " + e.message); }
 }
 
-// tournaments.js line 1971 - add isGlobal: false
-async function sendTournamentNotification(targetUid, tournamentId, type, message) {
-    try { 
-        await addDoc(collection(db, "specific-notifications"), { 
-            title: "Tournament Update", 
-            type: 'tournament', 
-            message: message, 
-            tournamentId: tournamentId, 
-            targetUserId: targetUid, 
-            isGlobal: false,        // ← ADD THIS
-            createdAt: serverTimestamp() 
-        }); 
+async function sendTournamentNotification(targetUids, tournamentId, type, message) {
+    try {
+        const uids = Array.isArray(targetUids) ? targetUids : [targetUids];
+        await addDoc(collection(db, "specific-notifications"), {
+            title: "Tournament Update",
+            type: 'tournament',
+            message: message,
+            tournamentId: tournamentId,
+            targetUserId: uids,   // ← now an array, one doc for the whole team
+            isGlobal: false,
+            createdAt: serverTimestamp()
+        });
     }
     catch (error) { console.error("Error sending notification:", error); }
 }
@@ -2364,9 +2364,8 @@ async function processApplication(tourneyId, appId, isApproved) {
                 ? appData.memberUids
                 : [appData.registeredBy]; // fallback for old applications without memberUids
 
-            await Promise.all(uidsToNotify.map(uid =>
-                sendTournamentNotification(uid, tourneyId, 'alert', `Your team "${source.name}" has been accepted into "${currentEditingTournament.name}"!`)
-            ));
+            await sendTournamentNotification(uidsToNotify, tourneyId, 'alert', `Your team "${source.name}" has been accepted into "${currentEditingTournament.name}"!`);
+
 
             // FIX 2: Refresh currentEditingTournament so the open modal reflects new data immediately
             const refreshedSnap = await getDoc(tourneyRef);
@@ -2381,9 +2380,8 @@ async function processApplication(tourneyId, appId, isApproved) {
                 ? appData.memberUids
                 : [appData.registeredBy];
 
-            await Promise.all(uidsToNotify.map(uid =>
-                sendTournamentNotification(uid, tourneyId, 'alert', `Your application for "${appData.name}" was declined.`)
-            ));
+            await sendTournamentNotification(uidsToNotify, tourneyId, 'alert', `Your application for "${appData.name}" was declined.`);
+
             if (window.showSuccessToast) window.showSuccessToast('Rejected', `Application has been rejected.`);
         }
     } catch (e) {

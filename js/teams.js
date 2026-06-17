@@ -996,10 +996,20 @@ window.handleApp = async (appId, applicantId, applicantName, isAccept) => {
                 await window.showCustomAlert("Roster Full", "Cannot accept more members. The team is full.");
                 return;
             }
+            let applicantIgn = applicantName; // fallback to name if nothing else
+                try {
+                    const userSnap = await getDoc(doc(db, "users", applicantId));
+                    if (userSnap.exists()) {
+                        const userData = userSnap.data();
+                        applicantIgn = userData.ign || userData.displayName || userData.username || applicantName;
+                    }
+                } catch (e) { /* silently fall back */ }
+
 
             const newMember = {
                 uid: applicantId,
                 name: applicantName,
+                ign: applicantIgn,
                 role: 'Member', // Default role
                 joinedAt: Date.now()
             };
@@ -1152,7 +1162,7 @@ window.acceptInvite = async (inviteDocId, teamId, teamName) => {
     try {
         // Add the user to the team's members array
         await updateDoc(doc(db, "recruitment", teamId), {
-            members: arrayUnion({ uid: user.uid, name: user.displayName || "Player", role: "Member" }),
+            members: arrayUnion({ uid: user.uid, name: user.displayName || "Player", ign: playerIgn, role: "Member" }),
             currentMembers: increment(1)
         });
 
@@ -1241,7 +1251,7 @@ window.acceptInvite = async (inviteDocId, teamId, teamName) => {
 
         // Add the user to the team's members array
         await updateDoc(doc(db, "recruitment", teamId), {
-            members: arrayUnion({ uid: user.uid, name: playerName, role: "Member" }),
+            members: arrayUnion({ uid: user.uid, name: playerName, ign: playerName, role: "Member" }),
             currentMembers: increment(1)
         });
 
