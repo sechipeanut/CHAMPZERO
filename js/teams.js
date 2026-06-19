@@ -281,11 +281,11 @@ async function renderTeams() {
                     </div>
                     ${isPending ? `
                     <div class="flex gap-2 w-full sm:w-auto sm:shrink-0">
-                        <button onclick="window.acceptInvite('${d.id}', '${escapeHtml(inv.teamId)}', '${escapeHtml(inv.teamName)}')" 
+                        <button data-action="accept-invite" data-invite-id="${d.id}" data-team-id="${escapeHtml(inv.teamId)}" data-team-name="${escapeHtml(inv.teamName)}"
                             class="bg-green-600/20 text-green-400 border border-green-600/30 text-xs px-4 py-2 rounded-lg font-bold hover:bg-green-600/30 transition flex-1 sm:flex-none">
                             Accept
                         </button>
-                        <button onclick="window.declineInvite('${d.id}')" 
+                        <button data-action="decline-invite" data-invite-id="${d.id}"
                             class="bg-red-600/20 text-red-400 border border-red-600/30 text-xs px-4 py-2 rounded-lg font-bold hover:bg-red-600/30 transition">
                             Decline
                         </button>
@@ -474,7 +474,7 @@ function renderTeamCard(post, isAuthor, isMember) {
     actionBtn = `<button disabled class="w-full bg-white/5 text-gray-500 font-bold py-1.5 rounded-md mt-2 border border-white/10 cursor-not-allowed text-xs">Not Accepting</button>`;
     }
     else {
-        actionBtn = `<button onclick="window.openApplicationModal('${post.id}', '${escapeHtml(post.name)}')" class="w-full bg-indigo-600 text-white font-bold py-1.5 rounded-md mt-2 hover:bg-indigo-500 transition-transform active:scale-95 shadow-lg shadow-indigo-500/20 text-xs">Apply to Join</button>`;
+        actionBtn = `<button data-action="apply" data-team-id="${post.id}" data-team-name="${escapeHtml(post.name)}" class="w-full bg-indigo-600 text-white font-bold py-1.5 rounded-md mt-2 hover:bg-indigo-500 transition-transform active:scale-95 shadow-lg shadow-indigo-500/20 text-xs">Apply to Join</button>`;
     }
 
     const borderClass = post.isPremium ? "border-[var(--gold)] shadow-[0_0_20px_rgba(255,215,0,0.15)]" : "border-white/10 hover:border-[var(--gold)]";
@@ -542,8 +542,8 @@ function renderPlayerCard(post, isAuthor) {
                 </svg>
             </button>`;
     } else {
-        actionBtn = `
-            <button onclick="window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" title="Message Player" class="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-transform active:scale-95 shadow-lg shadow-indigo-500/20">
+actionBtn = `
+            <button data-action="lft-chat" data-team-id="${post.id}" data-team-name="${escapeHtml(post.ign)}" title="Message Player" class="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-transform active:scale-95 shadow-lg shadow-indigo-500/20">
                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
                 </svg>
@@ -1637,6 +1637,48 @@ function setupForms() {
             }
         });
     }
+
+    // Delegated click handler — uses data-* attributes instead of inline
+    // onclick="...'${name}'..." so free-text fields (team/player/applicant
+    // names) can safely contain apostrophes without breaking JS syntax.
+    const board = document.getElementById('recruitment-board');
+    if (board) {
+        board.addEventListener('click', (e) => {
+            const applyBtn = e.target.closest('[data-action="apply"]');
+            if (applyBtn) {
+                window.openApplicationModal(
+                    applyBtn.getAttribute('data-team-id'),
+                    applyBtn.getAttribute('data-team-name')
+                );
+                return;
+            }
+
+            const acceptBtn = e.target.closest('[data-action="accept-invite"]');
+            if (acceptBtn) {
+                window.acceptInvite(
+                    acceptBtn.getAttribute('data-invite-id'),
+                    acceptBtn.getAttribute('data-team-id'),
+                    acceptBtn.getAttribute('data-team-name')
+                );
+                return;
+            }
+
+            const declineBtn = e.target.closest('[data-action="decline-invite"]');
+            if (declineBtn) {
+                window.declineInvite(declineBtn.getAttribute('data-invite-id'));
+                return;
+            }
+
+            const lftBtn = e.target.closest('[data-action="lft-chat"]');
+            if (lftBtn) {
+                window.startLftChat(
+                    lftBtn.getAttribute('data-team-id'),
+                    lftBtn.getAttribute('data-team-name')
+                );
+                return;
+            }
+        });
+    }
 }
 
 // Helpers for Roster/Chat
@@ -1768,7 +1810,7 @@ async function loadApplications(teamId) {
         const app = d.data();
         if (app.status === 'pending') {
             hasPending = true;
-            const div = document.createElement('div');
+const div = document.createElement('div');
             div.className = "bg-black/20 p-4 rounded-lg border border-white/5 mb-3 hover:border-white/10 transition-colors";
             div.innerHTML = `
                 <div class="flex justify-between items-start mb-2">
@@ -1779,9 +1821,17 @@ async function loadApplications(teamId) {
                 </div>
                 <div class="text-xs text-gray-400 italic mb-3 bg-black/20 p-2 rounded leading-relaxed">"${escapeHtml(app.note)}"</div>
                 <div class="flex gap-2">
-                    <button onclick="window.handleApp('${d.id}', '${app.applicantId}', '${escapeHtml(app.applicantName)}', true)" class="flex-1 bg-green-600/20 text-green-400 border border-green-600/30 text-xs py-2 rounded font-bold hover:bg-green-600/30 transition">Accept</button>
-                    <button onclick="window.handleApp('${d.id}', null, null, false)" class="flex-1 bg-red-600/20 text-red-400 border border-red-600/30 text-xs py-2 rounded font-bold hover:bg-red-600/30 transition">Reject</button>
+                    <button data-action="accept-app" class="flex-1 bg-green-600/20 text-green-400 border border-green-600/30 text-xs py-2 rounded font-bold hover:bg-green-600/30 transition">Accept</button>
+                    <button data-action="reject-app" class="flex-1 bg-red-600/20 text-red-400 border border-red-600/30 text-xs py-2 rounded font-bold hover:bg-red-600/30 transition">Reject</button>
                 </div>`;
+
+            div.querySelector('[data-action="accept-app"]').addEventListener('click', () => {
+                window.handleApp(d.id, app.applicantId, app.applicantName, true);
+            });
+            div.querySelector('[data-action="reject-app"]').addEventListener('click', () => {
+                window.handleApp(d.id, null, null, false);
+            });
+
             list.appendChild(div);
         }
     });
