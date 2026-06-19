@@ -8,6 +8,25 @@ import { uploadImage } from './utils.js';
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
 
+const displayNameCache = new Map();
+
+async function getUserDisplayName(uid, fallbackName) {
+    const fallback = fallbackName || 'Player';
+    if (!uid) return fallback;
+    if (displayNameCache.has(uid)) return displayNameCache.get(uid);
+
+    try {
+        const snap = await getDoc(doc(db, "users", uid));
+        const resolved = snap.exists()
+            ? (snap.data().displayName || snap.data().name || snap.data().ign || snap.data().username || fallback)
+            : fallback;
+        displayNameCache.set(uid, resolved);
+        return resolved;
+    } catch {
+        return fallback;
+    }
+}
+
 // --- FEATURE FLAGS ---
 const TEAM_RECRUITMENT_ENABLED = true; // Set to true to enable everyone to create a team
 
@@ -687,13 +706,16 @@ function startLftChatListener(listingId, participantUid) {
     );
 
     if (chatUnsubscribe) chatUnsubscribe();
-    chatUnsubscribe = onSnapshot(q, (snapshot) => {
-        chatContainer.innerHTML = backBtnHtml;
-        let lastDateLabel = null;
+chatUnsubscribe = onSnapshot(q, async (snapshot) => {
+    chatContainer.innerHTML = backBtnHtml;
+    let lastDateLabel = null;
 
-        snapshot.forEach(doc => {
-            const msg = doc.data();
-            const isMe = auth.currentUser && msg.senderId === auth.currentUser.uid;
+    const docs = snapshot.docs.map(d => d.data());
+    const resolvedNames = await Promise.all(docs.map(msg => getUserDisplayName(msg.senderId, msg.senderName)));
+
+    docs.forEach((msg, i) => {
+        const senderDisplayName = resolvedNames[i];
+        const isMe = auth.currentUser && msg.senderId === auth.currentUser.uid;
             const dateObj = msg.createdAt ? msg.createdAt.toDate() : new Date();
 
             const dateLabel = dateObj.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
@@ -712,7 +734,7 @@ function startLftChatListener(listingId, participantUid) {
             bubble.className = `chat-bubble ${isMe ? 'mine' : 'theirs'} mb-3 shadow-md flex flex-col`;
             bubble.innerHTML = `
                 <div class="flex justify-between items-baseline mb-1 w-full gap-4">
-                    <span class="font-bold text-[10px] opacity-75">${escapeHtml(msg.senderName)}</span>
+                    <span class="font-bold text-[10px] opacity-75">${escapeHtml(senderDisplayName)}</span>
                     <span class="text-[9px] opacity-50 font-mono">${timeString}</span>
                 </div>
                 <div class="leading-relaxed break-words">${escapeHtml(msg.text)}</div>`;
@@ -1019,7 +1041,8 @@ window.handleApp = async (appId, applicantId, applicantName, isAccept) => {
                 currentMembers: (data.members || []).length + 1
             });
             await updateDoc(appRef, { status: 'accepted' });
-            await sendSystemMessage(currentManageId, `${applicantName} has joined the team`);
+            const applicantDisplayName = await getUserDisplayName(applicantId, applicantName);
+            await sendSystemMessage(currentManageId, `${applicantDisplayName} has joined the team`);
             await window.showCustomAlert("Success", "Player accepted into the roster!");
         } else {
             await updateDoc(appRef, { status: 'rejected' });
@@ -1229,9 +1252,8 @@ window.promoteMember = async (uid) => {
 
             // 2. Send System Message
             // We use the name found in the array index we just modified
-            const memberName = members[index].name;
+            const memberName = await getUserDisplayName(members[index].uid, members[index].name);
             await sendSystemMessage(currentManageId, `${memberName} has been promoted to Vice Captain`);
-
             // 3. Update UI
             renderRosterList(members);
             window.showCustomAlert("Success", "Member promoted to Vice Captain.");
@@ -1247,7 +1269,7 @@ window.acceptInvite = async (inviteDocId, teamId, teamName) => {
     if (!confirmed) return;
 
     try {
-        const playerName = user.displayName || "Player";
+        const playerName = await getUserDisplayName(user.uid, user.displayName || "Player");
 
         // Add the user to the team's members array
         await updateDoc(doc(db, "recruitment", teamId), {
@@ -1286,7 +1308,7 @@ window.demoteMember = async (uid) => {
             await updateDoc(teamRef, { members: members });
 
             // 2. Send System Message
-            const memberName = members[index].name;
+            const memberName = await getUserDisplayName(members[index].uid, members[index].name);
             await sendSystemMessage(currentManageId, `${memberName} has been demoted to Member`);
 
             // 3. Update UI
@@ -1315,7 +1337,7 @@ window.kickMember = async (uid, memberRole) => {
         const snap = await getDoc(teamRef);
         const allMembers = snap.data().members;
         const kickedMember = allMembers.find(m => m.uid === uid);
-        const kickedName = kickedMember ? kickedMember.name : 'A member';
+        const kickedName = kickedMember ? await getUserDisplayName(kickedMember.uid, kickedMember.name) : 'A member';
         const mems = allMembers.filter(m => m.uid !== uid);
         await updateDoc(teamRef, { members: mems, currentMembers: mems.length });
 
@@ -1331,7 +1353,7 @@ window.leaveTeam = async () => {
     if (!confirm) return;
     try {
         const teamRef = doc(db, "recruitment", currentManageId);
-        const leaverName = auth.currentUser.displayName || auth.currentUser.email.split('@')[0];
+        const leaverName = await getUserDisplayName(auth.currentUser.uid, auth.currentUser.displayName || auth.currentUser.email.split('@')[0]);
         await sendSystemMessage(currentManageId, `${leaverName} has left the team`);
         const appsRef = collection(db, "recruitment", currentManageId, "applications");
         const q = query(appsRef, where("applicantId", "==", auth.currentUser.uid));
@@ -1512,6 +1534,8 @@ function setupForms() {
         try {
             // 1. Check if we are currently in an LFT Private Chat session
             // If activeLftChatId is set, we use the private_chats sub-collection
+            const senderDisplayName = await getUserDisplayName(auth.currentUser.uid, auth.currentUser.displayName || auth.currentUser.email.split('@')[0]);
+
             if (activeLftChatId) {
                 const chatDocRef = doc(db, "recruitment", currentManageId, "private_chats", activeLftChatId);
 
@@ -1519,13 +1543,13 @@ function setupForms() {
                     lastMessage: text,
                     lastMessageTime: serverTimestamp(),
                     participantId: activeLftChatId,
-                    participantName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0]
+                    participantName: senderDisplayName
                 }, { merge: true });
 
                 await addDoc(collection(chatDocRef, "messages"), {
                     text: text,
                     senderId: auth.currentUser.uid,
-                    senderName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
+                    senderName: senderDisplayName,
                     createdAt: serverTimestamp()
                 });
             }
@@ -1535,7 +1559,7 @@ function setupForms() {
                 await addDoc(collection(db, "recruitment", currentManageId, "messages"), {
                     text: text,
                     senderId: auth.currentUser.uid,
-                    senderName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
+                    senderName: senderDisplayName,
                     createdAt: serverTimestamp()
                 });
             }
@@ -1563,17 +1587,19 @@ function setupForms() {
             try {
                 const chatDocRef = doc(db, "recruitment", currentManageId, "private_chats", activeLftChatId);
 
+                const senderDisplayName = await getUserDisplayName(auth.currentUser.uid, auth.currentUser.displayName || auth.currentUser.email.split('@')[0]);
+
                 await setDoc(chatDocRef, {
                     lastMessage: text,
                     lastMessageTime: serverTimestamp(),
                     participantId: activeLftChatId,
-                    participantName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0]
+                    participantName: senderDisplayName
                 }, { merge: true });
 
                 await addDoc(collection(chatDocRef, "messages"), {
                     text: text,
                     senderId: auth.currentUser.uid,
-                    senderName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
+                    senderName: senderDisplayName,
                     createdAt: serverTimestamp()
                 });
 
@@ -1682,13 +1708,18 @@ function startChatListener(teamId) {
     const chatContainer = document.getElementById('chat-messages');
     const q = query(collection(db, "recruitment", teamId, "messages"), orderBy("createdAt", "asc"));
 
-    chatUnsubscribe = onSnapshot(q, (snapshot) => {
-        chatContainer.innerHTML = '';
-        let lastDateLabel = null;
+chatUnsubscribe = onSnapshot(q, async (snapshot) => {
+    chatContainer.innerHTML = '';
+    let lastDateLabel = null;
 
-        snapshot.forEach((doc) => {
-            const msg = doc.data();
-            const isMe = auth.currentUser && msg.senderId === auth.currentUser.uid;
+    const docs = snapshot.docs.map(d => d.data());
+    const resolvedNames = await Promise.all(docs.map(msg =>
+        msg.isSystem ? Promise.resolve(msg.senderName) : getUserDisplayName(msg.senderId, msg.senderName)
+    ));
+
+    docs.forEach((msg, i) => {
+        const senderDisplayName = resolvedNames[i];
+        const isMe = auth.currentUser && msg.senderId === auth.currentUser.uid;
             const dateObj = msg.createdAt ? msg.createdAt.toDate() : new Date();
 
             // Format for date divider (e.g., "January 16, 2026")
@@ -1715,7 +1746,7 @@ function startChatListener(teamId) {
                 bubble.className = `chat-bubble ${isMe ? 'mine' : 'theirs'} mb-3 shadow-md flex flex-col`;
                 bubble.innerHTML = `
                     <div class="flex justify-between items-baseline mb-1 w-full gap-4">
-                        <span class="font-bold text-[10px] opacity-75 tracking-wide">${escapeHtml(msg.senderName)}</span>
+                        <span class="font-bold text-[10px] opacity-75 tracking-wide">${escapeHtml(senderDisplayName)}</span>
                         <span class="text-[9px] opacity-50 font-mono">${timeString}</span>
                     </div>
                     <div class="leading-relaxed break-words">${escapeHtml(msg.text)}</div>`;
