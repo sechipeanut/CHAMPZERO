@@ -289,6 +289,26 @@
                 </select>
             </div>
             <div><label for="t-prize" class="block text-sm text-gray-400 mb-1">Prize Pool (₱)</label><input id="t-prize" type="number" required class="dark-input w-full p-3 rounded"></div>
+            <div>
+                <label for="t-payment-type" class="block text-sm text-gray-400 mb-1">Payment Type</label>
+                <select id="t-payment-type" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]" onchange="window.toggleAdminPaymentType()">
+                    <option value="free">Free</option>
+                    <option value="manual">Manual Payment</option>
+                    <option value="automatic">Automatic Payment (PayRex)</option>
+                </select>
+            </div>
+            <div id="t-fee-area" class="hidden">
+                <label for="t-entry-fee" class="block text-sm text-gray-400 mb-1">Entry Fee (₱)</label>
+                <input id="t-entry-fee" type="number" min="0" step="0.01" class="dark-input w-full p-3 rounded">
+            </div>
+            <div id="t-qr-upload-area" class="hidden">
+                <label for="t-qr-upload" class="block text-sm text-gray-400 mb-1">Payment QR Code Upload (For Manual Payment)</label>
+                <div class="flex items-center gap-4">
+                    <input id="t-qr-upload" type="file" accept="image/*" class="dark-input w-full p-2 rounded">
+                    <input id="t-qr-url" type="hidden">
+                </div>
+                <span id="t-qr-status" class="text-xs text-gray-500 mt-1 block"></span>
+            </div>
             <div class="grid grid-cols-2 gap-4">
                 <div><label for="t-date" class="block text-sm text-gray-400 mb-1">Start Date</label><input id="t-date" type="date" required class="dark-input w-full p-3 rounded"></div>
                 <div><label for="t-end-date" class="block text-sm text-gray-400 mb-1">End Date</label><input id="t-end-date" type="date" class="dark-input w-full p-3 rounded"></div>

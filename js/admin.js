@@ -348,6 +348,10 @@ window.editItem = async function (collectionName, docId) {
             qs('#t-date').value = toDateInputFormat(data.date);
             qs('#t-end-date').value = toDateInputFormat(data.endDate);
             qs('#t-banner').value = data.banner;
+            if (qs('#t-payment-type')) qs('#t-payment-type').value = data.paymentType || 'free';
+            if (qs('#t-entry-fee')) qs('#t-entry-fee').value = data.entryFee || 0;
+            if (qs('#t-qr-url')) qs('#t-qr-url').value = data.paymentQrUrl || '';
+            if (window.toggleAdminPaymentType) window.toggleAdminPaymentType();
             prepareEditMode('tournaments', docId, '#tournamentForm', 'tournamentModal');
             openModal('tournamentModal');
         }
@@ -939,7 +943,10 @@ document.addEventListener('DOMContentLoaded', () => {
             status: calculateStatus(startDate, endDate),
             date: startDate,
             endDate: endDate,
-            banner: qs('#t-banner').value || "pictures/cz_logo.png"
+            banner: qs('#t-banner').value || "pictures/cz_logo.png",
+            paymentType: qs('#t-payment-type') ? qs('#t-payment-type').value : 'free',
+            entryFee: qs('#t-entry-fee') ? Number(qs('#t-entry-fee').value) : 0,
+            paymentQrUrl: qs('#t-qr-url') ? qs('#t-qr-url').value : ''
         };
     }, "Tournament Created!");
 
@@ -982,6 +989,26 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setupImageUpload('#t-banner-upload', '#t-banner', '#t-banner-status', 'tournaments');
+    setupImageUpload('#t-qr-upload', '#t-qr-url', '#t-qr-status', 'tournaments');
     setupImageUpload('#e-banner-upload', '#e-banner', '#e-banner-status', 'events');
     setupImageUpload('#tal-img-upload', '#tal-img', '#tal-img-status', 'talents');
+
+    window.toggleAdminPaymentType = function() {
+        const type = qs('#t-payment-type')?.value;
+        const feeArea = qs('#t-fee-area');
+        const qrArea = qs('#t-qr-upload-area');
+        
+        if (!feeArea || !qrArea) return;
+
+        if (type === 'free') {
+            feeArea.classList.add('hidden');
+            qrArea.classList.add('hidden');
+        } else if (type === 'manual') {
+            feeArea.classList.remove('hidden');
+            qrArea.classList.remove('hidden');
+        } else if (type === 'automatic') {
+            feeArea.classList.remove('hidden');
+            qrArea.classList.add('hidden');
+        }
+    };
 });

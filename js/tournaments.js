@@ -376,12 +376,12 @@ async function handleCreateTournament() {
         const desc = qs('#c-desc').value || "";
         const banner = qs('#c-banner').value || "";
 
-        // Upload payment proof if PAID
+        // Upload payment proof if manual
         let proofURL = "";
-        const entryType = qs('#c-entry-type').value;
-        const entryFee = entryType === 'Paid' ? (parseFloat(qs('#c-entry-fee')?.value) || 0) : 0;
-        const entryCurrency = entryType === 'Paid' ? (qs('#c-entry-currency')?.value || 'PHP') : null;
-        if (entryType === 'Paid' && window._proofFile) {
+        const paymentType = qs('#c-payment-type') ? qs('#c-payment-type').value : 'free';
+        const entryFee = paymentType !== 'free' ? (parseFloat(qs('#c-entry-fee')?.value) || 0) : 0;
+        const entryCurrency = paymentType !== 'free' ? (qs('#c-entry-currency')?.value || 'PHP') : null;
+        if (paymentType === 'manual' && window._proofFile) {
             const tournamentName = qs('#c-name').value.trim().replace(/\s+/g, '_');
             const fileRef = storageRef(storage, `payment-proofs/${tournamentName}/${window._proofFile.name}`);
             const snapshot = await uploadBytes(fileRef, window._proofFile);
@@ -398,10 +398,10 @@ async function handleCreateTournament() {
             endDate: endDate,
             description: desc,
             banner: banner,
-            entryType: entryType,
+            paymentType: paymentType,
             entryFee: entryFee,        
             entryCurrency: entryCurrency, 
-            paymentProofURL: proofURL,
+            paymentQrUrl: proofURL,
             createdBy: user.uid,
             createdAt: serverTimestamp(),
             status: 'Open',
@@ -1671,10 +1671,20 @@ async function openJoinForm(id, isEdit = false, specificAppId = null) {
     const submitBtn = qs('#joinForm button[type="submit"]');
     const form = qs('#joinForm');
 
+    const tournDoc = (allTournaments && allTournaments.find(t => t.id === id)) || currentEditingTournament;
+    const isAutomatic = tournDoc && tournDoc.paymentType === 'automatic' && Number(tournDoc.entryFee || 0) > 0;
+
     form.dataset.mode = isEdit ? 'edit' : 'new';
     form.dataset.appId = specificAppId || '';
     modalTitle.textContent = isEdit ? "Edit Registration" : "Join Tournament";
-    submitBtn.textContent = isEdit ? "Request Update" : "Submit Application";
+    
+    if (isEdit) {
+        submitBtn.textContent = "Request Update";
+    } else if (isAutomatic) {
+        submitBtn.textContent = `Pay ₱${Number(tournDoc.entryFee).toFixed(2)}`;
+    } else {
+        submitBtn.textContent = "Submit Application";
+    }
 
     const select = qs('#joinTeamSelect');
     select.innerHTML = '<option value="custom" class="bg-[#1a1a1f] text-white">Loading teams...</option>';
@@ -1799,12 +1809,11 @@ async function openJoinForm(id, isEdit = false, specificAppId = null) {
     const qrDl    = document.getElementById('join-qr-download');
     const qrLabel = document.getElementById('join-qr-download-label');
 
-    // Look up current tournament data from the live snapshot cache
-    const tournDoc = allTournaments.find(t => t.id === id) || currentEditingTournament;
-    const isPaid = tournDoc && tournDoc.entryType === 'Paid';
-    const qrURL  = tournDoc && tournDoc.paymentProofURL;
+    // Look up current tournament data from the live snapshot cache (tournDoc already declared at top of openJoinForm)
+    const isPaid = tournDoc && (tournDoc.paymentType === 'manual' || tournDoc.paymentType === 'automatic' || tournDoc.entryType === 'Paid');
+    const qrURL  = tournDoc && (tournDoc.paymentQrUrl || tournDoc.paymentProofURL);
 
-    if (isPaid && qrURL && qrPanel && qrImg && qrDl) {
+    if (isPaid && tournDoc.paymentType === 'manual' && qrURL && qrPanel && qrImg && qrDl) {
         qrImg.src = qrURL;
 
         // Build a clean filename from the tournament name
@@ -1836,7 +1845,7 @@ async function openJoinForm(id, isEdit = false, specificAppId = null) {
     // --- ENTRY FEE UPLOAD PANEL ---
     const entryFeeUpload = document.getElementById('join-entry-fee-upload');
     if (entryFeeUpload) {
-        if (isPaid) {
+        if (isPaid && tournDoc.paymentType === 'manual') {
             entryFeeUpload.classList.remove('hidden');
         } else {
             entryFeeUpload.classList.add('hidden');
@@ -1926,10 +1935,10 @@ async function submitJoinRequest() {
         }
     });
 
-    // --- UPLOAD ENTRY FEE PROOF (if paid tournament & file chosen) ---
+    // --- UPLOAD ENTRY FEE PROOF (if manual payment & file chosen) ---
     let entryFeeProofURL = '';
     const tournDoc = allTournaments.find(t => t.id === currentJoiningId) || currentEditingTournament;
-    const tournamentIsPaid = tournDoc && tournDoc.entryType === 'Paid';
+    const tournamentIsPaid = tournDoc && (tournDoc.paymentType === 'manual' || tournDoc.entryType === 'Paid');
 
     if (tournamentIsPaid && window._entryFeeFile) {
         const tournamentName = (tournDoc.name || 'tournament').trim().replace(/\s+/g, '_');
@@ -1985,14 +1994,30 @@ async function submitJoinRequest() {
 
     try {
         const appsRef = collection(db, "tournaments", currentJoiningId, "applications");
-        if (isEdit && specificAppId) { await updateDoc(doc(appsRef, specificAppId), appData); }
-        else { await addDoc(appsRef, appData); }
+        let createdAppId = specificAppId;
+        if (isEdit && specificAppId) { 
+            await updateDoc(doc(appsRef, specificAppId), appData); 
+        } else { 
+            const newAppRef = await addDoc(appsRef, appData); 
+            createdAppId = newAppRef.id;
+        }
+
+        if (tournDoc.paymentType === 'automatic') {
+            window.location.href = `/checkout.html?t=${currentJoiningId}&app=${createdAppId}`;
+            return;
+        }
 
         const msg = isEdit ? 'Update request sent!' : 'Application submitted!';
         if (window.showSuccessToast) window.showSuccessToast('Success', msg);
         document.getElementById('joinModal').classList.add('hidden');
     } catch (error) { console.error("Error joining:", error); if (window.showErrorToast) window.showErrorToast('Error', 'Failed: ' + error.message); }
-    finally { if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isEdit ? 'Request Update' : 'Confirm Registration'; } }
+    finally { 
+        if (submitBtn && tournDoc?.paymentType !== 'automatic') { 
+            submitBtn.disabled = false; 
+            const isAuto = tournDoc?.paymentType === 'automatic' && Number(tournDoc?.entryFee || 0) > 0;
+            submitBtn.textContent = isEdit ? 'Request Update' : (isAuto ? `Pay ₱${Number(tournDoc.entryFee).toFixed(2)}` : 'Submit Application'); 
+        } 
+    }
 }
 
 async function withdrawApplication(tourneyId, appId) {

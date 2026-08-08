@@ -883,13 +883,12 @@
                     <!-- Left column: Toggle + Entry Fee stacked -->
                     <div class="flex flex-col gap-3 flex-shrink-0">
                         <div>
-                            <label class="block text-sm text-gray-400 mb-2">Entry Type</label>
-                            <div style="position:relative;width:160px;height:36px;background:#2a2a30;border:1px solid rgba(255,255,255,0.15);border-radius:999px;overflow:hidden;cursor:pointer;" onclick="toggleEntryType()">
-                                <div id="toggleThumb" style="position:absolute;top:0;left:0;width:50%;height:100%;background:var(--gold);border-radius:999px;transition:transform 0.3s ease;box-shadow:0 0 10px rgba(255,215,0,0.4);"></div>
-                                <div id="toggle-label-free" style="position:absolute;top:0;left:0;width:50%;height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:0.08em;color:#111115;z-index:10;transition:color 0.3s ease;pointer-events:none;">FREE</div>
-                                <div id="toggle-label-paid" style="position:absolute;top:0;right:0;width:50%;height:100%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;letter-spacing:0.08em;color:rgba(255,255,255,0.4);z-index:10;transition:color 0.3s ease;pointer-events:none;">PAID</div>
-                            </div>
-                            <input type="hidden" id="c-entry-type" value="Free">
+                            <label class="block text-sm text-gray-400 mb-2">Payment Type</label>
+                            <select id="c-payment-type" class="dark-input w-full p-3 rounded bg-[var(--dark-bg)]" onchange="toggleEntryType()">
+                                <option value="free">Free</option>
+                                <option value="manual">Manual Payment</option>
+                                <option value="automatic">Automatic Payment (PayRex)</option>
+                            </select>
                         </div>
 
                         <!-- Entry Fee — below toggle, same column -->
@@ -1275,37 +1274,31 @@
         }
 
         function toggleEntryType() {
-            const thumb = document.getElementById('toggleThumb');
-            const labelFree = document.getElementById('toggle-label-free');
-            const labelPaid = document.getElementById('toggle-label-paid');
-            const input = document.getElementById('c-entry-type');
+            const type = document.getElementById('c-payment-type').value;
             const proofArea = document.getElementById('proof-upload-area');
-            const feeArea = document.getElementById('entry-fee-amount-area'); // NEW
+            const feeArea = document.getElementById('entry-fee-amount-area');
 
-            const isFree = input.value === 'Free';
-
-            if (isFree) {
-                thumb.style.transform = 'translateX(100%)';
-                labelFree.style.color = 'rgba(255,255,255,0.4)';
-                labelPaid.style.color = '#111115';
-                input.value = 'Paid';
-                proofArea.classList.remove('hidden');
-                if (feeArea) feeArea.classList.remove('hidden'); // NEW
-            } else {
-                thumb.style.transform = 'translateX(0)';
-                labelFree.style.color = '#111115';
-                labelPaid.style.color = 'rgba(255,255,255,0.4)';
-                input.value = 'Free';
+            if (type === 'free') {
                 proofArea.classList.add('hidden');
-                if (feeArea) feeArea.classList.add('hidden'); // NEW
+                if (feeArea) feeArea.classList.add('hidden');
+                
                 // Reset fee fields
                 const feeInput = document.getElementById('c-entry-fee');
                 if (feeInput) feeInput.value = '';
                 // Clear any selected file
-                document.getElementById('c-proof-file').value = '';
-                document.getElementById('proof-filename').textContent = 'Click or drag image here';
-                document.getElementById('proof-preview-btn-wrap').classList.add('hidden');
+                const fileInput = document.getElementById('c-proof-file');
+                if (fileInput) fileInput.value = '';
+                const proofFilename = document.getElementById('proof-filename');
+                if (proofFilename) proofFilename.textContent = 'Click or drag image here';
+                const proofPreview = document.getElementById('proof-preview-btn-wrap');
+                if (proofPreview) proofPreview.classList.add('hidden');
                 window._proofFile = null;
+            } else if (type === 'manual') {
+                proofArea.classList.remove('hidden');
+                if (feeArea) feeArea.classList.remove('hidden');
+            } else if (type === 'automatic') {
+                proofArea.classList.add('hidden');
+                if (feeArea) feeArea.classList.remove('hidden');
             }
         }
 
