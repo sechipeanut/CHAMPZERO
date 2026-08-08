@@ -7,7 +7,7 @@ let paymentElement;
 let clientSecret;
 
 // Use your actual PayRex Public Key here
-const PAYREX_PUBLIC_KEY = 'pk_test_vTnficmAJT6ENeX5gY37AUmYAN9DGB4N'; 
+const PAYREX_PUBLIC_KEY = 'pk_live_tY99ZmtRAKr3jTLsp1zwkwdnPpAd8aAo';
 
 document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                         billingDetails.name = userDoc.data().displayName || billingDetails.name;
                         billingDetails.email = userDoc.data().email || billingDetails.email;
                     }
-                } catch(e) { console.warn(e); }
+                } catch (e) { console.warn(e); }
 
                 await initializePayRex(tournamentId, appId, tournament.entryFee, billingDetails);
             } else {
@@ -106,7 +106,7 @@ async function initializePayRex(tournamentId, appId, amount, billingDetails) {
 
         // Initialize PayRex SDK (per official docs)
         payrex = window.Payrex(PAYREX_PUBLIC_KEY);
-        
+
         elements = payrex.elements({ clientSecret });
 
         // Create payment element with billing info defaults
@@ -223,10 +223,10 @@ async function approveApplication(tournamentId, appId, paymentIntentId) {
         // Add to tournament participants
         const tourneyRef = doc(db, "tournaments", tournamentId);
         const tourneySnap = await getDoc(tourneyRef);
-        
+
         if (tourneySnap.exists()) {
             const participants = tourneySnap.data().participants || [];
-            
+
             // Remove old entry if this application or user was already in participants
             const oldEntry = participants.find(p => p.applicationId === appId || p.registeredBy === appData.registeredBy);
             if (oldEntry) {
