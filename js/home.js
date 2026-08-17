@@ -7,16 +7,10 @@ document.addEventListener('DOMContentLoaded', () => {
     function animateCountUp(element, valueStr, isCurrency = false) {
         if(!element) return;
         
-        // 1. Clean the input to find the number
         const rawString = String(valueStr);
-        // Remove everything except numbers, dots, and minus signs to find the value to animate
         const numericPart = parseFloat(rawString.replace(/[^0-9.-]+/g,""));
-        
-        // 2. Isolate the suffix (e.g., "k", "+", "M") by removing the numbers/dots
-        // We also strip the currency symbol if the user typed it, to avoid double symbols
         let suffix = rawString.replace(/[0-9.,-]/g, '').replace('₱', '').trim();
         
-        // If no number found, just display the text as-is
         if (isNaN(numericPart)) {
             element.textContent = rawString; 
             return;
@@ -28,12 +22,10 @@ document.addEventListener('DOMContentLoaded', () => {
         function updateCount(currentTime) {
             const elapsedTime = currentTime - startTime;
             if (elapsedTime >= duration) {
-                // Final state
                 element.textContent = (isCurrency ? '₱' : '') + numericPart.toLocaleString() + suffix;
                 return;
             }
             
-            // Animation math
             const progress = elapsedTime / duration;
             const easeOut = 1 - Math.pow(1 - progress, 3);
             const currentVal = Math.floor(easeOut * numericPart);
@@ -44,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
         requestAnimationFrame(updateCount);
     }
 
-    // --- 2. Real-Time Listener (Connects to Admin Config) ---
+    // --- 2. Real-Time Stats Listener (Connects to Admin Config) ---
     function initStatsListener() {
         const stats = {
             talents: document.getElementById('stat-talents'),
@@ -54,24 +46,17 @@ document.addEventListener('DOMContentLoaded', () => {
             players: document.getElementById('stat-players'),
         };
         
-        // Safety check: Only run if elements exist
         if (!stats.talents) return;
 
-        console.log("Connecting to live stats...");
-
-        // LISTEN to 'site_config/home_stats' document
         onSnapshot(doc(db, "site_config", "home_stats"), (docSnap) => {
             if (docSnap.exists()) {
                 const data = docSnap.data();
-                
-                // Animate to the values set in Admin (defaults to "0" if empty)
                 animateCountUp(stats.talents, data.talentCount || "0");
                 animateCountUp(stats.followers, data.followerCount || "0");
                 animateCountUp(stats.prizes, data.prizePool || "0", true);
                 animateCountUp(stats.tournaments, data.tournamentCount || "0");
                 animateCountUp(stats.players, data.playerCount || "0");
             } else {
-                console.warn("No stats config found.");
                 animateCountUp(stats.talents, "0");
                 animateCountUp(stats.followers, "0");
                 animateCountUp(stats.prizes, "0", true);
@@ -83,10 +68,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Initialize
-    initStatsListener();
+    // --- 3. Real-Time Recent Activities Spotlight Listener ---
+    function initActivitiesListener() {
+        onSnapshot(doc(db, "site_config", "home_activities"), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                const activities = data.activities || [];
 
-    // --- 3. Fade In Animation (Visuals) ---
+                activities.forEach((act, index) => {
+                    const i = index + 1;
+                    const titleEl = document.getElementById(`activity-title-${i}`);
+                    const dateEl = document.getElementById(`activity-date-${i}`);
+                    const tagEl = document.getElementById(`activity-tag-${i}`);
+                    const linkEl = document.getElementById(`activity-link-${i}`);
+                    const imgEl = document.getElementById(`activity-img-${i}`);
+                    const descEl = document.getElementById(`activity-desc-${i}`);
+
+                    if (titleEl) titleEl.textContent = act.title || 'Featured Activity';
+                    if (dateEl) dateEl.textContent = act.date || '';
+                    if (tagEl) tagEl.textContent = act.tag || 'Update';
+                    if (linkEl && act.link) linkEl.href = act.link;
+                    if (imgEl) {
+                        if (act.img) imgEl.src = act.img;
+                        if (act.position) imgEl.style.objectPosition = act.position;
+                    }
+                    if (descEl) descEl.textContent = act.desc || '';
+                });
+            }
+        }, (error) => {
+            console.error("Activities Listener Error:", error);
+        });
+    }
+
+    // Initialize Listeners
+    initStatsListener();
+    initActivitiesListener();
+
+    // --- 4. Fade In Animation (Visuals) ---
     const observer = new IntersectionObserver(entries => {
         entries.forEach(entry => {
             if (entry.isIntersecting) {
@@ -96,5 +114,5 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }, { threshold: 0.1 });
 
-    document.querySelectorAll('.fade-in-section').forEach(section => observer.observe(section));
+    document.querySelectorAll('.fade-in-section, .reveal').forEach(section => observer.observe(section));
 });

@@ -18,10 +18,7 @@ import { toDateInputFormat, calculateStatus, uploadImage } from './utils.js';
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
 
-// Focus management
 let lastFocusedElement = null;
-
-// State
 let editState = { isEditing: false, collection: null, id: null, formId: null, modalId: null };
 let currentUserId = null;
 let allUsers = []; 
@@ -29,7 +26,7 @@ let currentRoleFilter = 'all';
 window.usersLoaded = false;
 
 // ======================
-// LIVESTREAM MANAGEMENT (Restored)
+// LIVESTREAM MANAGEMENT
 // ======================
 
 window.createLivestream = async function(eventId, eventName) {
@@ -49,7 +46,6 @@ window.createLivestream = async function(eventId, eventName) {
         
         const streamData = await response.json();
         
-        // Update Firestore with stream info
         const eventRef = doc(db, 'events', eventId);
         await updateDoc(eventRef, {
             livestream: {
@@ -89,7 +85,6 @@ window.manageLivestream = async function(eventId) {
             return;
         }
         
-        // Fetch current stream status from Mux
         const response = await fetch(`/.netlify/functions/get-mux-stream?streamId=${livestream.streamId}`);
         const streamData = await response.json();
         
@@ -265,7 +260,6 @@ window.closeModal = function (modalId) {
         'jobModal': '#jobForm',
         'talentModal': '#talentForm',
         'notificationModal': '#notifForm',
-
     };
     if(formMap[modalId]) resetFormState(formMap[modalId]);
 }
@@ -275,7 +269,6 @@ window.openEventModal = function () { openModal('eventModal'); }
 window.openJobModal = function () { openModal('jobModal'); }
 window.openTalentModal = function () { openModal('talentModal'); }
 window.openNotificationModal = function () { openModal('notificationModal'); }
-
 
 // --- 1. ADMIN CHECK ---
 onAuthStateChanged(auth, async (user) => {
@@ -401,10 +394,8 @@ function prepareEditMode(col, id, formSelector, modalId) {
         'jobModal': 'Edit Job',
         'talentModal': 'Edit Talent',
         'notificationModal': 'Edit Announcement',
-
     };
     if (modalId) qs(`#${modalId}Title`).textContent = modalTitleMap[modalId];
-
     if (btn) btn.textContent = 'Update';
 }
 
@@ -420,7 +411,6 @@ function resetFormState(formSelector) {
         'jobModal': 'Create Job',
         'talentModal': 'Add Talent',
         'notificationModal': 'Create Announcement',
-
     };
     if (editState.modalId) qs(`#${editState.modalId}Title`).textContent = modalTitleMap[editState.modalId];
 
@@ -490,7 +480,6 @@ function displayUsers() {
         return matchesRole && matchesSearch;
     });
     
-    // Update Stats
     if (qs('#user-count')) qs('#user-count').textContent = allUsers.length;
     if (qs('#admin-count')) qs('#admin-count').textContent = allUsers.filter(u => u.role === 'admin').length;
     if (qs('#regular-user-count')) qs('#regular-user-count').textContent = allUsers.filter(u => u.role !== 'admin').length;
@@ -511,7 +500,6 @@ function displayUsers() {
         const profilePicture = user.avatar || user.photoURL || null;
         const roles = ['user', 'admin', 'subscriber', 'moderator', 'organizer'];
         
-        // Mobile-First Card Design
         const card = document.createElement('div');
         card.className = 'bg-[var(--dark-card)] p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center gap-4 transition-all hover:border-[var(--gold)]/30';
         
@@ -571,7 +559,6 @@ window.changeUserRole = async function(userId, newRole) {
     }
     
     try {
-        // Optimistic Update: Change local state immediately so UI responds instantly
         const userIndex = allUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) allUsers[userIndex].role = newRole;
         displayUsers(); 
@@ -581,7 +568,7 @@ window.changeUserRole = async function(userId, newRole) {
     } catch (error) {
         console.error(error);
         window.showErrorToast("Error", "Failed to update role", 3000);
-        window.fetchUsers(); // Revert to server data on error
+        window.fetchUsers();
     }
 }
 
@@ -611,7 +598,17 @@ if (qs('#user-search')) {
     qs('#user-search').addEventListener('input', () => displayUsers());
 }
 
-// --- 4. FETCH OTHER LISTS ---
+// --- 4. FETCH OTHER LISTS & CONFIGS ---
+
+function updateActivityPreview(i) {
+    const imgEl = qs(`#cfg-act-img-${i}`);
+    const posEl = qs(`#cfg-act-pos-${i}`);
+    const prevEl = qs(`#cfg-act-preview-${i}`);
+    if (prevEl && imgEl) {
+        if (imgEl.value) prevEl.src = imgEl.value;
+        if (posEl) prevEl.style.objectPosition = posEl.value;
+    }
+}
 
 async function fetchSiteConfig() {
     try {
@@ -624,6 +621,24 @@ async function fetchSiteConfig() {
             if(qs('#cfg-prizes')) qs('#cfg-prizes').value = data.prizePool || "";
             if(qs('#cfg-tournaments')) qs('#cfg-tournaments').value = data.tournamentCount || "";
             if(qs('#cfg-players')) qs('#cfg-players').value = data.playerCount || "";
+        }
+
+        const actDocRef = doc(db, "site_config", "home_activities");
+        const actDocSnap = await getDoc(actDocRef);
+        if (actDocSnap.exists()) {
+            const actData = actDocSnap.data();
+            const activities = actData.activities || [];
+            activities.forEach((act, index) => {
+                const i = index + 1;
+                if(qs(`#cfg-act-title-${i}`)) qs(`#cfg-act-title-${i}`).value = act.title || "";
+                if(qs(`#cfg-act-date-${i}`)) qs(`#cfg-act-date-${i}`).value = act.date || "";
+                if(qs(`#cfg-act-tag-${i}`)) qs(`#cfg-act-tag-${i}`).value = act.tag || "";
+                if(qs(`#cfg-act-link-${i}`)) qs(`#cfg-act-link-${i}`).value = act.link || "";
+                if(qs(`#cfg-act-img-${i}`)) qs(`#cfg-act-img-${i}`).value = act.img || "";
+                if(qs(`#cfg-act-pos-${i}`)) qs(`#cfg-act-pos-${i}`).value = act.position || "center";
+                if(qs(`#cfg-act-desc-${i}`)) qs(`#cfg-act-desc-${i}`).value = act.desc || "";
+                updateActivityPreview(i);
+            });
         }
     } catch (e) {
         console.error("Config Fetch Error", e);
@@ -702,14 +717,12 @@ async function fetchNotifications() {
     }
 }
 
-// RESTORED: Sourced from OLD admin.js to include stream buttons
 async function fetchEvents() {
     const list = qs('#events-list');
     const q = query(collection(db, "events"));
     const snapshot = await getDocs(q);
     list.innerHTML = snapshot.empty ? '<p class="text-gray-500 italic">No events found.</p>' : '';
     
-    // Fetch all events and check their stream status asynchronously
     const eventPromises = [];
     snapshot.forEach(doc => {
         eventPromises.push(renderEventItem(doc));
@@ -721,17 +734,14 @@ async function fetchEvents() {
     });
 }
 
-// RESTORED: Helper to render event item with stream controls
 async function renderEventItem(doc) {
     const data = doc.data();
     const hasStream = data.livestream && data.livestream.streamId;
     let streamStatus = 'idle';
     let isLive = false;
     
-    // Check actual stream status from Mux if stream exists
     if (hasStream) {
         try {
-            // Using a timeout to prevent blocking loading for too long
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 2000);
             
@@ -743,9 +753,7 @@ async function renderEventItem(doc) {
                 streamStatus = streamData.status;
                 isLive = streamStatus === 'active';
                 
-                // Update Firestore if status changed locally to keep it somewhat synced
                 if (data.livestream.status !== streamStatus) {
-                    // Note: We don't await this to keep UI snappy
                     updateDoc(doc.ref, { 'livestream.status': streamStatus }).catch(console.error);
                 }
             }
@@ -924,6 +932,61 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    const activitiesForm = qs('#activitiesConfigForm');
+    if (activitiesForm) {
+        activitiesForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = activitiesForm.querySelector('button[type="submit"]');
+            btn.textContent = "Saving...";
+            btn.disabled = true;
+            try {
+                const activities = [
+                    {
+                        title: qs('#cfg-act-title-1')?.value || '',
+                        date: qs('#cfg-act-date-1')?.value || '',
+                        tag: qs('#cfg-act-tag-1')?.value || '',
+                        link: qs('#cfg-act-link-1')?.value || '',
+                        img: qs('#cfg-act-img-1')?.value || '',
+                        position: qs('#cfg-act-pos-1')?.value || 'center',
+                        desc: qs('#cfg-act-desc-1')?.value || ''
+                    },
+                    {
+                        title: qs('#cfg-act-title-2')?.value || '',
+                        date: qs('#cfg-act-date-2')?.value || '',
+                        tag: qs('#cfg-act-tag-2')?.value || '',
+                        link: qs('#cfg-act-link-2')?.value || '',
+                        img: qs('#cfg-act-img-2')?.value || '',
+                        position: qs('#cfg-act-pos-2')?.value || 'center',
+                        desc: qs('#cfg-act-desc-2')?.value || ''
+                    },
+                    {
+                        title: qs('#cfg-act-title-3')?.value || '',
+                        date: qs('#cfg-act-date-3')?.value || '',
+                        tag: qs('#cfg-act-tag-3')?.value || '',
+                        link: qs('#cfg-act-link-3')?.value || '',
+                        img: qs('#cfg-act-img-3')?.value || '',
+                        position: qs('#cfg-act-pos-3')?.value || 'center',
+                        desc: qs('#cfg-act-desc-3')?.value || ''
+                    }
+                ];
+
+                await setDoc(doc(db, "site_config", "home_activities"), { activities, updatedAt: serverTimestamp() }, { merge: true });
+                window.showSuccessToast("Saved", "Activities Spotlight updated!", 2000);
+            } catch (err) {
+                console.error(err);
+                window.showErrorToast("Error", "Failed to save activities.", 4000);
+            } finally {
+                btn.textContent = "Save Activities Spotlight";
+                btn.disabled = false;
+            }
+        });
+
+        [1, 2, 3].forEach(i => {
+            qs(`#cfg-act-img-${i}`)?.addEventListener('input', () => updateActivityPreview(i));
+            qs(`#cfg-act-pos-${i}`)?.addEventListener('change', () => updateActivityPreview(i));
+        });
+    }
+
     handleForm('#tournamentForm', 'tournaments', () => {
         const startDate = qs('#t-date').value;
         const endDate = qs('#t-end-date').value || startDate;
@@ -957,26 +1020,31 @@ document.addEventListener('DOMContentLoaded', () => {
     handleForm('#talentForm', 'talents', () => ({ name: qs('#tal-name').value, role: qs('#tal-role').value, image: qs('#tal-img').value || "pictures/cz_logo.png", socialLink: qs('#tal-link').value, bio: qs('#tal-bio').value }), "Talent Added!");
     handleForm('#notifForm', 'notifications', () => ({ title: qs('#n-title').value, type: qs('#n-type').value, message: qs('#n-message').value }), "Notification Sent!");
 
-    // Helper for image uploads
-    function setupImageUpload(inputId, hiddenInputId, statusId, folder) {
+    function setupImageUpload(inputId, hiddenInputId, statusId, folder, onComplete) {
         const input = qs(inputId);
         if (!input) return;
         input.addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (!file) return;
             const statusEl = qs(statusId);
-            statusEl.textContent = "Uploading image...";
-            statusEl.classList.replace('text-red-500', 'text-gray-500');
-            statusEl.classList.replace('text-green-500', 'text-gray-500');
+            if (statusEl) {
+                statusEl.textContent = "Uploading image...";
+                statusEl.className = "text-[10px] font-mono-tag text-yellow-500";
+            }
             try {
                 const url = await uploadImage(file, folder);
-                qs(hiddenInputId).value = url;
-                statusEl.textContent = "Upload successful!";
-                statusEl.classList.replace('text-gray-500', 'text-green-500');
+                if (qs(hiddenInputId)) qs(hiddenInputId).value = url;
+                if (statusEl) {
+                    statusEl.textContent = "Upload successful!";
+                    statusEl.className = "text-[10px] font-mono-tag text-green-500";
+                }
+                if (onComplete) onComplete(url);
             } catch (error) {
                 console.error(error);
-                statusEl.textContent = "Upload failed.";
-                statusEl.classList.replace('text-gray-500', 'text-red-500');
+                if (statusEl) {
+                    statusEl.textContent = "Upload failed.";
+                    statusEl.className = "text-[10px] font-mono-tag text-red-500";
+                }
             }
         });
     }
@@ -984,4 +1052,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setupImageUpload('#t-banner-upload', '#t-banner', '#t-banner-status', 'tournaments');
     setupImageUpload('#e-banner-upload', '#e-banner', '#e-banner-status', 'events');
     setupImageUpload('#tal-img-upload', '#tal-img', '#tal-img-status', 'talents');
+
+    [1, 2, 3].forEach(i => {
+        setupImageUpload(`#cfg-act-img-upload-${i}`, `#cfg-act-img-${i}`, `#cfg-act-img-status-${i}`, 'activities', (url) => {
+            const urlInput = qs(`#cfg-act-img-${i}`);
+            if (urlInput) urlInput.value = url;
+            updateActivityPreview(i);
+        });
+    });
 });

@@ -7,7 +7,6 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
       gtag('config', 'G-FDFF1NLL6L');
     </script>
     <meta charset="utf-8" />
@@ -151,11 +150,6 @@
         .role-tab { background: transparent; color: #9CA3AF; border: 1px solid transparent; }
         .role-tab:hover { background: rgba(255,255,255,0.05); color: white; }
         .role-tab.active { background: rgba(255,215,0,0.1); color: var(--gold); border-color: var(--gold); font-weight: 600; }
-        
-        .status-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
-        .status-pending { background: rgba(255, 166, 0, 0.2); color: orange; border: 1px solid rgba(255, 166, 0, 0.3); }
-        .status-completed { background: rgba(0, 255, 128, 0.2); color: #00ff80; border: 1px solid rgba(0, 255, 128, 0.3); }
-        .status-cancelled { background: rgba(255, 0, 0, 0.2); color: #ff4d4d; border: 1px solid rgba(255, 0, 0, 0.3); }
     </style>
 </head>
 <body class="bg-black text-gray-200 antialiased selection:bg-[#FFD700] selection:text-black">
@@ -330,10 +324,44 @@
                                 <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Target Link (Href)</label>
                                 <input id="cfg-act-link-1" type="text" class="dark-input w-full p-2.5 rounded text-xs" required>
                             </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Cover Photo URL</label>
-                                <input id="cfg-act-img-1" type="url" class="dark-input w-full p-2.5 rounded text-xs" required>
+                            
+                            <!-- PHOTO CONTROLS CARD 1 -->
+                            <div class="md:col-span-2 bg-white/[0.02] p-4 rounded-lg border border-white/5 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-mono-tag uppercase text-[var(--gold)] font-bold">Photo & Alignment Settings</span>
+                                    <span id="cfg-act-img-status-1" class="text-[10px] font-mono-tag text-neutral-500"></span>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div class="sm:col-span-2 space-y-2">
+                                        <div>
+                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Photo URL</label>
+                                            <input id="cfg-act-img-1" type="url" class="dark-input w-full p-2 rounded text-xs" placeholder="https://...">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Or Upload Image</label>
+                                            <input id="cfg-act-img-upload-1" type="file" accept="image/*" class="dark-input w-full p-1.5 rounded text-xs file:bg-white/10 file:border-0 file:rounded file:px-2 file:py-1 file:text-white file:text-xs">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Photo Alignment (Object Position)</label>
+                                            <select id="cfg-act-pos-1" class="dark-select w-full p-2 rounded text-xs">
+                                                <option value="center">Center (Default)</option>
+                                                <option value="top">Top</option>
+                                                <option value="bottom">Bottom</option>
+                                                <option value="left">Left</option>
+                                                <option value="right">Right</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <!-- Live Preview -->
+                                    <div class="flex flex-col items-center justify-center">
+                                        <span class="text-[10px] font-mono-tag text-neutral-500 mb-1 uppercase">Card Preview</span>
+                                        <div class="w-full h-24 rounded border border-white/10 overflow-hidden bg-neutral-950 flex items-center justify-center">
+                                            <img id="cfg-act-preview-1" src="pictures/cz_logo.png" alt="Preview 1" class="w-full h-full object-cover">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
                             <div class="md:col-span-2">
                                 <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Short Description</label>
                                 <textarea id="cfg-act-desc-1" rows="2" class="dark-input w-full p-2.5 rounded text-xs" required></textarea>
@@ -364,10 +392,44 @@
                                 <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Target Link (Href)</label>
                                 <input id="cfg-act-link-2" type="text" class="dark-input w-full p-2.5 rounded text-xs" required>
                             </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Cover Photo URL</label>
-                                <input id="cfg-act-img-2" type="url" class="dark-input w-full p-2.5 rounded text-xs" required>
+
+                            <!-- PHOTO CONTROLS CARD 2 -->
+                            <div class="md:col-span-2 bg-white/[0.02] p-4 rounded-lg border border-white/5 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-mono-tag uppercase text-[var(--gold)] font-bold">Photo & Alignment Settings</span>
+                                    <span id="cfg-act-img-status-2" class="text-[10px] font-mono-tag text-neutral-500"></span>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div class="sm:col-span-2 space-y-2">
+                                        <div>
+                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Photo URL</label>
+                                            <input id="cfg-act-img-2" type="url" class="dark-input w-full p-2 rounded text-xs" placeholder="https://...">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Or Upload Image</label>
+                                            <input id="cfg-act-img-upload-2" type="file" accept="image/*" class="dark-input w-full p-1.5 rounded text-xs file:bg-white/10 file:border-0 file:rounded file:px-2 file:py-1 file:text-white file:text-xs">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Photo Alignment (Object Position)</label>
+                                            <select id="cfg-act-pos-2" class="dark-select w-full p-2 rounded text-xs">
+                                                <option value="center">Center (Default)</option>
+                                                <option value="top">Top</option>
+                                                <option value="bottom">Bottom</option>
+                                                <option value="left">Left</option>
+                                                <option value="right">Right</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <!-- Live Preview -->
+                                    <div class="flex flex-col items-center justify-center">
+                                        <span class="text-[10px] font-mono-tag text-neutral-500 mb-1 uppercase">Card Preview</span>
+                                        <div class="w-full h-24 rounded border border-white/10 overflow-hidden bg-neutral-950 flex items-center justify-center">
+                                            <img id="cfg-act-preview-2" src="pictures/cz_logo.png" alt="Preview 2" class="w-full h-full object-cover">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
                             <div class="md:col-span-2">
                                 <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Short Description</label>
                                 <textarea id="cfg-act-desc-2" rows="2" class="dark-input w-full p-2.5 rounded text-xs" required></textarea>
@@ -398,10 +460,44 @@
                                 <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Target Link (Href)</label>
                                 <input id="cfg-act-link-3" type="text" class="dark-input w-full p-2.5 rounded text-xs" required>
                             </div>
-                            <div class="md:col-span-2">
-                                <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Cover Photo URL</label>
-                                <input id="cfg-act-img-3" type="url" class="dark-input w-full p-2.5 rounded text-xs" required>
+
+                            <!-- PHOTO CONTROLS CARD 3 -->
+                            <div class="md:col-span-2 bg-white/[0.02] p-4 rounded-lg border border-white/5 space-y-3">
+                                <div class="flex items-center justify-between">
+                                    <span class="text-xs font-mono-tag uppercase text-[var(--gold)] font-bold">Photo & Alignment Settings</span>
+                                    <span id="cfg-act-img-status-3" class="text-[10px] font-mono-tag text-neutral-500"></span>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                                    <div class="sm:col-span-2 space-y-2">
+                                        <div>
+                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Photo URL</label>
+                                            <input id="cfg-act-img-3" type="url" class="dark-input w-full p-2 rounded text-xs" placeholder="https://...">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Or Upload Image</label>
+                                            <input id="cfg-act-img-upload-3" type="file" accept="image/*" class="dark-input w-full p-1.5 rounded text-xs file:bg-white/10 file:border-0 file:rounded file:px-2 file:py-1 file:text-white file:text-xs">
+                                        </div>
+                                        <div>
+                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Photo Alignment (Object Position)</label>
+                                            <select id="cfg-act-pos-3" class="dark-select w-full p-2 rounded text-xs">
+                                                <option value="center">Center (Default)</option>
+                                                <option value="top">Top</option>
+                                                <option value="bottom">Bottom</option>
+                                                <option value="left">Left</option>
+                                                <option value="right">Right</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <!-- Live Preview -->
+                                    <div class="flex flex-col items-center justify-center">
+                                        <span class="text-[10px] font-mono-tag text-neutral-500 mb-1 uppercase">Card Preview</span>
+                                        <div class="w-full h-24 rounded border border-white/10 overflow-hidden bg-neutral-950 flex items-center justify-center">
+                                            <img id="cfg-act-preview-3" src="pictures/cz_logo.png" alt="Preview 3" class="w-full h-full object-cover">
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
+
                             <div class="md:col-span-2">
                                 <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Short Description</label>
                                 <textarea id="cfg-act-desc-3" rows="2" class="dark-input w-full p-2.5 rounded text-xs" required></textarea>
@@ -527,20 +623,6 @@
 </main>
 
 <!-- MODALS -->
-<div id="orderModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-    <div class="bg-[var(--dark-card)] rounded-xl border border-white/10 w-full max-w-xl max-h-[90vh] overflow-y-auto">
-        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
-            <h3 class="font-heading font-bold text-xl text-white uppercase">Order Details</h3>
-            <button onclick="closeModal('orderModal')" class="text-neutral-400 hover:text-white transition-colors text-2xl leading-none">&times;</button>
-        </div>
-        <div id="order-modal-content" class="p-6 text-neutral-300 text-sm space-y-4">
-        </div>
-        <div class="p-6 border-t border-white/10 text-right">
-            <button onclick="closeModal('orderModal')" class="bg-white/10 hover:bg-white/20 text-white font-mono-tag text-xs uppercase px-6 py-2.5 rounded-lg transition-colors">Close</button>
-        </div>
-    </div>
-</div>
-
 <div id="tournamentModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
     <div class="bg-[var(--dark-card)] rounded-xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
         <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
@@ -685,13 +767,6 @@
     </div>
 </div>
 
-<div id="userModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-    <div class="bg-[var(--dark-card)] rounded-xl border border-white/10 w-full max-w-lg shadow-2xl">
-        <div class="p-6 user-dialog-content">
-        </div>
-    </div>
-</div>
-
 <div id="customAlertModal" class="fixed inset-0 z-[110] hidden flex items-center justify-center p-4">
     <div id="alertBackdrop" class="absolute inset-0 bg-black/90 backdrop-blur-sm"></div>
     <div id="alertBox" class="relative bg-[var(--dark-card)] border border-white/10 rounded-xl p-6 shadow-2xl max-w-sm w-full text-center transform scale-95 opacity-0 transition-all duration-300">
@@ -729,30 +804,13 @@
     
     document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
-            ['tournamentModal', 'eventModal', 'jobModal', 'talentModal', 'notificationModal', 'userModal'].forEach(id => {
+            ['tournamentModal', 'eventModal', 'jobModal', 'talentModal', 'notificationModal'].forEach(id => {
                 const modal = document.getElementById(id);
                 if (modal && !modal.classList.contains('hidden')) closeModal(id);
             });
         }
     });
-    
-    const tStartDate = document.getElementById('t-date');
-    const tEndDate = document.getElementById('t-end-date');
-    if (tStartDate && tEndDate) {
-        tStartDate.addEventListener('change', () => {
-            if (tStartDate.value) tEndDate.setAttribute('min', tStartDate.value);
-        });
-    }
 
-    const eStartDate = document.getElementById('e-date');
-    const eEndDate = document.getElementById('e-end-date');
-    if (eStartDate && eEndDate) {
-        eStartDate.addEventListener('change', () => {
-            if (eStartDate.value) eEndDate.setAttribute('min', eStartDate.value);
-        });
-    }
-
-    // Modal Helper for Custom Confirm
     function animateGenericOpen(modalId, backdropId, panelId) {
         const modal = document.getElementById(modalId);
         const backdrop = document.getElementById(backdropId);
