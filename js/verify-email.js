@@ -59,12 +59,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                         resendBtn.disabled = true;
                         resendBtn.textContent = "Sending...";
                         
-                        await sendEmailVerification(user, {
-                            url: window.location.origin + '/login',
-                            handleCodeInApp: false
-                        });
+                        try {
+                            const continueUrl = window.location.origin ? (window.location.origin + '/login') : 'https://champzero.com/login';
+                            await sendEmailVerification(user, {
+                                url: continueUrl,
+                                handleCodeInApp: false
+                            });
+                        } catch (actionErr) {
+                            console.warn("Resend with continueUrl failed, attempting fallback:", actionErr);
+                            await sendEmailVerification(user);
+                        }
                         
-                        window.showSuccessToast("Success!", "Verification email sent! Check your inbox.", 3000);
+                        window.showSuccessToast("Success!", "Verification email sent! Check your inbox.", 3500);
                         resendBtn.textContent = "Email Sent!";
                         
                         setTimeout(() => {

@@ -133,30 +133,30 @@ document.addEventListener('DOMContentLoaded', () => {
                     <button id="profile-dropdown-btn" class="flex items-center gap-2 hover:opacity-80 transition-opacity">
                         <div class="text-right">
                             <div class="text-xs text-gray-400">Welcome,</div>
-                            <div class="text-sm font-bold text-[var(--gold)] flex items-center justify-end gap-1">
+                            <div class="text-sm font-bold text-[#FFD700] flex items-center justify-end gap-1">
                                 <span>${displayName}</span>
                                 ${supporterIcon}
                             </div>
                         </div>
-                        <img src="${userAvatar || 'https://ui-avatars.com/api/?name=' + (user.email || 'U') + '&background=1A1A1F&color=FFD700'}" class="w-8 h-8 rounded-full ${isSupporter ? (supporterTier === 'gold' ? 'border-2 border-[#FFD700] shadow-[0_0_8px_rgba(255,215,0,0.4)]' : 'border-2 border-slate-300') : 'border border-[var(--gold)]'} object-cover">
+                        <img src="${userAvatar || 'https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName) + '&background=1A1A1F&color=FFD700'}" class="w-8 h-8 rounded-full ${isSupporter ? (supporterTier === 'gold' ? 'border-2 border-[#FFD700] shadow-[0_0_8px_rgba(255,215,0,0.4)]' : 'border-2 border-slate-300') : 'border border-[#FFD700]'} object-cover">
                         <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                         </svg>
                     </button>
-                    <div id="profile-dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-[var(--dark-card)] border border-white/20 rounded-lg shadow-xl py-2 z-50">
-                        <a href="/profile" class="block px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-[var(--gold)] transition-colors">
+                    <div id="profile-dropdown-menu" class="hidden absolute right-0 mt-2 w-48 bg-[#111116] border border-white/20 rounded-lg shadow-xl py-2 z-50">
+                        <a href="/profile" class="block px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-[#FFD700] transition-colors">
                             <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                             </svg>
                             View Profile
                         </a>
-                        <a href="/support" class="block px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-[var(--gold)] transition-colors">
+                        <a href="/support" class="block px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-[#FFD700] transition-colors">
                             <svg class="w-4 h-4 inline-block mr-2 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                             </svg>
                             Supporter Club
                         </a>
-                        ${isAdmin ? `<a href="/admin" class="block px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-[var(--gold)] transition-colors">
+                        ${isAdmin ? `<a href="/admin" class="block px-4 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-[#FFD700] transition-colors">
                             <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
@@ -173,6 +173,13 @@ document.addEventListener('DOMContentLoaded', () => {
                     </div>
                 </div>
             `;
+
+            // Sync hero CTA button if present on page
+            const heroCtaLoggedIn = document.getElementById('hero-cta-btn');
+            if (heroCtaLoggedIn) {
+                heroCtaLoggedIn.href = "/tournaments";
+                heroCtaLoggedIn.innerHTML = `<span>Explore Tournaments</span><span>&rarr;</span>`;
+            }
 
             // Add dropdown toggle functionality
             const dropdownBtn = document.getElementById('profile-dropdown-btn');
@@ -212,24 +219,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 mobileAuth.innerHTML = `
                     <div class="space-y-4 w-full">
                         <div class="flex items-center gap-3 p-3 rounded-xl bg-white/5 border border-white/10">
-                            <img src="${avatarSrc}" alt="${displayName}" class="w-10 h-10 rounded-xl border border-[var(--gold)]/60 object-cover shrink-0">
+                            <img src="${avatarSrc}" alt="${displayName}" class="w-10 h-10 rounded-xl border border-[#FFD700]/60 object-cover shrink-0">
                             <div class="min-w-0 flex-1">
                                 <div class="flex items-center gap-1.5">
                                     <span class="text-xs font-bold text-white font-heading truncate uppercase">${displayName}</span>
-                                    <span class="text-[9px] font-mono-tag px-1.5 py-0.2 rounded bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/30 uppercase font-bold">${isAdmin ? 'Admin' : 'Player'}</span>
+                                    <span class="text-[9px] font-mono-tag px-1.5 py-0.2 rounded bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/30 uppercase font-bold">${isAdmin ? 'Admin' : 'Player'}</span>
                                 </div>
                                 <div class="text-[11px] text-neutral-400 font-mono-tag truncate">${user.email || ''}</div>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-1 gap-2">
-                            <a href="/profile" class="w-full text-center py-3 rounded-lg text-black bg-[var(--gold)] hover:bg-[var(--gold-light)] font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2">
+                            <a href="/profile" class="w-full text-center py-3 rounded-lg text-black bg-[#FFD700] hover:bg-[#FFF099] font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
                                 <span>Player Profile &amp; Dashboard</span>
                             </a>
                             ${isAdmin ? `
                             <a href="/admin" class="w-full text-center py-3 rounded-lg text-white bg-white/5 hover:bg-white/10 border border-white/10 font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2">
-                                <svg class="w-4 h-4 text-[var(--gold)]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                                <svg class="w-4 h-4 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
                                 <span>Admin Control Center</span>
                             </a>` : ''}
                             <button id="mobile-logout" class="w-full text-center py-2.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-950/30 border border-red-900/30 font-mono-tag text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2">
@@ -247,18 +254,25 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
         } else if (authControls) {
-            // User is Logged Out -> Show Login/Signup
+            // User is Logged Out -> Show Login/Signup with robust classes
             authControls.innerHTML = `
                 <a href="/login" class="text-xs font-semibold px-3 py-1.5 text-neutral-300 hover:text-white transition-colors">Log In</a>
-                <a href="/signup" class="hidden sm:inline-block bg-[var(--gold)] hover:bg-[var(--gold-light)] text-black px-4 py-2 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all">Sign Up</a>
+                <a href="/signup" class="inline-block bg-[#FFD700] hover:bg-[#FFF099] text-black px-4 py-2 rounded font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-sm">Sign Up</a>
             `;
             if (mobileAuth) {
                 mobileAuth.innerHTML = `
                     <div class="space-y-2.5 w-full">
                         <a href="/login" class="block w-full text-center py-3 rounded-lg text-white bg-white/5 border border-white/10 font-semibold text-xs uppercase tracking-wider hover:bg-white/10 transition-all">Log In</a>
-                        <a href="/signup" class="block w-full text-center py-3 rounded-lg text-black bg-[var(--gold)] hover:bg-[var(--gold-light)] font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-md">Sign Up</a>
+                        <a href="/signup" class="block w-full text-center py-3 rounded-lg text-black bg-[#FFD700] hover:bg-[#FFF099] font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-md">Sign Up</a>
                     </div>
                 `;
+            }
+
+            // Sync hero CTA button if present on page
+            const heroCtaLoggedOut = document.getElementById('hero-cta-btn');
+            if (heroCtaLoggedOut) {
+                heroCtaLoggedOut.href = "/signup";
+                heroCtaLoggedOut.innerHTML = `<span>Get Started</span><span>&rarr;</span>`;
             }
         }
 

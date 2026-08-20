@@ -24,11 +24,19 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 // This sends the data to your 'messages' collection in Firestore
                 await addDoc(collection(db, "messages"), formData);
-                alert("Message Sent! Thank you for reaching out.");
+                if (typeof window.showSuccessToast === 'function') {
+                    window.showSuccessToast("Message Sent!", "Thank you for reaching out. Our staff will get back to you shortly.", 4000);
+                } else {
+                    alert("Message Sent! Thank you for reaching out.");
+                }
                 e.target.reset();
             } catch (error) {
                 console.error("Error sending message: ", error);
-                alert("Failed to send message. Please try again later.");
+                if (typeof window.showErrorToast === 'function') {
+                    window.showErrorToast("Error", "Failed to send message. Please try again later.", 4000);
+                } else {
+                    alert("Failed to send message. Please try again later.");
+                }
             } finally {
                 submitButton.disabled = false;
                 submitButton.textContent = originalText;

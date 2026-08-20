@@ -1,5 +1,5 @@
 // js/auth.js
-import { auth, db } from './firebase-config.js'; //[cite: 3]
+import { auth, db } from './firebase-config.js';
 import { 
     createUserWithEmailAndPassword, 
     signInWithEmailAndPassword, 
@@ -11,16 +11,67 @@ import {
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-// Helper: Ensure a user profile exists in the database
-async function ensureUserProfile(user) {
+// Helper: Toast notification safe dispatcher
+function notifyToast(type, title, message, duration = 4000) {
+    if (type === 'success' && typeof window.showSuccessToast === 'function') {
+        window.showSuccessToast(title, message, duration);
+    } else if (type === 'error' && typeof window.showErrorToast === 'function') {
+        window.showErrorToast(title, message, duration);
+    } else if (type === 'warning' && typeof window.showWarningToast === 'function') {
+        window.showWarningToast(title, message, duration);
+    } else if (typeof window.showToast === 'function') {
+        window.showToast(title, message, type, duration);
+    } else {
+        console.log(`[${type.toUpperCase()}] ${title}: ${message}`);
+    }
+}
+
+// Helper: Translate raw Firebase Auth error codes to clean gamer-friendly messages
+function getFriendlyErrorMessage(error) {
+    if (!error) return "An unexpected error occurred. Please try again.";
+    const code = error.code || '';
+    const msg = error.message || '';
+
+    switch (code) {
+        case 'auth/email-already-in-use':
+            return "This email address is already registered. Please log in instead.";
+        case 'auth/invalid-email':
+            return "Please enter a valid email address.";
+        case 'auth/weak-password':
+            return "Password is too weak. Please use at least 6 characters.";
+        case 'auth/user-not-found':
+        case 'auth/wrong-password':
+        case 'auth/invalid-credential':
+            return "Invalid email or password. Please check your credentials.";
+        case 'auth/user-disabled':
+            return "This player account has been disabled. Please contact support.";
+        case 'auth/popup-closed-by-user':
+            return "Sign-in popup was closed before completing authentication.";
+        case 'auth/popup-blocked':
+            return "Popup was blocked by your browser. Please allow popups for ChampZero.";
+        case 'auth/unauthorized-continue-uri':
+            return "Verification link domain configuration issue. Please check back shortly.";
+        case 'auth/too-many-requests':
+            return "Too many failed attempts. Access is temporarily disabled. Please try again later.";
+        case 'auth/network-request-failed':
+            return "Network connection issue. Please check your internet connection.";
+        default:
+            return msg.replace(/^Firebase:\s*/i, '').replace(/\(auth\/[^)]+\)\.?/i, '').trim() || "Authentication failed. Please try again.";
+    }
+}
+
+// Helper: Ensure a comprehensive user profile exists in the database
+async function ensureUserProfile(user, customUsername = '') {
     const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
+    const resolvedName = customUsername || user.displayName || (user.email ? user.email.split('@')[0] : 'Champion');
     
     if (!userSnap.exists()) {
         await setDoc(userRef, {
-            username: user.displayName || user.email.split('@')[0],
-            displayName: user.displayName || user.email.split('@')[0],
-            email: user.email,
+            username: resolvedName,
+            displayName: resolvedName,
+            ign: resolvedName,
+            email: user.email || '',
             rank: "Unranked",
             createdAt: serverTimestamp(),
             joinedAt: new Date().toISOString(),
@@ -30,15 +81,20 @@ async function ensureUserProfile(user) {
             lastSignInTime: serverTimestamp()
         });
     } else {
-        // Update last sign in time on every login
-        await updateDoc(userRef, {
+        const existingData = userSnap.data();
+        const updates = {
             lastSignInTime: serverTimestamp(),
             emailVerified: user.emailVerified || false
-        });
+        };
+        // Preserve or fill IGN/displayName if missing
+        if (!existingData.ign) updates.ign = existingData.displayName || resolvedName;
+        if (!existingData.username) updates.username = existingData.displayName || resolvedName;
+        
+        await updateDoc(userRef, updates);
     }
 }
 
-// --- NEW: GLOBAL SESSION ROLE LISTENER ---
+// --- GLOBAL SESSION ROLE LISTENER ---
 // Tracks user identity shifts across pages and caches their database roles
 onAuthStateChanged(auth, async (user) => {
     if (user) {
@@ -47,13 +103,12 @@ onAuthStateChanged(auth, async (user) => {
             const docSnap = await getDoc(userDocRef);
             
             if (docSnap.exists()) {
-                // Attach the role directly to the global window context
-                window.currentUserRole = docSnap.data().role;
+                window.currentUserRole = docSnap.data().role || 'user';
             } else {
                 window.currentUserRole = 'user';
             }
         } catch (error) {
-            console.error("Error updating user role session layout context:", error);
+            console.error("Error updating user role session context:", error);
             window.currentUserRole = 'user';
         }
     } else {
@@ -65,43 +120,53 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Auth script loaded");
-
     // --- 1. LOGIN FORM ---
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
         loginForm.addEventListener('submit', async (e) => {
-            e.preventDefault(); // STOP PAGE REFRESH
+            e.preventDefault();
             
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const email = emailInput ? emailInput.value.trim() : '';
+            const password = passwordInput ? passwordInput.value : '';
             const btn = loginForm.querySelector('button[type="submit"]');
 
+            if (!email || !password) {
+                notifyToast('warning', "Required Fields", "Please enter both your email and password.");
+                return;
+            }
+
             try {
-                btn.textContent = "Logging in...";
-                btn.disabled = true;
+                if (btn) {
+                    btn.textContent = "Authenticating...";
+                    btn.disabled = true;
+                }
                 
                 const creds = await signInWithEmailAndPassword(auth, email, password);
                 const user = creds.user;
                 
                 // Check if email is verified (skip for Google sign-ins as they're auto-verified)
-                if (!user.emailVerified && !user.providerData.some(p => p.providerId === 'google.com')) {
-                    window.showErrorToast("Email Not Verified", "Please verify your email before signing in.", 4000);
+                const isGoogleUser = user.providerData && user.providerData.some(p => p.providerId === 'google.com');
+                if (!user.emailVerified && !isGoogleUser) {
+                    notifyToast('warning', "Email Verification Required", "Please verify your email address to unlock full tournament access.", 4000);
                     setTimeout(() => {
-                        window.location.href = '/verify-email';
-                    }, 1000);
+                        window.location.href = `/verify-email?email=${encodeURIComponent(user.email || '')}`;
+                    }, 1200);
                     return;
                 }
                 
-                await ensureUserProfile(user); // Check/Create Profile
+                await ensureUserProfile(user);
                 
-                window.showSuccessToast("Success!", "Login Successful!", 2000);
+                notifyToast('success', "Welcome Back!", "Login successful. Entering the arena...", 2000);
                 setTimeout(() => window.location.href = "/profile", 1000);
             } catch (error) {
-                console.error(error);
-                window.showErrorToast("Login Failed", error.message, 4000);
-                btn.textContent = "Log In";
-                btn.disabled = false;
+                console.error("Login error:", error);
+                notifyToast('error', "Login Failed", getFriendlyErrorMessage(error), 4500);
+                if (btn) {
+                    btn.textContent = "Log In";
+                    btn.disabled = false;
+                }
             }
         });
     }
@@ -110,57 +175,110 @@ document.addEventListener('DOMContentLoaded', () => {
     const signupForm = document.getElementById('signupForm');
     if (signupForm) {
         signupForm.addEventListener('submit', async (e) => {
-            e.preventDefault(); // STOP PAGE REFRESH
+            e.preventDefault();
 
-            const username = document.getElementById('username').value;
-            const email = document.getElementById('email').value;
-            const password = document.getElementById('password').value;
-            const confirm = document.getElementById('confirm-password').value;
+            const usernameInput = document.getElementById('username');
+            const emailInput = document.getElementById('email');
+            const passwordInput = document.getElementById('password');
+            const confirmInput = document.getElementById('confirm-password');
+            const termsCheckbox = document.getElementById('terms');
+
+            const username = usernameInput ? usernameInput.value.trim() : '';
+            const email = emailInput ? emailInput.value.trim() : '';
+            const password = passwordInput ? passwordInput.value : '';
+            const confirm = confirmInput ? confirmInput.value : '';
             const btn = signupForm.querySelector('button[type="submit"]');
 
+            if (!username || !email || !password) {
+                notifyToast('warning', "Validation Error", "Please fill in all required fields.", 3000);
+                return;
+            }
+
+            if (password.length < 6) {
+                notifyToast('warning', "Password Too Short", "Password must be at least 6 characters long.", 3500);
+                return;
+            }
+
             if (password !== confirm) {
-                window.showWarningToast("Validation Error", "Passwords do not match!", 3000);
+                notifyToast('warning', "Validation Error", "Passwords do not match! Please check and try again.", 3500);
+                return;
+            }
+
+            if (termsCheckbox && !termsCheckbox.checked) {
+                notifyToast('warning', "Terms & Privacy", "Please agree to the Terms & Privacy Policy to proceed.", 3500);
                 return;
             }
 
             try {
-                btn.textContent = "Creating Account...";
-                btn.disabled = true;
+                if (btn) {
+                    btn.textContent = "Creating Account...";
+                    btn.disabled = true;
+                }
 
-                // Create Auth User
+                // Step 1: Create Auth User in Firebase
                 const userCredential = await createUserWithEmailAndPassword(auth, email, password);
                 const user = userCredential.user;
 
-                // Update Display Name
-                await updateProfile(user, { displayName: username });
+                // Step 2: Update Display Name in Auth Profile
+                try {
+                    await updateProfile(user, { displayName: username });
+                } catch (pErr) {
+                    console.warn("Could not set display name on auth profile:", pErr);
+                }
 
-                // Send email verification
-                await sendEmailVerification(user, {
-                    url: window.location.origin + '/login',
-                    handleCodeInApp: false
-                });
-
-                // Create Firestore Document
+                // Step 3: CRITICAL - Guarantee Firestore User Document Creation BEFORE external actions
                 await setDoc(doc(db, "users", user.uid), {
                     username: username,
                     displayName: username,
+                    ign: username,
                     email: email,
                     rank: "Unranked",
                     createdAt: serverTimestamp(),
                     joinedAt: new Date().toISOString(),
                     prizesEarned: 0,
                     role: "user",
-                    emailVerified: user.emailVerified || false,
+                    emailVerified: false,
                     lastSignInTime: serverTimestamp()
                 });
 
-                window.showSuccessToast("Success!", "Account created! Please check your email to verify your account.", 4000);
-                setTimeout(() => window.location.href = "/verify-email?fromSignup=true", 1500);
+                // Step 4: Dispatch Verification Email with Safe Fallback
+                let emailSent = false;
+                try {
+                    // Try with custom continue URL
+                    const continueUrl = window.location.origin ? (window.location.origin + '/login') : 'https://champzero.com/login';
+                    await sendEmailVerification(user, {
+                        url: continueUrl,
+                        handleCodeInApp: false
+                    });
+                    emailSent = true;
+                } catch (emailErr) {
+                    console.warn("Standard sendEmailVerification with continueUrl failed, attempting fallback:", emailErr);
+                    try {
+                        // Fallback without actionCodeSettings
+                        await sendEmailVerification(user);
+                        emailSent = true;
+                    } catch (fallbackErr) {
+                        console.warn("Fallback verification email send failed:", fallbackErr);
+                    }
+                }
+
+                if (emailSent) {
+                    notifyToast('success', "Account Created!", "Registration complete! Please check your email to verify your account.", 4500);
+                } else {
+                    notifyToast('success', "Account Created!", "Registration complete! You can now access your player profile.", 4500);
+                }
+
+                setTimeout(() => {
+                    window.location.href = `/verify-email?fromSignup=true&email=${encodeURIComponent(email)}`;
+                }, 1500);
+
             } catch (error) {
-                console.error(error);
-                window.showErrorToast("Signup Failed", error.message, 4000);
-                btn.textContent = "Create Account";
-                btn.disabled = false;
+                console.error("Signup failed:", error);
+                notifyToast('error', "Registration Failed", getFriendlyErrorMessage(error), 5000);
+                if (btn) {
+                    btn.textContent = "Create Account";
+                    btn.disabled = false;
+                }
             }
         });
     }
@@ -169,16 +287,19 @@ document.addEventListener('DOMContentLoaded', () => {
     const googleBtn = document.getElementById('google-btn');
     if (googleBtn) {
         googleBtn.addEventListener('click', async () => {
-            console.log("Google button clicked");
             const provider = new GoogleAuthProvider();
+            provider.setCustomParameters({ prompt: 'select_account' });
+            
             try {
                 const result = await signInWithPopup(auth, provider);
                 await ensureUserProfile(result.user);
-                window.showSuccessToast("Welcome!", `Signed in as ${result.user.displayName}`, 2000);
+                notifyToast('success', "Welcome!", `Signed in as ${result.user.displayName || 'Champion'}`, 2500);
                 setTimeout(() => window.location.href = "/profile", 1000);
             } catch (error) {
-                console.error(error);
-                window.showErrorToast("Sign-In Error", error.message, 4000);
+                console.error("Google sign-in error:", error);
+                if (error.code !== 'auth/popup-closed-by-user') {
+                    notifyToast('error', "Sign-In Error", getFriendlyErrorMessage(error), 4000);
+                }
             }
         });
     }

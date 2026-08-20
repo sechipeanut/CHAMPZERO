@@ -46,6 +46,13 @@
             --cz-card: #111116;
             --cz-border: rgba(255, 255, 255, 0.08);
             --cz-border-gold: rgba(255, 215, 0, 0.3);
+
+            /* Compatibility tokens */
+            --gold: #FFD700;
+            --gold-light: #FFF099;
+            --gold-darker: #C99700;
+            --dark-bg: #000000;
+            --dark-card: #111116;
         }
 
         body {
@@ -276,7 +283,7 @@
 
                 <div
                     class="mt-10 flex flex-col sm:flex-row justify-center items-center gap-3.5 max-w-xs mx-auto sm:max-w-none">
-                    <a href="/signup"
+                    <a href="/signup" id="hero-cta-btn"
                         class="w-full sm:w-auto px-7 py-3.5 rounded bg-[#FFD700] text-black font-heading font-bold text-sm uppercase tracking-wider hover:bg-[#FFF099] transition-all flex items-center justify-center gap-2 shadow-sm">
                         <span>Get Started</span>
                         <span>&rarr;</span>

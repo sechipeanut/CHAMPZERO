@@ -419,11 +419,9 @@ htmlFiles.forEach(file => {
     app.get(`/${file}`, (req, res) => {
         res.sendFile(path.join(__dirname, file));
     });
-    if (routeName !== 'home') {
-        app.get(`/${routeName}`, (req, res) => {
-            res.sendFile(path.join(__dirname, file));
-        });
-    }
+    app.get(`/${routeName}`, (req, res) => {
+        res.sendFile(path.join(__dirname, file));
+    });
 });
 
 // Serve the root path as home.html
