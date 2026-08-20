@@ -240,7 +240,7 @@ async function updateViewerCount(playbackId) {
             const data = await response.json();
             const viewerCountEl = document.getElementById('viewerCount');
             if (viewerCountEl) {
-                viewerCountEl.textContent = `👁️ ${data.viewerCount || 0} viewers`;
+                viewerCountEl.textContent = `${data.viewerCount || 0} viewers`;
             }
         }
     } catch (error) {

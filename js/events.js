@@ -108,7 +108,7 @@ function createEventCard(ev) {
 
         <div class="p-5 flex-1 flex flex-col relative">
             <div class="text-[var(--gold)] text-sm font-semibold mb-1 flex items-center gap-2">
-                <span>📅 ${dateFormatted}</span>
+                <span>${dateFormatted}</span>
                 ${ev.time ? `<span>• ${escapeHtml(ev.time)}</span>` : ''}
             </div>
 
@@ -157,9 +157,9 @@ function openModal(ev) {
         dateStr = `${dateStr} - ${endDateStr}`;
     }
     qs('#detailMeta').innerHTML = `
-        <div class="flex items-center gap-2"><span class="text-[var(--gold)]">📅</span> ${dateStr}</div>
-        ${ev.time ? `<div class="flex items-center gap-2"><span class="text-[var(--gold)]">⏰</span> ${escapeHtml(ev.time)}</div>` : ''}
-        ${ev.location ? `<div class="flex items-center gap-2"><span class="text-[var(--gold)]">📍</span> ${escapeHtml(ev.location)}</div>` : ''}
+        <div class="flex items-center gap-2"><span class="text-[var(--gold)] font-bold text-xs uppercase">Date:</span> ${dateStr}</div>
+        ${ev.time ? `<div class="flex items-center gap-2"><span class="text-[var(--gold)] font-bold text-xs uppercase">Time:</span> ${escapeHtml(ev.time)}</div>` : ''}
+        ${ev.location ? `<div class="flex items-center gap-2"><span class="text-[var(--gold)] font-bold text-xs uppercase">Location:</span> ${escapeHtml(ev.location)}</div>` : ''}
     `;
 
     // External Link Button

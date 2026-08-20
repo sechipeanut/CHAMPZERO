@@ -7,7 +7,7 @@ import {
     GoogleAuthProvider,
     signInWithPopup,
     sendEmailVerification,
-    onAuthStateChanged // ➜ ADDED IMPORT
+    onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 

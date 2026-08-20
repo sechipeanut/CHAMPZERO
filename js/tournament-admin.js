@@ -536,12 +536,10 @@ export function switchTMTab(tabName) {
         const content = qs(`#tm-content-${t}`);
         if (tab && content) {
             if (t === tabName) {
-                tab.classList.add('bg-[var(--gold)]/20', 'text-[var(--gold)]', 'border-[var(--gold)]');
-                tab.classList.remove('text-gray-400');
+                tab.className = 'flex-1 py-2.5 rounded-lg bg-[#FFD700] text-black font-heading font-bold text-xs uppercase tracking-wider border border-[#FFD700] transition-all cursor-pointer shadow-md';
                 content.classList.remove('hidden');
             } else {
-                tab.classList.remove('bg-[var(--gold)]/20', 'text-[var(--gold)]', 'border-[var(--gold)]');
-                tab.classList.add('text-gray-400');
+                tab.className = 'flex-1 py-2.5 rounded-lg bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 font-heading font-bold text-xs uppercase tracking-wider border border-white/10 transition-all cursor-pointer';
                 content.classList.add('hidden');
             }
         }

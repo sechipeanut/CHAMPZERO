@@ -8,28 +8,28 @@ const cors = require('cors');
 const admin = require('firebase-admin');
 const path = require('path');
 
-// ✅ Initialize Express first
+// 1. Initialize Express first
 const app = express();
 const PORT = 3000;
 
-// ✅ Middleware
+// 2. Middleware
 app.use(cors());
 app.use(bodyParser.json());
 
-// ✅ Serve static files (pictures, js, etc.)
+// 3. Serve static files (pictures, js, etc.)
 app.use('/pictures', express.static(path.join(__dirname, 'pictures')));
 app.use('/js', express.static(path.join(__dirname, 'js')));
 app.get('/favicon.png', (req, res) => {
   res.sendFile(path.join(__dirname, 'favicon.png'));
 });
 
-// ✅ Log every request
+// 4. Log every request
 app.use((req, res, next) => {
   console.log(`${req.method} ${req.url}`);
   next();
 });
 
-// ✅ Firebase admin init
+// 5. Firebase admin init
 // NOTE: We wrap this in a try/catch to let the rest of the server run if it fails.
 try {
   const serviceAccount = {
@@ -202,6 +202,201 @@ apiRouter.get('/static/teams', (req, res) => res.json([ /* ... */ ]));
 apiRouter.get('/static/recruitment', (req, res) => res.json([ /* ... */ ]));
 
 
+// ---------------- PAYREX PAYMENT ROUTES ----------------
+const https = require('https');
+
+apiRouter.post('/payrex/create-checkout-session', async (req, res) => {
+    try {
+        const {
+            amount,
+            organizerId,
+            organizerEmail,
+            organizerName,
+            notes,
+            type = 'organizer_cashin',
+            tournamentId = '',
+            tournamentName = '',
+            successUrl,
+            cancelUrl
+        } = req.body;
+
+        const numAmount = parseFloat(amount);
+        if (!numAmount || numAmount <= 0) {
+            return res.status(400).json({ error: 'Invalid payment amount specified.' });
+        }
+
+        const payrexSecretKey = process.env.PAYREX_SECRET_KEY;
+        const amountInCents = Math.round(numAmount * 100);
+
+        const origin = req.headers.origin || req.headers.referer || `http://localhost:${PORT}`;
+        const finalSuccessUrl = successUrl || `${origin.replace(/\/$/, '')}/profile.html?tab=organizer&cashin_status=success&session_id={CHECKOUT_SESSION_ID}&amount=${numAmount}`;
+        const finalCancelUrl = cancelUrl || `${origin.replace(/\/$/, '')}/profile.html?tab=organizer&cashin_status=cancelled`;
+
+        const description = type === 'tournament_entry' 
+            ? `Tournament Entry: ${tournamentName || tournamentId}`
+            : `Prize Pool Escrow Top-Up for ${organizerName || organizerEmail || 'Organizer'}`;
+
+        const itemName = type === 'tournament_entry'
+            ? `ChampZero Tournament Registration: ${tournamentName || 'Tournament'}`
+            : `ChampZero Prize Pool Cash-In (Top-Up)`;
+
+        const payload = {
+            currency: 'PHP',
+            payment_methods: ['gcash', 'card', 'maya', 'qrph', 'grab_pay'],
+            line_items: [
+                {
+                    name: itemName,
+                    amount: amountInCents,
+                    quantity: 1,
+                    description: description
+                }
+            ],
+            success_url: finalSuccessUrl,
+            cancel_url: finalCancelUrl,
+            metadata: {
+                organizerId: organizerId || '',
+                organizerEmail: organizerEmail || '',
+                organizerName: organizerName || '',
+                type: type,
+                amount: String(numAmount),
+                notes: notes || '',
+                tournamentId: tournamentId || '',
+                createdAt: new Date().toISOString()
+            }
+        };
+
+        if (payrexSecretKey && payrexSecretKey.startsWith('prx_')) {
+            const payrexResponse = await new Promise((resolve, reject) => {
+                const reqData = JSON.stringify(payload);
+                const authHeader = 'Basic ' + Buffer.from(payrexSecretKey + ':').toString('base64');
+
+                const options = {
+                    hostname: 'api.payrex.com',
+                    path: '/v1/checkout_sessions',
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Content-Length': Buffer.byteLength(reqData),
+                        'Authorization': authHeader,
+                        'Accept': 'application/json'
+                    }
+                };
+
+                const pReq = https.request(options, (pRes) => {
+                    let resBody = '';
+                    pRes.on('data', chunk => { resBody += chunk; });
+                    pRes.on('end', () => {
+                        try {
+                            const parsed = JSON.parse(resBody);
+                            resolve({ statusCode: pRes.statusCode, data: parsed });
+                        } catch (e) {
+                            reject(new Error(`Failed to parse PayRex response: ${resBody}`));
+                        }
+                    });
+                });
+
+                pReq.on('error', err => reject(err));
+                pReq.write(reqData);
+                pReq.end();
+            });
+
+            if (payrexResponse.statusCode >= 200 && payrexResponse.statusCode < 300 && payrexResponse.data?.url) {
+                return res.json({
+                    url: payrexResponse.data.url,
+                    sessionId: payrexResponse.data.id,
+                    status: payrexResponse.data.status,
+                    mode: 'live_payrex'
+                });
+            } else {
+                console.error("PayRex API Error:", payrexResponse);
+                return res.status(payrexResponse.statusCode || 500).json({
+                    error: payrexResponse.data?.error?.message || 'PayRex API request failed.',
+                    details: payrexResponse.data
+                });
+            }
+        }
+
+        // Test/Sandbox Simulation mode
+        const simulatedSessionId = 'cs_prx_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+        const resolvedSuccessUrl = finalSuccessUrl.replace('{CHECKOUT_SESSION_ID}', simulatedSessionId);
+
+        return res.json({
+            url: resolvedSuccessUrl,
+            sessionId: simulatedSessionId,
+            status: 'open',
+            mode: 'test_sandbox',
+            message: 'PayRex sandbox test session initialized.'
+        });
+
+    } catch (error) {
+        console.error('Error creating PayRex checkout session:', error);
+        res.status(500).json({ error: error.message || 'Internal Server Error' });
+    }
+});
+
+apiRouter.get('/payrex/verify-session/:sessionId', async (req, res) => {
+    try {
+        const { sessionId } = req.params;
+        const payrexSecretKey = process.env.PAYREX_SECRET_KEY;
+
+        if (payrexSecretKey && payrexSecretKey.startsWith('prx_')) {
+            const payrexResponse = await new Promise((resolve, reject) => {
+                const authHeader = 'Basic ' + Buffer.from(payrexSecretKey + ':').toString('base64');
+                const options = {
+                    hostname: 'api.payrex.com',
+                    path: `/v1/checkout_sessions/${encodeURIComponent(sessionId)}`,
+                    method: 'GET',
+                    headers: {
+                        'Authorization': authHeader,
+                        'Accept': 'application/json'
+                    }
+                };
+
+                const pReq = https.request(options, (pRes) => {
+                    let resBody = '';
+                    pRes.on('data', chunk => { resBody += chunk; });
+                    pRes.on('end', () => {
+                        try {
+                            const parsed = JSON.parse(resBody);
+                            resolve({ statusCode: pRes.statusCode, data: parsed });
+                        } catch (e) {
+                            reject(new Error(`Failed to parse PayRex response: ${resBody}`));
+                        }
+                    });
+                });
+
+                pReq.on('error', err => reject(err));
+                pReq.end();
+            });
+
+            if (payrexResponse.statusCode >= 200 && payrexResponse.statusCode < 300) {
+                const session = payrexResponse.data;
+                const isPaid = session.payment_status === 'paid' || session.status === 'completed';
+                return res.json({
+                    isPaid: isPaid,
+                    status: session.status,
+                    paymentStatus: session.payment_status,
+                    amount: (session.line_items?.[0]?.amount || session.amount_total || 0) / 100,
+                    metadata: session.metadata || {},
+                    referenceNumber: session.payment_intent_id || session.id
+                });
+            }
+        }
+
+        return res.json({
+            isPaid: true,
+            status: 'completed',
+            paymentStatus: 'paid',
+            referenceNumber: sessionId,
+            mode: 'test_sandbox'
+        });
+
+    } catch (error) {
+        console.error('Error verifying PayRex session:', error);
+        res.status(500).json({ error: error.message || 'Internal Server Error' });
+    }
+});
+
 // Attach the API router to the /api path
 app.use('/api', apiRouter);
 
@@ -210,13 +405,25 @@ app.use('/api', apiRouter);
 // F R O N T E N D   F I L E   S E R V I N G (STRICT)
 // =======================================================
 
-const htmlFiles = ['home.html', 'tournaments.html', 'events.html', 'teams.html', 'rising.html', 'partners.html', 'shop.html', 'about.html', 'contact.html', 'terms.html', 'careers.html', 'login.html', 'signup.html', 'profile.html', 'admin.html', 'leaderboard.html', 'forgot-password.html', '404.html'];
+const htmlFiles = [
+    'home.html', 'tournaments.html', 'events.html', 'teams.html', 'rising.html', 
+    'partners.html', 'about.html', 'support.html', 'contact.html', 'terms.html', 'refund-policy.html',
+    'careers.html', 'login.html', 'signup.html', 'profile.html', 'edit-profile.html',
+    'admin.html', 'livestream.html', 'forgot-password.html', 
+    'reset-password.html', 'verify-email.html', 'access-denied.html', '404.html'
+];
 
-// Serve all explicit HTML files directly
+// Serve all explicit HTML files and clean extensionless URLs
 htmlFiles.forEach(file => {
+    const routeName = file.replace('.html', '');
     app.get(`/${file}`, (req, res) => {
         res.sendFile(path.join(__dirname, file));
     });
+    if (routeName !== 'home') {
+        app.get(`/${routeName}`, (req, res) => {
+            res.sendFile(path.join(__dirname, file));
+        });
+    }
 });
 
 // Serve the root path as home.html

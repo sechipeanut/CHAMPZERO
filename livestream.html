@@ -8,17 +8,18 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
       gtag('config', 'G-FDFF1NLL6L');
     </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5161743455178808"
+     crossorigin="anonymous"></script>   
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/png" href="/favicon.png">
-    <title>ChampZero — Live Stream</title>
+    <title>ChampZero — Live Esports Broadcast</title>
 
-    <meta name="description" content="Watch live esports broadcasts on ChampZero">
-    <meta property="og:title" content="ChampZero — Live Stream">
-    <meta property="og:description" content="Watch live esports broadcasts">
+    <meta name="description" content="Watch official ChampZero esports live streams, match replays, and real-time community chat.">
+    <meta property="og:title" content="ChampZero — Live Esports Broadcast">
+    <meta property="og:description" content="Watch live esports broadcasts on ChampZero">
     <meta property="og:image" content="https://champzero.com/pictures/cz_logo.png">
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -26,161 +27,190 @@
     <!-- Mux Player -->
     <script src="https://cdn.jsdelivr.net/npm/@mux/mux-player"></script>
 
+    <!-- Bespoke Esports Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700;1,800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/custom-cursor.css">
 
     <style>
         :root {
+            --cz-gold: #FFD700;
+            --cz-gold-light: #FFF099;
+            --cz-gold-glow: rgba(255, 215, 0, 0.08);
+            --cz-bg: #000000;
+            --cz-surface: #0A0A0E;
+            --cz-card: #111116;
+            --cz-border: rgba(255, 255, 255, 0.08);
+            --cz-border-gold: rgba(255, 215, 0, 0.3);
+
+            /* Compatibility tokens */
             --gold: #FFD700;
             --gold-darker: #C99700;
-            --dark-bg: #111115;
-            --dark-card: #1A1A1F;
+            --dark-bg: #000000;
+            --dark-card: #111116;
         }
 
         body {
-            font-family: 'Poppins', sans-serif;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--cz-bg);
+            color: #FFFFFF;
+            overflow-x: hidden;
         }
 
-        .text-glow {
-            text-shadow: 0 0 8px rgba(255, 215, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.4);
+        .font-heading {
+            font-family: 'Chakra Petch', sans-serif;
+            letter-spacing: -0.02em;
         }
 
-        .futuristic-bg {
-            background-color: var(--dark-bg);
-            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 30px 30px;
+        .font-mono-tag {
+            font-family: 'Space Mono', monospace;
         }
 
         .chat-container {
-            max-height: 500px;
+            max-height: 520px;
             overflow-y: auto;
         }
 
         .chat-container::-webkit-scrollbar {
-            width: 8px;
+            width: 5px;
         }
 
         .chat-container::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.05);
-            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.2);
         }
 
         .chat-container::-webkit-scrollbar-thumb {
-            background: rgba(255, 215, 0, 0.3);
+            background: rgba(255, 255, 255, 0.1);
             border-radius: 4px;
         }
 
         .chat-container::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 215, 0, 0.5);
+            background: var(--cz-gold);
         }
 
         .chat-message {
-            animation: slideIn 0.3s ease-out;
+            animation: slideIn 0.25s ease-out;
         }
 
         @keyframes slideIn {
             from {
                 opacity: 0;
-                transform: translateY(-10px);
+                transform: translateY(-6px);
             }
             to {
                 opacity: 1;
                 transform: translateY(0);
             }
         }
+
+        :focus-visible {
+            outline: 2px solid var(--cz-gold);
+            outline-offset: 4px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 
-<body class="bg-[var(--dark-bg)] text-gray-200 antialiased futuristic-bg">
+<body class="antialiased min-h-screen flex flex-col justify-between selection:bg-[#FFD700] selection:text-black">
 
-    <header class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
-            <a href="/" class="flex items-center gap-3">
-                <img src="pictures/cz_logo.png" alt="ChampZero Logo" width="40" height="40"
-                    class="w-10 h-10 rounded-md object-cover">
-                <span class="font-bold text-xl text-white">ChampZero</span>
+    <!-- HEADER NAVIGATION -->
+    <header class="sticky top-0 z-50 bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-6 h-18 flex justify-between items-center py-4">
+            <a href="/" class="flex items-center gap-2.5 group">
+                <img src="pictures/cz_logo.png" alt="ChampZero Logo"
+                    class="w-7 h-7 object-contain">
+                <div class="flex items-center gap-1.5">
+                    <span class="font-heading font-bold text-base tracking-tight text-white group-hover:text-[#FFD700] transition-colors">ChampZero</span>
+                    <span class="font-mono-tag bg-red-600 text-white text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider animate-pulse">
+                        LIVE
+                    </span>
+                </div>
             </a>
 
             <div class="flex items-center gap-4">
-                <a href="/events" class="text-sm text-gray-300 hover:text-[var(--gold)] transition-colors">← Back to Events</a>
+                <a href="/events"
+                    class="font-heading font-bold text-xs uppercase tracking-wider bg-white/5 border border-white/10 text-neutral-300 hover:text-white hover:border-[#FFD700]/40 px-4 py-2 rounded-lg transition-all">
+                    ← Back to Events
+                </a>
             </div>
         </div>
     </header>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- MAIN STREAM STAGE -->
+    <main class="flex-grow max-w-7xl mx-auto px-4 sm:px-6 py-6 sm:py-8 w-full">
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <!-- Video Player Section -->
-            <div class="lg:col-span-2">
-                <div class="bg-[var(--dark-card)] rounded-xl border border-white/10 overflow-hidden">
-                    <!-- Player Container -->
-                    <div id="playerContainer" class="w-full aspect-video bg-black">
-                        <div class="flex items-center justify-center h-full text-gray-500">
+            
+            <!-- VIDEO BROADCAST THEATER -->
+            <div class="lg:col-span-2 space-y-4">
+                <div class="bg-[#0A0A0E] rounded-2xl border border-white/10 overflow-hidden shadow-2xl">
+                    <!-- PLAYER WRAPPER -->
+                    <div id="playerContainer" class="w-full aspect-video bg-black relative flex items-center justify-center">
+                        <div class="flex items-center justify-center h-full text-neutral-500 font-mono-tag text-xs tracking-wider">
                             <div class="text-center">
-                                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-[var(--gold)] mx-auto mb-4"></div>
-                                <p>Loading stream...</p>
+                                <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#FFD700] mx-auto mb-3"></div>
+                                <p>LOADING STREAM FEED...</p>
                             </div>
                         </div>
                     </div>
 
-                    <!-- Event Info -->
+                    <!-- BROADCAST META INFO -->
                     <div class="p-6">
-                        <div class="flex items-center gap-3 mb-4">
-                            <span class="px-3 py-1 bg-red-500 text-white text-xs font-bold rounded-full uppercase flex items-center gap-2">
+                        <div class="flex items-center gap-3 mb-3">
+                            <span class="px-3 py-1 bg-red-600 text-white font-mono-tag text-[10px] font-bold rounded-full uppercase flex items-center gap-1.5 shadow-md shadow-red-600/30">
                                 <span class="relative flex h-2 w-2">
                                     <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
                                     <span class="relative inline-flex rounded-full h-2 w-2 bg-white"></span>
                                 </span>
-                                LIVE
+                                LIVE FEED
                             </span>
-                            <span id="viewerCount" class="text-sm text-gray-400">👁️ -- viewers</span>
+                            <span id="viewerCount" class="font-mono-tag text-xs text-neutral-400">-- viewers</span>
                         </div>
-                        <h1 id="eventTitle" class="text-3xl font-bold text-white mb-3">Loading...</h1>
-                        <p id="eventDescription" class="text-gray-400 leading-relaxed">Loading event details...</p>
+                        <h1 id="eventTitle" class="font-heading font-bold text-2xl sm:text-3xl text-white uppercase tracking-tight mb-2">Loading Stream...</h1>
+                        <p id="eventDescription" class="text-xs sm:text-sm text-neutral-400 leading-relaxed">Loading match details and broadcast information...</p>
                     </div>
                 </div>
             </div>
 
-            <!-- Chat Section -->
+            <!-- INTERACTIVE CHAT PANEL -->
             <div class="lg:col-span-1">
-                <div class="bg-[var(--dark-card)] rounded-xl border border-white/10 overflow-hidden flex flex-col" style="height: calc(100vh - 120px); min-height: 600px;">
-                    <div class="border-b border-white/10 p-4">
-                        <h2 class="text-xl font-bold text-white flex items-center gap-2">
-                            💬 Live Chat
-                            <span id="chatStatus" class="text-xs text-gray-400 font-normal"></span>
+                <div class="bg-[#0A0A0E] rounded-2xl border border-white/10 overflow-hidden flex flex-col shadow-2xl h-[460px] sm:h-[520px] lg:h-[calc(100vh-140px)]">
+                    <div class="border-b border-white/10 p-4 bg-[#111116] flex justify-between items-center">
+                        <h2 class="font-heading font-bold text-base text-white uppercase tracking-wider flex items-center gap-2">
+                            <span>Arena Chat</span>
                         </h2>
+                        <span id="chatStatus" class="font-mono-tag text-[10px] text-neutral-400"></span>
                     </div>
 
-                    <!-- Chat Messages -->
+                    <!-- CHAT MESSAGES -->
                     <div id="chatMessages" class="chat-container flex-1 p-4 space-y-3">
-                        <div class="text-center text-gray-500 text-sm py-8">
-                            Chat will appear here when messages are sent...
+                        <div class="text-center text-neutral-500 font-mono-tag text-xs py-12">
+                            Chat will appear when messages are sent...
                         </div>
                     </div>
 
-                    <!-- Chat Input -->
-                    <div class="border-t border-white/10 p-4">
+                    <!-- CHAT INPUT -->
+                    <div class="border-t border-white/10 p-4 bg-[#111116]">
                         <div id="chatInputContainer">
                             <form id="chatForm" class="flex gap-2">
                                 <input 
                                     type="text" 
                                     id="chatInput" 
-                                    placeholder="Type your message..." 
-                                    class="flex-1 bg-white/5 border border-white/10 text-white px-4 py-2 rounded-lg focus:outline-none focus:border-[var(--gold)]"
+                                    placeholder="Type a message..." 
+                                    class="flex-1 bg-black/50 border border-white/10 text-white px-3.5 py-2.5 rounded-lg text-xs placeholder-neutral-500 focus:outline-none focus:border-[#FFD700]/50"
                                     maxlength="200"
                                     required
                                 />
                                 <button 
                                     type="submit" 
-                                    class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-6 py-2 rounded-lg font-bold hover:opacity-90 transition-opacity">
+                                    class="font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] hover:bg-[#FFF099] text-black px-5 py-2.5 rounded-lg shadow-md transition-colors cursor-pointer">
                                     Send
                                 </button>
                             </form>
                         </div>
-                        <div id="loginPrompt" class="hidden text-center">
-                            <p class="text-gray-400 text-sm mb-3">Sign in to join the chat</p>
-                            <a href="/login" class="inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-6 py-2 rounded-lg font-bold hover:opacity-90 transition-opacity">
+                        <div id="loginPrompt" class="hidden text-center py-2">
+                            <p class="text-neutral-400 text-xs mb-3">Sign in to participate in the live match chat.</p>
+                            <a href="/login" class="inline-block font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] hover:bg-[#FFF099] text-black px-6 py-2.5 rounded-lg shadow-md transition-all">
                                 Sign In
                             </a>
                         </div>
@@ -189,6 +219,18 @@
             </div>
         </div>
     </main>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-white/5 bg-[#0A0A0E] mt-16">
+        <div class="max-w-7xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-neutral-500 font-mono-tag">
+            <div>© 2026 ChampZero. All rights reserved.</div>
+            <div class="flex gap-6">
+                <a href="/events" class="hover:text-white transition-colors">Events</a>
+                <a href="/tournaments" class="hover:text-white transition-colors">Tournaments</a>
+                <a href="/terms" class="hover:text-white transition-colors">Terms</a>
+            </div>
+        </div>
+    </footer>
 
     <script type="module" src="js/livestream.js"></script>
 </body>

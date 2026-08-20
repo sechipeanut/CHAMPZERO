@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
+
 <head>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-FDFF1NLL6L"></script>
@@ -7,25 +8,85 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
       gtag('config', 'G-FDFF1NLL6L');
     </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/png" href="/favicon.png">
-    <title>Access Denied — ChampZero</title>
+    <title>ChampZero — Access Restricted (403)</title>
+    <meta name="description" content="Access to this ChampZero area requires administrative or organizer privileges.">
+    <meta property="og:title" content="ChampZero — Access Restricted">
+    <meta property="og:description" content="Access restricted.">
+    <meta property="og:image" content="https://champzero.com/pictures/cz_logo.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Bespoke Esports Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700;1,800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
     <style>
-        :root { --gold: #FFD700; --dark-bg: #111115; }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--dark-bg); color: white; overflow: hidden; }
-        
+        :root {
+            --cz-gold: #FFD700;
+            --cz-gold-light: #FFF099;
+            --cz-bg: #000000;
+            --cz-surface: #0A0A0E;
+            --cz-card: #111116;
+            --cz-border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--cz-bg);
+            color: #FFFFFF;
+            overflow: hidden;
+        }
+
+        .font-heading {
+            font-family: 'Chakra Petch', sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        .font-mono-tag {
+            font-family: 'Space Mono', monospace;
+        }
+
         /* Glitch Effect */
-        .glitch { position: relative; font-size: 6rem; font-weight: 900; color: #EF4444; letter-spacing: -3px; }
-        .glitch::before, .glitch::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark-bg); }
-        .glitch::before { left: 2px; text-shadow: -2px 0 #DC2626; clip: rect(24px, 550px, 90px, 0); animation: glitch-anim 3s infinite linear alternate-reverse; }
-        .glitch::after { left: -2px; text-shadow: -2px 0 #991B1B; clip: rect(85px, 550px, 140px, 0); animation: glitch-anim 2s infinite linear alternate-reverse; }
-        
+        .glitch {
+            position: relative;
+            font-family: 'Chakra Petch', sans-serif;
+            font-size: clamp(5rem, 12vw, 8rem);
+            font-weight: 800;
+            color: #EF4444;
+            letter-spacing: -4px;
+            line-height: 0.9;
+        }
+
+        .glitch::before, .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+        }
+
+        .glitch::before {
+            left: 2px;
+            text-shadow: -2px 0 #DC2626;
+            clip: rect(24px, 550px, 90px, 0);
+            animation: glitch-anim 3s infinite linear alternate-reverse;
+        }
+
+        .glitch::after {
+            left: -2px;
+            text-shadow: -2px 0 #991B1B;
+            clip: rect(85px, 550px, 140px, 0);
+            animation: glitch-anim 2s infinite linear alternate-reverse;
+        }
+
         @keyframes glitch-anim {
             0% { clip: rect(10px, 9999px, 30px, 0); }
             20% { clip: rect(80px, 9999px, 10px, 0); }
@@ -40,64 +101,60 @@
         }
 
         @keyframes pulse-ring {
-            0%, 100% {
-                opacity: 1;
-                transform: scale(1);
-            }
-            50% {
-                opacity: 0.5;
-                transform: scale(1.1);
-            }
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.1); }
         }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen text-center p-4 relative">
+
+<body class="flex flex-col items-center justify-center min-h-screen text-center p-6 relative selection:bg-red-500 selection:text-black">
     
-    <div class="absolute inset-0 z-0 opacity-20 pointer-events-none">
-        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-red-500/20 rounded-full blur-[120px]"></div>
-        <div class="absolute bottom-1/4 right-1/4 w-96 h-96 bg-orange-500/10 rounded-full blur-[120px]"></div>
+    <!-- AMBIENT RED GLOW -->
+    <div class="absolute inset-0 z-0 pointer-events-none">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-red-600/10 rounded-full blur-[140px]"></div>
     </div>
 
-    <div class="relative z-10">
-        <!-- Lock Icon with Animation -->
-        <div class="mb-8 relative inline-block">
+    <div class="relative z-10 max-w-lg mx-auto">
+        <!-- LOCK ICON -->
+        <div class="mb-6 relative inline-block">
             <div class="absolute inset-0 bg-red-500/20 rounded-full blur-xl pulse-ring"></div>
-            <div class="relative bg-gradient-to-br from-red-500/20 to-orange-500/20 p-8 rounded-full border-2 border-red-500/50">
-                <svg class="w-24 h-24 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <div class="relative bg-red-950/40 p-6 rounded-2xl border border-red-500/30 shadow-2xl">
+                <svg class="w-12 h-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
                 </svg>
             </div>
         </div>
 
-        <div class="glitch mb-4" data-text="403">403</div>
-        <h2 class="text-3xl md:text-4xl font-bold mb-4 uppercase tracking-widest text-red-400">Access Denied</h2>
-        <p class="text-gray-400 max-w-md mx-auto mb-8 text-lg">
-            You don't have permission to access this page.
+        <div class="glitch mb-2" data-text="403">403</div>
+        <h1 class="font-heading font-bold text-2xl sm:text-3xl text-white uppercase tracking-tight mb-3">
+            Access Restricted
+        </h1>
+        <p class="text-xs sm:text-sm text-neutral-400 max-w-md mx-auto mb-6 leading-relaxed">
+            Your clearance level is insufficient to access this operational sector or tournament administration panel.
         </p>
 
-        <div class="bg-red-900/10 border border-red-500/20 rounded-lg p-4 mb-10 max-w-md mx-auto">
+        <div class="bg-[#0A0A0E] border border-red-500/20 rounded-xl p-4 mb-8 text-left">
             <div class="flex items-start gap-3">
-                <svg class="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
-                </svg>
-                <div class="text-left">
-                    <p class="text-red-400 font-semibold text-sm mb-1">Authorization Required</p>
-                    <p class="text-gray-400 text-xs">If you believe you should have access, please contact an administrator.</p>
+                <div class="w-2 h-2 rounded-full bg-red-500 mt-1.5 flex-shrink-0 animate-ping"></div>
+                <div>
+                    <p class="font-mono-tag text-xs text-red-400 font-bold uppercase tracking-wider">Authorization Required</p>
+                    <p class="text-[11px] text-neutral-400 mt-0.5">If you believe this is an error, please verify your login credentials or reach out to tournament admins.</p>
                 </div>
             </div>
         </div>
         
-        <div class="flex flex-col sm:flex-row gap-4 justify-center">
-            <a href="/" class="inline-flex items-center justify-center gap-2 px-8 py-3 bg-[var(--gold)] text-black font-bold rounded-full hover:bg-yellow-400 transition-transform hover:scale-105 shadow-lg shadow-yellow-600/20">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        <div class="flex flex-wrap gap-3 justify-center">
+            <a href="/"
+                class="font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] text-black px-6 py-3 rounded-lg hover:bg-[#FFF099] transition-all shadow-lg shadow-yellow-500/10">
                 Return Home
             </a>
-            <a href="/profile" class="inline-flex items-center justify-center gap-2 px-8 py-3 bg-white/10 text-white font-bold rounded-full hover:bg-white/20 transition-transform hover:scale-105 border border-white/20">
-                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+            <a href="/profile"
+                class="font-heading font-bold text-xs uppercase tracking-wider bg-white/5 border border-white/10 text-white px-6 py-3 rounded-lg hover:bg-white/10 hover:border-[#FFD700]/30 transition-all">
                 My Profile
             </a>
         </div>
     </div>
 
 </body>
+
 </html>

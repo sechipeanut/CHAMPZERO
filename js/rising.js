@@ -36,25 +36,23 @@ async function fetchTalents() {
 }
 
 // 2. RENDER & FILTER
-window.filterTalents = function(category) {
+window.filterTalents = function(category, btnElement) {
     // Visual update for buttons
     document.querySelectorAll('.filter-btn').forEach(btn => {
-        btn.classList.remove('bg-[var(--gold)]', 'text-black', 'border-[var(--gold)]');
-        btn.classList.add('text-gray-300', 'border-white/20');
-        // Remove 'active' class from all
-        btn.classList.remove('active'); 
+        btn.className = "filter-btn font-heading text-xs uppercase font-bold tracking-wider px-5 py-2.5 rounded-lg border border-white/10 bg-white/5 text-neutral-300 hover:border-[#FFD700]/40 hover:text-white transition-all cursor-pointer";
     });
     
     // Highlight active button
-    const activeBtn = event.target;
-    activeBtn.classList.remove('text-gray-300', 'border-white/20');
-    activeBtn.classList.add('bg-[var(--gold)]', 'text-black', 'border-[var(--gold)]', 'active');
+    const activeBtn = btnElement || (typeof event !== 'undefined' && event?.target ? event.target.closest('.filter-btn') : null) || document.querySelector('.filter-btn');
+    if (activeBtn) {
+        activeBtn.className = "filter-btn active font-heading text-xs uppercase font-bold tracking-wider px-5 py-2.5 rounded-lg border border-[#FFD700] bg-[#FFD700] text-black transition-all cursor-pointer shadow-md";
+    }
 
     // Filter logic
     if (category === 'all') {
         renderTalents(allTalents);
     } else {
-        const filtered = allTalents.filter(t => t.role === category);
+        const filtered = allTalents.filter(t => (t.role && t.role.toLowerCase() === category.toLowerCase()) || (t.category && t.category.toLowerCase() === category.toLowerCase()));
         renderTalents(filtered);
     }
 }

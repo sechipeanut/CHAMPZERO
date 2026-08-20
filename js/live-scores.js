@@ -99,7 +99,7 @@ function renderLiveMatches(liveEvents, container) {
                     <p class="text-gray-400 text-sm mb-4 line-clamp-2">
                         ${escapeHtml(event.description || 'Watch live now!')}
                     </p>
-                    <a href="/livestream.html?event=${event.id}" 
+                    <a href="/livestream?event=${event.id}" 
                        class="block w-full py-2 bg-gradient-to-r from-red-600 to-red-500 hover:from-red-500 hover:to-red-400 text-white text-center rounded-lg font-semibold transition-all">
                         Watch Full Stream
                     </a>

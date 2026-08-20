@@ -96,46 +96,44 @@ window.manageLivestream = async function(eventId) {
         modal.innerHTML = `
             <div class="bg-[var(--dark-card)] rounded-xl border border-white/20 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
                 <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
-                    <h3 class="text-xl font-bold text-white">📡 Livestream Manager</h3>
-                    <button onclick="closeLivestreamModal()" class="text-gray-400 hover:text-white transition-colors">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
+                    <h3 class="text-xl font-bold text-white font-heading uppercase">Livestream Manager</h3>
+                    <button onclick="closeLivestreamModal()" class="text-neutral-400 hover:text-white transition-colors text-2xl leading-none">&times;</button>
                 </div>
-                <div class="p-6 space-y-4">
+                <div class="p-6 space-y-4 font-mono-tag">
                     <div class="bg-white/5 border border-white/10 rounded-lg p-4">
                         <div class="flex items-center justify-between mb-2">
-                            <span class="text-gray-400 text-sm">Stream Status</span>
-                            <span class="px-3 py-1 rounded-full text-sm font-semibold ${isActive ? 'bg-red-500/20 text-red-400' : 'bg-gray-500/20 text-gray-400'}">
-                                ${isActive ? '🔴 LIVE' : '⚫ Idle'}
+                            <span class="text-neutral-400 text-xs">Stream Status</span>
+                            <span class="px-3 py-1 rounded-full text-xs font-semibold ${isActive ? 'bg-red-500/20 text-red-400' : 'bg-neutral-500/20 text-neutral-400'}">
+                                ${isActive ? 'LIVE' : 'Idle'}
                             </span>
                         </div>
-                        <div class="text-white font-bold text-lg">${escapeHtml(eventData.name)}</div>
+                        <div class="text-white font-bold text-base font-heading uppercase">${escapeHtml(eventData.name)}</div>
                     </div>
                     
                     <div class="bg-white/5 border border-white/10 rounded-lg p-4">
-                        <label class="text-gray-400 text-sm block mb-2">Stream URL</label>
+                        <label class="text-neutral-400 text-xs block mb-2 font-bold uppercase">Stream URL</label>
                         <div class="flex gap-2">
-                            <input type="text" readonly value="rtmp://rtmp-push.champzero.org" class="flex-1 bg-black/30 border border-white/20 text-white px-3 py-2 rounded text-sm">
-                            <button onclick="copyToClipboard('rtmp://rtmp-push.champzero.org')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">Copy</button>
+                            <input type="text" readonly value="rtmp://rtmp-push.champzero.org" class="flex-1 bg-black/40 border border-white/10 text-white px-3 py-2 rounded text-xs">
+                            <button onclick="copyToClipboard('rtmp://rtmp-push.champzero.org')" class="bg-[var(--gold)] text-black font-heading font-bold px-4 py-2 rounded text-xs uppercase">Copy</button>
                         </div>
                     </div>
                     
                     <div class="bg-white/5 border border-white/10 rounded-lg p-4">
-                        <label class="text-gray-400 text-sm block mb-2">Stream Key</label>
+                        <label class="text-neutral-400 text-xs block mb-2 font-bold uppercase">Stream Key</label>
                         <div class="flex gap-2">
-                            <input type="password" id="streamKeyInput" readonly value="${livestream.streamKey}" class="flex-1 bg-black/30 border border-white/20 text-white px-3 py-2 rounded text-sm font-mono">
-                            <button onclick="toggleStreamKey()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded text-sm">Show</button>
-                            <button onclick="copyToClipboard('${livestream.streamKey}')" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded text-sm">Copy</button>
+                            <input type="password" id="streamKeyInput" readonly value="${livestream.streamKey}" class="flex-1 bg-black/40 border border-white/10 text-white px-3 py-2 rounded text-xs">
+                            <button onclick="toggleStreamKey()" class="bg-white/10 hover:bg-white/20 text-white px-3 py-2 rounded text-xs uppercase">Show</button>
+                            <button onclick="copyToClipboard('${livestream.streamKey}')" class="bg-[var(--gold)] text-black font-heading font-bold px-4 py-2 rounded text-xs uppercase">Copy</button>
                         </div>
-                        <p class="text-xs text-gray-500 mt-2">⚠️ Keep this private! Use it in OBS/Streamlabs to start streaming.</p>
+                        <p class="text-[11px] text-neutral-500 mt-2 font-mono-tag">Keep this private. Paste in OBS / Streamlabs to begin broadcasting.</p>
                     </div>
                     
-                    <div class="flex gap-3 pt-4">
-                        <button onclick="disableLivestream('${eventId}')" class="flex-1 bg-red-900/50 hover:bg-red-600 text-red-200 px-4 py-3 rounded-lg font-bold border border-red-800 transition-all">
-                            🛑 End Stream
+                    <div class="flex gap-3 pt-4 border-t border-white/5">
+                        <button onclick="disableLivestream('${eventId}')" class="flex-1 bg-red-900/40 hover:bg-red-600 text-red-200 px-4 py-2.5 rounded-lg font-bold border border-red-800 transition-all font-heading uppercase text-xs">
+                            End Stream
                         </button>
-                        <button onclick="deleteLivestream('${eventId}')" class="flex-1 bg-gray-900/50 hover:bg-gray-600 text-gray-200 px-4 py-3 rounded-lg font-bold border border-gray-800 transition-all">
-                            🗑️ Delete Stream
+                        <button onclick="deleteLivestream('${eventId}')" class="flex-1 bg-neutral-900/40 hover:bg-neutral-800 text-neutral-300 px-4 py-2.5 rounded-lg font-bold border border-white/10 transition-all font-heading uppercase text-xs">
+                            Delete Stream
                         </button>
                     </div>
                 </div>
@@ -250,6 +248,7 @@ window.openModal = function (modalId) {
 
 window.closeModal = function (modalId) {
     const modal = document.getElementById(modalId);
+    if (!modal) return;
     modal.classList.add('hidden');
     document.body.style.overflow = 'auto';
     if (lastFocusedElement) lastFocusedElement.focus();
@@ -260,6 +259,7 @@ window.closeModal = function (modalId) {
         'jobModal': '#jobForm',
         'talentModal': '#talentForm',
         'notificationModal': '#notifForm',
+        'partnerModal': '#partnerForm',
     };
     if(formMap[modalId]) resetFormState(formMap[modalId]);
 }
@@ -268,6 +268,7 @@ window.openTournamentModal = function () { openModal('tournamentModal'); }
 window.openEventModal = function () { openModal('eventModal'); }
 window.openJobModal = function () { openModal('jobModal'); }
 window.openTalentModal = function () { openModal('talentModal'); }
+window.openPartnerModal = function () { openModal('partnerModal'); }
 window.openNotificationModal = function () { openModal('notificationModal'); }
 
 // --- 1. ADMIN CHECK ---
@@ -313,6 +314,30 @@ window.deleteItem = async function (collectionName, docId) {
     const confirmed = await window.showCustomConfirm("Delete Item?", "Are you sure? This cannot be undone.");
     if (!confirmed) return;
     try {
+        if (collectionName === 'partners') {
+            const configDocRef = doc(db, "site_config", "partners_data");
+            try {
+                const snap = await getDoc(configDocRef);
+                let list = [];
+                if (snap.exists() && Array.isArray(snap.data().partners)) {
+                    list = snap.data().partners.filter(p => p.id !== docId);
+                } else {
+                    list = allPartners.filter(p => p.id !== docId);
+                }
+                await setDoc(configDocRef, { partners: list, updatedAt: serverTimestamp() }, { merge: true });
+            } catch (err) {
+                console.warn("Could not delete from site_config/partners_data", err);
+            }
+            
+            try {
+                await deleteDoc(doc(db, "partners", docId));
+            } catch (_) {}
+            
+            window.showSuccessToast("Deleted", "Partner deleted successfully.", 2000);
+            await fetchPartners();
+            return;
+        }
+
         await deleteDoc(doc(db, collectionName, docId));
         window.showSuccessToast("Deleted", "Item deleted successfully.", 2000);
         refreshAllLists();
@@ -334,52 +359,113 @@ window.editItem = async function (collectionName, docId) {
         const data = docSnap.data();
 
         if (collectionName === 'tournaments') {
-            qs('#t-name').value = data.name;
-            qs('#t-game').value = data.game;
+            qs('#t-name').value = data.name || '';
+            qs('#t-game').value = data.game || '';
+            qs('#t-max-teams').value = data.maxTeams || 8;
+            qs('#t-venue-type').value = data.venueType || 'Online';
+            qs('#t-venue-location').value = data.venueLocation || '';
+            if (window.toggleAdminVenueInput) window.toggleAdminVenueInput();
+
+            if (qs('#t-discord')) qs('#t-discord').value = data.discordLink || '';
+
             qs('#t-format').value = data.format || 'Single Elimination';
-            qs('#t-prize').value = data.prize;
+            qs('#t-prize').value = data.prize || 0;
+
+            const split = data.prizeSplit || { first: 60, second: 30, third: 10 };
+            if (qs('#t-prize-1st')) qs('#t-prize-1st').value = split.first ?? 60;
+            if (qs('#t-prize-2nd')) qs('#t-prize-2nd').value = split.second ?? 30;
+            if (qs('#t-prize-3rd')) qs('#t-prize-3rd').value = split.third ?? 10;
+
+            const pType = data.paymentType ? (data.paymentType.toLowerCase() === 'automatic' ? 'Automatic' : (data.paymentType.toLowerCase() === 'manual' ? 'Manual' : 'Free')) : (data.entryType === 'Paid' ? 'Manual' : 'Free');
+            qs('#t-entry-type').value = pType;
+            qs('#t-entry-fee').value = data.entryFee || '';
+            qs('#t-entry-currency').value = data.entryCurrency || 'PHP';
             qs('#t-date').value = toDateInputFormat(data.date);
             qs('#t-end-date').value = toDateInputFormat(data.endDate);
-            qs('#t-banner').value = data.banner;
+            qs('#t-desc').value = data.description || '';
+            qs('#t-banner').value = data.banner || '';
+            qs('#t-proof').value = data.paymentProofURL || '';
+
+            if (qs('#t-banner-status')) {
+                qs('#t-banner-status').textContent = data.banner ? 'Banner image loaded.' : '';
+            }
+            if (qs('#t-proof-status')) {
+                qs('#t-proof-status').textContent = data.paymentProofURL ? 'QR code image loaded.' : '';
+            }
+
             prepareEditMode('tournaments', docId, '#tournamentForm', 'tournamentModal');
             openModal('tournamentModal');
         }
         else if (collectionName === 'events') {
-            qs('#e-name').value = data.name;
+            qs('#e-name').value = data.name || '';
             qs('#e-date').value = toDateInputFormat(data.date);
             qs('#e-end-date').value = toDateInputFormat(data.endDate);
-            qs('#e-desc').value = data.description;
-            qs('#e-banner').value = data.banner;
+            qs('#e-desc').value = data.description || '';
+            qs('#e-banner').value = data.banner || '';
+            if (qs('#e-banner-status')) {
+                qs('#e-banner-status').textContent = data.banner ? 'Banner image loaded.' : '';
+            }
             prepareEditMode('events', docId, '#eventForm', 'eventModal');
             openModal('eventModal');
         }
         else if (collectionName === 'careers') {
-            qs('#j-title').value = data.title;
-            qs('#j-location').value = data.location;
-            qs('#j-type').value = data.type;
+            qs('#j-title').value = data.title || '';
+            qs('#j-location').value = data.location || '';
+            qs('#j-type').value = data.type || '';
             prepareEditMode('careers', docId, '#jobForm', 'jobModal');
             openModal('jobModal');
         }
         else if (collectionName === 'talents') {
-            qs('#tal-name').value = data.name;
-            qs('#tal-role').value = data.role;
-            qs('#tal-img').value = data.image;
-            qs('#tal-link').value = data.socialLink;
-            qs('#tal-bio').value = data.bio;
+            qs('#tal-name').value = data.name || '';
+            qs('#tal-role').value = data.role || 'Streamer';
+            qs('#tal-img').value = data.image || '';
+            qs('#tal-link').value = data.socialLink || '';
+            qs('#tal-bio').value = data.bio || '';
+            if (qs('#tal-img-status')) {
+                qs('#tal-img-status').textContent = data.image ? 'Profile image loaded.' : '';
+            }
             prepareEditMode('talents', docId, '#talentForm', 'talentModal');
             openModal('talentModal');
         }
         else if (collectionName === 'notifications') {
-            qs('#n-title').value = data.title;
-            qs('#n-type').value = data.type;
-            qs('#n-message').value = data.message;
+            qs('#n-title').value = data.title || '';
+            qs('#n-type').value = data.type || 'general';
+            qs('#n-message').value = data.message || '';
             prepareEditMode('notifications', docId, '#notifForm', 'notificationModal');
             openModal('notificationModal');
+        }
+        else if (collectionName === 'partners') {
+            let partner = allPartners.find(p => p.id === docId);
+            if (!partner) {
+                try {
+                    const docRef = doc(db, collectionName, docId);
+                    const docSnap = await getDoc(docRef);
+                    if (docSnap.exists()) partner = { id: docSnap.id, ...docSnap.data() };
+                } catch (_) {}
+            }
+            if (!partner) {
+                window.showErrorToast("Not Found", "Partner not found.", 3000);
+                return;
+            }
+
+            qs('#p-name').value = partner.name || '';
+            qs('#p-category').value = partner.category || 'Major Partners';
+            qs('#p-order').value = partner.order ?? 1;
+            qs('#p-logo').value = partner.logo || '';
+            if (qs('#p-logo-url')) qs('#p-logo-url').value = partner.logo || '';
+            if (qs('#p-logo-preview')) qs('#p-logo-preview').src = partner.logo || 'pictures/cz_logo.png';
+            qs('#p-website').value = partner.website || '';
+            qs('#p-description').value = partner.description || '';
+            if (qs('#p-logo-status')) {
+                qs('#p-logo-status').textContent = partner.logo ? 'Logo loaded.' : '';
+            }
+            prepareEditMode('partners', docId, '#partnerForm', 'partnerModal');
+            openModal('partnerModal');
         }
 
     } catch (error) {
         console.error("Edit Error:", error);
-        window.showErrorToast("Error", "Failed to load item.", 3000);
+        window.showErrorToast("Error", "Failed to load item: " + error.message, 3000);
     }
 }
 
@@ -394,6 +480,7 @@ function prepareEditMode(col, id, formSelector, modalId) {
         'jobModal': 'Edit Job',
         'talentModal': 'Edit Talent',
         'notificationModal': 'Edit Announcement',
+        'partnerModal': 'Edit Partner',
     };
     if (modalId) qs(`#${modalId}Title`).textContent = modalTitleMap[modalId];
     if (btn) btn.textContent = 'Update';
@@ -411,12 +498,22 @@ function resetFormState(formSelector) {
         'jobModal': 'Create Job',
         'talentModal': 'Add Talent',
         'notificationModal': 'Create Announcement',
+        'partnerModal': 'Add Partner',
     };
-    if (editState.modalId) qs(`#${editState.modalId}Title`).textContent = modalTitleMap[editState.modalId];
+    if (editState.modalId && qs(`#${editState.modalId}Title`)) {
+        qs(`#${editState.modalId}Title`).textContent = modalTitleMap[editState.modalId];
+    }
+
+    if (qs('#t-banner-status')) qs('#t-banner-status').textContent = '';
+    if (qs('#t-proof-status')) qs('#t-proof-status').textContent = '';
+    if (qs('#e-banner-status')) qs('#e-banner-status').textContent = '';
+    if (qs('#tal-img-status')) qs('#tal-img-status').textContent = '';
+    if (qs('#p-logo-status')) qs('#p-logo-status').textContent = '';
+    if (qs('#p-logo-preview')) qs('#p-logo-preview').src = 'pictures/cz_logo.png';
 
     if (form) {
         const btn = form.querySelector('button[type="submit"]');
-        if (btn) btn.textContent = 'Save';
+        if (btn) btn.textContent = btn.getAttribute('data-original-text') || 'Save';
     }
     editState = { isEditing: false, collection: null, id: null, formId: null, modalId: null };
 }
@@ -447,7 +544,7 @@ window.fetchUsers = async function() {
         console.error('Error fetching users:', error);
         const container = qs('#users-list-view');
         if (container) {
-            container.innerHTML = '<div class="text-center py-12 text-red-400">Error loading users.</div>';
+            container.innerHTML = '<div class="text-center py-12 text-red-400 font-mono-tag text-xs">Error loading users.</div>';
         }
     }
 }
@@ -482,61 +579,72 @@ function displayUsers() {
     
     if (qs('#user-count')) qs('#user-count').textContent = allUsers.length;
     if (qs('#admin-count')) qs('#admin-count').textContent = allUsers.filter(u => u.role === 'admin').length;
-    if (qs('#regular-user-count')) qs('#regular-user-count').textContent = allUsers.filter(u => u.role !== 'admin').length;
+    if (qs('#organizer-count')) qs('#organizer-count').textContent = allUsers.filter(u => u.role === 'organizer').length;
+    if (qs('#regular-user-count')) qs('#regular-user-count').textContent = allUsers.filter(u => u.role !== 'admin' && u.role !== 'organizer').length;
     
     if (filtered.length === 0) {
-        container.innerHTML = '<div class="text-center py-12 bg-[var(--dark-card)] rounded-xl border border-white/5 text-gray-400">No users found matching your criteria.</div>';
+        container.innerHTML = '<div class="text-center py-12 bg-[var(--dark-card)] rounded-xl border border-white/5 text-neutral-400 font-mono-tag text-xs">No users found matching your criteria.</div>';
         return;
     }
     
     container.innerHTML = '';
     
     filtered.forEach(user => {
-        const createdDate = user.createdAt?.toDate?.() || user.joinedAt ? new Date(user.joinedAt) : null;
+        const createdDate = user.createdAt?.toDate?.() || (user.joinedAt ? new Date(user.joinedAt) : null);
         const dateStr = createdDate ? createdDate.toLocaleDateString() : 'Unknown';
         const displayName = user.displayName || user.username || 'Unknown User';
         const email = user.email || 'No email';
         const role = user.role || 'user';
         const profilePicture = user.avatar || user.photoURL || null;
-        const roles = ['user', 'admin', 'subscriber', 'moderator', 'organizer'];
+        const roles = ['user', 'organizer', 'admin', 'moderator', 'subscriber'];
         
+        let roleBadgeClass = 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
+        let roleIcon = '';
+        if (role === 'admin') {
+            roleBadgeClass = 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20';
+            roleIcon = '';
+        } else if (role === 'organizer') {
+            roleBadgeClass = 'bg-purple-500/10 text-purple-400 border border-purple-500/20';
+            roleIcon = '';
+        }
+
         const card = document.createElement('div');
         card.className = 'bg-[var(--dark-card)] p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center gap-4 transition-all hover:border-[var(--gold)]/30';
         
         card.innerHTML = `
             <div class="flex items-center gap-4 flex-1 overflow-hidden">
                 ${profilePicture ? 
-                    `<img src="${escapeHtml(profilePicture)}" alt="${escapeHtml(displayName)}" class="w-12 h-12 rounded-full object-cover border-2 border-white/10 shrink-0">` :
-                    `<div class="w-12 h-12 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-orange-500/20 flex items-center justify-center text-lg font-bold text-[var(--gold)] border-2 border-[var(--gold)]/30 shrink-0">
+                    `<img src="${escapeHtml(profilePicture)}" alt="${escapeHtml(displayName)}" class="w-11 h-11 rounded-full object-cover border-2 border-white/10 shrink-0">` :
+                    `<div class="w-11 h-11 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-orange-500/20 flex items-center justify-center text-base font-bold text-[var(--gold)] border-2 border-[var(--gold)]/30 shrink-0 font-heading">
                         ${escapeHtml(displayName.charAt(0).toUpperCase())}
                     </div>`
                 }
                 <div class="min-w-0">
-                    <div class="font-bold text-white truncate text-base">${escapeHtml(displayName)}</div>
-                    <div class="text-sm text-gray-400 truncate">${escapeHtml(email)}</div>
-                    <div class="md:hidden mt-1 text-xs text-gray-500">Joined: ${dateStr}</div>
+                    <div class="font-bold text-white truncate text-sm">${escapeHtml(displayName)}</div>
+                    <div class="text-xs text-neutral-400 truncate font-mono-tag">${escapeHtml(email)}</div>
+                    <div class="md:hidden mt-1 text-[10px] text-neutral-500 font-mono-tag">Joined: ${dateStr}</div>
                 </div>
             </div>
 
             <div class="flex items-center justify-between md:justify-start md:w-1/4">
-                <span class="md:hidden text-sm text-gray-400 font-medium">Role</span>
-                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${role === 'admin' ? 'bg-yellow-500/10 text-yellow-400 border border-yellow-500/20' : 'bg-blue-500/10 text-blue-400 border border-blue-500/20'}">
-                    ${role === 'admin' ? '👑' : '👤'} ${escapeHtml(role)}
+                <span class="md:hidden text-xs text-neutral-400 font-mono-tag">Role</span>
+                <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono-tag ${roleBadgeClass}">
+                    ${roleIcon} ${escapeHtml(role)}
                 </span>
             </div>
 
-            <div class="hidden md:block w-1/6 text-sm text-gray-400">
+            <div class="hidden md:block w-1/6 text-xs text-neutral-400 font-mono-tag">
                 ${dateStr}
             </div>
 
             <div class="flex flex-col sm:flex-row gap-2 mt-2 md:mt-0 md:w-1/4 justify-end">
-                <select onchange="window.changeUserRole('${user.id}', this.value)" class="dark-select w-full sm:w-auto text-sm py-2 px-3 rounded-lg border border-white/10 bg-black/20 text-white focus:border-[var(--gold)] cursor-pointer">
+                <select onchange="window.changeUserRole('${user.id}', this.value)" class="dark-select w-full sm:w-auto text-xs py-1.5 px-2.5 rounded-lg border border-white/10 bg-black/40 text-white font-mono-tag focus:border-[var(--gold)] cursor-pointer">
                     ${roles.map(r => 
                         `<option value="${r}" ${role === r ? 'selected' : ''}>${r.charAt(0).toUpperCase() + r.slice(1)}</option>`
                     ).join('')}
                 </select>
-                <button onclick="window.deleteUserConfirm('${user.id}')" class="w-full sm:w-auto flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-colors" title="Delete User">
-                    <span class="md:hidden font-bold text-sm">Delete</span>
+                <button onclick="window.deleteUserConfirm('${user.id}')" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-colors" title="Delete User">
+                    <span class="md:hidden font-bold text-xs">Delete</span>
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                 </button>
             </div>
@@ -552,7 +660,7 @@ window.changeUserRole = async function(userId, newRole) {
         return;
     }
 
-    const confirmed = await window.showCustomConfirm("Update Role?", `Change user to ${newRole.toUpperCase()}?`);
+    const confirmed = await window.showCustomConfirm("Update Role?", `Change user role to ${newRole.toUpperCase()}?`);
     if (!confirmed) {
         displayUsers(); 
         return;
@@ -564,7 +672,7 @@ window.changeUserRole = async function(userId, newRole) {
         displayUsers(); 
 
         await updateDoc(doc(db, "users", userId), { role: newRole });
-        window.showSuccessToast("Success", `User is now a ${newRole}`, 2000);
+        window.showSuccessToast("Success", `User role updated to ${newRole}`, 2000);
     } catch (error) {
         console.error(error);
         window.showErrorToast("Error", "Failed to update role", 3000);
@@ -598,7 +706,7 @@ if (qs('#user-search')) {
     qs('#user-search').addEventListener('input', () => displayUsers());
 }
 
-// --- 4. FETCH OTHER LISTS & CONFIGS ---
+// --- 3. FETCH SITE CONFIGURATION ---
 
 function updateActivityPreview(i) {
     const imgEl = qs(`#cfg-act-img-${i}`);
@@ -649,6 +757,7 @@ async function refreshAllLists() {
     fetchTournaments();
     fetchEvents();
     fetchJobs();
+    fetchPartners();
     fetchMessages();
     fetchTalents();
     fetchNotifications();
@@ -659,17 +768,24 @@ async function refreshAllLists() {
 
 async function fetchTournaments() {
     const list = qs('#tournaments-list');
+    if (!list) return;
     const q = query(collection(db, "tournaments"));
     const snapshot = await getDocs(q);
-    list.innerHTML = snapshot.empty ? '<p class="text-gray-500 italic">No tournaments found.</p>' : '';
+    list.innerHTML = snapshot.empty ? '<p class="text-neutral-500 italic font-mono-tag text-xs">No tournaments found.</p>' : '';
     snapshot.forEach(doc => {
         const data = doc.data();
+        const venueText = data.venue || (data.venueType === 'LAN' && data.venueLocation ? `LAN: ${data.venueLocation}` : (data.venueType || 'Online'));
         list.innerHTML += `
             <div class="admin-item">
-                <div><div class="font-bold text-white">${escapeHtml(data.name)}</div><div class="text-sm text-gray-400">${escapeHtml(data.game)}</div></div>
+                <div>
+                    <div class="font-bold text-white text-sm uppercase font-heading">${escapeHtml(data.name)}</div>
+                    <div class="text-xs text-neutral-400 font-mono-tag">
+                        ${escapeHtml(data.game)} • ${escapeHtml(venueText)} • ₱${Number(data.prize || 0).toLocaleString()} • ${data.entryType || 'Free'}
+                    </div>
+                </div>
                 <div class="flex gap-2">
-                    <button onclick="editItem('tournaments', '${doc.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
-                    <button onclick="deleteItem('tournaments', '${doc.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
+                    <button onclick="editItem('tournaments', '${doc.id}')" class="bg-blue-900/40 hover:bg-blue-600 text-blue-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-blue-800 uppercase">Edit</button>
+                    <button onclick="deleteItem('tournaments', '${doc.id}')" class="bg-red-900/40 hover:bg-red-600 text-red-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-red-800 uppercase">Delete</button>
                 </div>
             </div>`;
     });
@@ -677,11 +793,12 @@ async function fetchTournaments() {
 
 async function fetchNotifications() {
     const list = qs('#notifications-list');
+    if (!list) return;
     try {
         const q = query(collection(db, "notifications"));
         const snapshot = await getDocs(q);
         if (snapshot.empty) {
-            list.innerHTML = '<p class="text-gray-500">No announcements yet.</p>';
+            list.innerHTML = '<p class="text-neutral-500 font-mono-tag text-xs">No announcements yet.</p>';
             return;
         }
         let notifs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
@@ -692,36 +809,37 @@ async function fetchNotifications() {
         });
         list.innerHTML = '';
         notifs.forEach(data => {
-            let icon = '📢';
-            if (data.type === 'tournament') icon = '🏆';
-            if (data.type === 'event') icon = '🎉';
-            if (data.type === 'alert') icon = '⚠️';
+            let icon = '';
+            if (data.type === 'tournament') icon = '';
+            if (data.type === 'event') icon = '';
+            if (data.type === 'alert') icon = '';
             list.innerHTML += `
                 <div class="admin-item">
                     <div class="flex items-center gap-3">
                         <div class="text-xl">${icon}</div>
                         <div>
-                            <div class="font-bold text-white">${escapeHtml(data.title)}</div>
-                            <div class="text-xs text-gray-400 max-w-xs truncate">${escapeHtml(data.message)}</div>
+                            <div class="font-bold text-white text-sm uppercase font-heading">${escapeHtml(data.title)}</div>
+                            <div class="text-xs text-neutral-400 max-w-xs truncate font-mono-tag">${escapeHtml(data.message)}</div>
                         </div>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="editItem('notifications', '${data.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
-                        <button onclick="deleteItem('notifications', '${data.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
+                        <button onclick="editItem('notifications', '${data.id}')" class="bg-blue-900/40 hover:bg-blue-600 text-blue-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-blue-800 uppercase">Edit</button>
+                        <button onclick="deleteItem('notifications', '${data.id}')" class="bg-red-900/40 hover:bg-red-600 text-red-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-red-800 uppercase">Delete</button>
                     </div>
                 </div>`;
         });
     } catch (e) {
         console.error("Error loading notifications:", e);
-        list.innerHTML = '<p class="text-red-500">Failed to load announcements.</p>';
+        list.innerHTML = '<p class="text-red-500 font-mono-tag text-xs">Failed to load announcements.</p>';
     }
 }
 
 async function fetchEvents() {
     const list = qs('#events-list');
+    if (!list) return;
     const q = query(collection(db, "events"));
     const snapshot = await getDocs(q);
-    list.innerHTML = snapshot.empty ? '<p class="text-gray-500 italic">No events found.</p>' : '';
+    list.innerHTML = snapshot.empty ? '<p class="text-neutral-500 italic font-mono-tag text-xs">No events found.</p>' : '';
     
     const eventPromises = [];
     snapshot.forEach(doc => {
@@ -768,35 +886,39 @@ async function renderEventItem(doc) {
         <div class="admin-item">
             <div>
                 <div class="flex items-center gap-2">
-                    <div class="font-bold text-white">${escapeHtml(data.name)}</div>
-                    ${hasStream ? `<span class="px-2 py-0.5 rounded text-xs ${isLive ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-gray-500/20 text-gray-400'}">📡 ${isLive ? 'LIVE' : 'Stream Ready'}</span>` : ''}
+                    <div class="font-bold text-white text-sm uppercase font-heading">${escapeHtml(data.name)}</div>
+                    ${hasStream ? `<span class="px-2 py-0.5 rounded text-[10px] font-mono-tag ${isLive ? 'bg-red-500/20 text-red-400 animate-pulse' : 'bg-neutral-500/20 text-neutral-400'}">${isLive ? 'LIVE' : 'Stream Ready'}</span>` : ''}
                 </div>
-                <div class="text-sm text-gray-400">${escapeHtml(data.date)}</div>
+                <div class="text-xs text-neutral-400 font-mono-tag">${escapeHtml(data.date)}</div>
             </div>
             <div class="flex gap-2">
                 ${hasStream ? 
-                    `<button onclick="manageLivestream('${doc.id}')" class="bg-purple-900/50 hover:bg-purple-600 text-purple-200 px-3 py-1 rounded text-sm border border-purple-800">Stream</button>` : 
-                    `<button onclick="createLivestream('${doc.id}', '${escapeHtml(data.name).replace(/'/g, "\\'")}')" class="bg-green-900/50 hover:bg-green-600 text-green-200 px-3 py-1 rounded text-sm border border-green-800">+ Stream</button>`
+                    `<button onclick="manageLivestream('${doc.id}')" class="bg-purple-900/40 hover:bg-purple-600 text-purple-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-purple-800 uppercase">Stream</button>` : 
+                    `<button onclick="createLivestream('${doc.id}', '${escapeHtml(data.name).replace(/'/g, "\\'")}')" class="bg-green-900/40 hover:bg-green-600 text-green-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-green-800 uppercase">+ Stream</button>`
                 }
-                <button onclick="editItem('events', '${doc.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
-                <button onclick="deleteItem('events', '${doc.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
+                <button onclick="editItem('events', '${doc.id}')" class="bg-blue-900/40 hover:bg-blue-600 text-blue-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-blue-800 uppercase">Edit</button>
+                <button onclick="deleteItem('events', '${doc.id}')" class="bg-red-900/40 hover:bg-red-600 text-red-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-red-800 uppercase">Delete</button>
             </div>
         </div>`;
 }
 
 async function fetchJobs() {
     const list = qs('#jobs-list');
+    if (!list) return;
     const q = query(collection(db, "careers"));
     const snapshot = await getDocs(q);
-    list.innerHTML = snapshot.empty ? '<p class="text-gray-500 italic">No jobs found.</p>' : '';
+    list.innerHTML = snapshot.empty ? '<p class="text-neutral-500 italic font-mono-tag text-xs">No jobs found.</p>' : '';
     snapshot.forEach(doc => {
         const data = doc.data();
         list.innerHTML += `
             <div class="admin-item">
-                <div><div class="font-bold text-white">${escapeHtml(data.title)}</div><div class="text-sm text-gray-400">${escapeHtml(data.location)}</div></div>
+                <div>
+                    <div class="font-bold text-white text-sm uppercase font-heading">${escapeHtml(data.title)}</div>
+                    <div class="text-xs text-neutral-400 font-mono-tag">${escapeHtml(data.location)} • ${escapeHtml(data.type)}</div>
+                </div>
                 <div class="flex gap-2">
-                    <button onclick="editItem('careers', '${doc.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
-                    <button onclick="deleteItem('careers', '${doc.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
+                    <button onclick="editItem('careers', '${doc.id}')" class="bg-blue-900/40 hover:bg-blue-600 text-blue-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-blue-800 uppercase">Edit</button>
+                    <button onclick="deleteItem('careers', '${doc.id}')" class="bg-red-900/40 hover:bg-red-600 text-red-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-red-800 uppercase">Delete</button>
                 </div>
             </div>`;
     });
@@ -804,59 +926,170 @@ async function fetchJobs() {
 
 async function fetchTalents() {
     const list = qs('#talents-list');
+    if (!list) return;
     const q = query(collection(db, "talents"));
     const snapshot = await getDocs(q);
-    list.innerHTML = snapshot.empty ? '<p class="text-gray-500">No talents found.</p>' : '';
+    list.innerHTML = snapshot.empty ? '<p class="text-neutral-500 font-mono-tag text-xs">No talents found.</p>' : '';
     snapshot.forEach(doc => {
         const data = doc.data();
         list.innerHTML += `
             <div class="admin-item">
-                <div><div class="font-bold text-white">${escapeHtml(data.name)}</div><div class="text-sm text-gray-400">${escapeHtml(data.role)}</div></div>
+                <div>
+                    <div class="font-bold text-white text-sm uppercase font-heading">${escapeHtml(data.name)}</div>
+                    <div class="text-xs text-neutral-400 font-mono-tag">${escapeHtml(data.role)}</div>
+                </div>
                 <div class="flex gap-2">
-                    <button onclick="editItem('talents', '${doc.id}')" class="bg-blue-900/50 hover:bg-blue-600 text-blue-200 px-3 py-1 rounded text-sm border border-blue-800">Edit</button>
-                    <button onclick="deleteItem('talents', '${doc.id}')" class="bg-red-900/50 hover:bg-red-600 text-red-200 px-3 py-1 rounded text-sm border border-red-800">Delete</button>
+                    <button onclick="editItem('talents', '${doc.id}')" class="bg-blue-900/40 hover:bg-blue-600 text-blue-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-blue-800 uppercase">Edit</button>
+                    <button onclick="deleteItem('talents', '${doc.id}')" class="bg-red-900/40 hover:bg-red-600 text-red-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-red-800 uppercase">Delete</button>
                 </div>
             </div>`;
     });
 }
 
+let allPartners = [];
+let currentPartnerCategoryFilter = 'all';
+
+async function fetchPartners() {
+    const list = qs('#partners-list');
+    if (!list) return;
+    try {
+        allPartners = [];
+        
+        // 1. Read from site_config/partners_data
+        try {
+            const configDocRef = doc(db, "site_config", "partners_data");
+            const configSnap = await getDoc(configDocRef);
+            if (configSnap.exists() && Array.isArray(configSnap.data().partners) && configSnap.data().partners.length > 0) {
+                allPartners = configSnap.data().partners;
+            }
+        } catch (err) {
+            console.warn("Could not read site_config/partners_data", err);
+        }
+
+        // 2. Fallback to collection("partners") if site_config is empty
+        if (allPartners.length === 0) {
+            try {
+                const q = query(collection(db, "partners"));
+                const snapshot = await getDocs(q);
+                snapshot.forEach(doc => {
+                    allPartners.push({ id: doc.id, ...doc.data() });
+                });
+            } catch (err) {
+                console.warn("Could not read collection partners", err);
+            }
+        }
+
+        allPartners.sort((a, b) => (Number(a.order) || 99) - (Number(b.order) || 99));
+        displayPartners();
+    } catch (e) {
+        console.error("Error loading partners:", e);
+        list.innerHTML = '<p class="text-red-500 font-mono-tag text-xs">Failed to load partners.</p>';
+    }
+}
+
+function displayPartners() {
+    const list = qs('#partners-list');
+    if (!list) return;
+    const searchTerm = qs('#partner-search')?.value?.toLowerCase() || '';
+
+    let filtered = allPartners.filter(p => {
+        const matchesCategory = currentPartnerCategoryFilter === 'all' || (p.category || 'Official Partners') === currentPartnerCategoryFilter;
+        const matchesSearch = !searchTerm ||
+            (p.name && p.name.toLowerCase().includes(searchTerm)) ||
+            (p.category && p.category.toLowerCase().includes(searchTerm)) ||
+            (p.website && p.website.toLowerCase().includes(searchTerm));
+        return matchesCategory && matchesSearch;
+    });
+
+    if (filtered.length === 0) {
+        list.innerHTML = '<div class="text-center py-12 bg-white/5 rounded-xl border border-white/10 text-neutral-400 font-mono-tag text-xs">No partners found matching your criteria.</div>';
+        return;
+    }
+
+    list.innerHTML = '';
+    filtered.forEach(p => {
+        const logoUrl = p.logo || 'pictures/cz_logo.png';
+        const websiteLink = p.website ? `<a href="${escapeHtml(p.website)}" target="_blank" class="hover:underline text-[var(--gold)]">${escapeHtml(p.website)}</a>` : 'No website link';
+        
+        list.innerHTML += `
+            <div class="admin-item flex-col sm:flex-row items-start sm:items-center gap-4 justify-between bg-[var(--dark-surface)] p-4 rounded-xl border border-white/10 hover:border-white/20 transition-all">
+                <div class="flex items-center gap-4 min-w-0">
+                    <img src="${escapeHtml(logoUrl)}" alt="${escapeHtml(p.name)}" class="w-14 h-10 object-contain bg-white/5 p-1 rounded-lg border border-white/10 shrink-0">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <span class="font-bold text-white text-sm uppercase font-heading truncate">${escapeHtml(p.name || 'Unnamed Partner')}</span>
+                            <span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-[var(--gold)]/10 text-[var(--gold)] border border-[var(--gold)]/20">${escapeHtml(p.category || 'Official Partners')}</span>
+                        </div>
+                        <div class="text-xs text-neutral-400 font-mono-tag truncate mt-0.5">
+                            Order #${p.order ?? 1} • ${websiteLink}
+                        </div>
+                        ${p.description ? `<div class="text-[11px] text-neutral-500 line-clamp-1 italic mt-0.5">"${escapeHtml(p.description)}"</div>` : ''}
+                    </div>
+                </div>
+                <div class="flex gap-2 shrink-0 self-end sm:self-center">
+                    <button onclick="editItem('partners', '${p.id}')" class="bg-blue-900/40 hover:bg-blue-600 text-blue-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-blue-800 uppercase cursor-pointer">Edit</button>
+                    <button onclick="deleteItem('partners', '${p.id}')" class="bg-red-900/40 hover:bg-red-600 text-red-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-red-800 uppercase cursor-pointer">Delete</button>
+                </div>
+            </div>`;
+    });
+}
+
+window.filterPartnersByCategory = function(category) {
+    currentPartnerCategoryFilter = category;
+    document.querySelectorAll('#tab-partners .role-tab').forEach(tab => tab.classList.remove('active'));
+    const safeId = category.replace(/\s+/g, '-');
+    const activeTab = qs(`#partner-tab-${safeId}`) || qs(`#partner-tab-${category}`);
+    if (activeTab) activeTab.classList.add('active');
+    displayPartners();
+};
+
+window.refreshPartners = async function() {
+    await fetchPartners();
+};
+
+if (qs('#partner-search')) {
+    qs('#partner-search').addEventListener('input', () => displayPartners());
+}
+
 async function fetchMessages() {
     const list = qs('#messages-list');
+    if (!list) return;
     const q = query(collection(db, "messages"));
     const snapshot = await getDocs(q);
-    list.innerHTML = snapshot.empty ? `<div class="text-center py-12 bg-white/5 rounded-lg border border-white/10"><p class="text-gray-400">Inbox is empty.</p></div>` : '';
+    list.innerHTML = snapshot.empty ? `<div class="text-center py-12 bg-white/5 rounded-xl border border-white/10"><p class="text-neutral-400 font-mono-tag text-xs">Inbox is empty.</p></div>` : '';
     const badge = qs('#msg-badge');
     if (badge) {
         badge.textContent = snapshot.size;
-        badge.classList.remove('hidden');
+        if (snapshot.size > 0) badge.classList.remove('hidden');
+        else badge.classList.add('hidden');
     }
     snapshot.forEach(doc => {
         const data = doc.data();
         const dateStr = data.sentAt ? new Date(data.sentAt).toLocaleString() : 'No Date';
         list.innerHTML += `
-            <div class="message-card relative group">
+            <div class="bg-[var(--dark-surface)] p-5 rounded-xl border border-white/10 relative group">
                 <div class="flex justify-between items-start mb-2">
                     <div>
-                        <span class="text-[var(--gold)] text-xs font-bold uppercase tracking-wider">${escapeHtml(data.subject || data.type || 'No Subject')}</span>
-                        <h3 class="text-white font-bold text-lg">${escapeHtml(data.name)}</h3>
-                        <div class="text-gray-400 text-sm mb-4">
+                        <span class="text-[var(--gold)] text-[10px] font-mono-tag font-bold uppercase tracking-wider">${escapeHtml(data.subject || data.type || 'General Contact')}</span>
+                        <h3 class="text-white font-heading font-bold text-lg uppercase mt-0.5">${escapeHtml(data.name)}</h3>
+                        <div class="text-neutral-400 text-xs font-mono-tag mb-3">
                             ${data.email ? `<a href="mailto:${escapeHtml(data.email)}" class="hover:text-white hover:underline">${escapeHtml(data.email)}</a> • ` : ''} 
                             ${dateStr}
                         </div>
                     </div>
-                    <button onclick="deleteItem('messages', '${doc.id}')" class="text-gray-500 hover:text-red-500 transition-colors p-2" title="Delete Message">
-                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                    <button onclick="deleteItem('messages', '${doc.id}')" class="text-neutral-500 hover:text-red-400 transition-colors p-2" title="Delete Message">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     </button>
                 </div>
-                <div class="bg-black/20 p-4 rounded text-gray-300 text-sm leading-relaxed border border-white/5">
+                <div class="bg-black/40 p-3 rounded-lg text-neutral-300 text-xs leading-relaxed border border-white/5 whitespace-pre-wrap font-sans">
                     ${escapeHtml(data.message || 'No message content.')}
-                    ${data.link ? `<div class="mt-2 text-[var(--gold)]"><a href="${data.link}" target="_blank">View Portfolio Link</a></div>` : ''}
+                    ${data.link ? `<div class="mt-2 text-[var(--gold)] font-mono-tag"><a href="${data.link}" target="_blank" class="hover:underline">View Portfolio Link &rarr;</a></div>` : ''}
                 </div>
             </div>`;
     });
 }
 
-// --- 5. FORM HANDLING ---
+// --- 4. FORM HANDLING ---
 document.addEventListener('DOMContentLoaded', () => {
     const modalMap = {
         'tournamentForm': 'tournamentModal',
@@ -864,19 +1097,29 @@ document.addEventListener('DOMContentLoaded', () => {
         'jobForm': 'jobModal',
         'talentForm': 'talentModal',
         'notifForm': 'notificationModal',
+        'partnerForm': 'partnerModal',
     };
 
     const handleForm = (formId, collectionName, getDataFn, successMsg) => {
         const form = qs(formId);
         if (!form) return;
         const btn = form.querySelector('button[type="submit"]');
-        btn.setAttribute('data-original-text', btn.textContent);
+        if (btn) btn.setAttribute('data-original-text', btn.textContent);
+        
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             let data;
-            try { data = getDataFn(); } catch (err) { if (err.message === 'silent-cancel') return; console.error(err); return; }
-            btn.disabled = true;
-            btn.textContent = "Processing...";
+            try { 
+                data = getDataFn(); 
+            } catch (err) { 
+                if (err.message === 'silent-cancel') return; 
+                console.error(err); 
+                return; 
+            }
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = "Processing...";
+            }
             try {
                 if (editState.isEditing && editState.collection === collectionName && editState.formId === formId) {
                     const docRef = doc(db, collectionName, editState.id);
@@ -890,16 +1133,17 @@ document.addEventListener('DOMContentLoaded', () => {
                     await addDoc(collection(db, collectionName), data);
                     window.showSuccessToast("Created", successMsg, 2000);
                     form.reset();
-
                     if (modalMap[form.id]) closeModal(modalMap[form.id]);
                 }
                 refreshAllLists();
             } catch (err) {
                 console.error(err);
-                window.showErrorToast("Server Error", "Could not save data.", 4000);
+                window.showErrorToast("Server Error", "Could not save data: " + err.message, 4000);
             } finally {
-                btn.disabled = false;
-                if (btn.textContent === "Processing...") btn.textContent = btn.getAttribute('data-original-text');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = btn.getAttribute('data-original-text') || 'Save';
+                }
             }
         });
     };
@@ -987,6 +1231,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // TOURNAMENT FORM HANDLER
     handleForm('#tournamentForm', 'tournaments', () => {
         const startDate = qs('#t-date').value;
         const endDate = qs('#t-end-date').value || startDate;
@@ -994,15 +1239,44 @@ document.addEventListener('DOMContentLoaded', () => {
             window.showErrorToast("Date Error", "End date cannot be earlier than start date.");
             throw new Error("silent-cancel");
         }
+        const venueType = qs('#t-venue-type')?.value || 'Online';
+        const venueLoc = qs('#t-venue-location')?.value?.trim() || '';
+        const venue = (venueType === 'LAN' && venueLoc) ? `LAN: ${venueLoc}` : venueType;
+        const discordLink = qs('#t-discord')?.value?.trim() || '';
+        const rawPaymentType = qs('#t-entry-type')?.value || 'Free';
+        const isPaid = rawPaymentType !== 'Free';
+        const paymentType = rawPaymentType.toLowerCase();
+        const entryType = isPaid ? 'Paid' : 'Free';
+        const entryFee = isPaid ? (parseFloat(qs('#t-entry-fee')?.value) || 0) : 0;
+        const entryCurrency = isPaid ? (qs('#t-entry-currency')?.value || 'PHP') : 'PHP';
+
+        const prizeSplit = {
+            first: parseInt(qs('#t-prize-1st')?.value) || 60,
+            second: parseInt(qs('#t-prize-2nd')?.value) || 30,
+            third: parseInt(qs('#t-prize-3rd')?.value) || 10
+        };
+
         return {
             name: qs('#t-name').value,
             game: qs('#t-game').value,
+            maxTeams: parseInt(qs('#t-max-teams').value) || 8,
+            venueType: venueType,
+            venueLocation: venueLoc,
+            venue: venue,
+            discordLink: discordLink,
             format: qs('#t-format').value,
-            prize: Number(qs('#t-prize').value),
-            status: calculateStatus(startDate, endDate),
+            prize: Number(qs('#t-prize').value) || 0,
+            prizeSplit: prizeSplit,
+            entryType: entryType,
+            paymentType: paymentType,
+            entryFee: entryFee,
+            entryCurrency: entryCurrency,
             date: startDate,
             endDate: endDate,
-            banner: qs('#t-banner').value || "pictures/cz_logo.png"
+            status: calculateStatus(startDate, endDate),
+            description: qs('#t-desc').value || '',
+            banner: qs('#t-banner').value || "pictures/cz_logo.png",
+            paymentProofURL: qs('#t-proof').value || ""
         };
     }, "Tournament Created!");
 
@@ -1013,12 +1287,141 @@ document.addEventListener('DOMContentLoaded', () => {
             window.showErrorToast("Date Error", "End date cannot be earlier than start date.");
             throw new Error("silent-cancel");
         }
-        return { name: qs('#e-name').value, date: startDate, endDate: endDate, description: qs('#e-desc').value, banner: qs('#e-banner').value || "pictures/cz_logo.png" };
+        return { 
+            name: qs('#e-name').value, 
+            date: startDate, 
+            endDate: endDate, 
+            description: qs('#e-desc').value, 
+            banner: qs('#e-banner').value || "pictures/cz_logo.png" 
+        };
     }, "Event Posted!");
 
-    handleForm('#jobForm', 'careers', () => ({ title: qs('#j-title').value, location: qs('#j-location').value, type: qs('#j-type').value }), "Job Posted!");
-    handleForm('#talentForm', 'talents', () => ({ name: qs('#tal-name').value, role: qs('#tal-role').value, image: qs('#tal-img').value || "pictures/cz_logo.png", socialLink: qs('#tal-link').value, bio: qs('#tal-bio').value }), "Talent Added!");
-    handleForm('#notifForm', 'notifications', () => ({ title: qs('#n-title').value, type: qs('#n-type').value, message: qs('#n-message').value }), "Notification Sent!");
+    handleForm('#jobForm', 'careers', () => ({ 
+        title: qs('#j-title').value, 
+        location: qs('#j-location').value, 
+        type: qs('#j-type').value 
+    }), "Job Posted!");
+
+    handleForm('#talentForm', 'talents', () => ({ 
+        name: qs('#tal-name').value, 
+        role: qs('#tal-role').value, 
+        image: qs('#tal-img').value || "pictures/cz_logo.png", 
+        socialLink: qs('#tal-link').value, 
+        bio: qs('#tal-bio').value 
+    }), "Talent Added!");
+
+    handleForm('#notifForm', 'notifications', () => ({ 
+        title: qs('#n-title').value, 
+        type: qs('#n-type').value, 
+        message: qs('#n-message').value 
+    }), "Notification Sent!");
+
+    // PARTNER FORM SUBMIT HANDLER
+    const partnerForm = qs('#partnerForm');
+    if (partnerForm) {
+        partnerForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const btn = partnerForm.querySelector('button[type="submit"]');
+            const origText = btn ? btn.textContent : 'Save Partner';
+            if (btn) { btn.disabled = true; btn.textContent = "Processing..."; }
+
+            try {
+                const name = qs('#p-name')?.value?.trim();
+                if (!name) {
+                    window.showErrorToast("Validation", "Partner name is required.");
+                    if (btn) { btn.disabled = false; btn.textContent = origText; }
+                    return;
+                }
+
+                const logo = qs('#p-logo')?.value?.trim() || qs('#p-logo-url')?.value?.trim() || "pictures/cz_logo.png";
+                const category = qs('#p-category')?.value || 'Official Partners';
+                const order = parseInt(qs('#p-order')?.value) || 1;
+                let website = qs('#p-website')?.value?.trim() || '';
+                if (website && !website.startsWith('http://') && !website.startsWith('https://')) {
+                    website = 'https://' + website;
+                }
+                const description = qs('#p-description')?.value?.trim() || '';
+
+                // Fetch current list from site_config/partners_data
+                const configDocRef = doc(db, "site_config", "partners_data");
+                let currentList = [];
+                try {
+                    const snap = await getDoc(configDocRef);
+                    if (snap.exists() && Array.isArray(snap.data().partners)) {
+                        currentList = snap.data().partners;
+                    } else if (allPartners.length > 0) {
+                        currentList = [...allPartners];
+                    }
+                } catch (err) {
+                    currentList = [...allPartners];
+                }
+
+                if (editState.isEditing && editState.collection === 'partners' && editState.id) {
+                    // Update existing
+                    const idx = currentList.findIndex(p => p.id === editState.id);
+                    const updatedPartner = {
+                        id: editState.id,
+                        name,
+                        category,
+                        order,
+                        logo,
+                        website,
+                        description,
+                        updatedAt: new Date().toISOString()
+                    };
+                    if (idx !== -1) {
+                        currentList[idx] = updatedPartner;
+                    } else {
+                        currentList.push(updatedPartner);
+                    }
+                    
+                    await setDoc(configDocRef, { partners: currentList, updatedAt: serverTimestamp() }, { merge: true });
+                    
+                    try {
+                        await updateDoc(doc(db, "partners", editState.id), {
+                            name, category, order, logo, website, description, updatedAt: serverTimestamp()
+                        });
+                    } catch (_) {}
+
+                    window.showSuccessToast("Updated", "Partner updated successfully!", 2000);
+                } else {
+                    // Create new
+                    const newId = 'partner_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+                    const newPartner = {
+                        id: newId,
+                        name,
+                        category,
+                        order,
+                        logo,
+                        website,
+                        description,
+                        createdAt: new Date().toISOString()
+                    };
+                    currentList.push(newPartner);
+
+                    await setDoc(configDocRef, { partners: currentList, updatedAt: serverTimestamp() }, { merge: true });
+                    
+                    try {
+                        await setDoc(doc(db, "partners", newId), {
+                            name, category, order, logo, website, description, createdAt: serverTimestamp()
+                        });
+                    } catch (_) {}
+
+                    window.showSuccessToast("Created", "Partner added successfully!", 2000);
+                }
+
+                closeModal('partnerModal');
+                resetFormState('#partnerForm');
+                await fetchPartners();
+
+            } catch (error) {
+                console.error("Partner Save Error:", error);
+                window.showErrorToast("Server Error", "Could not save data: " + error.message, 4000);
+            } finally {
+                if (btn) { btn.disabled = false; btn.textContent = origText; }
+            }
+        });
+    }
 
     function setupImageUpload(inputId, hiddenInputId, statusId, folder, onComplete) {
         const input = qs(inputId);
@@ -1050,8 +1453,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     setupImageUpload('#t-banner-upload', '#t-banner', '#t-banner-status', 'tournaments');
+    setupImageUpload('#t-proof-upload', '#t-proof', '#t-proof-status', 'tournaments/payment-proofs');
     setupImageUpload('#e-banner-upload', '#e-banner', '#e-banner-status', 'events');
     setupImageUpload('#tal-img-upload', '#tal-img', '#tal-img-status', 'talents');
+    setupImageUpload('#p-logo-upload', '#p-logo', '#p-logo-status', 'partners', (url) => {
+        if (qs('#p-logo-url')) qs('#p-logo-url').value = url;
+        if (qs('#p-logo-preview')) qs('#p-logo-preview').src = url;
+    });
 
     [1, 2, 3].forEach(i => {
         setupImageUpload(`#cfg-act-img-upload-${i}`, `#cfg-act-img-${i}`, `#cfg-act-img-status-${i}`, 'activities', (url) => {

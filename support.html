@@ -1,0 +1,817 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FDFF1NLL6L"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-FDFF1NLL6L');
+    </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5161743455178808"
+        crossorigin="anonymous"></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <title>Support ChampZero — Supporter Tiers, Badges &amp; Perks</title>
+
+    <meta name="description"
+        content="Support ChampZero's grassroots esports ecosystem. Unlock verified supporter badges, golden profile frames, VIP chat flairs, and spot on our Wall of Fame.">
+    <meta property="og:title" content="Support ChampZero — Supporter Tiers, Badges &amp; Perks">
+    <meta property="og:description"
+        content="Fuel community tournaments, broadcast streams, and rising talent. Unlock exclusive badges and website perks.">
+    <meta property="og:image" content="https://champzero.com/pictures/cz_logo.png">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,500;0,600;0,700;1,700&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/custom-cursor.css">
+
+    <style>
+        :root {
+            --cz-gold: #FFD700;
+            --cz-gold-light: #FFF099;
+            --cz-gold-glow: rgba(255, 215, 0, 0.18);
+            --cz-bg: #000000;
+            --cz-surface: #0A0A0E;
+            --cz-card: #111116;
+            --cz-border: rgba(255, 255, 255, 0.08);
+            --cz-border-gold: rgba(255, 215, 0, 0.35);
+
+            /* Compatibility tokens */
+            --gold: #FFD700;
+            --gold-darker: #C99700;
+            --dark-bg: #000000;
+            --dark-card: #111116;
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--cz-bg);
+            color: #FFFFFF;
+            overflow-x: hidden;
+        }
+
+        .font-heading {
+            font-family: 'Chakra Petch', sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        .font-mono-tag {
+            font-family: 'Space Mono', monospace;
+        }
+
+        .hero-mesh {
+            background-image:
+                radial-gradient(at 0% 0%, rgba(255, 215, 0, 0.12) 0px, transparent 50%),
+                radial-gradient(at 100% 100%, rgba(234, 179, 8, 0.08) 0px, transparent 50%),
+                radial-gradient(at 50% 50%, rgba(10, 10, 14, 0.95) 0px, #000000 100%);
+        }
+
+        .clean-card {
+            background-color: #0A0A0E;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            transition: border-color 0.25s ease, transform 0.25s ease, box-shadow 0.25s ease;
+        }
+
+        .clean-card:hover {
+            border-color: rgba(255, 215, 0, 0.4);
+            transform: translateY(-3px);
+            box-shadow: 0 16px 35px -10px rgba(0, 0, 0, 0.9), 0 0 25px -8px var(--cz-gold-glow);
+        }
+
+        .tier-gold-card {
+            background: linear-gradient(145deg, rgba(20, 18, 12, 0.95) 0%, rgba(10, 10, 14, 0.98) 100%);
+            border: 1.5px solid rgba(255, 215, 0, 0.45);
+            box-shadow: 0 10px 30px -10px rgba(255, 215, 0, 0.15);
+        }
+
+        .tier-gold-card:hover {
+            border-color: #FFD700;
+            box-shadow: 0 20px 40px -10px rgba(255, 215, 0, 0.25);
+            transform: translateY(-4px);
+        }
+
+        /* Nav Link */
+        .nav-link {
+            position: relative;
+            transition: color 0.2s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 1.5px;
+            bottom: -4px;
+            left: 0;
+            background-color: var(--cz-gold);
+            transform: scaleX(0);
+            transform-origin: center;
+            transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .nav-link:hover::after,
+        .nav-link.active::after {
+            transform: scaleX(1);
+        }
+
+        /* Gold Shimmer Animation */
+        @keyframes shimmer {
+            0% {
+                background-position: -200% 0;
+            }
+
+            100% {
+                background-position: 200% 0;
+            }
+        }
+
+        .gold-shimmer {
+            background: linear-gradient(90deg, #FFD700 0%, #FFF099 50%, #FFD700 100%);
+            background-size: 200% auto;
+            color: #000;
+            animation: shimmer 3s linear infinite;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--cz-gold);
+            outline-offset: 4px;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+
+<body class="antialiased min-h-screen flex flex-col justify-between selection:bg-[#FFD700] selection:text-black">
+
+    <!-- HEADER NAVIGATION -->
+    <header id="main-header"
+        class="sticky top-0 z-50 bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
+        <div class="max-w-6xl mx-auto px-6 h-18 flex justify-between items-center py-4">
+
+            <!-- BRAND IDENTITY -->
+            <a href="/" class="flex items-center gap-2.5 group">
+                <img src="pictures/cz_logo.png" alt="ChampZero Logo" class="w-7 h-7 object-contain">
+                <div class="flex items-center gap-1.5">
+                    <span
+                        class="font-heading font-bold text-base tracking-tight text-white group-hover:text-[#FFD700] transition-colors">ChampZero</span>
+                    <span
+                        class="font-mono-tag bg-[#FFD700] text-black text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                        Beta
+                    </span>
+                </div>
+            </a>
+
+            <!-- DESKTOP NAV -->
+            <nav
+                class="hidden md:flex items-center gap-7 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                <a href="/" class="nav-link hover:text-white transition-colors">Home</a>
+                <a href="/tournaments" class="nav-link hover:text-white transition-colors">Tournaments</a>
+                <a href="/events" class="nav-link hover:text-white transition-colors">Events</a>
+                <a href="/teams" class="nav-link hover:text-white transition-colors">Teams &amp; Recruitment</a>
+                <a href="/rising" class="nav-link hover:text-white transition-colors">Rising Champ</a>
+                <a href="/partners" class="nav-link hover:text-white transition-colors">Partners</a>
+            </nav>
+
+            <!-- AUTH CONTROLS -->
+            <div class="flex items-center gap-3">
+                <div id="auth-controls-wrapper"
+                    class="transition-opacity duration-500 opacity-0 pointer-events-none md:min-w-[180px] md:flex md:justify-end">
+                    <div class="relative">
+                        <div id="auth-controls" class="flex items-center gap-2">
+                            <a href="/login"
+                                class="text-xs font-semibold px-3 py-1.5 rounded-lg text-neutral-300 hover:text-white transition-colors">Log
+                                In</a>
+                            <a href="/signup"
+                                class="hidden sm:inline-block font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] hover:bg-[#FFF099] text-black px-4 py-2 rounded-lg transition-all shadow-sm">Sign
+                                Up</a>
+                        </div>
+                    </div>
+                </div>
+                <button id="mobile-menu-button" aria-label="Toggle navigation menu"
+                    class="md:hidden p-2 rounded text-neutral-400 hover:text-white hover:bg-white/5 border border-white/10 cursor-pointer pointer-events-auto transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M4 6h16M4 12h16m-7 6h7"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- MOBILE MENU DRAWER -->
+    <div id="mobile-menu"
+        class="hidden md:hidden fixed inset-0 bg-black/98 backdrop-blur-2xl z-[100] p-6 transition-all duration-300 flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center pb-5 border-b border-white/10">
+                <div class="flex items-center gap-2.5">
+                    <img src="pictures/cz_logo.png" class="w-7 h-7 object-contain" alt="Logo">
+                    <span class="font-heading font-bold text-white text-base">ChampZero</span>
+                </div>
+                <button id="close-mobile-menu" class="p-2 text-neutral-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+            </div>
+            <nav class="flex flex-col gap-4 text-base font-semibold mt-8">
+                <a href="/" class="text-neutral-400 hover:text-white py-2 border-b border-white/5">Home</a>
+                <a href="/tournaments"
+                    class="text-neutral-400 hover:text-white py-2 border-b border-white/5">Tournaments</a>
+                <a href="/events" class="text-neutral-400 hover:text-white py-2 border-b border-white/5">Events</a>
+                <a href="/teams" class="text-neutral-400 hover:text-white py-2 border-b border-white/5">Teams &amp;
+                    Recruitment</a>
+                <a href="/rising" class="text-neutral-400 hover:text-white py-2 border-b border-white/5">Rising
+                    Champ</a>
+                <a href="/partners" class="text-neutral-400 hover:text-white py-2 border-b border-white/5">Partners</a>
+            </nav>
+        </div>
+        <div class="space-y-2 pt-6 border-t border-white/10">
+            <a href="/login"
+                class="block w-full text-center py-3 rounded text-white bg-white/5 border border-white/10 font-semibold text-sm">Log
+                In</a>
+            <a href="/signup"
+                class="block w-full text-center py-3 rounded text-black bg-[#FFD700] font-heading font-bold text-sm uppercase tracking-wider">Sign
+                Up</a>
+        </div>
+    </div>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-grow">
+
+        <!-- 1. HERO SECTION -->
+        <section class="hero-mesh pt-20 pb-16 border-b border-white/10 relative overflow-hidden">
+            <div class="max-w-4xl mx-auto px-6 text-center">
+                <div
+                    class="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-white/5 border border-white/10 text-xs font-mono-tag text-[#FFD700] mb-6">
+                    <span class="w-2 h-2 rounded-full bg-[#FFD700] animate-pulse"></span>
+                    <span>ChampZero Supporter Club</span>
+                </div>
+
+                <h1
+                    class="font-heading font-bold text-4xl sm:text-6xl text-white uppercase tracking-tight leading-[1.05]">
+                    Fuel the Arena • <br>
+                    <span
+                        class="text-transparent bg-clip-text bg-gradient-to-r from-white via-[#FFD700] to-amber-500">Empower
+                        Southeast Asian Esports</span>
+                </h1>
+
+                <p class="mt-5 text-base sm:text-lg text-neutral-400 max-w-2xl mx-auto leading-relaxed">
+                    Directly support independent tournament prize pools, scholastic collegiate circuits, and live
+                    broadcast infrastructure. Unlock verified supporter badges, glowing profile frames, and VIP chat
+                    flairs.
+                </p>
+
+                <!-- Impact Pillars Summary -->
+                <div class="mt-10 grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto text-left">
+                    <div class="p-4 rounded-xl bg-black/50 border border-white/5 flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-[#FFD700]/10 border border-[#FFD700]/20 flex items-center justify-center text-[#FFD700] shrink-0">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd"
+                                    d="M10 2a1 1 0 011 1v1.323l3.954 1.582 1.599-.8a1 1 0 01.894 1.79l-1.233.616 1.738 5.42a1 1 0 01-.285 1.05A3.989 3.989 0 0115 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.715-5.35-2.763-1.106V17h2a1 1 0 110 2H7a1 1 0 110-2h2V6.475L6.237 7.58l1.715 5.35a1 1 0 01-.285 1.05A3.989 3.989 0 015 15a3.989 3.989 0 01-2.667-1.019 1 1 0 01-.285-1.05l1.738-5.42-1.233-.617a1 1 0 01.894-1.789l1.599.8L9 4.323V3a1 1 0 011-1z"
+                                    clip-rule="evenodd"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="font-heading font-bold text-xs text-white uppercase block">Tournament
+                                Prizing</span>
+                            <span class="text-[11px] text-neutral-400">100% transparent payouts</span>
+                        </div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-black/50 border border-white/5 flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-400 shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 14l9-5-9-5-9 5 9 5z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M12 14l6.16-3.422a12.083 12.083 0 01.665 6.479A11.952 11.952 0 0012 20.055a11.952 11.952 0 00-6.824-2.998 12.078 12.078 0 01.665-6.479L12 14z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="font-heading font-bold text-xs text-white uppercase block">Student
+                                Grants</span>
+                            <span class="text-[11px] text-neutral-400">Collegiate scholastic circuits</span>
+                        </div>
+                    </div>
+                    <div class="p-4 rounded-xl bg-black/50 border border-white/5 flex items-center gap-3">
+                        <div
+                            class="w-8 h-8 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                    d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                            </svg>
+                        </div>
+                        <div>
+                            <span class="font-heading font-bold text-xs text-white uppercase block">Broadcast Lab</span>
+                            <span class="text-[11px] text-neutral-400">60 FPS multi-camera feeds</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. SUPPORTER TIERS & PERKS -->
+        <section class="max-w-6xl mx-auto px-6 py-20 border-b border-white/5">
+            <div class="text-center max-w-2xl mx-auto mb-14">
+                <span class="font-mono-tag text-xs font-bold uppercase tracking-wider text-[#FFD700] block mb-2">
+                    Membership Tiers
+                </span>
+                <h2 class="font-heading font-bold text-3xl sm:text-4xl text-white uppercase tracking-tight">
+                    Choose Your Supporter Rank
+                </h2>
+                <p class="text-xs sm:text-sm text-neutral-400 mt-2">
+                    Every contribution directly supports our players and productions. Badges and perks activate
+                    instantly on your account.
+                </p>
+            </div>
+
+            <!-- Tiers Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+
+                <!-- TIER 1: BRONZE SCOUT -->
+                <div class="clean-card p-8 rounded-3xl flex flex-col justify-between relative">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span
+                                class="font-mono-tag text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-amber-700/20 border border-amber-600/30 text-amber-400">
+                                Bronze Scout
+                            </span>
+                            <span class="font-mono-tag text-[10px] text-neutral-500 uppercase">Tier 01</span>
+                        </div>
+
+                        <h3 class="font-heading font-bold text-2xl text-white uppercase tracking-tight mb-1">
+                            Champion Scout
+                        </h3>
+                        <p class="text-xs text-neutral-400 mb-6">
+                            Great entry-level support for passionate fans backing regional grassroots qualifiers.
+                        </p>
+
+                        <div class="mb-6 pb-6 border-b border-white/5">
+                            <div class="flex items-baseline gap-1">
+                                <span class="font-heading font-bold text-3xl sm:text-4xl text-white">₱99</span>
+                                <span class="text-xs font-mono-tag text-neutral-500 uppercase">/ month</span>
+                            </div>
+                        </div>
+
+                        <!-- Perks List -->
+                        <ul class="space-y-3 text-xs text-neutral-300 mb-8">
+                            <li class="flex items-center gap-2.5">
+                                <svg class="w-4 h-4 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                                <span><strong>Bronze Supporter Badge</strong> on Profile</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <svg class="w-4 h-4 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                                <span><code
+                                        class="text-amber-400 font-mono text-[10px] bg-amber-500/10 px-1 py-0.5 rounded">[SUPPORTER]</code>
+                                    Chat Flair</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <svg class="w-4 h-4 text-amber-400 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                                <span>Listed on Supporter Wall of Fame</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <button onclick="window.openDonationCheckout('bronze', 99, 'Champion Scout Tier')"
+                        class="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-amber-500/50 font-heading text-xs uppercase font-bold tracking-wider transition-all cursor-pointer">
+                        Support ₱99/mo &rarr;
+                    </button>
+                </div>
+
+                <!-- TIER 2: GOLD PATRON (FEATURED) -->
+                <div
+                    class="tier-gold-card p-8 rounded-3xl flex flex-col justify-between relative shadow-2xl scale-[1.02] z-10">
+                    <div class="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap z-20 pointer-events-none">
+                        <span
+                            class="gold-shimmer font-heading font-bold text-[10px] uppercase tracking-wider px-3.5 py-1 rounded-full shadow-md whitespace-nowrap">
+                            Most Popular • VIP
+                        </span>
+                    </div>
+
+                    <div>
+                        <div class="flex items-center justify-between mb-4 mt-2">
+                            <span
+                                class="font-mono-tag text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-[#FFD700]/20 border border-[#FFD700]/40 text-[#FFD700]">
+                                Gold Patron
+                            </span>
+                            <span class="font-mono-tag text-[10px] text-[#FFD700]/70 uppercase">VIP Tier</span>
+                        </div>
+
+                        <h3 class="font-heading font-bold text-2xl text-white uppercase tracking-tight mb-1">
+                            Grand Champion Backer
+                        </h3>
+                        <p class="text-xs text-neutral-300 mb-6">
+                            VIP backer driving major circuit prize pools and premium broadcast productions.
+                        </p>
+
+                        <div class="mb-6 pb-6 border-b border-white/10">
+                            <div class="flex items-baseline gap-1">
+                                <span class="font-heading font-bold text-4xl sm:text-5xl text-[#FFD700]">₱299</span>
+                                <span class="text-xs font-mono-tag text-neutral-400 uppercase">/ month</span>
+                            </div>
+                        </div>
+
+                        <!-- Perks List -->
+                        <ul class="space-y-3.5 text-xs text-neutral-200 mb-8">
+                            <li class="flex items-center gap-2.5">
+                                <svg class="w-4 h-4 text-[#FFD700] shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                                <span><strong>Gold Patron Badge</strong> &amp; Title</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <svg class="w-4 h-4 text-[#FFD700] shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                                <span><strong>Animated Glowing Gold Avatar Frame</strong> on Profile</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <svg class="w-4 h-4 text-[#FFD700] shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                                <span><code
+                                        class="text-[#FFD700] font-mono text-[10px] bg-[#FFD700]/20 px-1 py-0.5 rounded border border-[#FFD700]/30">[PATRON]</code>
+                                    VIP Chat Tag</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <svg class="w-4 h-4 text-[#FFD700] shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                                <span><strong>Golden Glowing Username</strong> in Live Chat</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <svg class="w-4 h-4 text-[#FFD700] shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                                <span>Spotlight Showcase on Wall of Fame</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <button onclick="window.openDonationCheckout('gold', 299, 'Grand Champion Patron Tier')"
+                        class="w-full py-3.5 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading text-xs uppercase font-bold tracking-wider transition-all shadow-lg shadow-yellow-500/20 cursor-pointer">
+                        Become a Patron ₱299/mo &rarr;
+                    </button>
+                </div>
+
+                <!-- TIER 3: SILVER ELITE -->
+                <div class="clean-card p-8 rounded-3xl flex flex-col justify-between relative">
+                    <div>
+                        <div class="flex items-center justify-between mb-4">
+                            <span
+                                class="font-mono-tag text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded bg-slate-400/20 border border-slate-300/30 text-slate-200">
+                                Silver Elite
+                            </span>
+                            <span class="font-mono-tag text-[10px] text-neutral-500 uppercase">Tier 02</span>
+                        </div>
+
+                        <h3 class="font-heading font-bold text-2xl text-white uppercase tracking-tight mb-1">
+                            Arena Elite
+                        </h3>
+                        <p class="text-xs text-neutral-400 mb-6">
+                            Dedicated supporter directly funding live streaming hardware and student scholarship pots.
+                        </p>
+
+                        <div class="mb-6 pb-6 border-b border-white/5">
+                            <div class="flex items-baseline gap-1">
+                                <span class="font-heading font-bold text-3xl sm:text-4xl text-white">₱199</span>
+                                <span class="text-xs font-mono-tag text-neutral-500 uppercase">/ month</span>
+                            </div>
+                        </div>
+
+                        <!-- Perks List -->
+                        <ul class="space-y-3 text-xs text-neutral-300 mb-8">
+                            <li class="flex items-center gap-2.5">
+                                <svg class="w-4 h-4 text-slate-300 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                                <span><strong>Silver Elite Badge</strong> on Profile</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <svg class="w-4 h-4 text-slate-300 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                                <span><code
+                                        class="text-slate-200 font-mono text-[10px] bg-slate-300/10 px-1 py-0.5 rounded border border-slate-300/20">[ELITE]</code>
+                                    Chat Flair</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <svg class="w-4 h-4 text-slate-300 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                                <span>Silver Avatar Accent Frame</span>
+                            </li>
+                            <li class="flex items-center gap-2.5">
+                                <svg class="w-4 h-4 text-slate-300 shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd"
+                                        d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                                        clip-rule="evenodd"></path>
+                                </svg>
+                                <span>Listed on Supporter Wall of Fame</span>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <button onclick="window.openDonationCheckout('silver', 199, 'Arena Elite Tier')"
+                        class="w-full py-3 rounded-xl bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-slate-300/50 font-heading text-xs uppercase font-bold tracking-wider transition-all cursor-pointer">
+                        Support ₱199/mo &rarr;
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- CUSTOM AMOUNT / TIP BOX -->
+            <div class="mt-10 clean-card p-8 rounded-3xl max-w-2xl mx-auto text-center">
+                <span class="font-mono-tag text-xs font-bold uppercase tracking-wider text-[#FFD700] block mb-2">
+                    Custom Support / Community Tip Jar
+                </span>
+                <h3 class="font-heading font-bold text-xl sm:text-2xl text-white uppercase tracking-tight mb-2">
+                    Back With Any Amount
+                </h3>
+                <p class="text-xs text-neutral-400 mb-6 max-w-lg mx-auto">
+                    Want to send a custom tip or contribute a higher amount with a personalized community dedication
+                    message?
+                </p>
+
+                <div class="flex flex-col sm:flex-row items-center justify-center gap-3 max-w-md mx-auto">
+                    <div class="relative w-full sm:w-48">
+                        <span class="absolute left-3.5 top-2.5 font-heading font-bold text-white">₱</span>
+                        <input id="custom-donation-input" type="number" min="50" step="50" value="500"
+                            placeholder="Enter amount"
+                            class="w-full bg-black/60 border border-white/15 focus:border-[#FFD700] rounded-xl pl-8 pr-3 py-2.5 text-sm text-white font-bold placeholder-neutral-500 focus:outline-none transition-colors">
+                    </div>
+                    <button onclick="window.handleCustomDonationSubmit()"
+                        class="w-full sm:w-auto px-6 py-2.5 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading text-xs uppercase font-bold tracking-wider transition-all shadow cursor-pointer shrink-0">
+                        Send Custom Tip &rarr;
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. LIVE SUPPORTER WALL OF FAME -->
+        <section class="max-w-6xl mx-auto px-6 py-20">
+            <div class="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
+                <div>
+                    <span class="font-mono-tag text-xs font-bold uppercase tracking-wider text-[#FFD700] block mb-2">
+                        Honor Roll
+                    </span>
+                    <h2 class="font-heading font-bold text-3xl sm:text-4xl text-white uppercase tracking-tight">
+                        Supporter Wall of Fame
+                    </h2>
+                </div>
+                <p class="text-xs sm:text-sm text-neutral-400 max-w-sm">
+                    Saluting our verified backers, patrons, and esports advocates keeping grassroots competitions alive.
+                </p>
+            </div>
+
+            <!-- Wall Grid -->
+            <div id="wall-of-fame-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Dynamically populated via js/support.js -->
+            </div>
+        </section>
+
+        <!-- 4. CHECKOUT MODAL -->
+        <div id="donationCheckoutModal"
+            class="hidden fixed inset-0 z-50 bg-black/90 backdrop-blur-xl p-4 sm:p-6 flex items-center justify-center transition-all duration-300">
+            <div class="bg-[#0A0A0E] border border-white/15 rounded-3xl max-w-lg w-full p-6 sm:p-8 relative shadow-2xl">
+                <button onclick="window.closeDonationModal()"
+                    class="absolute top-5 right-5 p-2 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
+
+                <!-- Modal Header -->
+                <div class="pb-5 border-b border-white/10">
+                    <div class="flex items-center gap-2 mb-1">
+                        <span id="modal-tier-badge"
+                            class="font-mono-tag text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-[#FFD700]/20 text-[#FFD700]">
+                            Gold Patron
+                        </span>
+                        <span class="font-mono-tag text-[10px] text-neutral-400">Secure Contribution</span>
+                    </div>
+                    <h3 id="modal-tier-title" class="font-heading font-bold text-2xl text-white uppercase tracking-tight">
+                        Grand Champion Backer
+                    </h3>
+                    <div class="flex items-baseline gap-1 mt-1">
+                        <span class="text-xs text-neutral-400">Contribution Amount:</span>
+                        <span id="modal-tier-price" class="font-heading font-bold text-xl text-[#FFD700]">₱299/mo</span>
+                    </div>
+                </div>
+
+                <!-- Form -->
+                <form id="donation-checkout-form" class="py-5 space-y-4">
+
+                    <!-- Dedication Message -->
+                    <div>
+                        <label class="block font-mono-tag text-[10px] uppercase tracking-wider text-neutral-400 mb-1.5">
+                            Shoutout / Dedication Note (Optional)
+                        </label>
+                        <input id="donation-message-input" type="text" maxlength="120"
+                            placeholder="Add a dedication or shoutout message..."
+                            class="w-full bg-black/60 border border-white/10 focus:border-[#FFD700] rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-neutral-500 focus:outline-none transition-colors">
+                    </div>
+
+                <!-- Select Payment Method -->
+                <div>
+                    <label class="block font-mono-tag text-[10px] uppercase tracking-wider text-neutral-400 mb-2">
+                        Select Payment Channel
+                    </label>
+                    <div class="grid grid-cols-2 gap-2.5">
+                        <label
+                            class="p-3 rounded-xl bg-white/[0.02] border border-white/10 hover:border-[#FFD700]/50 flex items-center gap-2.5 cursor-pointer transition-colors group">
+                            <input type="radio" name="payment_channel" value="gcash" checked
+                                class="text-[#FFD700] focus:ring-[#FFD700]">
+                            <div>
+                                <span class="font-heading font-bold text-xs text-white block">GCash</span>
+                                <span class="text-[9px] text-neutral-500">Instant e-Wallet</span>
+                            </div>
+                        </label>
+
+                        <label
+                            class="p-3 rounded-xl bg-white/[0.02] border border-white/10 hover:border-[#FFD700]/50 flex items-center gap-2.5 cursor-pointer transition-colors group">
+                            <input type="radio" name="payment_channel" value="maya"
+                                class="text-[#FFD700] focus:ring-[#FFD700]">
+                            <div>
+                                <span class="font-heading font-bold text-xs text-white block">Maya</span>
+                                <span class="text-[9px] text-neutral-500">e-Wallet &amp; Card</span>
+                            </div>
+                        </label>
+
+                        <label
+                            class="p-3 rounded-xl bg-white/[0.02] border border-white/10 hover:border-[#FFD700]/50 flex items-center gap-2.5 cursor-pointer transition-colors group">
+                            <input type="radio" name="payment_channel" value="paypal"
+                                class="text-[#FFD700] focus:ring-[#FFD700]">
+                            <div>
+                                <span class="font-heading font-bold text-xs text-white block">PayPal</span>
+                                <span class="text-[9px] text-neutral-500">Global / USD</span>
+                            </div>
+                        </label>
+
+                        <label
+                            class="p-3 rounded-xl bg-white/[0.02] border border-white/10 hover:border-[#FFD700]/50 flex items-center gap-2.5 cursor-pointer transition-colors group">
+                            <input type="radio" name="payment_channel" value="card"
+                                class="text-[#FFD700] focus:ring-[#FFD700]">
+                            <div>
+                                <span class="font-heading font-bold text-xs text-white block">Credit / Debit</span>
+                                <span class="text-[9px] text-neutral-500">Visa / Mastercard</span>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Account Sync Note -->
+                <div class="p-3 rounded-xl bg-[#FFD700]/5 border border-[#FFD700]/15 flex items-start gap-2.5">
+                    <svg class="w-3.5 h-3.5 text-[#FFD700] shrink-0 mt-0.5" fill="none" stroke="currentColor"
+                        viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <p class="text-[11px] text-neutral-300 leading-relaxed">
+                        Supporter perks and badges will be automatically assigned to your ChampZero profile upon
+                        checkout confirmation.
+                    </p>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-3">
+                    <button type="submit" id="donation-submit-btn"
+                        class="w-full py-3.5 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading text-xs uppercase font-bold tracking-wider transition-all shadow-lg shadow-yellow-500/10 cursor-pointer flex items-center justify-center gap-2">
+                        <span>Confirm &amp; Complete Contribution</span>
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="border-t border-white/5 bg-[#0A0A0E] mt-16">
+        <div class="max-w-6xl mx-auto px-6 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
+                <div class="md:col-span-2">
+                    <a href="/" class="flex items-center gap-2.5 mb-3">
+                        <img src="pictures/cz_logo.png" alt="ChampZero" class="w-7 h-7 object-contain">
+                        <span class="font-heading font-bold text-base text-white">ChampZero</span>
+                    </a>
+                    <p class="text-xs text-neutral-400 max-w-sm leading-relaxed mb-4">
+                        The complete esports ecosystem for competitive tournaments, rising talent scouting, team
+                        rosters, and community events.
+                    </p>
+                    <div class="font-mono-tag text-[10px] text-neutral-500 uppercase tracking-wider">
+                        © 2026 ChampZero. All rights reserved.
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-neutral-300 mb-3">Quick Links</h4>
+                    <ul class="text-xs text-neutral-400 space-y-2 font-medium">
+                        <li><a href="/about" class="hover:text-white transition-colors">About Us</a></li>
+                        <li><a href="/support" class="text-[#FFD700] hover:text-white transition-colors">Support
+                                &amp; Donate</a></li>
+                        <li><a href="/contact" class="hover:text-white transition-colors">Contact</a></li>
+                        <li><a href="/terms" class="hover:text-white transition-colors">Terms &amp; Privacy</a></li>
+                        <li><a href="/refund-policy" class="hover:text-white transition-colors">Refund Policy</a></li>
+                        <li><a href="/careers" class="hover:text-white transition-colors">Careers</a></li>
+                    </ul>
+                </div>
+
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-neutral-300 mb-3">Follow Us</h4>
+                    <div class="flex items-center gap-2">
+                        <a href="https://facebook.com/champzeroph" target="_blank" rel="noopener noreferrer"
+                            aria-label="Facebook"
+                            class="p-2 rounded bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:border-[#FFD700]/30 transition-all">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <path
+                                    d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c4.56-.93 8-4.96 8-9.8z" />
+                            </svg>
+                        </a>
+                        <a href="https://instagram.com/champzeroph" target="_blank" rel="noopener noreferrer"
+                            aria-label="Instagram"
+                            class="p-2 rounded bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:border-[#FFD700]/30 transition-all">
+                            <svg class="w-4 h-4 stroke-current fill-none" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" viewBox="0 0 24 24">
+                                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                            </svg>
+                        </a>
+                        <a href="https://www.youtube.com/@champzero6400" target="_blank" rel="noopener noreferrer"
+                            aria-label="YouTube"
+                            class="p-2 rounded bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:border-[#FFD700]/30 transition-all">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <path
+                                    d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                            </svg>
+                        </a>
+                        <a href="https://discord.gg/Sve5EKgDcp" target="_blank" rel="noopener noreferrer"
+                            aria-label="Discord"
+                            class="p-2 rounded bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:border-[#FFD700]/30 transition-all">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <path
+                                    d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.094 13.094 0 0 1-1.873-.894.077.077 0 0 1-.008-.128c.126-.093.252-.19.372-.287a.075.075 0 0 1 .077-.011c3.92 1.793 8.18 1.793 12.061 0a.073.073 0 0 1 .078.009c.12.099.246.195.373.289a.077.077 0 0 1-.006.127 12.298 12.298 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.078.078 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.156-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.156 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.156-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.156 2.418z" />
+                            </svg>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- SCRIPTS -->
+    <script src="js/toast.js"></script>
+    <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/auth.js"></script>
+    <script type="module" src="js/notifications.js"></script>
+    <script type="module" src="js/support.js"></script>
+
+</body>
+
+</html>

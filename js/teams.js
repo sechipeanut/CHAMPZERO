@@ -8,6 +8,24 @@ import { uploadImage } from './utils.js';
 function qs(sel) { return document.querySelector(sel); }
 function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m])); }
 
+function formatGameBadge(game) {
+    if (!game) return 'ESPORTS';
+    const g = String(game).trim().toLowerCase();
+    if (g === 'valid' || g === 'val' || g === 'valorant') return 'VALORANT';
+    if (g === 'mlbbid' || g === 'mlbb' || g.includes('mobile legends') || g.includes('bang bang')) return 'MLBB';
+    if (g === 'hokid' || g === 'hok' || g.includes('honor of kings')) return 'HONOR OF KINGS';
+    return String(game).toUpperCase();
+}
+
+function formatGameTitle(game) {
+    if (!game) return 'All Games';
+    const g = String(game).trim().toLowerCase();
+    if (g === 'valid' || g === 'val' || g === 'valorant') return 'Valorant';
+    if (g === 'mlbbid' || g === 'mlbb' || g.includes('mobile legends') || g.includes('bang bang')) return 'Mobile Legends: Bang Bang';
+    if (g === 'hokid' || g === 'hok' || g.includes('honor of kings')) return 'Honor of Kings';
+    return game;
+}
+
 // --- FEATURE FLAGS ---
 const TEAM_RECRUITMENT_ENABLED = true; // Set to true to enable everyone to create a team
 
@@ -18,8 +36,11 @@ let currentManageId = null;
 let myTeamRole = null;
 let activeTeamFilter = 'available';
 let activeGameFilter = 'all';
+let activeRosterFilter = 'all';
+let activeRoleFilter = 'all';
 let activeView = 'teams';
 let searchTerm = '';
+let cachedRecruitmentPosts = [];
 
 // STORE CARD LISTENERS TO CLEAN UP LATER
 let cardListeners = [];
@@ -96,11 +117,11 @@ window.showCustomConfirm = (title, message) => {
 
 // --- UPDATED INITIALIZATION WITH DEBUG LOGS ---
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log("🛠️ DOM Loaded: Initializing Teams & Recruitment...");
+    console.log("DOM Loaded: Initializing Teams & Recruitment...");
 
     auth.onAuthStateChanged(async (user) => {
         if (user) {
-            console.log(`👤 Auth State: User ${user.uid} is logged in.`);
+            console.log(`Auth State: User ${user.uid} is logged in.`);
             try {
                 const snap = await getDoc(doc(db, "users", user.uid));
                 if (snap.exists()) currentUserRole = snap.data().role;
@@ -111,7 +132,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const savedLftId = sessionStorage.getItem('active_chat_lftId');
 
                 if (savedTeamId) {
-                    console.log(`🔄 Session Found: Attempting to reopen ID ${savedTeamId}`);
+                    console.log(`Session Found: Attempting to reopen ID ${savedTeamId}`);
                     if (savedLftId) {
                         activeLftChatId = savedLftId;
                         window.startLftChat(savedTeamId, "User");
@@ -120,10 +141,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                 }
             } catch (e) {
-                console.error("❌ Error fetching role or session:", e);
+                console.error("Error fetching role or session:", e);
             }
         } else {
-            console.log("👤 Auth State: No user logged in.");
+            console.log("Auth State: No user logged in.");
             if (kickUnsubscribe) kickUnsubscribe();
             currentUserRole = null;
         }
@@ -132,7 +153,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupForms();
 });
 
-// --- RENDER LOGIC ---
+const TAB_ACTIVE_CLASS = "px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-[#FFD700] text-black shadow-md cursor-pointer whitespace-nowrap border border-[#FFD700]";
+const TAB_INACTIVE_CLASS = "px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/20 cursor-pointer whitespace-nowrap";
+
 window.setTab = (tabName) => {
     if (tabName === 'find-teams') { activeView = 'teams'; activeTeamFilter = 'available'; }
     else if (tabName === 'find-players') { activeView = 'players'; activeTeamFilter = 'available'; }
@@ -143,14 +166,31 @@ window.setTab = (tabName) => {
     tabs.forEach(t => {
         const btn = document.getElementById(`tab-${t}`);
         if (btn) {
-            if (t === tabName) btn.className = "px-4 py-2 rounded-lg font-bold text-sm transition-all bg-[var(--gold)] text-black shadow-lg shadow-yellow-500/20";
-            else btn.className = "px-4 py-2 rounded-lg font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10";
+            btn.className = (t === tabName) ? TAB_ACTIVE_CLASS : TAB_INACTIVE_CLASS;
         }
     });
     renderTeams();
-}
+};
 
 window.setGameFilter = (game) => { activeGameFilter = game; renderTeams(); }
+window.setRosterFilter = (roster) => { activeRosterFilter = roster; renderTeams(); }
+window.setRoleFilter = (role) => { activeRoleFilter = role; renderTeams(); }
+
+window.resetFilters = () => {
+    activeGameFilter = 'all';
+    activeRosterFilter = 'all';
+    activeRoleFilter = 'all';
+    searchTerm = '';
+    const gameSelect = document.getElementById('filter-game');
+    const rosterSelect = document.getElementById('filter-roster');
+    const roleSelect = document.getElementById('filter-role');
+    const searchInput = document.getElementById('team-search');
+    if (gameSelect) gameSelect.value = 'all';
+    if (rosterSelect) rosterSelect.value = 'all';
+    if (roleSelect) roleSelect.value = 'all';
+    if (searchInput) searchInput.value = '';
+    renderTeams();
+};
 
 async function renderTeams() {
     const board = qs('#recruitment-board');
@@ -183,6 +223,8 @@ async function renderTeams() {
         let posts = [];
         querySnapshot.forEach(doc => posts.push({ id: doc.id, ...doc.data() }));
 
+        cachedRecruitmentPosts = posts;
+
         const targetType = activeView === 'teams' ? 'team' : 'lft';
         posts = posts.filter(p => (p.type === targetType) || (!p.type && activeView === 'teams'));
         posts.sort((a, b) => {
@@ -193,6 +235,7 @@ async function renderTeams() {
         board.innerHTML = '';
         const myUid = auth.currentUser ? auth.currentUser.uid : null;
         let count = 0;
+        let openCount = 0;
 
         // We will collect joined teams to attach listeners later
         let joinedTeamsToListen = [];
@@ -205,10 +248,46 @@ async function renderTeams() {
 
             if (activeTeamFilter === 'mine' && !isJoined) return;
             if (activeTeamFilter === 'available' && isJoined) return;
-            if (activeGameFilter !== 'all' && post.game !== activeGameFilter) return;
+
+            // Game filter
+            if (activeGameFilter !== 'all') {
+                const targetBadge = formatGameBadge(activeGameFilter);
+                const postBadge = formatGameBadge(post.game || post.gameId);
+                if (targetBadge !== postBadge) return;
+            }
+
+            // Roster Availability Filter
+            const memberCount = post.members ? post.members.length : (post.currentMembers || 1);
+            const maxMembers = post.maxMembers || 5;
+            const isFull = memberCount >= maxMembers;
+
+            if (activeView === 'teams') {
+                if (activeRosterFilter === 'open' && isFull) return;
+                if (activeRosterFilter === 'full' && !isFull) return;
+                if (!isFull) openCount++;
+            }
+
+            // Role Filter
+            if (activeRoleFilter !== 'all') {
+                const searchRole = activeRoleFilter.toLowerCase();
+                if (activeView === 'teams') {
+                    const hasRole = post.roles && post.roles.some(r => r.toLowerCase().includes(searchRole));
+                    if (!hasRole) return;
+                } else {
+                    const hasRole = post.role && post.role.toLowerCase().includes(searchRole);
+                    if (!hasRole) return;
+                }
+            }
+
+            // Search Term Filter
             if (searchTerm) {
-                const searchTarget = (post.name || post.ign || '').toLowerCase();
-                if (!searchTarget.includes(searchTerm)) return;
+                const term = searchTerm.toLowerCase();
+                const nameMatch = (post.name || post.ign || '').toLowerCase().includes(term);
+                const descMatch = (post.description || '').toLowerCase().includes(term);
+                const roleMatch = (post.role || '').toLowerCase().includes(term) || (post.roles && post.roles.some(r => r.toLowerCase().includes(term)));
+                const gameMatch = (post.game || '').toLowerCase().includes(term);
+                const captMatch = post.members && post.members.some(m => (m.name || '').toLowerCase().includes(term));
+                if (!nameMatch && !descMatch && !roleMatch && !gameMatch && !captMatch) return;
             }
 
             count++;
@@ -232,7 +311,36 @@ async function renderTeams() {
             }
         });
 
-        if (count === 0) board.innerHTML = `<div class="col-span-full py-20 text-center"><p class="text-gray-500 italic">No listings found.</p></div>`;
+        // Update Filter HUD / Count
+        const countTextEl = document.getElementById('filter-count-text');
+        const resetBtnEl = document.getElementById('btn-reset-filters');
+        const isFiltered = (activeGameFilter !== 'all' || activeRosterFilter !== 'all' || activeRoleFilter !== 'all' || searchTerm !== '');
+
+        if (countTextEl) {
+            if (activeView === 'teams') {
+                countTextEl.textContent = `Showing ${count} Squad${count === 1 ? '' : 's'} (${openCount} with open recruitment spots)`;
+            } else {
+                countTextEl.textContent = `Showing ${count} Player LFT Listing${count === 1 ? '' : 's'}`;
+            }
+        }
+        if (resetBtnEl) {
+            if (isFiltered) resetBtnEl.classList.remove('hidden');
+            else resetBtnEl.classList.add('hidden');
+        }
+
+        if (count === 0) board.innerHTML = `
+                <div class="col-span-full py-20 text-center flex flex-col items-center justify-center">
+                    <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-3 text-neutral-500">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                    <p class="text-white font-heading font-bold text-base mb-1">No matching ${activeView === 'teams' ? 'teams' : 'players'} found</p>
+                    <p class="text-neutral-400 text-xs max-w-sm mb-4">Try clearing some search filters or select a different game category.</p>
+                    <button onclick="window.resetFilters()" class="font-heading font-bold text-xs uppercase px-4 py-2 rounded-lg bg-[#FFD700] text-black hover:bg-[#FFF099] transition-all cursor-pointer">
+                        Reset All Filters
+                    </button>
+                </div>`;
 
         // Start Real-time Listeners for Blimps
         subscribeToCardUpdates(joinedTeamsToListen);
@@ -261,14 +369,12 @@ function subscribeToCardUpdates(teams) {
         });
         cardListeners.push(teamUnsub);
 
-        // 2. Listen for APPLICATION updates (Blue Blimp)
-        // Only if Captain or Vice Captain
+        // 2. Listen for NEW APPLICATIONS (Blue Blimp)
         if (team.canSeeApps) {
-            const q = query(collection(db, "recruitment", team.id, "applications"), where("status", "==", "pending"));
-            const appUnsub = onSnapshot(q, (querySnap) => {
-                const pendingCount = querySnap.size;
-                const showBlue = pendingCount > 0;
-                updateBlimpUI(team.id, 'blue', showBlue);
+            const appsQuery = query(collection(db, "recruitment", team.id, "applications"), where("status", "==", "pending"));
+            const appUnsub = onSnapshot(appsQuery, (snap) => {
+                const hasPending = !snap.empty;
+                updateBlimpUI(team.id, 'blue', hasPending);
             });
             cardListeners.push(appUnsub);
         }
@@ -276,206 +382,347 @@ function subscribeToCardUpdates(teams) {
 }
 
 function updateBlimpUI(teamId, color, show) {
-    // Find the specific card
     const card = document.querySelector(`article[data-id="${teamId}"]`);
     if (!card) return;
+    const container = card.querySelector('.blimp-container');
+    if (!container) return;
 
-    // Find or Create Container
-    let container = card.querySelector('.blimp-container');
-    if (!container) {
-        // If container doesn't exist (because initially no blimps), create it dynamically
-        // Use the same position as your CSS
-        container = document.createElement('div');
-        container.className = 'blimp-container absolute top-3 left-3 flex gap-2 z-20'; // Helper classes in case CSS fails
-        // Append to the first child (the image div)
-        card.firstElementChild.appendChild(container);
-    }
-
-    // Find specific blimp
     let blimp = container.querySelector(`.blimp.${color}`);
-
     if (show) {
         if (!blimp) {
             blimp = document.createElement('div');
             blimp.className = `blimp ${color}`;
-            // Apply tooltip
-            blimp.title = color === 'red' ? 'New Messages' : 'New Requests';
             container.appendChild(blimp);
         }
     } else {
-        if (blimp) {
-            blimp.remove();
-        }
+        if (blimp) blimp.remove();
     }
 }
 
 function renderTeamCard(post, isAuthor, isMember) {
-    const memberCount = post.members ? post.members.length : 0;
+    const memberCount = post.members ? post.members.length : (post.currentMembers || 1);
     const maxMembers = post.maxMembers || 5;
     const isFull = memberCount >= maxMembers;
-    let actionBtn = '';
+    const spotsLeft = Math.max(0, maxMembers - memberCount);
+    const captain = post.members?.find(m => m.role === 'Captain') || { name: post.authorName || 'Captain' };
+    const borderClass = "border-white/10 hover:border-[#FFD700] hover:shadow-[0_0_25px_rgba(255,215,0,0.18)]";
+    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase">PRO</span>` : '';
+    
+    const rolesHtml = post.roles && post.roles.length > 0 
+        ? post.roles.slice(0, 3).map(r => `<span class="bg-black/60 text-indigo-200 border border-indigo-500/30 text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">${escapeHtml(r.trim())}</span>`).join('') + (post.roles.length > 3 ? `<span class="text-[9px] text-neutral-400 font-mono-tag pl-0.5">+${post.roles.length - 3}</span>` : '')
+        : `<span class="text-[9px] text-neutral-500 font-mono-tag">Any Role</span>`;
 
+    let actionBtn = '';
     if (isAuthor || isMember) {
-        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="w-full bg-[var(--gold)] text-black font-bold py-1.5 rounded-md mt-2 hover:bg-yellow-400 transition-transform active:scale-95 shadow-lg text-xs">Manage Team</button>`;
+        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="flex-1 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer">Manage</button>`;
     } else if (isFull) {
-        actionBtn = `<button disabled class="w-full bg-red-900/20 text-red-500 font-bold py-1.5 rounded-md mt-2 border border-red-900/50 cursor-not-allowed text-xs">Roster Full</button>`;
+        actionBtn = `<button disabled class="flex-1 py-2 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-xs font-heading font-bold uppercase tracking-wider cursor-not-allowed">Full</button>`;
     } else {
-        actionBtn = `<button onclick="window.openApplicationModal('${post.id}', '${escapeHtml(post.name)}')" class="w-full bg-indigo-600 text-white font-bold py-1.5 rounded-md mt-2 hover:bg-indigo-500 transition-transform active:scale-95 shadow-lg shadow-indigo-500/20 text-xs">Apply to Join</button>`;
+        actionBtn = `<button onclick="window.openApplicationModal('${post.id}', '${escapeHtml(post.name)}')" class="flex-1 py-2 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all shadow-md hover:shadow-yellow-500/20 active:scale-95 flex items-center justify-center gap-1 cursor-pointer font-semibold"><span>Apply</span> &rarr;</button>`;
     }
 
-    const borderClass = post.isPremium ? "border-[var(--gold)] shadow-[0_0_20px_rgba(255,215,0,0.15)]" : "border-white/10 hover:border-[var(--gold)]";
-    const verifiedBadge = post.isPremium ? `<span class="bg-[var(--gold)] text-black text-[9px] px-1 py-0.5 rounded ml-1.5 font-bold">VERIFIED</span>` : '';
-    const rolesHtml = post.roles ? post.roles.map(r => `<span class="bg-indigo-900/50 text-indigo-200 text-[9px] px-1.5 py-0.5 rounded border border-indigo-700/50">${escapeHtml(r.trim())}</span>`).join('') : '';
-    const contactBtn = (post.isPremium && post.contactLink && !isAuthor && !isMember) ? `<a href="${escapeHtml(post.contactLink)}" target="_blank" class="block w-full text-center text-[var(--gold)] text-[11px] font-bold border border-[var(--gold)] py-1.5 rounded-md mb-1 hover:bg-[var(--gold)] hover:text-black transition-colors">Connect Directly ↗</a>` : '';
+    const statusBadge = isFull 
+        ? `<span class="bg-red-500/20 text-red-400 border border-red-500/40 text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded-full uppercase">Full</span>`
+        : `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded-full uppercase">${spotsLeft} Open</span>`;
 
     return `
-        <article data-id="${post.id}" class="bg-[var(--dark-card)] border rounded-xl overflow-hidden transition-all duration-300 h-52 group relative ${borderClass}">
-            <div class="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105" style="background-image: url('${escapeHtml(post.image || 'pictures/cz_logo.png')}');"></div>
-            <div class="blimp-container"></div>
+        <article data-id="${post.id}" class="bg-[#0D0D12] border rounded-2xl overflow-hidden transition-all duration-300 min-h-[260px] group flex flex-col justify-between relative ${borderClass}">
             
-            <!-- Softer base gradient overlay so unhovered cards look identical -->
-            <div class="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent z-10 pointer-events-none"></div>
-            
-            <div class="absolute top-2.5 right-2.5 bg-black/60 px-2 py-0.5 rounded text-[9px] text-white font-bold backdrop-blur-sm border border-white/10 uppercase z-10">${escapeHtml(post.game)}</div>
-            
-            <!-- FIXED: Main wrapper now spans the full height, pinning the name header down. 
-                 The background styling shifts cleanly to avoid any height alignment differences. -->
-            <div class="absolute inset-0 p-4 flex flex-col justify-end z-20 transition-all duration-300 bg-black/0 group-hover:bg-black/40 group-hover:backdrop-blur-md">
+            <!-- Card Top Header Banner -->
+            <div class="relative h-28 w-full bg-cover bg-center overflow-hidden" style="background-image: url('${escapeHtml(post.image || 'pictures/cz_logo.png')}');">
+                <div class="absolute inset-0 bg-gradient-to-t from-[#0D0D12] via-[#0D0D12]/60 to-black/50"></div>
                 
-                <!-- This container holds the Title info which stays firmly anchored at the bottom when not hovered -->
-                <div>
-                    <div class="flex flex-wrap gap-1 mb-1.5">${rolesHtml}</div>
-                    <div class="flex justify-between items-start">
-                        <h3 class="text-base font-bold text-white truncate flex items-center group-hover:text-[var(--gold)] transition-colors">${escapeHtml(post.name)} </h3>
+                <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-10">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        <span class="bg-black/80 backdrop-blur-md text-[#FFD700] border border-[#FFD700]/30 font-mono-tag font-bold text-[9px] px-2 py-0.5 rounded uppercase tracking-wider truncate">${escapeHtml(formatGameBadge(post.game || post.gameId))}</span>
+                        <div class="blimp-container"></div>
                     </div>
+                    ${statusBadge}
                 </div>
-                
-                <!-- FIXED: Instead of sliding the whole card panel, we smoothly transition the max-height and opacity 
-                     of the extra details area below the title. This completely neutralizes structural height differences! -->
-                <div class="w-full max-h-0 opacity-0 group-hover:max-h-[140px] group-hover:opacity-100 transition-all duration-300 ease-in-out overflow-hidden group-hover:mt-3">
-                    <div class="mb-2">
-                        <div class="flex justify-between text-[9px] text-gray-400 mb-1 font-bold uppercase tracking-wider">
-                            <span>Roster</span>
-                            <span class="${isFull ? 'text-red-400' : 'text-[var(--gold)]'}">${memberCount} / ${maxMembers}</span>
-                        </div>
-                        <div class="w-full bg-white/10 h-1 rounded-full overflow-hidden">
-                            <div class="bg-[var(--gold)] h-full transition-all duration-500" style="width: ${(memberCount / maxMembers) * 100}%"></div>
-                        </div>
+            </div>
+
+            <!-- Card Body Details -->
+            <div class="px-4 pb-4 pt-1 flex-1 flex flex-col justify-between relative z-10 -mt-6">
+                <div>
+                    <div class="flex items-center justify-between gap-2 mb-1">
+                        <h3 class="text-base font-heading font-bold text-white truncate group-hover:text-[#FFD700] transition-colors flex items-center gap-1.5">
+                            ${escapeHtml(post.name)} ${verifiedBadge}
+                        </h3>
                     </div>
                     
-                    <p class="text-[11px] text-gray-300 line-clamp-1 mb-2 leading-relaxed">${escapeHtml(post.description)}</p>
-                    
-                    ${contactBtn}
-                    ${actionBtn}
+                    <p class="text-[10px] text-neutral-400 font-mono-tag truncate mb-2">
+                        Captain: <span class="text-neutral-200 font-semibold">${escapeHtml(captain.name)}</span>
+                    </p>
+
+                    <div class="flex flex-wrap items-center gap-1 mb-3">
+                        ${rolesHtml}
+                    </div>
                 </div>
 
+                <div>
+                    <div class="mb-3">
+                        <div class="flex justify-between text-[9px] font-mono-tag text-neutral-400 mb-1 font-bold uppercase">
+                            <span>Roster Slot</span>
+                            <span class="${isFull ? 'text-red-400' : 'text-[#FFD700]'}">${memberCount} / ${maxMembers}</span>
+                        </div>
+                        <div class="w-full bg-black/60 h-1.5 rounded-full overflow-hidden border border-white/5">
+                            <div class="bg-gradient-to-r from-amber-500 to-[#FFD700] h-full transition-all duration-500" style="width: ${Math.min(100, (memberCount / maxMembers) * 100)}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Action Button Row -->
+                    <div class="flex items-center gap-2 pt-2 border-t border-white/5">
+                        <button onclick="window.openTeamDetailsModal('${post.id}')" class="flex-1 py-2 bg-white/5 hover:bg-white/15 text-neutral-200 border border-white/10 hover:border-white/30 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer text-center">
+                            Roster
+                        </button>
+                        ${actionBtn}
+                    </div>
+                </div>
             </div>
         </article>`;
 }
 
-function renderPlayerCard(post, isAuthor) {
-    const borderClass = post.isPremium ? "border-[var(--gold)] shadow-[0_0_20px_rgba(255,215,0,0.15)]" : "border-white/10 hover:border-[var(--gold)]";
-    const verifiedBadge = post.isPremium ? `<span class="bg-[var(--gold)] text-black text-[9px] px-1 py-0.5 rounded ml-1.5 font-bold">PRO</span>` : '';
+// --- TEAM DETAILS & ROSTER MODAL LOGIC ---
+window.openTeamDetailsModal = async (teamId) => {
+    const modal = document.getElementById('teamDetailsModal');
+    if (!modal) return;
 
-    const adminLogsBtn = currentUserRole === 'admin' ? '' : ''; 
+    let team = cachedRecruitmentPosts.find(p => p.id === teamId);
+    if (!team) {
+        try {
+            const docSnap = await getDoc(doc(db, "recruitment", teamId));
+            if (docSnap.exists()) team = { id: docSnap.id, ...docSnap.data() };
+        } catch (e) { console.error(e); }
+    }
+    if (!team) return;
+
+    const members = team.members && team.members.length > 0 ? team.members : [{ name: team.authorName || 'Captain', role: 'Captain' }];
+    const memberCount = members.length;
+    const maxMembers = team.maxMembers || 5;
+    const isFull = memberCount >= maxMembers;
+    const spotsLeft = Math.max(0, maxMembers - memberCount);
+    const captain = members.find(m => m.role === 'Captain') || { name: 'Captain' };
+
+    const myUid = auth.currentUser ? auth.currentUser.uid : null;
+    const isAuthor = myUid === team.authorId;
+    const isMember = members.some(m => m.uid === myUid);
+
+    // Header Info
+    if (qs('#td-image')) qs('#td-image').src = team.image || 'pictures/cz_logo.png';
+    if (qs('#td-name')) qs('#td-name').textContent = team.name || 'Unnamed Team';
+    if (qs('#td-game')) qs('#td-game').textContent = formatGameTitle(team.game || team.gameId);
+    if (qs('#td-captain')) qs('#td-captain').textContent = captain.name || 'Captain';
+
+    const verifiedEl = qs('#td-verified');
+    if (verifiedEl) {
+        if (team.isPremium) verifiedEl.classList.remove('hidden');
+        else verifiedEl.classList.add('hidden');
+    }
+
+    const statusEl = qs('#td-status');
+    if (statusEl) {
+        if (isFull) {
+            statusEl.textContent = 'ROSTER FULL';
+            statusEl.className = 'font-mono-tag text-[9px] bg-red-500/15 text-red-400 border border-red-500/30 font-bold px-2 py-0.5 rounded uppercase';
+        } else {
+            statusEl.textContent = `${spotsLeft} SPOT${spotsLeft > 1 ? 'S' : ''} OPEN`;
+            statusEl.className = 'font-mono-tag text-[9px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold px-2 py-0.5 rounded uppercase';
+        }
+    }
+
+    // Roster Progress Bar
+    if (qs('#td-roster-count')) {
+        qs('#td-roster-count').textContent = `${memberCount} / ${maxMembers} Registered (${isFull ? 'Roster Full' : spotsLeft + ' Open Spot' + (spotsLeft > 1 ? 's' : '')})`;
+    }
+    if (qs('#td-roster-progress')) {
+        qs('#td-roster-progress').style.width = `${Math.min(100, (memberCount / maxMembers) * 100)}%`;
+    }
+
+    // Member Roster List
+    const rosterListEl = qs('#td-roster-list');
+    if (rosterListEl) {
+        rosterListEl.innerHTML = members.map(m => {
+            const isCapt = m.role === 'Captain';
+            const isVice = m.role === 'Vice Captain';
+            const roleBadge = isCapt
+                ? `<span class="bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/40 text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase">Captain</span>`
+                : isVice
+                    ? `<span class="bg-purple-500/20 text-purple-300 border border-purple-500/40 text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase">Vice Captain</span>`
+                    : `<span class="bg-white/10 text-neutral-300 border border-white/10 text-[9px] font-mono-tag px-1.5 py-0.5 rounded uppercase">Member</span>`;
+
+            return `
+                <div class="bg-black/50 p-2.5 rounded-xl border border-white/5 flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                        <div class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center font-heading font-bold text-xs text-[#FFD700] shrink-0">
+                            ${escapeHtml((m.name || 'P').charAt(0).toUpperCase())}
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-heading font-bold text-white text-xs truncate">${escapeHtml(m.name || 'Player')}</p>
+                            <p class="text-[9px] text-neutral-500 font-mono-tag">${escapeHtml(m.rank || 'Active Roster')}</p>
+                        </div>
+                    </div>
+                    ${roleBadge}
+                </div>`;
+        }).join('');
+    }
+
+    // Roles Needed
+    const rolesListEl = qs('#td-roles-list');
+    if (rolesListEl) {
+        if (team.roles && team.roles.length > 0) {
+            rolesListEl.innerHTML = team.roles.map(r => `
+                <span class="bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/30 font-mono-tag font-bold text-[10px] px-2.5 py-1 rounded-lg uppercase tracking-wider">
+                    ${escapeHtml(r.trim())}
+                </span>
+            `).join('');
+        } else {
+            rolesListEl.innerHTML = `<span class="text-neutral-500 italic text-xs">Any competitive role welcome</span>`;
+        }
+    }
+
+    // Description
+    if (qs('#td-description')) {
+        qs('#td-description').textContent = team.description || 'No team mission description provided yet.';
+    }
+
+    // Discord / External Links
+    const linksWrap = qs('#td-links-wrap');
+    const discordLinkEl = qs('#td-discord-link');
+    if (linksWrap && discordLinkEl) {
+        if (team.contactLink) {
+            discordLinkEl.href = team.contactLink;
+            linksWrap.classList.remove('hidden');
+        } else {
+            linksWrap.classList.add('hidden');
+        }
+    }
+
+    // Footer Actions
+    const footerActionsEl = qs('#td-footer-actions');
+    if (footerActionsEl) {
+        let actionBtnHtml = '';
+        if (isAuthor || isMember) {
+            actionBtnHtml = `
+                <button onclick="window.closeTeamDetailsModal(); window.openManageModal('${team.id}');"
+                    class="py-2.5 px-5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer">
+                    Manage Team Dashboard &rarr;
+                </button>`;
+        } else if (isFull) {
+            actionBtnHtml = `
+                <button disabled
+                    class="py-2.5 px-5 bg-neutral-900 text-neutral-500 border border-neutral-800 rounded-lg text-xs font-heading font-bold uppercase tracking-wider cursor-not-allowed">
+                    Roster is Currently Full
+                </button>`;
+        } else {
+            actionBtnHtml = `
+                <button onclick="window.closeTeamDetailsModal(); window.openApplicationModal('${team.id}', '${escapeHtml(team.name)}');"
+                    class="py-2.5 px-6 bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-bold text-xs uppercase tracking-wider rounded-lg shadow-lg hover:shadow-yellow-500/25 active:scale-95 transition-all cursor-pointer flex items-center gap-1.5">
+                    <span>Apply to Join Team</span> &rarr;
+                </button>`;
+        }
+
+        footerActionsEl.innerHTML = `
+            <button type="button" onclick="window.closeTeamDetailsModal()"
+                class="py-2.5 px-4 bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors border border-white/10 cursor-pointer">
+                Close
+            </button>
+            ${actionBtnHtml}`;
+    }
+
+    modal.classList.remove('hidden');
+};
+
+window.closeTeamDetailsModal = () => {
+    const modal = document.getElementById('teamDetailsModal');
+    if (modal) modal.classList.add('hidden');
+};
+
+function renderPlayerCard(post, isAuthor) {
+    const borderClass = "border-white/10 hover:border-[#FFD700] hover:shadow-[0_0_25px_rgba(255,215,0,0.18)]";
+    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase">PRO</span>` : '';
+    const avatarUrl = post.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.ign || 'Player')}&background=111116&color=FFD700`;
+    const gameBadge = formatGameBadge(post.game || post.gameId);
+    const hasDesc = post.description && post.description.trim().length > 0;
 
     let actionBtn = '';
     if (isAuthor) {
         actionBtn = `
-            <button onclick="window.openLftManageModal('${post.id}')" title="Manage Messages" class="p-2 bg-[var(--gold)] text-black rounded-lg hover:bg-yellow-400 transition-transform active:scale-95 shadow-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 1 1-3 0m3 0a1.5 1.5 0 1 0-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 0 1-3 0m3 0a1.5 1.5 0 0 0-3 0m-9.75 0h9.75" />
-                </svg>
+            <button onclick="window.openLftManageModal('${post.id}')" class="flex-1 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer text-center">
+                Manage
             </button>`;
     } else {
         actionBtn = `
-            <button onclick="window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" title="Message Player" class="p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-500 transition-transform active:scale-95 shadow-lg shadow-indigo-500/20">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
+            <button onclick="window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" class="flex-1 py-2 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all shadow-md hover:shadow-yellow-500/20 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer font-semibold">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
                 </svg>
+                <span>Message</span>
             </button>`;
     }
 
     const deleteBtn = isAuthor ? `
-        <button onclick="window.deleteListing('${post.id}')" title="Delete Listing" class="p-2 bg-red-950/40 text-red-400 border border-red-900/30 rounded-lg hover:bg-red-900/40 transition-colors">
+        <button onclick="window.deleteListing('${post.id}')" title="Delete Listing" class="p-2 bg-red-950/40 hover:bg-red-900/50 text-red-400 border border-red-900/40 rounded-lg transition-colors cursor-pointer">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
                 <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
             </svg>
         </button>` : '';
 
-    const hasDescription = post.description && post.description.trim().length > 0;
-
-    // Truncate helper for display safety
-    const truncate = (str, n) => str && str.length > n ? str.substring(0, n) + '…' : (str || '');
-
-    const infoPopoverHtml = `
-        <div id="info-popover-${post.id}" class="absolute bottom-[calc(100%+8px)] right-0 w-52 bg-[#1a1a2e] border border-[var(--gold)]/40 rounded-xl shadow-2xl p-3 z-50 pointer-events-none opacity-0 transition-all duration-200 ease-out" style="transform: scale(0.95); transform-origin: bottom right;">
-            <div class="flex items-center gap-2 mb-2.5 pb-2 border-b border-white/10">
-                <img src="${escapeHtml(post.image || 'https://ui-avatars.com/api/?name=' + post.ign + '&background=random')}" class="w-8 h-8 rounded-md border border-[var(--gold)] object-cover shrink-0">
-                <div class="min-w-0">
-                    <p class="text-xs font-bold text-white truncate">${escapeHtml(truncate(post.ign, 18))}</p>
-                    <span class="text-[9px] font-bold bg-white/10 text-gray-300 px-1.5 py-0.5 rounded uppercase tracking-wider">${escapeHtml(post.game)}</span>
-                </div>
-            </div>
-            <div class="flex gap-2 mb-2">
-                <div class="flex-1 bg-black/30 px-2 py-1.5 rounded-md text-center border border-white/5 min-w-0">
-                    <p class="text-[8px] text-gray-500 uppercase font-bold tracking-tight">Rank</p>
-                    <p class="text-[11px] text-[var(--gold)] font-bold truncate leading-none mt-0.5">${escapeHtml(truncate(post.rank, 16))}</p>
-                </div>
-                <div class="flex-1 bg-black/30 px-2 py-1.5 rounded-md text-center border border-white/5 min-w-0">
-                    <p class="text-[8px] text-gray-500 uppercase font-bold tracking-tight">Role</p>
-                    <p class="text-[11px] text-white font-bold truncate leading-none mt-0.5">${escapeHtml(truncate(post.role, 16))}</p>
-                </div>
-            </div>
-            ${hasDescription ? `<p class="text-[10px] text-gray-400 italic leading-relaxed bg-black/20 rounded-lg px-2 py-1.5 border border-white/5 line-clamp-3">"${escapeHtml(truncate(post.description, 120))}"</p>` : ''}
-        </div>`;
-
-    const infoBtn = `
-        <button
-            onmouseenter="const p=document.getElementById('info-popover-${post.id}'); p.style.opacity='1'; p.style.transform='scale(1)'; p.style.pointerEvents='auto';"
-            onmouseleave="const p=document.getElementById('info-popover-${post.id}'); p.style.opacity='0'; p.style.transform='scale(0.95)'; p.style.pointerEvents='none';"
-            title="View Info" class="p-2 bg-white/10 text-gray-300 rounded-lg hover:bg-white/20 transition-transform active:scale-95 border border-white/10">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m11.25 11.25.041-.02a.75.75 0 0 1 1.063.852l-.708 2.836a.75.75 0 0 0 1.063.853l.041-.021M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
-            </svg>
-        </button>`;
-
     return `
-        <article data-id="${post.id}" class="bg-[var(--dark-card)] border rounded-xl transition-all duration-300 h-20 group flex flex-col justify-start relative ${borderClass}" style="overflow:visible;">
-            <div class="blimp-container"></div>
+        <article data-id="${post.id}" class="bg-[#0D0D12] border rounded-2xl p-4 transition-all duration-300 group flex flex-col justify-between relative ${borderClass}">
+            <div class="blimp-container static mb-2"></div>
 
-            ${infoPopoverHtml}
+            <div>
+                <!-- Top Header: Game Badge & LFT Status -->
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <span class="bg-black/80 text-[#FFD700] border border-[#FFD700]/30 font-mono-tag font-bold text-[9px] px-2 py-0.5 rounded uppercase tracking-wider truncate">
+                        ${escapeHtml(gameBadge)}
+                    </span>
+                    <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
+                        FREE AGENT
+                    </span>
+                </div>
 
-            <div class="w-full flex items-center justify-between px-4 h-20 shrink-0 relative z-10 rounded-xl overflow-hidden">
-                <div class="flex items-center gap-3 min-w-0">
-                    <img src="${escapeHtml(post.image || 'https://ui-avatars.com/api/?name=' + post.ign + '&background=random')}" class="w-11 h-11 rounded-md border border-[var(--gold)] object-cover shadow-lg shrink-0">
-                    <div class="min-w-0">
-                        <h3 class="text-sm font-bold text-white flex items-center group-hover:text-[var(--gold)] transition-colors truncate">
-                            ${escapeHtml(post.ign)} ${verifiedBadge}
+                <!-- Player Identity -->
+                <div class="flex items-center gap-3 mb-3">
+                    <img src="${escapeHtml(avatarUrl)}" class="w-12 h-12 rounded-xl border border-white/10 object-cover shadow-lg shrink-0 group-hover:border-[#FFD700]/50 transition-colors">
+                    <div class="min-w-0 flex-1">
+                        <h3 class="text-base font-heading font-bold text-white truncate group-hover:text-[#FFD700] transition-colors flex items-center gap-1.5">
+                            ${escapeHtml(post.ign || 'Player')} ${verifiedBadge}
                         </h3>
-                        <span class="text-[9px] font-bold bg-white/10 text-gray-300 px-1.5 py-0.5 rounded uppercase tracking-wider block w-fit mt-0.5">${escapeHtml(post.game)}</span>
+                        ${post.discord ? `
+                            <p class="text-[10px] text-neutral-400 font-mono-tag truncate mt-0.5">
+                                Discord: <span class="text-neutral-200 font-semibold">${escapeHtml(post.discord)}</span>
+                            </p>
+                        ` : `
+                            <p class="text-[10px] text-neutral-500 font-mono-tag">Looking for Squad</p>
+                        `}
                     </div>
                 </div>
-                
-                <div class="relative w-36 h-11 shrink-0 overflow-hidden">
-                    <div class="absolute inset-0 flex gap-2 transition-all duration-300 transform translate-x-0 opacity-100 group-hover:-translate-x-4 group-hover:opacity-0 ease-in-out">
-                        <div class="flex-1 bg-black/20 px-2 py-1 rounded-md text-center border border-white/5 min-w-0 flex flex-col justify-center">
-                            <p class="text-[8px] text-gray-500 uppercase font-bold tracking-tight">Rank</p>
-                            <p class="text-xs text-[var(--gold)] font-bold truncate leading-none mt-0.5">${escapeHtml(post.rank)}</p>
-                        </div>
-                        <div class="flex-1 bg-black/20 px-2 py-1 rounded-md text-center border border-white/5 min-w-0 flex flex-col justify-center">
-                            <p class="text-[8px] text-gray-500 uppercase font-bold tracking-tight">Role</p>
-                            <p class="text-xs text-white font-bold truncate leading-none mt-0.5">${escapeHtml(post.role)}</p>
-                        </div>
+
+                <!-- Tactical Stats HUD: Rank & Role -->
+                <div class="grid grid-cols-2 gap-2 mb-3 bg-black/40 p-2.5 rounded-xl border border-white/5">
+                    <div class="min-w-0">
+                        <p class="text-[8px] text-neutral-500 uppercase font-mono-tag font-bold tracking-tight">Rank</p>
+                        <p class="text-xs text-[#FFD700] font-heading font-bold truncate mt-0.5">${escapeHtml(post.rank || 'Unranked')}</p>
                     </div>
-                    
-                    <div class="absolute inset-0 flex gap-2 items-center justify-end transition-all duration-300 transform translate-x-8 opacity-0 group-hover:translate-x-0 group-hover:opacity-100 ease-in-out">
-                        ${adminLogsBtn}
-                        ${deleteBtn}
-                        ${infoBtn}
-                        ${actionBtn}
+                    <div class="min-w-0">
+                        <p class="text-[8px] text-neutral-500 uppercase font-mono-tag font-bold tracking-tight">Role</p>
+                        <p class="text-xs text-white font-heading font-bold truncate mt-0.5">${escapeHtml(post.role || 'Flex')}</p>
                     </div>
                 </div>
+
+                <!-- Bio Summary -->
+                ${hasDesc ? `
+                    <p class="text-[11px] text-neutral-400 leading-relaxed bg-black/20 p-2.5 rounded-lg border border-white/5 line-clamp-2 mb-3 italic">
+                        "${escapeHtml(post.description)}"
+                    </p>
+                ` : ''}
+            </div>
+
+            <!-- Footer Actions -->
+            <div class="flex items-center gap-2 pt-3 border-t border-white/5">
+                ${deleteBtn}
+                ${actionBtn}
             </div>
         </article>`;
 }
@@ -527,15 +774,18 @@ window.closeLftModal = () => {
 
 window.switchLftTab = (tab) => {
     document.querySelectorAll('.lft-manage-view').forEach(el => el.classList.add('hidden'));
-    document.getElementById(`lft-view-${tab}`).classList.remove('hidden');
+    const target = document.getElementById(`lft-view-${tab}`);
+    if (target) target.classList.remove('hidden');
 
     // Style the two tabs
     const tabs = ['inbox', 'chat'];
     tabs.forEach(t => {
         const btn = document.getElementById(`lft-tab-${t}`);
-        btn.className = (t === tab)
-            ? "flex-1 py-3 text-sm font-bold text-[var(--gold)] border-b-2 border-[var(--gold)] bg-white/5"
-            : "flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5";
+        if (btn) {
+            btn.className = (t === tab)
+                ? "flex-1 py-3 text-xs font-heading font-bold uppercase tracking-wider text-[#FFD700] border-b-2 border-[#FFD700] bg-white/5 cursor-pointer"
+                : "flex-1 py-3 text-xs font-heading font-bold uppercase tracking-wider text-neutral-400 hover:text-white hover:bg-white/5 cursor-pointer";
+        }
     });
 };
 
@@ -650,29 +900,113 @@ window.openLftAdminLogs = async (listingId) => {
 
 // --- UTILS ---
 window.toggleFormType = (type) => {
-    document.getElementById('create-type').value = type;
+    const hiddenType = document.getElementById('create-type');
+    if (hiddenType) hiddenType.value = type;
     const btnTeam = document.getElementById('btn-type-team');
     const btnLft = document.getElementById('btn-type-lft');
     const teamFields = document.getElementById('team-fields');
     const lftFields = document.getElementById('lft-fields');
     const ignField = document.getElementById('lft-ign-field');
+    const syncBanner = document.getElementById('lft-sync-banner');
+    const descLabel = document.getElementById('desc-label');
+    const descInput = document.getElementById('create-desc');
+    const gameSelect = document.getElementById('create-game');
 
     if (type === 'team') {
-        btnTeam.classList.add('bg-[var(--gold)]', 'text-black', 'shadow-md');
-        btnTeam.classList.remove('text-gray-400', 'hover:text-white');
-        btnLft.classList.remove('bg-[var(--gold)]', 'text-black', 'shadow-md');
-        btnLft.classList.add('text-gray-400', 'hover:text-white');
-        teamFields.classList.remove('hidden');
-        lftFields.classList.add('hidden');
-        ignField.classList.add('hidden'); 
+        if (btnTeam) btnTeam.className = "py-2.5 rounded-lg bg-[#FFD700] text-black shadow-md transition-all cursor-pointer font-heading text-xs uppercase font-bold tracking-wider";
+        if (btnLft) btnLft.className = "py-2.5 rounded-lg text-neutral-400 hover:text-white transition-all cursor-pointer font-heading text-xs uppercase font-bold tracking-wider";
+        if (teamFields) teamFields.classList.remove('hidden');
+        if (lftFields) lftFields.classList.add('hidden');
+        if (ignField) ignField.classList.add('hidden');
+        if (syncBanner) syncBanner.classList.add('hidden');
+        if (descLabel) descLabel.innerHTML = 'Team Description &amp; Requirements <span class="text-red-500">*</span>';
+        if (descInput) descInput.placeholder = "Tell potential recruits about your team's practice schedule, tournament goals, and requirements...";
     } else {
-        btnLft.classList.add('bg-[var(--gold)]', 'text-black', 'shadow-md');
-        btnLft.classList.remove('text-gray-400', 'hover:text-white');
-        btnTeam.classList.remove('bg-[var(--gold)]', 'text-black', 'shadow-md');
-        btnTeam.classList.add('text-gray-400', 'hover:text-white');
-        lftFields.classList.remove('hidden');
-        teamFields.classList.add('hidden');
-        ignField.classList.remove('hidden');
+        if (btnLft) btnLft.className = "py-2.5 rounded-lg bg-[#FFD700] text-black shadow-md transition-all cursor-pointer font-heading text-xs uppercase font-bold tracking-wider";
+        if (btnTeam) btnTeam.className = "py-2.5 rounded-lg text-neutral-400 hover:text-white transition-all cursor-pointer font-heading text-xs uppercase font-bold tracking-wider";
+        if (lftFields) lftFields.classList.remove('hidden');
+        if (teamFields) teamFields.classList.add('hidden');
+        if (ignField) ignField.classList.remove('hidden');
+        if (descLabel) descLabel.innerHTML = 'LFT Summary &amp; Playstyle Goals <span class="text-red-500">*</span>';
+        if (descInput) descInput.placeholder = "Describe your agent pool, schedule availability, and tournament ambitions...";
+        
+        // Auto-sync profile info immediately
+        const selectedGame = gameSelect ? gameSelect.value : '';
+        syncProfileToLftForm(selectedGame);
+    }
+}
+
+// Auto-sync helper to pull fixed profile data into Player LFT form
+async function syncProfileToLftForm(selectedGame) {
+    if (!auth.currentUser) return;
+    
+    const ignCard = document.getElementById('lft-card-ign');
+    const rankCard = document.getElementById('lft-card-rank');
+    const roleCard = document.getElementById('lft-card-role');
+    const discordCard = document.getElementById('lft-card-discord');
+    const emailCard = document.getElementById('lft-card-email');
+    const warningBox = document.getElementById('lft-profile-warning');
+
+    const ignInput = document.getElementById('create-ign');
+    const rankInput = document.getElementById('create-rank');
+    const roleInput = document.getElementById('create-main-role');
+    const discordInput = document.getElementById('create-discord');
+    const emailInput = document.getElementById('create-email');
+    const descInput = document.getElementById('create-desc');
+    const imgInput = document.getElementById('create-img');
+
+    try {
+        const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
+        const data = userSnap.exists() ? (userSnap.data() || {}) : {};
+
+        const rankMap = { valId: 'valRank', mlbbId: 'mlbbRank', hokId: 'hokRank' };
+        const roleMap = { valId: 'valRole', mlbbId: 'mlbbRole', hokId: 'hokRole' };
+
+        // 1. In-Game Name
+        const gameIgn = selectedGame && data[selectedGame] ? data[selectedGame] : (data.ign || data.displayName || '');
+        if (ignCard) ignCard.textContent = gameIgn || 'Not set';
+        if (ignInput) ignInput.value = gameIgn;
+
+        // 2. Rank
+        const gameRank = selectedGame && rankMap[selectedGame] && data[rankMap[selectedGame]] ? data[rankMap[selectedGame]] : (data.rank || 'Unranked');
+        if (rankCard) rankCard.textContent = gameRank;
+        if (rankInput) rankInput.value = gameRank;
+
+        // 3. Main Role
+        const gameRole = selectedGame && roleMap[selectedGame] && data[roleMap[selectedGame]] ? data[roleMap[selectedGame]] : 'Flex / Any';
+        if (roleCard) roleCard.textContent = gameRole;
+        if (roleInput) roleInput.value = gameRole;
+
+        // 4. Discord Handle
+        const discordVal = data.discord || data.discordTag || '';
+        if (discordCard) discordCard.textContent = discordVal || 'Not set';
+        if (discordInput) discordInput.value = discordVal;
+
+        // 5. Email
+        const emailVal = data.email || auth.currentUser.email || '';
+        if (emailCard) emailCard.textContent = emailVal || 'Not set';
+        if (emailInput) emailInput.value = emailVal;
+
+        // 6. Avatar
+        const avatarVal = data.avatar || auth.currentUser.photoURL || '';
+        if (imgInput) imgInput.value = avatarVal;
+
+        // 7. Autofill Bio into LFT Summary if empty
+        if (descInput && (!descInput.value || descInput.value.trim() === '')) {
+            descInput.value = data.bio || '';
+        }
+
+        // 8. Warning if missing game ID or Discord
+        if (warningBox) {
+            if (selectedGame && (!gameIgn || !data[selectedGame] || !discordVal)) {
+                warningBox.classList.remove('hidden');
+            } else {
+                warningBox.classList.add('hidden');
+            }
+        }
+
+    } catch (err) {
+        console.warn("Failed to auto-sync profile to LFT form:", err);
     }
 }
 
@@ -682,23 +1016,26 @@ window.openCreateModal = async () => {
     const isAdminOrSub = currentUserRole === 'admin' || currentUserRole === 'subscriber';
 
     if (TEAM_RECRUITMENT_ENABLED) {
-        // Flag ON: everyone can create a team
         const btnTeam = document.getElementById('btn-type-team');
-        btnTeam.classList.remove('opacity-50', 'cursor-not-allowed');
-        btnTeam.onclick = () => toggleFormType('team');
+        if (btnTeam) {
+            btnTeam.classList.remove('opacity-50', 'cursor-not-allowed');
+            btnTeam.onclick = () => toggleFormType('team');
+        }
         toggleFormType('team');
     } else if (isAdminOrSub) {
-        // Flag OFF but user is admin/subscriber: original premium behavior
         const btnTeam = document.getElementById('btn-type-team');
-        btnTeam.classList.remove('opacity-50', 'cursor-not-allowed');
-        btnTeam.onclick = () => toggleFormType('team');
+        if (btnTeam) {
+            btnTeam.classList.remove('opacity-50', 'cursor-not-allowed');
+            btnTeam.onclick = () => toggleFormType('team');
+        }
         toggleFormType('team');
     } else {
-        // Flag OFF and user is a regular member: block team creation
         toggleFormType('lft');
         const btnTeam = document.getElementById('btn-type-team');
-        btnTeam.classList.add('opacity-50', 'cursor-not-allowed');
-        btnTeam.onclick = (e) => { e.stopPropagation(); window.showCustomAlert("Premium Feature", "Team Recruitment is available for Subscribers and Admins only."); };
+        if (btnTeam) {
+            btnTeam.classList.add('opacity-50', 'cursor-not-allowed');
+            btnTeam.onclick = (e) => { e.stopPropagation(); window.showCustomAlert("Premium Feature", "Team Recruitment is available for Subscribers and Admins only."); };
+        }
     }
 
     animateGenericOpen('createTeamModal', 'createTeamBackdrop', 'createTeamPanel');
@@ -798,20 +1135,21 @@ window.closeManageModal = () => {
 
 window.switchManageTab = (tabName) => {
     document.querySelectorAll('.manage-view').forEach(el => el.classList.add('hidden'));
-    document.getElementById(`view-${tabName}`).classList.remove('hidden');
+    const targetView = document.getElementById(`view-${tabName}`);
+    if (targetView) targetView.classList.remove('hidden');
 
     // Style tabs
     ['chat', 'roster', 'applications', 'settings'].forEach(t => {
         const btn = document.getElementById(`tab-${t}`);
         if (btn) {
-            btn.className = "flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all";
+            btn.className = "flex-1 py-3 text-xs font-heading font-bold uppercase tracking-wider text-neutral-400 hover:text-white hover:bg-white/5 transition-all cursor-pointer";
             btn.style.borderBottom = "none";
         }
     });
     const activeBtn = document.getElementById(`tab-${tabName}`);
     if (activeBtn) {
-        activeBtn.className = "flex-1 py-3 text-sm font-bold text-[var(--gold)] bg-white/5 transition-all";
-        activeBtn.style.borderBottom = "2px solid var(--gold)";
+        activeBtn.className = "flex-1 py-3 text-xs font-heading font-bold uppercase tracking-wider text-[#FFD700] bg-white/5 transition-all cursor-pointer";
+        activeBtn.style.borderBottom = "2px solid #FFD700";
     }
 
     // NEW: If switching to Chat, ensure we use the correct listener
@@ -1026,12 +1364,18 @@ function setupForms() {
             try {
                 const type = document.getElementById('create-type').value;
                 const isPremium = currentUserRole === 'admin' || currentUserRole === 'subscriber';
+                const selectedGameVal = document.getElementById('create-game').value;
+                const gameNameMap = { valId: 'Valorant', mlbbId: 'Mobile Legends: Bang Bang', hokId: 'Honor of Kings' };
+                const gameName = gameNameMap[selectedGameVal] || selectedGameVal;
+
                 const baseData = {
                     type: type,
-                    game: document.getElementById('create-game').value,
-                    description: document.getElementById('create-desc').value,
-                    image: document.getElementById('create-img').value,
-                    contactLink: isPremium ? document.getElementById('create-link').value : null,
+                    game: gameName,
+                    gameId: selectedGameVal,
+                    description: document.getElementById('create-desc').value.trim(),
+                    image: document.getElementById('create-img').value || auth.currentUser.photoURL || 'pictures/cz_logo.png',
+                    contactLink: document.getElementById('create-link') ? document.getElementById('create-link').value.trim() : null,
+                    discord: document.getElementById('create-discord') ? document.getElementById('create-discord').value.trim() : null,
                     isPremium: isPremium,
                     authorId: auth.currentUser.uid,
                     authorEmail: auth.currentUser.email,
@@ -1041,15 +1385,23 @@ function setupForms() {
 
                 if (type === 'team') {
                     const rolesInput = document.getElementById('create-roles').value;
-                    baseData.name = document.getElementById('create-name').value;
+                    baseData.name = document.getElementById('create-name').value.trim();
                     baseData.maxMembers = Math.min(parseInt(document.getElementById('create-max').value) || 7, 7);
                     baseData.currentMembers = 1;
                     baseData.roles = rolesInput ? rolesInput.split(',').map(r => r.trim()).filter(r => r) : [];
                     baseData.members = [{ uid: auth.currentUser.uid, name: auth.currentUser.displayName || "Captain", role: 'Captain', joinedAt: Date.now() }];
                 } else {
-                    baseData.ign = document.getElementById('create-ign').value;
-                    baseData.role = document.getElementById('create-main-role').value;
-                    baseData.rank = document.getElementById('create-rank').value;
+                    const profileIgn = document.getElementById('create-ign').value.trim();
+                    if (!profileIgn) {
+                        await window.showCustomAlert("Profile Account Required", "Please configure your game account on your <a href='/edit-profile' class='text-[var(--gold)] underline'>Profile page</a> before posting an LFT listing.");
+                        btn.textContent = "Post Listing"; btn.disabled = false;
+                        return;
+                    }
+                    baseData.ign = profileIgn;
+                    baseData.role = document.getElementById('create-main-role').value.trim() || 'Flex';
+                    baseData.rank = document.getElementById('create-rank').value.trim() || 'Unranked';
+                    baseData.discord = document.getElementById('create-discord').value.trim() || null;
+                    baseData.email = document.getElementById('create-email').value.trim() || auth.currentUser.email;
                     baseData.name = baseData.ign;
                 }
 
@@ -1062,52 +1414,14 @@ function setupForms() {
         });
     }
 
-    // AUTO-FILL IGN FROM PROFILE BASED ON GAME SELECTION
+    // AUTO-FILL IGN, RANK, ROLE, DISCORD, BIO FROM PROFILE BASED ON GAME SELECTION
     const gameSelect = document.getElementById('create-game');
     if (gameSelect) {
         gameSelect.addEventListener('change', async () => {
             const selectedGame = gameSelect.value;
-            const ignInput = document.getElementById('create-ign');
-            const ignHint = document.getElementById('ign-hint');
-            const rankSel = document.getElementById('create-rank');
-            const roleSel = document.getElementById('create-main-role');
-
             const currentType = document.getElementById('create-type').value;
-            if (currentType !== 'lft') return;
-            if (!selectedGame || !auth.currentUser) return;
-
-            try {
-                const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
-                if (!userSnap.exists()) return;
-                const data = userSnap.data();
-
-                // Autofill IGN
-                const fetchedIgn = data[selectedGame] || '';
-                if (fetchedIgn) {
-                    ignInput.value = fetchedIgn;
-                    ignHint.classList.remove('hidden');
-                } else {
-                    ignInput.value = '';
-                    ignHint.classList.add('hidden');
-                    await window.showCustomAlert(
-                        "No Account Found",
-                        `There is no User Account set yet. Please set it on your <a href="/edit-profile" class="text-[var(--gold)] underline">Profile</a>, or manually type your User Account below.`
-                    );
-                    ignInput.focus();
-                }
-
-                // Autofill Rank & Role from profile
-                const rankMap = { valId: 'valRank', mlbbId: 'mlbbRank', hokId: 'hokRank' };
-                const roleMap = { valId: 'valRole', mlbbId: 'mlbbRole', hokId: 'hokRole' };
-
-                const fetchedRank = data[rankMap[selectedGame]] || '';
-                const fetchedRole = data[roleMap[selectedGame]] || '';
-
-                if (rankSel) rankSel.value = fetchedRank;
-                if (roleSel) roleSel.value = fetchedRole;
-
-            } catch (err) {
-                console.error("Failed to fetch profile game ID:", err);
+            if (currentType === 'lft') {
+                await syncProfileToLftForm(selectedGame);
             }
         });
     }
@@ -1260,12 +1574,25 @@ function setupForms() {
             e.preventDefault();
             const id = document.getElementById('edit-team-id').value;
             const desc = document.getElementById('edit-desc').value;
-            const max = Math.min(parseInt(document.getElementById('edit-max').value) || 7, 7); // 👈 clamp to 7
+            const max = Math.min(parseInt(document.getElementById('edit-max').value) || 7, 7); // clamp to 7
 
             try {
                 await updateDoc(doc(db, "recruitment", id), { description: desc, maxMembers: max });
                 window.showCustomAlert("Saved", "Team settings updated.");
             } catch (e) { console.error(e); }
+        });
+    }
+
+    // Live Search Input Listener
+    const searchInput = document.getElementById('team-search');
+    if (searchInput) {
+        let debounceTimer;
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                searchTerm = e.target.value.trim();
+                renderTeams();
+            }, 150);
         });
     }
 }

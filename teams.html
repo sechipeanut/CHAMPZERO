@@ -5,176 +5,192 @@
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-FDFF1NLL6L"></script>
     <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-FDFF1NLL6L');
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-FDFF1NLL6L');
     </script>
     <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5161743455178808"
-     crossorigin="anonymous"></script>   
+        crossorigin="anonymous"></script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/png" href="/favicon.png">
-    <title>ChampZero — Teams & Recruitment</title>
+    <title>ChampZero — Teams &amp; Recruitment Hub</title>
+
+    <meta name="description"
+        content="Find esports teammates, scout rising competitive talent, and recruit for tournaments on ChampZero.">
+    <meta property="og:title" content="ChampZero — Teams &amp; Recruitment Hub">
+    <meta property="og:description" content="Assemble your roster, recruit players, and challenge the arena.">
+    <meta property="og:image" content="https://champzero.com/pictures/cz_logo.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap"
+
+    <!-- Bespoke Esports Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700;1,800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap"
         rel="stylesheet">
+    <link rel="stylesheet" href="css/custom-cursor.css">
+
     <style>
         :root {
+            --cz-gold: #FFD700;
+            --cz-gold-light: #FFF099;
+            --cz-gold-glow: rgba(255, 215, 0, 0.08);
+            --cz-bg: #000000;
+            --cz-surface: #0A0A0E;
+            --cz-card: #111116;
+            --cz-border: rgba(255, 255, 255, 0.08);
+            --cz-border-gold: rgba(255, 215, 0, 0.3);
+
+            /* Compatibility tokens for teams.js */
             --gold: #FFD700;
             --gold-darker: #C99700;
-            --dark-bg: #111115;
-            --dark-card: #1A1A1F;
+            --dark-bg: #000000;
+            --dark-card: #111116;
         }
 
         body {
-            font-family: 'Poppins', sans-serif;
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--cz-bg);
+            color: #FFFFFF;
+            overflow-x: hidden;
         }
 
-        /* Navigation (Preserved) */
+        .font-heading {
+            font-family: 'Chakra Petch', sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        .font-mono-tag {
+            font-family: 'Space Mono', monospace;
+        }
+
+        .ambient-glow {
+            background: radial-gradient(circle at 50% -15%, rgba(255, 215, 0, 0.08) 0%, rgba(0, 0, 0, 0) 70%);
+        }
+
+        /* Navigation */
         .nav-link {
             position: relative;
+            transition: color 0.2s ease;
         }
 
         .nav-link::after {
             content: '';
             position: absolute;
             width: 100%;
-            transform: scaleX(0);
-            height: 2px;
+            height: 1.5px;
             bottom: -4px;
             left: 0;
-            background-color: var(--gold);
-            transform-origin: bottom right;
-            transition: transform 0.25s ease-out;
+            background-color: var(--cz-gold);
+            transform: scaleX(0);
+            transform-origin: center;
+            transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        .nav-link:hover::after {
+        .nav-link:hover::after,
+        .nav-link.active::after {
             transform: scaleX(1);
-            transform-origin: bottom left;
-        }
-
-        :focus-visible {
-            outline: 2px solid var(--gold);
-            outline-offset: 4px;
-            border-radius: 4px;
-        }
-
-        /* Branding Utilities */
-        .text-glow {
-            text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
-        }
-
-        .futuristic-bg {
-            background-color: var(--dark-bg);
-            background-image: linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-            background-size: 30px 30px;
         }
 
         /* Glass Panel */
         .glass-panel {
-            background: rgba(26, 26, 31, 0.85);
+            background: rgba(10, 10, 14, 0.88);
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--cz-border);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4);
         }
 
         /* Inputs & Selects */
         .dark-input,
         .dark-select {
-            background-color: rgba(255, 255, 255, 0.05);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--cz-border);
             color: #fff;
-            transition: all 0.2s;
+            transition: all 0.2s ease;
         }
 
         .dark-input:focus,
         .dark-select:focus {
             outline: none;
-            border-color: var(--gold);
-            box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.3);
-            background-color: rgba(255, 255, 255, 0.1);
+            border-color: var(--cz-border-gold);
+            box-shadow: 0 0 15px var(--cz-gold-glow);
         }
 
         .dark-select option {
-            background-color: var(--dark-card);
+            background-color: var(--cz-surface);
             color: white;
         }
 
-        /* Chat Bubble */
+        /* Chat Bubbles */
         .chat-bubble {
             max-width: 85%;
             padding: 10px 14px;
             border-radius: 12px;
-            font-size: 0.9rem;
-            line-height: 1.4;
+            font-size: 0.875rem;
+            line-height: 1.45;
         }
 
         .chat-bubble.mine {
-            background: linear-gradient(135deg, var(--gold), var(--gold-darker));
-            color: black;
+            background: linear-gradient(135deg, #FFD700, #E6BE00);
+            color: #000000;
             align-self: flex-end;
             border-bottom-right-radius: 2px;
-            font-weight: 500;
+            font-weight: 600;
         }
 
         .chat-bubble.theirs {
-            background-color: rgba(255, 255, 255, 0.1);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            color: white;
+            background-color: #1A1A22;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            color: #FFFFFF;
             align-self: flex-start;
             border-bottom-left-radius: 2px;
         }
 
         /* Scrollbars */
         .custom-scrollbar::-webkit-scrollbar {
-            width: 6px;
+            width: 5px;
+            height: 5px;
         }
 
         .custom-scrollbar::-webkit-scrollbar-track {
-            background: rgba(255, 255, 255, 0.02);
+            background: rgba(0, 0, 0, 0.2);
         }
 
         .custom-scrollbar::-webkit-scrollbar-thumb {
             background: rgba(255, 255, 255, 0.1);
-            border-radius: 10px;
+            border-radius: 4px;
         }
 
         .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.2);
+            background: var(--cz-gold);
         }
 
-        /* BLIMP NOTIFICATIONS */
+        /* Blimp Notifications */
         .blimp-container {
-            position: absolute;
-            top: 12px;
-            left: 12px;
-            display: flex;
-            gap: 8px;
-            /* Space between red and blue if both are present */
-            z-index: 20;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .blimp {
-            width: 12px;
-            height: 12px;
+            width: 8px;
+            height: 8px;
             border-radius: 50%;
-            border: 2px solid var(--dark-card);
-            /* Border makes it pop against bg */
+            border: 1px solid #000;
             animation: blimp-pulse 1.5s infinite;
         }
 
         .blimp.red {
             background-color: #ef4444;
-            /* Red-500 */
-            box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+            box-shadow: 0 0 10px rgba(239, 68, 68, 0.8);
         }
 
         .blimp.blue {
             background-color: #3b82f6;
-            /* Blue-500 */
-            box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+            box-shadow: 0 0 10px rgba(59, 130, 246, 0.8);
         }
 
         @keyframes blimp-pulse {
@@ -193,250 +209,432 @@
                 opacity: 1;
             }
         }
+
+        :focus-visible {
+            outline: 2px solid var(--cz-gold);
+            outline-offset: 4px;
+            border-radius: 4px;
+        }
     </style>
 </head>
 
-<body class="bg-[var(--dark-bg)] text-gray-200 antialiased flex flex-col min-h-screen futuristic-bg">
+<body class="antialiased min-h-screen flex flex-col justify-between selection:bg-[#FFD700] selection:text-black">
 
+    <!-- HEADER NAVIGATION -->
     <header id="main-header"
-        class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 transition-all duration-300">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-between h-16 items-center">
-            <a href="/" class="flex items-center gap-3">
-                <img src="pictures/cz_logo.png" alt="ChampZero Logo" class="w-10 h-10 rounded-md object-cover">
-                <span class="font-bold text-xl text-white">ChampZero</span>
-                <span class="bg-[var(--gold)] text-black text-[10px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider vertical-align-middle">
-                Beta
-                </span>
+        class="sticky top-0 z-50 bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
+        <div class="max-w-6xl mx-auto px-6 h-18 flex justify-between items-center py-4">
+
+            <!-- BRAND IDENTITY -->
+            <a href="/" class="flex items-center gap-2.5 group">
+                <img src="pictures/cz_logo.png" alt="ChampZero Logo" class="w-7 h-7 object-contain">
+                <div class="flex items-center gap-1.5">
+                    <span
+                        class="font-heading font-bold text-base tracking-tight text-white group-hover:text-[#FFD700] transition-colors">ChampZero</span>
+                    <span
+                        class="font-mono-tag bg-[#FFD700] text-black text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+                        Beta
+                    </span>
+                </div>
             </a>
-            <nav class="hidden md:flex items-center gap-8 text-sm">
-                <a href="/"          class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Home</a>
-                <a href="/tournaments" class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Tournaments</a>
-                <a href="/events"    class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Events</a>
-                <a href="/teams"     class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Teams &amp; Recruitment</a>
-                <a href="/rising"    class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Rising Champ</a>
-                <a href="/partners"  class="nav-link text-gray-300 hover:text-[var(--gold)] transition-colors">Partners</a>
+
+            <!-- NAV LINKS -->
+            <nav
+                class="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                <a href="/" class="nav-link hover:text-white">Home</a>
+                <a href="/tournaments" class="nav-link hover:text-white">Tournaments</a>
+                <a href="/events" class="nav-link hover:text-white">Events</a>
+                <a href="/teams" class="nav-link text-white active">Teams &amp; Recruitment</a>
+                <a href="/rising" class="nav-link hover:text-white">Rising Champ</a>
+                <a href="/partners" class="nav-link hover:text-white">Partners</a>
             </nav>
+
+            <!-- AUTH CONTROLS -->
             <div class="flex items-center gap-3">
-                <div id="auth-controls-wrapper"
-                    class="transition-opacity duration-500 opacity-0 pointer-events-none md:min-w-[200px] md:flex md:justify-end">
-                    <div class="relative">
-                        <div id="auth-controls" class="flex items-center gap-3">
-                            <a href="login.html"
-                                class="text-sm px-3 py-1.5 rounded-md hover:bg-white/10 text-gray-300">Log In</a>
-                            <a href="signup.html"
-                                class="hidden sm:inline-block bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-4 py-2 rounded-md text-sm font-bold">Sign Up</a>
-                        </div>
+                <div id="auth-controls-wrapper" class="flex items-center gap-2">
+                    <div id="auth-controls" class="flex items-center gap-2">
+                        <a href="/login"
+                            class="text-xs font-semibold px-3 py-1.5 text-neutral-300 hover:text-white transition-colors">
+                            Log In
+                        </a>
+                        <a href="/signup"
+                            class="text-xs font-heading font-bold uppercase tracking-wider px-4 py-2 rounded bg-[#FFD700] text-black hover:bg-[#FFF099] transition-all">
+                            Sign Up
+                        </a>
                     </div>
                 </div>
+
                 <button id="mobile-menu-button" aria-label="Toggle navigation menu"
-                    class="md:hidden p-2 rounded-md text-gray-300 hover:bg-white/10 cursor-pointer pointer-events-auto">
-                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class="md:hidden p-2 rounded text-neutral-400 hover:text-white hover:bg-white/5 border border-white/10 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M4 6h16M4 12h16m-7 6h7"></path>
+                            d="M4 6h16M4 12h16M4 18h16"></path>
                     </svg>
                 </button>
             </div>
         </div>
     </header>
 
+    <!-- MOBILE DRAWER -->
     <div id="mobile-menu"
-        class="hidden md:hidden fixed inset-0 bg-[var(--dark-bg)] z-[100] p-6 transition-all duration-300">
-        <div class="flex justify-end mb-4">
-            <button id="close-mobile-menu" class="text-gray-400 hover:text-white">
-                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
-                </svg>
-            </button>
-        </div>
-        <nav class="flex flex-col items-center justify-center h-[80%] gap-6 text-lg">
-            <a href="/"            class="text-gray-300 hover:text-[var(--gold)]">Home</a>
-            <a href="/tournaments" class="text-gray-300 hover:text-[var(--gold)]">Tournaments</a>
-            <a href="/events"      class="text-gray-300 hover:text-[var(--gold)]">Events</a>
-            <a href="/teams"       class="text-gray-300 hover:text-[var(--gold)]">Teams &amp; Recruitment</a>
-            <a href="/rising"      class="text-gray-300 hover:text-[var(--gold)]">Rising Champ</a>
-            <a href="/partners"    class="text-gray-300 hover:text-[var(--gold)]">Partners</a>
-            <div class="border-t border-white/20 mt-6 pt-6 flex gap-4 w-full justify-center">
-                <a href="login.html"
-                    class="text-sm px-6 py-2 rounded-md text-gray-300 ring-1 ring-gray-600 hover:bg-white/5">Log in</a>
-                <a href="signup.html"
-                    class="bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black px-6 py-2 rounded-md text-sm font-bold hover:opacity-90">Sign Up</a>
+        class="hidden fixed inset-0 bg-black/98 backdrop-blur-2xl z-50 p-6 transition-all duration-300 flex flex-col justify-between">
+        <div>
+            <div class="flex justify-between items-center pb-5 border-b border-white/10">
+                <div class="flex items-center gap-2.5">
+                    <img src="pictures/cz_logo.png" class="w-7 h-7 object-contain" alt="Logo">
+                    <span class="font-heading font-bold text-white text-base">ChampZero</span>
+                </div>
+                <button id="close-mobile-menu" class="p-2 text-neutral-400 hover:text-white">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12">
+                        </path>
+                    </svg>
+                </button>
             </div>
-        </nav>
+            <nav class="flex flex-col gap-4 text-base font-semibold mt-8">
+                <a href="/" class="text-neutral-400 hover:text-white py-2 border-b border-white/5">Home</a>
+                <a href="/tournaments"
+                    class="text-neutral-400 hover:text-white py-2 border-b border-white/5">Tournaments</a>
+                <a href="/events" class="text-neutral-400 hover:text-white py-2 border-b border-white/5">Events</a>
+                <a href="/teams" class="text-white py-2 border-b border-white/5 flex justify-between items-center">
+                    <span>Teams &amp; Recruitment</span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#FFD700]"></span>
+                </a>
+                <a href="/rising" class="text-neutral-400 hover:text-white py-2 border-b border-white/5">Rising
+                    Champ</a>
+                <a href="/partners" class="text-neutral-400 hover:text-white py-2 border-b border-white/5">Partners</a>
+            </nav>
+        </div>
+        <div class="space-y-2 pt-6 border-t border-white/10">
+            <a href="/login"
+                class="block w-full text-center py-3 rounded text-white bg-white/5 border border-white/10 font-semibold text-sm">Log
+                In</a>
+            <a href="/signup"
+                class="block w-full text-center py-3 rounded text-black bg-[#FFD700] font-heading font-bold text-sm uppercase">Sign
+                Up</a>
+        </div>
     </div>
 
+    <!-- MAIN CONTENT -->
     <main class="flex-grow">
-        <section class="relative text-center py-20 md:py-28 px-4">
-            <h1 class="text-5xl md:text-7xl font-extrabold text-[var(--gold)] text-glow mb-6 tracking-tight">
-                ASSEMBLE YOUR <span class="text-white">ROSTER</span>
-            </h1>
-            <p class="text-lg md:text-xl text-gray-300 max-w-2xl mx-auto mb-10 leading-relaxed font-light">
-                The ultimate hub to find teammates, recruit rising talent, and build the next champion squad.
-            </p>
-            <div class="flex flex-col sm:flex-row justify-center gap-4">
-                <a href="#finder"
-                    class="bg-[var(--gold)] text-black font-extrabold px-8 py-4 rounded-full shadow-[0_0_20px_rgba(255,215,0,0.3)] hover:scale-105 transition-transform duration-300">
-                    Find Players & Teams
-                </a>
-                <button onclick="openCreateModal()"
-                    class="bg-white/5 border border-white/20 backdrop-blur-sm text-white font-semibold px-8 py-4 rounded-full hover:bg-white/10 hover:border-[var(--gold)] transition-all duration-300">
-                    Post a Listing
-                </button>
+        <!-- HERO SECTION -->
+        <section class="ambient-glow pt-20 pb-12 sm:pt-24 sm:pb-16 border-b border-white/5">
+            <div class="max-w-4xl mx-auto px-6 text-center">
+                <div
+                    class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-white/5 border border-white/10 text-xs font-semibold text-neutral-300 mb-6">
+                    <span class="w-1.5 h-1.5 rounded-full bg-[#FFD700]"></span>
+                    <span>Esports Squad Recruitment &amp; Team Finder</span>
+                </div>
+
+                <h1
+                    class="font-heading font-bold text-4xl sm:text-6xl text-white uppercase tracking-tight leading-[0.95]">
+                    Assemble Your <span
+                        class="text-transparent bg-clip-text bg-gradient-to-r from-white via-[#FFD700] to-amber-500">Championship
+                        Squad</span>
+                </h1>
+                <p class="mt-4 text-sm sm:text-base text-neutral-400 max-w-2xl mx-auto leading-relaxed">
+                    The ultimate hub to find competitive teammates, recruit rising talent for tournament circuits, and
+                    manage your team roster.
+                </p>
+
+                <div class="mt-8 flex flex-wrap justify-center gap-3">
+                    <a href="#finder"
+                        class="font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] text-black px-6 py-3 rounded-lg hover:bg-[#FFF099] transition-all shadow-lg shadow-yellow-500/10">
+                        Find Players &amp; Teams
+                    </a>
+                    <button onclick="openCreateModal()"
+                        class="font-heading font-bold text-xs uppercase tracking-wider bg-white/5 border border-white/10 text-white px-6 py-3 rounded-lg hover:bg-white/10 hover:border-[#FFD700]/40 transition-all cursor-pointer">
+                        Post a Listing
+                    </button>
+                </div>
             </div>
         </section>
 
-        <section id="finder" class="pb-24 -mt-6">
-            <div class="max-w-7xl mx-auto px-4 sm:px-6">
-
+        <!-- FINDER & RECRUITMENT BOARD -->
+        <section id="finder" class="max-w-6xl mx-auto px-6 py-10">
+            <!-- FILTER & NAVIGATION DECK -->
+            <div class="glass-panel rounded-2xl p-4 sm:p-6 mb-8 transition-all duration-300 space-y-4">
+                <!-- Tier 1: Main View Tabs + Create Listing CTA -->
                 <div
-                    class="sticky top-20 z-30 glass-panel rounded-xl p-4 mb-8 shadow-lg transition-all duration-300 flex flex-col xl:flex-row gap-4 justify-between items-center">
-
-                    <div
-                        class="flex flex-wrap justify-center gap-2 w-full xl:w-auto bg-black/40 p-1.5 rounded-xl border border-white/5">
+                    class="flex flex-col sm:flex-row gap-3.5 justify-between items-stretch sm:items-center pb-4 border-b border-white/5">
+                    <div class="flex flex-wrap sm:flex-nowrap items-center gap-2.5 overflow-x-auto custom-scrollbar">
                         <button onclick="window.setTab('find-teams')" id="tab-find-teams"
-                            class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-[var(--gold)] text-black shadow-lg shadow-yellow-500/20">Find
-                            a Team</button>
+                            class="px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-[#FFD700] text-black shadow-md cursor-pointer whitespace-nowrap border border-[#FFD700]">
+                            Find a Team
+                        </button>
                         <button onclick="window.setTab('find-players')" id="tab-find-players"
-                            class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10">Find
-                            Players</button>
+                            class="px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/20 cursor-pointer whitespace-nowrap">
+                            Find Players
+                        </button>
                         <button onclick="window.setTab('my-teams')" id="tab-my-teams"
-                            class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10">My
-                            Teams</button>
+                            class="px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/20 cursor-pointer whitespace-nowrap">
+                            My Teams
+                        </button>
                         <button onclick="window.setTab('my-lft')" id="tab-my-lft"
-                            class="px-4 py-2 rounded-lg font-bold text-sm transition-all bg-white/5 text-gray-400 hover:text-white hover:bg-white/10">My
-                            Listings</button>
+                            class="px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/20 cursor-pointer whitespace-nowrap">
+                            My Listings
+                        </button>
                     </div>
 
-                    <div class="flex flex-col sm:flex-row gap-3 w-full xl:w-auto">
-                        <select onchange="window.setGameFilter(this.value)"
-                            class="dark-select rounded-lg text-sm px-4 py-2.5 font-medium cursor-pointer w-full sm:w-auto">
-                            <option value="all">All Games</option>
-                            <option value="Valorant">Valorant</option>
-                            <option value="MLBB">MLBB</option>
-                            <option value="hokId">Honor of Kings</option>
-                        </select>
-                        <div class="relative flex-grow sm:w-64">
-                            <input type="text" id="team-search" placeholder="Search name, rank..."
-                                class="dark-input w-full pl-4 pr-10 py-2.5 rounded-lg text-sm">
-                            <svg class="w-4 h-4 text-gray-500 absolute right-3 top-3 pointer-events-none" fill="none"
-                                stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
-                            </svg>
-                        </div>
+                    <!-- Post Listing Action -->
+                    <button onclick="window.openCreateModal()"
+                        class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-[#FFD700] hover:brightness-110 active:scale-95 text-black font-heading font-extrabold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer shrink-0">
+                        <span>+ Post Listing</span>
+                    </button>
+                </div>
+
+                <!-- Tier 2: Filter Controls Grid (Full Width 4 Columns) -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+                    <!-- Game Filter -->
+                    <select id="filter-game" onchange="window.setGameFilter(this.value)"
+                        class="dark-select rounded-xl text-xs font-semibold uppercase tracking-wider px-3.5 py-2.5 cursor-pointer w-full">
+                        <option value="all">All Games</option>
+                        <option value="Valorant">Valorant</option>
+                        <option value="MLBB">Mobile Legends</option>
+                        <option value="HOK">Honor of Kings</option>
+                    </select>
+
+                    <!-- Roster Availability Filter -->
+                    <select id="filter-roster" onchange="window.setRosterFilter(this.value)"
+                        class="dark-select rounded-xl text-xs font-semibold uppercase tracking-wider px-3.5 py-2.5 cursor-pointer w-full">
+                        <option value="all">All Rosters</option>
+                        <option value="open">Open Spots Only</option>
+                        <option value="full">Full Rosters</option>
+                    </select>
+
+                    <!-- Role Filter -->
+                    <select id="filter-role" onchange="window.setRoleFilter(this.value)"
+                        class="dark-select rounded-xl text-xs font-semibold uppercase tracking-wider px-3.5 py-2.5 cursor-pointer w-full">
+                        <option value="all">Any Role</option>
+                        <option value="Duelist">Duelist</option>
+                        <option value="Initiator">Initiator</option>
+                        <option value="Controller">Controller</option>
+                        <option value="Sentinel">Sentinel</option>
+                        <option value="Jungler">Jungler</option>
+                        <option value="Roamer">Roamer</option>
+                        <option value="Gold Lane">Gold Lane</option>
+                        <option value="Exp Lane">Exp Lane</option>
+                        <option value="Mid Lane">Mid Lane</option>
+                        <option value="Support">Support</option>
+                        <option value="Flex">Flex</option>
+                    </select>
+
+                    <!-- Search Box -->
+                    <div class="relative">
+                        <input type="text" id="team-search" placeholder="Search team, captain, or role..."
+                            class="dark-input w-full pl-3.5 pr-8 py-2.5 rounded-xl text-xs placeholder-neutral-500">
+                        <svg class="w-4 h-4 text-neutral-500 absolute right-3 top-3 pointer-events-none" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
                     </div>
                 </div>
 
-                <div id="recruitment-board"
-                    class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 auto-rows-fr min-h-[400px]">
-                    <div class="col-span-full py-20 text-center flex flex-col items-center justify-center opacity-60">
-                        <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[var(--gold)] mb-4">
-                        </div>
-                        <p class="text-gray-400 text-sm">Loading recruitment data...</p>
+                <!-- Tier 3: Active Filters HUD & Stats Counter -->
+                <div id="filter-hud"
+                    class="flex items-center justify-between pt-2.5 border-t border-white/5 text-[11px] font-mono-tag text-neutral-400">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-[#FFD700] animate-pulse"></span>
+                        <span id="filter-count-text">Showing All Listings</span>
                     </div>
+                    <button onclick="window.resetFilters()" id="btn-reset-filters"
+                        class="hidden text-[#FFD700] hover:underline font-bold text-[10px] uppercase tracking-wider cursor-pointer">
+                        Clear Filters &times;
+                    </button>
                 </div>
+            </div>
 
+            <!-- RECRUITMENT GRID -->
+            <div id="recruitment-board"
+                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr min-h-[400px]">
+                <div
+                    class="col-span-full py-20 text-center flex flex-col items-center justify-center text-neutral-500 font-mono-tag text-xs tracking-wider">
+                    <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FFD700] mb-4"></div>
+                    <p>LOADING RECRUITMENT DATA...</p>
+                </div>
             </div>
         </section>
     </main>
 
+    <!-- CREATE TEAM / LFT MODAL -->
     <div id="createTeamModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="modal-title" role="dialog"
         aria-modal="true">
         <div id="createTeamBackdrop"
-            class="fixed inset-0 bg-black/90 backdrop-blur-sm transition-opacity duration-300 opacity-0"
+            class="fixed inset-0 bg-black/90 backdrop-blur-md transition-opacity duration-300 opacity-0"
             onclick="window.closeCreateModal()"></div>
-        <div class="fixed inset-0 z-10 w-screen overflow-y-auto">
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto custom-scrollbar">
             <div class="flex min-h-full items-center justify-center p-4">
                 <div id="createTeamPanel"
-                    class="bg-[var(--dark-card)] border border-white/20 rounded-xl w-full max-w-2xl transform shadow-2xl transition-all duration-300 ease-out opacity-0 scale-95 p-0 overflow-hidden">
+                    class="bg-[#0A0A0E] border border-white/10 rounded-2xl w-full max-w-2xl transform shadow-2xl transition-all duration-300 ease-out opacity-0 scale-95 p-0 overflow-hidden">
 
-                    <div
-                        class="bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
-                        <h3 class="text-xl font-bold text-white">Post Recruitment Listing</h3>
+                    <div class="bg-[#111116] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+                        <h3 class="font-heading font-bold text-lg uppercase tracking-wider text-white">Post Recruitment
+                            Listing</h3>
                         <button onclick="window.closeCreateModal()"
-                            class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                            class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white flex items-center justify-center transition-colors">&times;</button>
                     </div>
 
                     <div class="p-6">
-                        <div class="grid grid-cols-2 gap-2 mb-6 bg-black/30 p-1.5 rounded-lg border border-white/5">
+                        <div
+                            class="grid grid-cols-2 gap-2 mb-6 bg-black/40 p-1.5 rounded-xl border border-white/5 font-heading text-xs uppercase font-bold tracking-wider">
                             <button type="button" onclick="toggleFormType('team')" id="btn-type-team"
-                                class="py-2.5 text-sm font-bold rounded bg-[var(--gold)] text-black shadow-md transition-all">Recruit
-                                Team</button>
+                                class="py-2.5 rounded-lg bg-[#FFD700] text-black shadow-md transition-all cursor-pointer">
+                                Recruit Team
+                            </button>
                             <button type="button" onclick="toggleFormType('lft')" id="btn-type-lft"
-                                class="py-2.5 text-sm font-bold rounded text-gray-400 hover:text-white transition-all">Player
-                                LFT</button>
+                                class="py-2.5 rounded-lg text-neutral-400 hover:text-white transition-all cursor-pointer">
+                                Player LFT
+                            </button>
                         </div>
 
-                        <form id="createTeamForm" class="space-y-4">
+                        <form id="createTeamForm" class="space-y-4 text-xs">
                             <input type="hidden" id="create-type" value="team">
 
                             <div>
-                                <label class="block text-sm text-gray-400 mb-1">Game Title</label>
-                                <select id="create-game" class="dark-select w-full p-3 rounded">
+                                <label for="create-game"
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Game
+                                    Title <span class="text-red-500">*</span></label>
+                                <select id="create-game" required
+                                    class="dark-select w-full p-3 rounded-lg text-sm cursor-pointer">
                                     <option value="" disabled selected>-- SELECT GAME --</option>
                                     <option value="valId">Valorant</option>
-                                    <option value="mlbbId">Mobile Legends</option>
+                                    <option value="mlbbId">Mobile Legends: Bang Bang</option>
                                     <option value="hokId">Honor of Kings</option>
                                 </select>
                             </div>
 
-                            <div id="lft-ign-field" class="mt-4">
-                                <label class="block text-sm text-gray-400 mb-1">IGN / User Account</label>
-                                <input id="create-ign" type="text" placeholder="Your in-game username"
-                                    class="dark-input w-full p-3 rounded">
-                                <p id="ign-hint" class="text-xs text-gray-500 mt-1 hidden">
-                                    Auto-filled from your profile. You can edit this manually.
-                                </p>
+                            <!-- PLAYER LFT FIXED PROFILE DATA CARD (Auto-filled & Read-only) -->
+                            <div id="lft-fields" class="hidden space-y-3">
+                                <div class="bg-[#111116] border border-white/10 rounded-xl p-4 space-y-3">
+                                    <div class="flex justify-between items-center pb-2 border-b border-white/5">
+                                        <span
+                                            class="text-[10px] font-mono-tag text-neutral-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                                            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                            Fixed Profile Identity
+                                        </span>
+                                        <a href="/edit-profile" target="_blank"
+                                            class="text-[10px] font-mono-tag text-[#FFD700] hover:underline font-bold">
+                                            Edit in Profile &rarr;
+                                        </a>
+                                    </div>
+
+                                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs font-mono-tag">
+                                        <div class="bg-black/50 p-2.5 rounded-lg border border-white/5">
+                                            <span class="block text-[8px] text-neutral-500 uppercase font-bold">Account
+                                                / IGN</span>
+                                            <p id="lft-card-ign" class="font-bold text-white truncate mt-0.5">--</p>
+                                        </div>
+                                        <div class="bg-black/50 p-2.5 rounded-lg border border-white/5">
+                                            <span class="block text-[8px] text-neutral-500 uppercase font-bold">Current
+                                                Rank</span>
+                                            <p id="lft-card-rank" class="font-bold text-[#FFD700] truncate mt-0.5">--
+                                            </p>
+                                        </div>
+                                        <div class="bg-black/50 p-2.5 rounded-lg border border-white/5">
+                                            <span class="block text-[8px] text-neutral-500 uppercase font-bold">Main
+                                                Role</span>
+                                            <p id="lft-card-role" class="font-bold text-indigo-300 truncate mt-0.5">--
+                                            </p>
+                                        </div>
+                                        <div class="bg-black/50 p-2.5 rounded-lg border border-white/5">
+                                            <span
+                                                class="block text-[8px] text-neutral-500 uppercase font-bold">Discord</span>
+                                            <p id="lft-card-discord" class="font-bold text-sky-400 truncate mt-0.5">Not
+                                                set</p>
+                                        </div>
+                                        <div class="bg-black/50 p-2.5 rounded-lg border border-white/5 sm:col-span-2">
+                                            <span
+                                                class="block text-[8px] text-neutral-500 uppercase font-bold">Email</span>
+                                            <p id="lft-card-email" class="font-bold text-neutral-300 truncate mt-0.5">--
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <div id="lft-profile-warning"
+                                        class="hidden p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[11px] text-amber-300 flex items-center justify-between">
+                                        <span>Missing game ID or rank in your profile.</span>
+                                        <a href="/edit-profile" target="_blank"
+                                            class="text-[#FFD700] underline font-bold">Set in Profile &rarr;</a>
+                                    </div>
+                                </div>
+
+                                <!-- Hidden fields bound to fixed profile values for posting -->
+                                <input type="hidden" id="create-ign">
+                                <input type="hidden" id="create-rank">
+                                <input type="hidden" id="create-main-role">
+                                <input type="hidden" id="create-discord">
+                                <input type="hidden" id="create-email">
                             </div>
 
+                            <!-- TEAM RECRUITMENT SPECIFIC FIELDS -->
                             <div id="team-fields" class="space-y-4">
-                                <div><label class="block text-sm text-gray-400 mb-1">Team Name</label><input
-                                        id="create-name" type="text" class="dark-input w-full p-3 rounded"
-                                        placeholder="e.g. Sentinels PH"></div>
+                                <div>
+                                    <label for="create-name"
+                                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Team
+                                        Name <span class="text-red-500">*</span></label>
+                                    <input id="create-name" type="text"
+                                        class="dark-input w-full p-3 rounded-lg text-sm text-white"
+                                        placeholder="e.g. Sentinels PH">
+                                </div>
                                 <div class="grid grid-cols-2 gap-4">
-                                    <div><label class="block text-sm text-gray-400 mb-1">Max Members</label><input id="create-max" type="number" min="1" max="7" value="5"
-                                        oninput="if(this.value>7)this.value=7;"
-                                        class="dark-input w-full p-3 rounded"></div>
-                                    <div><label class="block text-sm text-gray-400 mb-1">Roles Needed</label><input
-                                            id="create-roles" type="text" placeholder="Duelist, Flex"
-                                            class="dark-input w-full p-3 rounded"></div>
+                                    <div>
+                                        <label for="create-max"
+                                            class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Max
+                                            Members</label>
+                                        <input id="create-max" type="number" min="1" max="7" value="5"
+                                            oninput="if(this.value>7)this.value=7;"
+                                            class="dark-input w-full p-3 rounded-lg text-sm text-white">
+                                    </div>
+                                    <div>
+                                        <label for="create-roles"
+                                            class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Roles
+                                            Needed</label>
+                                        <input id="create-roles" type="text" placeholder="Duelist, Flex, Jungler"
+                                            class="dark-input w-full p-3 rounded-lg text-sm text-white">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label for="create-img-upload"
+                                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Team
+                                        Logo Upload (Optional)</label>
+                                    <div class="flex items-center gap-4">
+                                        <input id="create-img-upload" type="file" accept="image/*"
+                                            class="dark-input w-full p-2 rounded-lg text-xs">
+                                    </div>
+                                    <span id="create-img-status"
+                                        class="font-mono-tag text-[10px] text-neutral-500 mt-1 block"></span>
                                 </div>
                             </div>
 
-                            <div id="lft-fields" class="hidden space-y-4">
-                                <div class="grid grid-cols-2 gap-4">
-                                    <div><label class="block text-sm text-gray-400 mb-1">Current Rank</label><input
-                                            id="create-rank" type="text" placeholder="e.g. Immortal"
-                                            class="dark-input w-full p-3 rounded"></div>
-                                    <div><label class="block text-sm text-gray-400 mb-1">Main Role</label><input
-                                            id="create-main-role" type="text" placeholder="e.g. Controller"
-                                            class="dark-input w-full p-3 rounded"></div>
-                                </div>
+                            <input id="create-img" type="hidden">
+
+                            <div>
+                                <label for="create-link"
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Direct
+                                    Contact / Community Link (Optional)</label>
+                                <input id="create-link" type="url" placeholder="https://discord.gg/... or tracker link"
+                                    class="dark-input w-full p-3 rounded-lg text-sm text-white">
                             </div>
 
                             <div>
-                                <label class="block text-sm text-gray-400 mb-1">Direct Invite Link</label>
-                                <input id="create-link" type="url" placeholder="https://discord.gg/..."
-                                    class="dark-input w-full p-3 rounded border-[var(--gold)]/30 focus:border-[var(--gold)]">
-                            </div>
-
-                            <div><label class="block text-sm text-gray-400 mb-1">Description</label><textarea
-                                    id="create-desc" rows="3" required class="dark-input w-full p-3 rounded"
-                                    placeholder="Tell us about your goals..."></textarea></div>
-                            <div>
-                                <label class="block text-sm text-gray-400 mb-1">Image Upload (Optional)</label>
-                                <div class="flex items-center gap-4">
-                                    <input id="create-img-upload" type="file" accept="image/*" class="dark-input w-full p-2 rounded">
-                                    <input id="create-img" type="hidden">
-                                </div>
-                                <span id="create-img-status" class="text-xs text-gray-500 mt-1 block"></span>
+                                <label for="create-desc"
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1"
+                                    id="desc-label">LFT Summary &amp; Goals <span class="text-red-500">*</span></label>
+                                <textarea id="create-desc" rows="3" required
+                                    class="dark-input w-full p-3 rounded-lg text-sm text-white leading-relaxed"
+                                    placeholder="Tell potential teammates about your tournament goals, preferred schedule, and champion pool..."></textarea>
                             </div>
 
                             <div class="pt-4 flex gap-3">
                                 <button type="button" onclick="window.closeCreateModal()"
-                                    class="flex-1 py-3 bg-white/10 rounded-lg text-sm font-bold hover:bg-white/20 transition-colors text-white">Cancel</button>
+                                    class="flex-1 py-3 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors text-white cursor-pointer border border-white/10">
+                                    Cancel
+                                </button>
                                 <button type="submit"
-                                    class="flex-1 py-3 bg-[var(--gold)] text-black rounded-lg text-sm font-bold hover:bg-yellow-400 transition-colors shadow-lg">Post
-                                    Listing</button>
+                                    class="flex-1 py-3 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors shadow-lg cursor-pointer">
+                                    Post Listing
+                                </button>
                             </div>
                         </form>
                     </div>
@@ -445,124 +643,260 @@
         </div>
     </div>
 
-    <div id="applicationModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/90 backdrop-blur-sm"
-            onclick="document.getElementById('applicationModal').classList.add('hidden')"></div>
-        <div class="relative bg-[var(--dark-card)] border border-white/20 rounded-xl w-full max-w-md p-6 shadow-2xl">
-            <h3 class="text-xl font-bold text-white mb-2">Apply to Join</h3>
-            <p class="text-sm text-gray-400 mb-6">Requesting to join <span id="app-team-name"
-                    class="text-[var(--gold)] font-bold">Team</span></p>
+    <!-- TEAM DETAILS & ROSTER MODAL -->
+    <div id="teamDetailsModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4" role="dialog"
+        aria-modal="true">
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-md transition-opacity duration-300"
+            onclick="window.closeTeamDetailsModal()"></div>
+        <div
+            class="relative bg-[#0A0A0E] border border-white/10 rounded-2xl w-full max-w-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
 
-            <form id="applicationForm" class="space-y-4">
+            <!-- Header Banner -->
+            <div
+                class="relative p-6 bg-gradient-to-r from-[#111116] via-[#161622] to-[#111116] border-b border-white/10 flex items-start gap-4">
+                <img id="td-image" src="pictures/cz_logo.png"
+                    class="w-16 h-16 rounded-xl border-2 border-[#FFD700]/60 object-cover shadow-xl shrink-0"
+                    alt="Team Logo">
+                <div class="flex-1 min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                        <span id="td-game"
+                            class="font-mono-tag text-[9px] bg-[#FFD700]/15 text-[#FFD700] border border-[#FFD700]/30 font-bold px-2 py-0.5 rounded uppercase tracking-wider">GAME</span>
+                        <span id="td-status"
+                            class="font-mono-tag text-[9px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold px-2 py-0.5 rounded uppercase">OPEN</span>
+                        <span id="td-verified"
+                            class="hidden font-mono-tag text-[9px] bg-[#FFD700] text-black font-bold px-1.5 py-0.5 rounded uppercase">VERIFIED</span>
+                    </div>
+                    <h2 id="td-name" class="font-heading font-bold text-xl sm:text-2xl text-white uppercase truncate">
+                        Team Name</h2>
+                    <p class="text-xs text-neutral-400 font-mono-tag mt-0.5">Captain: <span id="td-captain"
+                            class="text-white font-bold">--</span></p>
+                </div>
+                <button onclick="window.closeTeamDetailsModal()"
+                    class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white flex items-center justify-center transition-colors text-base cursor-pointer">&times;</button>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="p-6 overflow-y-auto space-y-6 custom-scrollbar text-xs">
+
+                <!-- Roster Capacity Bar -->
+                <div class="bg-white/5 p-4 rounded-xl border border-white/5 space-y-2">
+                    <div class="flex justify-between items-center text-xs font-mono-tag font-bold uppercase">
+                        <span class="text-neutral-400">Roster Capacity</span>
+                        <span id="td-roster-count" class="text-[#FFD700]">3 / 5 Members</span>
+                    </div>
+                    <div class="w-full bg-black/50 h-2 rounded-full overflow-hidden border border-white/5">
+                        <div id="td-roster-progress"
+                            class="bg-gradient-to-r from-amber-500 to-[#FFD700] h-full transition-all duration-500"
+                            style="width: 60%"></div>
+                    </div>
+                </div>
+
+                <!-- Active Roster Members List -->
+                <div>
+                    <h3
+                        class="font-heading font-bold text-xs uppercase tracking-wider text-neutral-300 mb-3 flex items-center gap-2">
+                        <svg class="w-4 h-4 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        <span>Active Roster Squad</span>
+                    </h3>
+                    <div id="td-roster-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                        <!-- Dynamically populated roster list -->
+                    </div>
+                </div>
+
+                <!-- Roles Needed -->
+                <div>
+                    <h3 class="font-heading font-bold text-xs uppercase tracking-wider text-neutral-300 mb-2">Roles
+                        Currently Needed</h3>
+                    <div id="td-roles-list" class="flex flex-wrap gap-1.5">
+                        <!-- Dynamically populated roles -->
+                    </div>
+                </div>
+
+                <!-- Team Description & Schedule -->
+                <div>
+                    <h3 class="font-heading font-bold text-xs uppercase tracking-wider text-neutral-300 mb-2">Team
+                        Mission &amp; Schedule</h3>
+                    <div class="bg-black/40 p-4 rounded-xl border border-white/5 text-neutral-300 leading-relaxed font-sans text-xs whitespace-pre-line"
+                        id="td-description">
+                        Loading team details...
+                    </div>
+                </div>
+
+                <!-- External Links / Discord -->
+                <div id="td-links-wrap" class="hidden pt-2 border-t border-white/5">
+                    <a id="td-discord-link" href="#" target="_blank" rel="noopener noreferrer"
+                        class="inline-flex items-center gap-2 bg-[#5865F2]/20 hover:bg-[#5865F2]/30 text-indigo-300 border border-[#5865F2]/40 font-heading font-bold text-xs uppercase px-4 py-2.5 rounded-lg transition-all">
+                        <span>Connect / Discord Server ↗</span>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Modal Footer Action Bar -->
+            <div class="p-4 bg-[#111116] border-t border-white/10 flex items-center justify-between gap-3"
+                id="td-footer-actions">
+                <!-- Dynamically populated actions -->
+            </div>
+        </div>
+    </div>
+
+    <!-- APPLICATION MODAL -->
+    <div id="applicationModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-md"
+            onclick="document.getElementById('applicationModal').classList.add('hidden')"></div>
+        <div class="relative bg-[#0A0A0E] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl">
+            <h3 class="font-heading font-bold text-xl uppercase tracking-wider text-white mb-1">Apply to Join</h3>
+            <p class="text-xs text-neutral-400 mb-6">Requesting to join <span id="app-team-name"
+                    class="text-[#FFD700] font-bold">Team</span></p>
+
+            <form id="applicationForm" class="space-y-4 text-xs">
                 <input type="hidden" id="app-team-id">
                 <div class="grid grid-cols-2 gap-4">
-                    <div><label class="block text-xs text-gray-500 uppercase font-bold mb-1">Rank</label><input
-                            id="app-rank" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
-                    <div><label class="block text-xs text-gray-500 uppercase font-bold mb-1">Role</label><input
-                            id="app-role" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
+                    <div>
+                        <label for="app-rank"
+                            class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Rank</label>
+                        <input id="app-rank" type="text" required
+                            class="dark-input w-full p-3 rounded-lg text-sm text-white">
+                    </div>
+                    <div>
+                        <label for="app-role"
+                            class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Role</label>
+                        <input id="app-role" type="text" required
+                            class="dark-input w-full p-3 rounded-lg text-sm text-white">
+                    </div>
                 </div>
-                <div><label class="block text-xs text-gray-500 uppercase font-bold mb-1">Message</label><textarea
-                        id="app-note" rows="3" required class="dark-input w-full p-3 rounded-lg text-sm"
-                        placeholder="Why should they pick you?"></textarea></div>
+                <div>
+                    <label for="app-note"
+                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Message</label>
+                    <textarea id="app-note" rows="3" required
+                        class="dark-input w-full p-3 rounded-lg text-sm text-white"
+                        placeholder="Why should they pick you for the roster?"></textarea>
+                </div>
 
                 <div class="flex gap-3 pt-2">
                     <button type="button" onclick="document.getElementById('applicationModal').classList.add('hidden')"
-                        class="flex-1 py-2.5 bg-white/10 rounded-lg text-sm font-bold text-white hover:bg-white/20">Cancel</button>
+                        class="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-lg font-heading font-bold text-xs uppercase tracking-wider text-white hover:bg-white/10 cursor-pointer">
+                        Cancel
+                    </button>
                     <button type="submit"
-                        class="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg text-sm font-bold hover:bg-indigo-500 shadow-lg">Send
-                        Request</button>
+                        class="flex-1 py-2.5 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg font-heading font-bold text-xs uppercase tracking-wider shadow-lg cursor-pointer">
+                        Send Request
+                    </button>
                 </div>
             </form>
         </div>
     </div>
 
+    <!-- MANAGE TEAM MODAL -->
     <div id="manageTeamModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/90 backdrop-blur-sm" onclick="closeManageModal()"></div>
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-md" onclick="closeManageModal()"></div>
         <div
-            class="relative bg-[var(--dark-card)] border border-white/20 rounded-xl w-full md:w-3/4 lg:w-1/2 shadow-2xl h-[85vh] flex flex-col overflow-hidden">
+            class="relative bg-[#0A0A0E] border border-white/10 rounded-2xl w-full md:w-3/4 lg:w-1/2 shadow-2xl h-[85vh] flex flex-col overflow-hidden">
 
-            <div class="p-5 border-b border-white/10 flex justify-between items-center bg-black/20">
+            <div class="p-5 border-b border-white/10 flex justify-between items-center bg-[#111116]">
                 <div>
-                    <h3 class="text-lg font-bold text-white">Dashboard</h3>
-                    <p id="manage-team-name" class="text-[var(--gold)] text-xs font-bold uppercase tracking-wider mt-1">
-                        Loading...</p>
+                    <h3 class="font-heading font-bold text-lg text-white uppercase tracking-wider">Team Dashboard</h3>
+                    <p id="manage-team-name"
+                        class="text-[#FFD700] text-xs font-mono-tag uppercase tracking-wider mt-0.5">
+                        Loading...
+                    </p>
                 </div>
                 <button onclick="closeManageModal()"
-                    class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                    class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white flex items-center justify-center transition-colors">&times;</button>
             </div>
 
-            <div class="flex border-b border-white/10 bg-black/40">
+            <div
+                class="flex border-b border-white/10 bg-black/40 font-heading text-xs uppercase font-bold tracking-wider">
                 <button onclick="switchManageTab('chat')" id="tab-chat"
-                    class="flex-1 py-3 text-sm font-bold text-[var(--gold)] border-b-2 border-[var(--gold)] bg-white/5 transition-all">Chat</button>
+                    class="flex-1 py-3 text-[#FFD700] border-b-2 border-[#FFD700] bg-white/5 transition-all cursor-pointer">Chat</button>
                 <button onclick="switchManageTab('roster')" id="tab-roster"
-                    class="flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all">Roster</button>
+                    class="flex-1 py-3 text-neutral-400 hover:text-white hover:bg-white/5 transition-all cursor-pointer">Roster</button>
                 <button onclick="switchManageTab('applications')" id="tab-applications"
-                    class="admin-only flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all">
+                    class="admin-only flex-1 py-3 text-neutral-400 hover:text-white hover:bg-white/5 transition-all cursor-pointer">
                     Requests <span id="badge-apps"
-                        class="ml-1 bg-red-600 text-white text-[10px] px-1.5 py-0.5 rounded hidden">0</span>
+                        class="ml-1 bg-red-600 text-white font-mono-tag text-[10px] px-1.5 py-0.5 rounded hidden">0</span>
                 </button>
                 <button onclick="switchManageTab('settings')" id="tab-settings"
-                    class="admin-only flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all">Settings</button>
+                    class="admin-only flex-1 py-3 text-neutral-400 hover:text-white hover:bg-white/5 transition-all cursor-pointer">Settings</button>
             </div>
 
-            <div class="p-0 overflow-y-auto flex-1 bg-black/20 relative custom-scrollbar">
+            <div class="p-0 overflow-y-auto flex-1 bg-[#0A0A0E] relative custom-scrollbar">
 
                 <div id="view-chat" class="manage-view h-full flex flex-col">
                     <div id="chat-messages" class="flex-1 p-6 overflow-y-auto space-y-4 flex flex-col custom-scrollbar">
                     </div>
-                    <form id="chatForm" class="p-4 border-t border-white/10 bg-[var(--dark-card)] flex gap-3">
-                        <input type="text" id="chat-input" placeholder="Type a message..."
-                            class="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[var(--gold)] text-sm">
+                    <form id="chatForm" class="p-4 border-t border-white/10 bg-[#111116] flex gap-3">
+                        <input type="text" id="chat-input" placeholder="Type a squad message..."
+                            class="flex-1 dark-input rounded-lg px-4 py-2.5 text-white text-xs">
                         <button type="submit"
-                            class="bg-[var(--gold)] text-black font-bold px-6 py-2 rounded-lg hover:bg-yellow-400 shadow-lg transition-colors">Send</button>
+                            class="font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] hover:bg-[#FFF099] text-black px-6 py-2.5 rounded-lg shadow-lg transition-colors cursor-pointer">
+                            Send
+                        </button>
                     </form>
                 </div>
 
                 <div id="view-roster" class="manage-view hidden p-6">
                     <h4
-                        class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-white/10 pb-2">
-                        Active Members</h4>
+                        class="font-mono-tag text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 border-b border-white/10 pb-2">
+                        Active Members
+                    </h4>
                     <div id="roster-list" class="space-y-3"></div>
                 </div>
 
                 <div id="view-applications" class="manage-view hidden p-6">
                     <h4
-                        class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-4 border-b border-white/10 pb-2">
-                        Pending Requests</h4>
+                        class="font-mono-tag text-xs font-bold text-neutral-400 uppercase tracking-wider mb-4 border-b border-white/10 pb-2">
+                        Pending Requests
+                    </h4>
                     <div id="applications-list" class="space-y-3"></div>
                 </div>
 
                 <div id="view-settings" class="manage-view hidden p-6">
                     <div id="edit-form-container">
                         <form id="editTeamForm"
-                            class="space-y-5 max-w-lg mx-auto bg-white/5 p-6 rounded-xl border border-white/10">
+                            class="space-y-5 max-w-lg mx-auto bg-[#111116] p-6 rounded-xl border border-white/10 text-xs">
                             <input type="hidden" id="edit-team-id">
-                            <div><label class="block text-xs font-bold text-gray-400 uppercase mb-1">Team
-                                    Description</label><textarea id="edit-desc" rows="4"
-                                    class="dark-input w-full p-3 rounded text-sm"></textarea></div>
+                            <div>
+                                <label for="edit-desc"
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Team
+                                    Description</label>
+                                <textarea id="edit-desc" rows="4"
+                                    class="dark-input w-full p-3 rounded-lg text-sm text-white"></textarea>
+                            </div>
                             <div class="grid grid-cols-2 gap-4">
-                                <div><label
-                                        class="block text-xs font-bold text-gray-400 uppercase mb-1">Capacity</label><input
-                                        id="edit-max" type="number" class="dark-input w-full p-3 rounded text-sm"></div>
-                                <div><label
-                                        class="block text-xs font-bold text-gray-400 uppercase mb-1">Status</label><select
-                                        id="edit-status" class="dark-select w-full p-3 rounded text-sm">
+                                <div>
+                                    <label for="edit-max"
+                                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Capacity</label>
+                                    <input id="edit-max" type="number"
+                                        class="dark-input w-full p-3 rounded-lg text-sm text-white">
+                                </div>
+                                <div>
+                                    <label for="edit-status"
+                                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Status</label>
+                                    <select id="edit-status"
+                                        class="dark-select w-full p-3 rounded-lg text-sm text-white cursor-pointer">
                                         <option value="Open">Open</option>
                                         <option value="Closed">Closed</option>
-                                    </select></div>
+                                    </select>
+                                </div>
                             </div>
                             <button type="submit"
-                                class="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 rounded-lg transition shadow-lg mt-2">Save
-                                Changes</button>
+                                class="w-full font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] hover:bg-[#FFF099] text-black py-3 rounded-lg transition shadow-lg mt-2 cursor-pointer">
+                                Save Changes
+                            </button>
                         </form>
 
                         <div class="max-w-lg mx-auto mt-8 pt-8 border-t border-white/10">
-                            <h4 class="text-red-500 font-bold text-sm mb-2 uppercase">Danger Zone</h4>
-                            <p class="text-gray-500 text-xs mb-4">Disbanding the team will delete the listing and remove
-                                all members. This cannot be undone.</p>
+                            <h4 class="text-red-400 font-heading font-bold text-sm mb-1 uppercase tracking-wider">Danger
+                                Zone</h4>
+                            <p class="text-neutral-500 text-xs mb-4">Disbanding the team will delete the listing and
+                                remove all members. This action cannot be undone.</p>
                             <button id="btn-disband" onclick="window.disbandTeam()"
-                                class="w-full bg-red-900/20 hover:bg-red-900/40 text-red-500 border border-red-900/50 font-bold py-3 rounded-lg transition">Disband
-                                Team</button>
+                                class="w-full bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-500/30 font-heading font-bold text-xs uppercase tracking-wider py-3 rounded-lg transition cursor-pointer">
+                                Disband Team
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -570,127 +904,132 @@
         </div>
     </div>
 
+    <!-- MANAGE LFT MODAL -->
     <div id="manageLftModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/90 backdrop-blur-sm" onclick="closeLftModal()"></div>
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-md" onclick="closeLftModal()"></div>
         <div
-            class="relative bg-[var(--dark-card)] border border-white/20 rounded-xl w-full md:w-3/4 lg:w-1/2 shadow-2xl h-[85vh] flex flex-col overflow-hidden">
+            class="relative bg-[#0A0A0E] border border-white/10 rounded-2xl w-full md:w-3/4 lg:w-1/2 shadow-2xl h-[85vh] flex flex-col overflow-hidden">
 
-            <div class="p-5 border-b border-white/10 flex justify-between items-center bg-black/20">
+            <div class="p-5 border-b border-white/10 flex justify-between items-center bg-[#111116]">
                 <div>
-                    <h3 class="text-lg font-bold text-white">Listing Dashboard</h3>
-                    <p id="lft-manage-name" class="text-[var(--gold)] text-xs font-bold uppercase tracking-wider mt-1">
-                        Your Messages</p>
+                    <h3 class="font-heading font-bold text-lg text-white uppercase tracking-wider">Listing Dashboard
+                    </h3>
+                    <p id="lft-manage-name"
+                        class="text-[#FFD700] text-xs font-mono-tag uppercase tracking-wider mt-0.5">
+                        Your Inboxes
+                    </p>
                 </div>
                 <button onclick="closeLftModal()"
-                    class="text-gray-400 hover:text-white transition-colors text-2xl">&times;</button>
+                    class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white flex items-center justify-center transition-colors">&times;</button>
             </div>
 
-            <div class="flex border-b border-white/10 bg-black/40">
+            <div
+                class="flex border-b border-white/10 bg-black/40 font-heading text-xs uppercase font-bold tracking-wider">
                 <button onclick="switchLftTab('inbox')" id="lft-tab-inbox"
-                    class="flex-1 py-3 text-sm font-bold text-[var(--gold)] border-b-2 border-[var(--gold)] bg-white/5 transition-all">Inboxes</button>
+                    class="flex-1 py-3 text-[#FFD700] border-b-2 border-[#FFD700] bg-white/5 transition-all cursor-pointer">Inboxes</button>
                 <button onclick="switchLftTab('chat')" id="lft-tab-chat"
-                    class="flex-1 py-3 text-sm font-bold text-gray-400 hover:text-white hover:bg-white/5 transition-all">Chat</button>
+                    class="flex-1 py-3 text-neutral-400 hover:text-white hover:bg-white/5 transition-all cursor-pointer">Chat</button>
             </div>
 
-            <div class="p-0 overflow-y-auto flex-1 bg-black/20 relative custom-scrollbar">
+            <div class="p-0 overflow-y-auto flex-1 bg-[#0A0A0E] relative custom-scrollbar">
                 <div id="lft-view-inbox" class="lft-manage-view p-6">
                     <div id="lft-inbox-list" class="space-y-3"></div>
                 </div>
                 <div id="lft-view-chat" class="lft-manage-view hidden h-full flex flex-col">
                     <div id="lft-chat-messages"
                         class="flex-1 p-6 overflow-y-auto space-y-4 flex flex-col custom-scrollbar"></div>
-                    <form id="lftChatForm" class="p-4 border-t border-white/10 bg-[var(--dark-card)] flex gap-3">
+                    <form id="lftChatForm" class="p-4 border-t border-white/10 bg-[#111116] flex gap-3">
                         <input type="text" id="lft-chat-input" placeholder="Type a message..."
-                            class="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-[var(--gold)] text-sm">
+                            class="flex-1 dark-input rounded-lg px-4 py-2.5 text-white text-xs">
                         <button type="submit"
-                            class="bg-[var(--gold)] text-black font-bold px-6 py-2 rounded-lg hover:bg-yellow-400 shadow-lg transition-colors">Send</button>
+                            class="font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] hover:bg-[#FFF099] text-black px-6 py-2.5 rounded-lg shadow-lg transition-colors cursor-pointer">
+                            Send
+                        </button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- CUSTOM ALERT MODAL -->
     <div id="customAlertModal" class="fixed inset-0 z-[110] hidden flex items-center justify-center p-4">
-        <div id="alertBackdrop" class="absolute inset-0 bg-black/90 backdrop-blur-sm"></div>
+        <div id="alertBackdrop" class="absolute inset-0 bg-black/90 backdrop-blur-md"></div>
         <div id="alertBox"
-            class="relative bg-[var(--dark-card)] border border-white/20 rounded-xl p-6 shadow-2xl max-w-sm w-full text-center transform scale-95 opacity-0 transition-all duration-300">
-            <h3 id="alertTitle" class="text-xl font-bold text-white mb-2">Notification</h3>
-            <p id="alertMessage" class="text-gray-400 text-sm mb-6 leading-relaxed">Message...</p>
+            class="relative bg-[#0A0A0E] border border-white/15 rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center transform scale-95 opacity-0 transition-all duration-300">
+            <h3 id="alertTitle" class="font-heading font-bold text-xl text-white mb-2 uppercase tracking-wider">
+                Notification</h3>
+            <p id="alertMessage" class="text-neutral-400 text-xs mb-6 leading-relaxed">Message...</p>
             <div id="alertButtons" class="flex justify-center gap-3"></div>
         </div>
     </div>
 
-    <footer class="border-t border-white/10 bg-[var(--dark-bg)] mt-20">
-        <div class="max-w-7xl mx-auto px-6 sm:px-8 py-12 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div>
-                <div class="flex items-center gap-3">
-                    <img src="pictures/cz_logo.png" alt="ChampZero Logo" width="40" height="40"
-                        class="w-10 h-10 rounded-md object-cover">
-                    <div>
-                        <div class="font-bold text-white text-lg">ChampZero</div>
-                        <div class="text-sm text-gray-400">Esports Ecosystem</div>
+    <!-- FOOTER -->
+    <footer class="border-t border-white/5 bg-[#0A0A0E] mt-24">
+        <div class="max-w-6xl mx-auto px-6 py-12">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8 mb-10">
+                <div class="md:col-span-2">
+                    <a href="/" class="flex items-center gap-2.5 mb-3">
+                        <img src="pictures/cz_logo.png" alt="ChampZero" class="w-7 h-7 object-contain">
+                        <span class="font-heading font-bold text-base text-white">ChampZero</span>
+                    </a>
+                    <p class="text-xs text-neutral-400 max-w-sm leading-relaxed mb-4">
+                        The complete esports ecosystem for competitive tournaments, rising talent scouting, team
+                        rosters, and community events.
+                    </p>
+                    <div class="font-mono-tag text-[10px] text-neutral-500 uppercase tracking-wider">
+                        © 2026 ChampZero. All rights reserved.
                     </div>
                 </div>
-                <p class="mt-4 text-sm text-gray-400">Building community-driven tournaments, talent development, and
-                    esports services.</p>
-                <div class="mt-4 text-sm text-gray-500">© 2025 ChampZero. All rights reserved.</div>
-            </div>
-            <div>
-                <h4 class="font-semibold text-white">Quick Links</h4>
-                <ul class="mt-3 text-sm text-gray-400 space-y-2">
-                    <li><a href="about.html"   class="hover:text-[var(--gold)]">About Us</a></li>
-                    <li><a href="contact.html" class="hover:text-[var(--gold)]">Contact</a></li>
-                    <li><a href="terms.html"   class="hover:text-[var(--gold)]">Terms &amp; Privacy</a></li>
-                    <li><a href="/refund-policy" class="hover:text-[var(--gold)]">Refund Policy</a></li>
-                    <li><a href="careers.html" class="hover:text-[var(--gold)]">Careers</a></li>
-                </ul>
-            </div>
-            <div>
-        <h4 class="font-semibold text-white">Follow Us</h4>
-                <div class="mt-3 flex flex-wrap items-center gap-3">
-                    <a href="https://facebook.com/champzeroph" target="_blank" rel="noopener noreferrer" aria-label="Facebook"
-                        class="p-2.5 border border-white/20 rounded-md text-gray-400 hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors flex items-center justify-center">
-                        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                            <path d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c4.56-.93 8-4.96 8-9.8z"/>
-                        </svg>
-                    </a>
 
-                    <a href="https://instagram.com/champzeroph" target="_blank" rel="noopener noreferrer" aria-label="Instagram"
-                        class="p-2.5 border border-white/20 rounded-md text-gray-400 hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors flex items-center justify-center">
-                        <svg class="w-5 h-5 stroke-current fill-none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
-                            <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
-                            <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
-                            <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
-                        </svg>
-                    </a>
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-neutral-300 mb-3">Quick Links</h4>
+                    <ul class="text-xs text-neutral-400 space-y-2 font-medium">
+                        <li><a href="/about" class="hover:text-white transition-colors">About Us</a></li>
+                        <li><a href="/contact" class="hover:text-white transition-colors">Contact</a></li>
+                        <li><a href="/terms" class="hover:text-white transition-colors">Terms &amp; Privacy</a></li>
+                        <li><a href="/refund-policy" class="hover:text-white transition-colors">Refund Policy</a></li>
+                        <li><a href="/careers" class="hover:text-white transition-colors">Careers</a></li>
+                    </ul>
+                </div>
 
-                    <a href="https://www.youtube.com/@champzero6400" target="_blank" rel="noopener noreferrer" aria-label="YouTube"
-                        class="p-2.5 border border-white/20 rounded-md text-gray-400 hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors flex items-center justify-center">
-                        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                            <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-                        </svg>
-                    </a>
-
-                    <a href="https://discord.gg/Sve5EKgDcp" target="_blank" rel="noopener noreferrer" aria-label="Discord"
-                        class="p-2.5 border border-white/20 rounded-md text-gray-400 hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors flex items-center justify-center">
-                        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                            <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.094 13.094 0 0 1-1.873-.894.077.077 0 0 1-.008-.128c.126-.093.252-.19.372-.287a.075.075 0 0 1 .077-.011c3.92 1.793 8.18 1.793 12.061 0a.073.073 0 0 1 .078.009c.12.099.246.195.373.289a.077.077 0 0 1-.006.127 12.298 12.298 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.156-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.156 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.156-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.156 2.418z"/>
-                        </svg>
-                    </a>
-
-                    <!-- <a href="#" target="_blank" rel="noopener noreferrer" aria-label="TikTok"
-                        class="p-2.5 border border-white/20 rounded-md text-gray-400 hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors flex items-center justify-center">
-                        <svg class="w-5 h-5 fill-current" viewBox="0 0 24 24">
-                            <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.02 1.62 4.17 1.21 1.32 2.87 2.13 4.63 2.38v3.9c-1.82-.04-3.57-.64-4.99-1.78v5.8c-.01 1.9-.53 3.79-1.53 5.35-1.42 2.18-3.82 3.62-6.44 3.84-2.45.18-4.96-.58-6.81-2.22-2.15-1.92-3.23-4.91-2.81-7.74.41-2.69 2.18-5.07 4.72-6.04 1.15-.44 2.39-.62 3.61-.53V10.3c-.88-.13-1.79.05-2.53.59-.97.71-1.46 1.94-1.3 3.14.15 1.17.91 2.18 1.94 2.64 1 .45 2.17.38 3.12-.21.71-.44 1.19-1.2 1.28-2.03.02-2.46.01-4.92.01-7.39V.02z"/>
-                        </svg>
-                    </a> -->
-
-                    <!-- <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
-                    <a href="#" target="_blank" rel="noopener noreferrer" aria-label="Threads"
-                        class="p-2.5 border border-white/20 rounded-md text-gray-400 hover:border-[var(--gold)]/50 hover:text-[var(--gold)] transition-colors flex items-center justify-center">
-                        <i class="fa-brands fa-threads w-5 h-5 text-lg"></i>
-                    </a> -->
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-widest text-neutral-300 mb-3">Follow Us</h4>
+                    <div class="flex items-center gap-2">
+                        <a href="https://facebook.com/champzeroph" target="_blank" rel="noopener noreferrer"
+                            aria-label="Facebook"
+                            class="p-2 rounded bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:border-[#FFD700]/30 transition-all">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <path
+                                    d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c4.56-.93 8-4.96 8-9.8z" />
+                            </svg>
+                        </a>
+                        <a href="https://instagram.com/champzeroph" target="_blank" rel="noopener noreferrer"
+                            aria-label="Instagram"
+                            class="p-2 rounded bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:border-[#FFD700]/30 transition-all">
+                            <svg class="w-4 h-4 stroke-current fill-none" stroke-width="2" stroke-linecap="round"
+                                stroke-linejoin="round" viewBox="0 0 24 24">
+                                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect>
+                                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"></path>
+                                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+                            </svg>
+                        </a>
+                        <a href="https://www.youtube.com/@champzero6400" target="_blank" rel="noopener noreferrer"
+                            aria-label="YouTube"
+                            class="p-2 rounded bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:border-[#FFD700]/30 transition-all">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <path
+                                    d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z" />
+                            </svg>
+                        </a>
+                        <a href="https://discord.gg/Sve5EKgDcp" target="_blank" rel="noopener noreferrer"
+                            aria-label="Discord"
+                            class="p-2 rounded bg-white/5 border border-white/10 text-neutral-400 hover:text-white hover:border-[#FFD700]/30 transition-all">
+                            <svg class="w-4 h-4 fill-current" viewBox="0 0 24 24">
+                                <path
+                                    d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.094 13.094 0 0 1-1.873-.894.077.077 0 0 1-.008-.128c.126-.093.252-.19.372-.287a.075.075 0 0 1 .077-.011c3.92 1.793 8.18 1.793 12.061 0a.073.073 0 0 1 .078.009c.12.099.246.195.373.289a.077.077 0 0 1-.006.127 12.298 12.298 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.156-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.156 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.156-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.156 2.418z" />
+                            </svg>
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
@@ -698,16 +1037,12 @@
 
     <script>
         document.querySelectorAll('nav a.nav-link').forEach(link => {
-            // Reset all links to gray first
-            link.classList.remove('text-[var(--gold)]');
-            link.classList.add('text-gray-300');
-
-            // Then highlight the active one
             if (link.href === window.location.href) {
-            link.classList.remove('text-gray-300');
-            link.classList.add('text-[var(--gold)]');
+                link.classList.add('active', 'text-white');
+                link.classList.remove('text-neutral-400');
             }
         });
+
     </script>
 
     <script src="js/toast.js"></script>

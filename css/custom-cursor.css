@@ -1,0 +1,111 @@
+/* ==========================================================================
+   CHAMPZERO BESPOKE GAMING CURSOR ENGINE
+   Ultra-Clean, Crisp Vector Hardware Cursors (Zero Blur / Zero Filter Artifacts)
+   ========================================================================== */
+
+@media (hover: hover) and (pointer: fine) {
+
+    /* 1. Ultra-Clean Default Tactical Arrow Cursor */
+    *,
+    html,
+    body,
+    div,
+    p,
+    span,
+    h1,
+    h2,
+    h3,
+    h4,
+    h5,
+    h6,
+    ul,
+    li,
+    section,
+    main,
+    header,
+    footer,
+    aside,
+    nav,
+    table,
+    tr,
+    td,
+    th {
+        cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij4KICA8cG9seWdvbiBwb2ludHM9IjEsMSAxLDE4IDUuNSwxMy41IDksMjEgMTEuNSwxOS41IDgsMTIuNSAxNCwxMi41IiBmaWxsPSIjMDAwMDAwIiBzdHJva2U9IiNGRkQ3MDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8cG9seWdvbiBwb2ludHM9IjMsNCAzLDEzLjUgNS41LDExIDguNSwxNyA5LjUsMTYuNSA2LjgsMTAuNSAxMC41LDEwLjUiIGZpbGw9IiNGRkQ3MDAiLz4KPC9zdmc+") 1 1, auto;
+    }
+
+    /* 2. Ultra-Clean Gaming Hand Pointer for All Clickable Elements */
+    a,
+    a *,
+    button,
+    button *,
+    [role="button"],
+    [role="button"] *,
+    input[type="button"],
+    input[type="submit"],
+    input[type="reset"],
+    select,
+    option,
+    label,
+    label *,
+    .cursor-pointer,
+    .cursor-pointer *,
+    .clickable,
+    .tab-btn,
+    .sidebar-item,
+    .nav-link,
+    .match-card,
+    summary,
+    .view-tab-btn,
+    .role-tab,
+    [onclick] {
+        cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyOCIgaGVpZ2h0PSIyOCIgdmlld0JveD0iMCAwIDI4IDI4Ij4KICA8cGF0aCBkPSJNNiAxIEM0LjkgMSA0IDEuOSA0IDMgTDQgMTIuNSBMMy4yIDEyLjUgQzIgMTIuNSAxIDEzLjUgMSAxNC43IEMxIDE3IDMgMTkuMiA1IDIxLjIgTDYuNSAyMyBDNy41IDI0IDkgMjQuNSAxMC41IDI0LjUgTDE2LjUgMjQuNSBDMTguNSAyNC41IDIwIDIzIDIwIDIxIEwyMCAxNCBDMjAgMTMgMTkuMiAxMi4yIDE4LjIgMTIuMiBMMTcgMTIuMiBDMTcgMTEuMiAxNi4yIDEwLjQgMTUuMiAxMC40IEwxNCAxMC40IEMxNCA5LjQgMTMuMiA4LjYgMTIuMiA4LjYgTDkgOC42IEw5IDMgQzkgMS45IDguMSAxIDcgMSBaIiBmaWxsPSIjMDAwMDAwIiBzdHJva2U9IiNGRkQ3MDAiIHN0cm9rZS13aWR0aD0iMS41IiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8bGluZSB4MT0iNi41IiB5MT0iMy41IiB4Mj0iNi41IiB5Mj0iMTAuNSIgc3Ryb2tlPSIjRkZENzAwIiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPGxpbmUgeDE9IjExLjUiIHkxPSIxMSIgeDI9IjExLjUiIHkyPSIxNSIgc3Ryb2tlPSIjRkZENzAwIiBzdHJva2Utd2lkdGg9IjEiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxsaW5lIHgxPSIxNC41IiB5MT0iMTIuNSIgeDI9IjE0LjUiIHkyPSIxNi41IiBzdHJva2U9IiNGRkQ3MDAiIHN0cm9rZS13aWR0aD0iMSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+CiAgPGxpbmUgeDE9IjE3LjUiIHkxPSIxNCIgeDI9IjE3LjUiIHkyPSIxOCIgc3Ryb2tlPSIjRkZENzAwIiBzdHJva2Utd2lkdGg9IjEiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8L3N2Zz4=") 6 1, pointer !important;
+    }
+
+    /* 3. Ultra-Clean Tactical HUD Text Input Cursor */
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="search"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="url"],
+    textarea,
+    [contenteditable="true"] {
+        cursor: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgdmlld0JveD0iMCAwIDI0IDI0Ij4KICA8cGF0aCBkPSJNNyAzIEwxNyAzIE0xMiAzIEwxMiAyMSBNNyAyMSBMMTcgMjEiIHN0cm9rZT0iIzAwMDAwMCIgc3Ryb2tlLXdpZHRoPSIzLjUiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgogIDxwYXRoIGQ9Ik03IDMgTDE3IDMgTTEyIDMgTDEyIDIxIE03IDIxIEwxNyAyMSIgc3Ryb2tlPSIjRkZENzAwIiBzdHJva2Utd2lkdGg9IjEuNSIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+Cjwvc3ZnPg==") 12 12, text !important;
+    }
+
+    /* 4. Disabled State */
+    [disabled],
+    [disabled] *,
+    .disabled,
+    .disabled *,
+    .cursor-not-allowed {
+        cursor: not-allowed !important;
+    }
+}
+
+/* Subtle Tactical Click Pulse Animation */
+.cz-click-pulse {
+    position: fixed;
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid #FFD700;
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0.5);
+    opacity: 0.8;
+    animation: czPulse 0.3s cubic-bezier(0.1, 0.8, 0.3, 1) forwards;
+    z-index: 999999;
+}
+
+@keyframes czPulse {
+    0% {
+        transform: translate(-50%, -50%) scale(0.3);
+        opacity: 0.8;
+    }
+
+    100% {
+        transform: translate(-50%, -50%) scale(1.8);
+        opacity: 0;
+    }
+}

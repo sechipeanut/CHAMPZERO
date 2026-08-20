@@ -1,5 +1,6 @@
 <!doctype html>
 <html lang="en" class="scroll-smooth">
+
 <head>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-FDFF1NLL6L"></script>
@@ -7,62 +8,171 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
       gtag('config', 'G-FDFF1NLL6L');
     </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5161743455178808"
+     crossorigin="anonymous"></script>   
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/png" href="/favicon.png">
-    <title>ChampZero — Log In</title>
+    <title>ChampZero — Player Portal Login</title>
+
+    <meta name="description" content="Log in to your ChampZero account to join tournaments, manage rosters, and track stats.">
+    <meta property="og:title" content="ChampZero — Player Portal Login">
+    <meta property="og:description" content="Access your ChampZero esports profile.">
+    <meta property="og:image" content="https://champzero.com/pictures/cz_logo.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Bespoke Esports Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700;1,800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
     <style>
-        :root { --gold: #FFD700; --gold-darker: #C99700; --dark-bg: #111115; --dark-card: #1A1A1F; }
-        body { font-family: 'Poppins', sans-serif; }
-        .dark-input { background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; }
-        .dark-input:focus { outline: none; border-color: var(--gold); }
+        :root {
+            --cz-gold: #FFD700;
+            --cz-gold-light: #FFF099;
+            --cz-gold-glow: rgba(255, 215, 0, 0.08);
+            --cz-bg: #000000;
+            --cz-surface: #0A0A0E;
+            --cz-card: #111116;
+            --cz-border: rgba(255, 255, 255, 0.08);
+            --cz-border-gold: rgba(255, 215, 0, 0.3);
+
+            /* Compatibility tokens */
+            --gold: #FFD700;
+            --gold-darker: #C99700;
+            --dark-bg: #000000;
+            --dark-card: #111116;
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--cz-bg);
+            color: #FFFFFF;
+            overflow-x: hidden;
+        }
+
+        .font-heading {
+            font-family: 'Chakra Petch', sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        .font-mono-tag {
+            font-family: 'Space Mono', monospace;
+        }
+
+        .ambient-glow {
+            background: radial-gradient(circle at 50% -15%, rgba(255, 215, 0, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+        }
+
+        /* Inputs */
+        .dark-input {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--cz-border);
+            color: #fff;
+            transition: all 0.2s ease;
+        }
+
+        .dark-input:focus {
+            outline: none;
+            border-color: var(--cz-border-gold);
+            box-shadow: 0 0 15px var(--cz-gold-glow);
+        }
+
+        :focus-visible {
+            outline: 2px solid var(--cz-gold);
+            outline-offset: 4px;
+            border-radius: 4px;
+        }
     </style>
 </head>
-<body class="bg-[var(--dark-bg)] text-gray-200 antialiased">
 
-<header class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 h-16 flex items-center justify-center">
-    <a href="/" class="flex items-center gap-3">
-        <img src="pictures/cz_logo.png" alt="ChampZero" width="40" height="40" class="w-10 h-10 rounded-md">
-        <span class="font-bold text-xl text-white">ChampZero</span>
-    </a>
-</header>
+<body class="antialiased min-h-screen flex flex-col justify-between selection:bg-[#FFD700] selection:text-black ambient-glow">
 
-<main class="flex items-center justify-center min-h-[calc(100vh-64px)] p-4">
-    <div class="w-full max-w-md bg-[var(--dark-card)] p-8 rounded-xl shadow-2xl border border-white/10">
-        <h2 class="text-3xl font-bold text-center mb-1 text-white">Welcome Back</h2>
-        <p class="text-center text-gray-400 mb-6">Log in to your ChampZero account.</p>
+    <!-- HEADER MINIMAL -->
+    <header class="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-white/5 h-16 flex items-center justify-between px-6 max-w-6xl mx-auto w-full">
+        <a href="/" class="flex items-center gap-2.5 group">
+            <img src="pictures/cz_logo.png" alt="ChampZero Logo" class="w-7 h-7 object-contain">
+            <span class="font-heading font-bold text-base text-white group-hover:text-[#FFD700] transition-colors">ChampZero</span>
+        </a>
+        <a href="/" class="text-xs font-semibold text-neutral-400 hover:text-white transition-colors">
+            ← Return to Home
+        </a>
+    </header>
 
-        <button id="google-btn" type="button" class="w-full bg-white/5 border border-white/10 font-semibold py-3 px-4 rounded-md shadow-md hover:bg-white/10 transition flex items-center justify-center gap-3 mb-6 cursor-pointer">
-            <svg class="w-5 h-5" viewBox="0 0 48 48"><path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path><path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path><path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path><path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.258,44,30.038,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path></svg>
-            Continue with Google
-        </button>
+    <!-- AUTH CARD CONTAINER -->
+    <main class="flex-grow flex items-center justify-center p-4 sm:p-6">
+        <div class="w-full max-w-md bg-[#0A0A0E] p-8 sm:p-10 rounded-2xl shadow-2xl border border-white/10 relative overflow-hidden">
+            <div class="absolute inset-0 bg-gradient-to-b from-[#FFD700]/5 via-transparent to-transparent pointer-events-none"></div>
 
-        <div class="relative flex items-center justify-center my-6"><div class="absolute inset-0 flex items-center"><div class="w-full border-t border-white/10"></div></div><div class="relative bg-[var(--dark-card)] px-4 text-sm text-gray-500">OR</div></div>
-
-        <form id="loginForm" class="space-y-6">
-            <div><label class="block text-sm font-medium text-gray-300">Email</label><input id="email" type="email" required class="dark-input mt-1 block w-full p-3 rounded-md"></div>
-            <div>
-                <div class="flex items-center justify-between mb-1">
-                    <label class="block text-sm font-medium text-gray-300">Password</label>
-                    <a href="/forgot-password" class="text-xs text-[var(--gold)] hover:underline">Forgot password?</a>
+            <div class="text-center mb-8">
+                <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#FFD700]/10 border border-[#FFD700]/20 text-[10px] font-mono-tag text-[#FFD700] mb-3 uppercase tracking-wider">
+                    Player Portal
                 </div>
-                <input id="password" type="password" required class="dark-input mt-1 block w-full p-3 rounded-md">
+                <h1 class="font-heading font-bold text-3xl text-white uppercase tracking-tight">Welcome Back</h1>
+                <p class="text-xs text-neutral-400 mt-1">Access your ChampZero tournaments and roster dashboard.</p>
             </div>
-            <button type="submit" class="w-full bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black font-bold py-3 px-4 rounded-md hover:opacity-90 transition cursor-pointer">Log In</button>
-        </form>
 
-        <p class="mt-8 text-center text-sm text-gray-400">Not a member? <a href="/signup" class="font-medium text-[var(--gold)] hover:underline">Sign up</a></p>
-    </div>
-</main>
+            <!-- GOOGLE AUTH BUTTON -->
+            <button id="google-btn" type="button"
+                class="w-full bg-white/5 border border-white/10 hover:border-white/20 text-white font-heading font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-lg shadow-md hover:bg-white/10 transition-all flex items-center justify-center gap-3 mb-6 cursor-pointer">
+                <svg class="w-4 h-4" viewBox="0 0 48 48">
+                    <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12c0-6.627,5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"></path>
+                    <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z"></path>
+                    <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.619-3.317-11.283-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"></path>
+                    <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.574l6.19,5.238C42.022,35.258,44,30.038,44,24C44,22.659,43.862,21.35,43.611,20.083z"></path>
+                </svg>
+                Continue with Google
+            </button>
 
-<script src="js/toast.js"></script>
-<script type="module" src="js/auth.js"></script>
+            <!-- SEPARATOR -->
+            <div class="relative flex items-center justify-center my-6">
+                <div class="absolute inset-0 flex items-center">
+                    <div class="w-full border-t border-white/10"></div>
+                </div>
+                <div class="relative bg-[#0A0A0E] px-4 font-mono-tag text-[10px] text-neutral-500 uppercase tracking-widest">
+                    Or Sign In With Email
+                </div>
+            </div>
+
+            <!-- EMAIL/PASS FORM -->
+            <form id="loginForm" class="space-y-4">
+                <div>
+                    <label for="email" class="block font-semibold text-neutral-300 text-xs uppercase tracking-wider mb-1.5">Email Address</label>
+                    <input id="email" type="email" required placeholder="player@champzero.org"
+                        class="dark-input w-full p-3 rounded-lg text-sm text-white placeholder-neutral-500">
+                </div>
+                <div>
+                    <div class="flex items-center justify-between mb-1.5">
+                        <label for="password" class="block font-semibold text-neutral-300 text-xs uppercase tracking-wider">Password</label>
+                        <a href="/forgot-password" class="text-xs text-[#FFD700] hover:underline font-mono-tag">Forgot password?</a>
+                    </div>
+                    <input id="password" type="password" required placeholder="••••••••"
+                        class="dark-input w-full p-3 rounded-lg text-sm text-white placeholder-neutral-500">
+                </div>
+                
+                <button type="submit"
+                    class="w-full font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] text-black py-3.5 px-4 rounded-lg shadow-lg shadow-yellow-500/10 hover:bg-[#FFF099] transition-all cursor-pointer mt-2">
+                    Log In
+                </button>
+            </form>
+
+            <!-- SIGN UP LINK -->
+            <p class="mt-8 text-center text-xs text-neutral-400">
+                Not registered yet? <a href="/signup" class="font-bold text-[#FFD700] hover:underline">Create an account</a>
+            </p>
+        </div>
+    </main>
+
+    <!-- FOOTER MINIMAL -->
+    <footer class="border-t border-white/5 bg-black/60 py-4 text-center font-mono-tag text-[10px] text-neutral-500 uppercase tracking-wider">
+        © 2026 ChampZero Platform. All rights reserved.
+    </footer>
+
+    <script src="js/toast.js"></script>
+    <script type="module" src="js/auth.js"></script>
 </body>
-</html>
 
-<!--ajshdajhdadhjksadhn-->
+</html>

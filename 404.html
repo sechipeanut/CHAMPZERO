@@ -1,5 +1,6 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
+
 <head>
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-FDFF1NLL6L"></script>
@@ -7,25 +8,88 @@
       window.dataLayer = window.dataLayer || [];
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
-
       gtag('config', 'G-FDFF1NLL6L');
     </script>
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5161743455178808"
+     crossorigin="anonymous"></script>   
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" type="image/png" href="/favicon.png">
-    <title>404 — Page Not Found</title>
+    <title>ChampZero — Map Not Found (404)</title>
+    <meta name="description" content="The page or tournament match you are looking for has respawned or does not exist.">
+    <meta property="og:title" content="ChampZero — 404 Page Not Found">
+    <meta property="og:description" content="The page you requested could not be found.">
+    <meta property="og:image" content="https://champzero.com/pictures/cz_logo.png">
+
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    <!-- Bespoke Esports Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700;1,800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
     <style>
-        :root { --gold: #FFD700; --dark-bg: #111115; }
-        body { font-family: 'Poppins', sans-serif; background-color: var(--dark-bg); color: white; overflow: hidden; }
-        
+        :root {
+            --cz-gold: #FFD700;
+            --cz-gold-light: #FFF099;
+            --cz-gold-glow: rgba(255, 215, 0, 0.1);
+            --cz-bg: #000000;
+            --cz-surface: #0A0A0E;
+            --cz-card: #111116;
+            --cz-border: rgba(255, 255, 255, 0.08);
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: var(--cz-bg);
+            color: #FFFFFF;
+            overflow: hidden;
+        }
+
+        .font-heading {
+            font-family: 'Chakra Petch', sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        .font-mono-tag {
+            font-family: 'Space Mono', monospace;
+        }
+
         /* Glitch Effect */
-        .glitch { position: relative; font-size: 8rem; font-weight: 900; color: var(--gold); letter-spacing: -5px; }
-        .glitch::before, .glitch::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--dark-bg); }
-        .glitch::before { left: 2px; text-shadow: -2px 0 red; clip: rect(24px, 550px, 90px, 0); animation: glitch-anim 3s infinite linear alternate-reverse; }
-        .glitch::after { left: -2px; text-shadow: -2px 0 blue; clip: rect(85px, 550px, 140px, 0); animation: glitch-anim 2s infinite linear alternate-reverse; }
-        
+        .glitch {
+            position: relative;
+            font-family: 'Chakra Petch', sans-serif;
+            font-size: clamp(6rem, 15vw, 9rem);
+            font-weight: 800;
+            color: var(--cz-gold);
+            letter-spacing: -5px;
+            line-height: 0.9;
+        }
+
+        .glitch::before, .glitch::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: transparent;
+        }
+
+        .glitch::before {
+            left: 2px;
+            text-shadow: -2px 0 red;
+            clip: rect(24px, 550px, 90px, 0);
+            animation: glitch-anim 3s infinite linear alternate-reverse;
+        }
+
+        .glitch::after {
+            left: -2px;
+            text-shadow: -2px 0 blue;
+            clip: rect(85px, 550px, 140px, 0);
+            animation: glitch-anim 2s infinite linear alternate-reverse;
+        }
+
         @keyframes glitch-anim {
             0% { clip: rect(10px, 9999px, 30px, 0); }
             20% { clip: rect(80px, 9999px, 10px, 0); }
@@ -36,24 +100,32 @@
         }
     </style>
 </head>
-<body class="flex flex-col items-center justify-center min-h-screen text-center p-4 relative">
+
+<body class="flex flex-col items-center justify-center min-h-screen text-center p-6 relative selection:bg-[#FFD700] selection:text-black">
     
-    <div class="absolute inset-0 z-0 opacity-20 pointer-events-none">
-        <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-[var(--gold)]/20 rounded-full blur-[120px]"></div>
+    <!-- AMBIENT GLOW -->
+    <div class="absolute inset-0 z-0 pointer-events-none">
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] bg-[#FFD700]/5 rounded-full blur-[140px]"></div>
     </div>
 
-    <div class="relative z-10">
-        <div class="glitch mb-4" data-text="404">404</div>
-        <h2 class="text-3xl md:text-4xl font-bold mb-4 uppercase tracking-widest">Map Not Found</h2>
-        <p class="text-gray-400 max-w-md mx-auto mb-10 text-lg">
-            You've ventured into the fog of war. This area has been disconnected from the server.
+    <div class="relative z-10 max-w-lg mx-auto">
+        <div class="glitch mb-2" data-text="404">404</div>
+        <h1 class="font-heading font-bold text-2xl sm:text-4xl text-white uppercase tracking-tight mb-3">
+            Map Not Found
+        </h1>
+        <p class="text-xs sm:text-sm text-neutral-400 max-w-md mx-auto mb-8 leading-relaxed">
+            You've ventured into the fog of war. The requested coordinates do not exist or have been relocated on our servers.
         </p>
         
-        <a href="/" class="inline-flex items-center gap-2 px-8 py-3 bg-[var(--gold)] text-black font-bold rounded-full hover:bg-yellow-400 transition-transform hover:scale-105 shadow-lg shadow-yellow-600/20">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+        <a href="/"
+            class="font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] text-black px-8 py-3.5 rounded-lg hover:bg-[#FFF099] transition-all shadow-lg shadow-yellow-500/10 inline-flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+            </svg>
             Return to Base
         </a>
     </div>
 
 </body>
+
 </html>

@@ -30,6 +30,7 @@ async function loadUserProfile(uid, email) {
             
             // Fill Form Inputs
             qs('#ign').value = data.ign || '';
+            if (qs('#discord')) qs('#discord').value = data.discord || data.discordTag || '';
             qs('#realName').value = data.realName || '';
             qs('#avatarUrl').value = data.avatar || '';
             qs('#bio').value = data.bio || '';
@@ -95,20 +96,21 @@ if(form) {
 
         // Gather Data
         const profileData = {
-            ign: qs('#ign').value,
-            displayName: qs('#ign').value, // Keep displayName in sync with ign
-            realName: qs('#realName').value,
+            ign: qs('#ign').value.trim(),
+            displayName: qs('#ign').value.trim(), // Keep displayName in sync with ign
+            discord: qs('#discord') ? qs('#discord').value.trim() : '',
+            realName: qs('#realName').value.trim(),
             avatar: qs('#avatarUrl').value,
-            valId: qs('#valId').value,
+            valId: qs('#valId').value.trim(),
             valRank: qs('#valRank').value,
             valRole: qs('#valRole').value,
-            mlbbId: qs('#mlbbId').value,
+            mlbbId: qs('#mlbbId').value.trim(),
             mlbbRank: qs('#mlbbRank').value,
             mlbbRole: qs('#mlbbRole').value,
-            hokId: qs('#hokId').value,
+            hokId: qs('#hokId').value.trim(),
             hokRank: qs('#hokRank').value,
             hokRole: qs('#hokRole').value,
-            bio: qs('#bio').value,
+            bio: qs('#bio').value.trim(),
             email: user.email, // Keep email in sync
             updatedAt: new Date().toISOString()
         };

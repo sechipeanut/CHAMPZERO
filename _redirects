@@ -1,0 +1,29 @@
+# Netlify Redirects & Clean URL Routing for ChampZero
+
+/                   /home.html            200
+/home               /home.html            200
+/tournaments        /tournaments.html     200
+/events             /events.html          200
+/teams              /teams.html           200
+/rising             /rising.html          200
+/partners           /partners.html        200
+/about              /about.html           200
+/support            /support.html         200
+/profile            /profile.html         200
+/edit-profile       /edit-profile.html    200
+/admin              /admin.html           200
+/login              /login.html           200
+/signup             /signup.html          200
+/contact            /contact.html         200
+/terms              /terms.html           200
+/careers            /careers.html         200
+/refund-policy      /refund-policy.html   200
+/verify-email       /verify-email.html    200
+/forgot-password    /forgot-password.html 200
+/reset-password     /reset-password.html  200
+
+# Catch-all for extensionless HTML files
+/*                  /:splat.html          200
+
+# 404 Fallback
+/*                  /404.html             404

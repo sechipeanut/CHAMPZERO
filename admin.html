@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="en" class="scroll-smooth">
 <head>
-    <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-FDFF1NLL6L"></script>
     <script>
       window.dataLayer = window.dataLayer || [];
@@ -11,14 +10,17 @@
     </script>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <link rel="icon" type="image/png" href="/favicon.png">
     <title>ChampZero — Admin Dashboard</title>
+    <meta name="description" content="ChampZero esports operations, tournament administration, talent agency control, and financial settlement dashboard.">
+    <meta property="og:title" content="ChampZero — Admin Dashboard">
+    <meta property="og:description" content="Esports operations and tournament administration.">
+    <meta property="og:image" content="https://champzero.com/pictures/cz_logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Bespoke Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700;1,800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/custom-cursor.css">
 
     <style>
         :root {
@@ -140,11 +142,10 @@
             transition: 0.3s;
         }
         @media (max-width: 1024px) {
-            .sidebar { transform: translateX(-100%); }
-            .sidebar.mobile-open { transform: translateX(0); }
-            .content-wrapper { margin-left: 0; }
-            .hamburger { display: block; }
-            .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 35; top: 64px; }
+            .sidebar { transform: translateX(-100%); top: 64px; }
+            .sidebar.mobile-open { transform: translateX(0); box-shadow: 0 0 40px rgba(0,0,0,0.9); }
+            .content-wrapper { margin-left: 0; padding-top: 24px; }
+            .mobile-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); backdrop-filter: blur(4px); z-index: 35; top: 64px; }
             .mobile-overlay.active { display: block; }
         }
         .role-tab { background: transparent; color: #9CA3AF; border: 1px solid transparent; }
@@ -165,33 +166,30 @@
             </div>
         </div>
         <h2 class="font-heading font-bold text-2xl text-white mb-2 uppercase tracking-wide">Verifying Access</h2>
-        <p class="text-neutral-400 text-sm">Checking your permissions...</p>
+        <p class="text-neutral-400 text-sm font-mono-tag">Checking administrative credentials...</p>
     </div>
 </div>
 
 <div id="admin-content" class="hidden">
 
-<header class="sticky top-0 z-50 bg-black/95 backdrop-blur-lg border-b border-white/10 h-16 flex items-center justify-between px-8">
+<header class="sticky top-0 z-50 bg-black/95 backdrop-blur-lg border-b border-white/10 h-16 flex items-center justify-between px-4 sm:px-8">
     <div class="flex items-center gap-3">
-        <img src="pictures/cz_logo.png" alt="Logo" class="w-6 h-6 rounded object-cover border border-white/10">
-        <span class="font-heading font-bold text-lg text-white">ChampZero <span class="text-[var(--gold)]">Admin</span></span>
-        <span class="font-mono-tag bg-[var(--gold)] text-black text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">
+        <button id="admin-mobile-toggle" onclick="toggleSidebar()" class="lg:hidden p-2 rounded-lg bg-white/5 border border-white/10 text-neutral-300 hover:text-white hover:border-[var(--gold)]/50 transition-colors cursor-pointer" aria-label="Toggle Navigation Menu">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path></svg>
+        </button>
+        <img src="pictures/cz_logo.png" alt="Logo" class="w-7 h-7 object-contain">
+        <span class="font-heading font-bold text-base sm:text-lg text-white">ChampZero <span class="text-[var(--gold)]">Admin</span></span>
+        <span class="font-mono-tag bg-[var(--gold)] text-black text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider hidden sm:inline-block">
             Beta
         </span>
     </div>
-    <div class="flex items-center gap-4">
+    <div class="flex items-center gap-3 sm:gap-4">
         <span id="admin-name-desktop" class="hidden md:block text-xs font-mono-tag text-neutral-300">
-            <span class="text-[var(--gold)]">⚡</span> <span id="admin-display-name">Loading...</span>
+             <span id="admin-display-name">Loading...</span>
         </span>
-        <a href="/" class="text-xs font-mono-tag uppercase tracking-wider hover:text-white text-neutral-400 border border-white/10 px-3 py-1.5 rounded bg-white/5 hover:border-[var(--gold)]/40 transition-colors">Back to Site &rarr;</a>
+        <a href="/tournaments" class="text-[11px] sm:text-xs font-mono-tag uppercase tracking-wider hover:text-white text-neutral-400 border border-white/10 px-3 py-1.5 rounded bg-white/5 hover:border-[var(--gold)]/40 transition-colors">Arena &rarr;</a>
     </div>
 </header>
-
-<button class="hamburger" id="hamburger-btn" onclick="toggleSidebar()">
-    <div class="hamburger-line"></div>
-    <div class="hamburger-line"></div>
-    <div class="hamburger-line"></div>
-</button>
 
 <div class="mobile-overlay" id="mobile-overlay" onclick="toggleSidebar()"></div>
 
@@ -199,7 +197,7 @@
     <nav class="py-4">
         <div class="sidebar-item active" onclick="switchTab('config')" id="nav-config">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-            <span class="font-heading font-semibold uppercase text-xs tracking-wider">Home Statistics & Activities</span>
+            <span class="font-heading font-semibold uppercase text-xs tracking-wider">Home Stats &amp; Activities</span>
         </div>
 
         <div class="sidebar-item" onclick="switchTab('users')" id="nav-users">
@@ -227,6 +225,11 @@
             <span class="font-heading font-semibold uppercase text-xs tracking-wider">Careers</span>
         </div>
 
+        <div class="sidebar-item" onclick="switchTab('partners')" id="nav-partners">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+            <span class="font-heading font-semibold uppercase text-xs tracking-wider">Partners &amp; Sponsors</span>
+        </div>
+
         <div class="sidebar-item" onclick="switchTab('notifications')" id="nav-notifications">
             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
             <span class="font-heading font-semibold uppercase text-xs tracking-wider">Announcements</span>
@@ -249,16 +252,13 @@
         </div>
     </div>
 
-    <!-- TAB 1: CONFIGURATION (STATS + RECENT ACTIVITIES) -->
     <section id="tab-config" class="tab-content space-y-12">
-        
-        <!-- Part A: Home Page Statistics -->
         <div>
             <div class="mb-4">
                 <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[var(--gold)]">// TELEMETRY</span>
                 <h2 class="font-heading font-bold text-2xl text-white uppercase">Home Page Statistics</h2>
             </div>
-            <div class="bg-[var(--dark-surface)] p-6 sm:p-8 rounded-xl border border-white/10 max-w-4xl">
+            <div class="bg-[var(--dark-surface)] p-6 sm:p-8 rounded-xl border border-white/10 max-w-4xl shadow-xl">
                 <form id="configForm" class="space-y-6">
                     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div>
@@ -292,20 +292,18 @@
             </div>
         </div>
 
-        <!-- Part B: Home Page Recent Activities Spotlight -->
         <div>
             <div class="mb-4">
                 <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[var(--gold)]">// SPOTLIGHT CARDS</span>
                 <h2 class="font-heading font-bold text-2xl text-white uppercase">Recent Activities (3 Cards on Homepage)</h2>
             </div>
-            <div class="bg-[var(--dark-surface)] p-6 sm:p-8 rounded-xl border border-white/10 max-w-4xl">
+            <div class="bg-[var(--dark-surface)] p-6 sm:p-8 rounded-xl border border-white/10 max-w-4xl shadow-xl">
                 <form id="activitiesConfigForm" class="space-y-8">
                     
-                    <!-- Activity Item 1 -->
                     <div class="p-5 rounded-lg bg-black/40 border border-white/5 space-y-4">
                         <div class="flex items-center justify-between border-b border-white/5 pb-2">
                             <span class="font-heading font-bold text-sm text-[var(--gold)] uppercase">Activity Card 1</span>
-                            <span class="font-mono-tag text-[10px] text-neutral-500">ID: activity-*-1</span>
+                            <span class="font-mono-tag text-[10px] text-neutral-500">Slot #1</span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -325,10 +323,9 @@
                                 <input id="cfg-act-link-1" type="text" class="dark-input w-full p-2.5 rounded text-xs" required>
                             </div>
                             
-                            <!-- PHOTO CONTROLS CARD 1 -->
                             <div class="md:col-span-2 bg-white/[0.02] p-4 rounded-lg border border-white/5 space-y-3">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs font-mono-tag uppercase text-[var(--gold)] font-bold">Photo & Alignment Settings</span>
+                                    <span class="text-xs font-mono-tag uppercase text-[var(--gold)] font-bold">Photo &amp; Alignment</span>
                                     <span id="cfg-act-img-status-1" class="text-[10px] font-mono-tag text-neutral-500"></span>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -342,7 +339,7 @@
                                             <input id="cfg-act-img-upload-1" type="file" accept="image/*" class="dark-input w-full p-1.5 rounded text-xs file:bg-white/10 file:border-0 file:rounded file:px-2 file:py-1 file:text-white file:text-xs">
                                         </div>
                                         <div>
-                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Photo Alignment (Object Position)</label>
+                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Photo Alignment</label>
                                             <select id="cfg-act-pos-1" class="dark-select w-full p-2 rounded text-xs">
                                                 <option value="center">Center (Default)</option>
                                                 <option value="top">Top</option>
@@ -352,7 +349,6 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <!-- Live Preview -->
                                     <div class="flex flex-col items-center justify-center">
                                         <span class="text-[10px] font-mono-tag text-neutral-500 mb-1 uppercase">Card Preview</span>
                                         <div class="w-full h-24 rounded border border-white/10 overflow-hidden bg-neutral-950 flex items-center justify-center">
@@ -369,11 +365,10 @@
                         </div>
                     </div>
 
-                    <!-- Activity Item 2 -->
                     <div class="p-5 rounded-lg bg-black/40 border border-white/5 space-y-4">
                         <div class="flex items-center justify-between border-b border-white/5 pb-2">
                             <span class="font-heading font-bold text-sm text-[var(--gold)] uppercase">Activity Card 2</span>
-                            <span class="font-mono-tag text-[10px] text-neutral-500">ID: activity-*-2</span>
+                            <span class="font-mono-tag text-[10px] text-neutral-500">Slot #2</span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -393,10 +388,9 @@
                                 <input id="cfg-act-link-2" type="text" class="dark-input w-full p-2.5 rounded text-xs" required>
                             </div>
 
-                            <!-- PHOTO CONTROLS CARD 2 -->
                             <div class="md:col-span-2 bg-white/[0.02] p-4 rounded-lg border border-white/5 space-y-3">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs font-mono-tag uppercase text-[var(--gold)] font-bold">Photo & Alignment Settings</span>
+                                    <span class="text-xs font-mono-tag uppercase text-[var(--gold)] font-bold">Photo &amp; Alignment</span>
                                     <span id="cfg-act-img-status-2" class="text-[10px] font-mono-tag text-neutral-500"></span>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -410,7 +404,7 @@
                                             <input id="cfg-act-img-upload-2" type="file" accept="image/*" class="dark-input w-full p-1.5 rounded text-xs file:bg-white/10 file:border-0 file:rounded file:px-2 file:py-1 file:text-white file:text-xs">
                                         </div>
                                         <div>
-                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Photo Alignment (Object Position)</label>
+                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Photo Alignment</label>
                                             <select id="cfg-act-pos-2" class="dark-select w-full p-2 rounded text-xs">
                                                 <option value="center">Center (Default)</option>
                                                 <option value="top">Top</option>
@@ -420,7 +414,6 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <!-- Live Preview -->
                                     <div class="flex flex-col items-center justify-center">
                                         <span class="text-[10px] font-mono-tag text-neutral-500 mb-1 uppercase">Card Preview</span>
                                         <div class="w-full h-24 rounded border border-white/10 overflow-hidden bg-neutral-950 flex items-center justify-center">
@@ -437,11 +430,10 @@
                         </div>
                     </div>
 
-                    <!-- Activity Item 3 -->
                     <div class="p-5 rounded-lg bg-black/40 border border-white/5 space-y-4">
                         <div class="flex items-center justify-between border-b border-white/5 pb-2">
                             <span class="font-heading font-bold text-sm text-[var(--gold)] uppercase">Activity Card 3</span>
-                            <span class="font-mono-tag text-[10px] text-neutral-500">ID: activity-*-3</span>
+                            <span class="font-mono-tag text-[10px] text-neutral-500">Slot #3</span>
                         </div>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
@@ -461,10 +453,9 @@
                                 <input id="cfg-act-link-3" type="text" class="dark-input w-full p-2.5 rounded text-xs" required>
                             </div>
 
-                            <!-- PHOTO CONTROLS CARD 3 -->
                             <div class="md:col-span-2 bg-white/[0.02] p-4 rounded-lg border border-white/5 space-y-3">
                                 <div class="flex items-center justify-between">
-                                    <span class="text-xs font-mono-tag uppercase text-[var(--gold)] font-bold">Photo & Alignment Settings</span>
+                                    <span class="text-xs font-mono-tag uppercase text-[var(--gold)] font-bold">Photo &amp; Alignment</span>
                                     <span id="cfg-act-img-status-3" class="text-[10px] font-mono-tag text-neutral-500"></span>
                                 </div>
                                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -478,7 +469,7 @@
                                             <input id="cfg-act-img-upload-3" type="file" accept="image/*" class="dark-input w-full p-1.5 rounded text-xs file:bg-white/10 file:border-0 file:rounded file:px-2 file:py-1 file:text-white file:text-xs">
                                         </div>
                                         <div>
-                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Photo Alignment (Object Position)</label>
+                                            <label class="block text-[11px] font-mono-tag uppercase text-neutral-400 mb-1">Photo Alignment</label>
                                             <select id="cfg-act-pos-3" class="dark-select w-full p-2 rounded text-xs">
                                                 <option value="center">Center (Default)</option>
                                                 <option value="top">Top</option>
@@ -488,7 +479,6 @@
                                             </select>
                                         </div>
                                     </div>
-                                    <!-- Live Preview -->
                                     <div class="flex flex-col items-center justify-center">
                                         <span class="text-[10px] font-mono-tag text-neutral-500 mb-1 uppercase">Card Preview</span>
                                         <div class="w-full h-24 rounded border border-white/10 overflow-hidden bg-neutral-950 flex items-center justify-center">
@@ -514,25 +504,25 @@
                 </form>
             </div>
         </div>
-
     </section>
 
-    <!-- TAB 2: USERS -->
     <section id="tab-users" class="tab-content hidden">
         <h2 class="font-heading font-bold text-2xl text-white uppercase mb-6">User Management</h2>
         <div class="bg-[var(--dark-surface)] p-5 rounded-xl border border-white/10 mb-6">
             <div class="flex flex-wrap gap-2 mb-4 border-b border-white/5 pb-4">
                 <button onclick="filterUsersByRole('all')" id="role-tab-all" class="role-tab active px-4 py-2 rounded-lg font-heading font-bold uppercase text-xs tracking-wider transition-all flex-1 sm:flex-none">All</button>
                 <button onclick="filterUsersByRole('admin')" id="role-tab-admin" class="role-tab px-4 py-2 rounded-lg font-heading font-bold uppercase text-xs tracking-wider transition-all flex-1 sm:flex-none">Admins</button>
+                <button onclick="filterUsersByRole('organizer')" id="role-tab-organizer" class="role-tab px-4 py-2 rounded-lg font-heading font-bold uppercase text-xs tracking-wider transition-all flex-1 sm:flex-none">Organizers</button>
                 <button onclick="filterUsersByRole('user')" id="role-tab-user" class="role-tab px-4 py-2 rounded-lg font-heading font-bold uppercase text-xs tracking-wider transition-all flex-1 sm:flex-none">Users</button>
             </div>
             <div class="flex flex-col sm:flex-row gap-4 mb-4">
-                <input type="text" id="user-search" class="dark-input flex-1 p-3 rounded-lg text-sm">
+                <input type="text" id="user-search" placeholder="Search by name or email..." class="dark-input flex-1 p-3 rounded-lg text-sm">
                 <button onclick="refreshUsers()" class="bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all">Refresh</button>
             </div>
             <div class="flex flex-wrap gap-4 text-xs font-mono-tag text-neutral-400">
                 <span>Total: <strong id="user-count" class="text-white">0</strong></span>
                 <span>Admins: <strong id="admin-count" class="text-[var(--gold)]">0</strong></span>
+                <span>Organizers: <strong id="organizer-count" class="text-blue-400">0</strong></span>
                 <span>Users: <strong id="regular-user-count" class="text-neutral-300">0</strong></span>
             </div>
         </div>
@@ -551,10 +541,12 @@
         </div>
     </section>
 
-    <!-- TAB 3: TOURNAMENTS -->
     <section id="tab-tournaments" class="tab-content hidden">
         <div class="flex justify-between items-center mb-6">
-            <h2 class="font-heading font-bold text-2xl text-white uppercase">Tournaments</h2>
+            <div>
+                <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[var(--gold)]">// BRACKETS &amp; SEEDING</span>
+                <h2 class="font-heading font-bold text-2xl text-white uppercase mt-0.5">Tournaments</h2>
+            </div>
             <button onclick="openTournamentModal()" class="bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-4 md:px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 <span>Create Tournament</span>
@@ -563,10 +555,12 @@
         <div id="tournaments-list" class="space-y-2"><p class="text-neutral-500 font-mono-tag text-xs">Loading...</p></div>
     </section>
 
-    <!-- TAB 4: EVENTS -->
     <section id="tab-events" class="tab-content hidden">
         <div class="flex justify-between items-center mb-6">
-            <h2 class="font-heading font-bold text-2xl text-white uppercase">Events</h2>
+            <div>
+                <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[var(--gold)]">// BROADCASTS &amp; SHOWCASES</span>
+                <h2 class="font-heading font-bold text-2xl text-white uppercase mt-0.5">Events</h2>
+            </div>
             <button onclick="openEventModal()" class="bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-4 md:px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 <span>Create Event</span>
@@ -575,10 +569,12 @@
         <div id="events-list" class="space-y-2"><p class="text-neutral-500 font-mono-tag text-xs">Loading...</p></div>
     </section>
 
-    <!-- TAB 5: CAREERS -->
     <section id="tab-jobs" class="tab-content hidden">
         <div class="flex justify-between items-center mb-6">
-            <h2 class="font-heading font-bold text-2xl text-white uppercase">Careers</h2>
+            <div>
+                <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[var(--gold)]">// OPPORTUNITIES</span>
+                <h2 class="font-heading font-bold text-2xl text-white uppercase mt-0.5">Careers</h2>
+            </div>
             <button onclick="openJobModal()" class="bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-4 md:px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 <span>Create Job</span>
@@ -587,10 +583,12 @@
         <div id="jobs-list" class="space-y-2"><p class="text-neutral-500 font-mono-tag text-xs">Loading...</p></div>
     </section>
     
-    <!-- TAB 6: TALENTS -->
     <section id="tab-talents" class="tab-content hidden">
         <div class="flex justify-between items-center mb-6">
-            <h2 class="font-heading font-bold text-2xl text-white uppercase">Rising Talents</h2>
+            <div>
+                <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[var(--gold)]">// RISING STARS</span>
+                <h2 class="font-heading font-bold text-2xl text-white uppercase mt-0.5">Rising Talents</h2>
+            </div>
             <button onclick="openTalentModal()" class="bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-4 md:px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 <span>Add Talent</span>
@@ -599,10 +597,44 @@
         <div id="talents-list" class="space-y-2"><p class="text-neutral-500 font-mono-tag text-xs">Loading roster...</p></div>
     </section>
 
-    <!-- TAB 7: ANNOUNCEMENTS -->
+    <section id="tab-partners" class="tab-content hidden space-y-6">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+                <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[var(--gold)]">// ALLIANCES &amp; SPONSORS</span>
+                <h2 class="font-heading font-bold text-2xl text-white uppercase mt-0.5">Partners &amp; Sponsors</h2>
+            </div>
+            <button onclick="openPartnerModal()" class="bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-4 md:px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all flex items-center gap-2 cursor-pointer shadow-md">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                <span>Add Partner</span>
+            </button>
+        </div>
+
+        <div class="bg-[var(--dark-surface)] p-5 rounded-xl border border-white/10 mb-6">
+            <div class="flex flex-wrap gap-2 mb-4 border-b border-white/5 pb-4">
+                <button onclick="window.filterPartnersByCategory('all')" id="partner-tab-all" class="role-tab active px-4 py-2 rounded-lg font-heading font-bold uppercase text-xs tracking-wider transition-all cursor-pointer">All</button>
+                <button onclick="window.filterPartnersByCategory('Major Partners')" id="partner-tab-Major-Partners" class="role-tab px-4 py-2 rounded-lg font-heading font-bold uppercase text-xs tracking-wider transition-all cursor-pointer">Major</button>
+                <button onclick="window.filterPartnersByCategory('Official Partners')" id="partner-tab-Official-Partners" class="role-tab px-4 py-2 rounded-lg font-heading font-bold uppercase text-xs tracking-wider transition-all cursor-pointer">Official</button>
+                <button onclick="window.filterPartnersByCategory('Hardware Partners')" id="partner-tab-Hardware-Partners" class="role-tab px-4 py-2 rounded-lg font-heading font-bold uppercase text-xs tracking-wider transition-all cursor-pointer">Hardware</button>
+                <button onclick="window.filterPartnersByCategory('Media Partners')" id="partner-tab-Media-Partners" class="role-tab px-4 py-2 rounded-lg font-heading font-bold uppercase text-xs tracking-wider transition-all cursor-pointer">Media</button>
+                <button onclick="window.filterPartnersByCategory('Community Partners')" id="partner-tab-Community-Partners" class="role-tab px-4 py-2 rounded-lg font-heading font-bold uppercase text-xs tracking-wider transition-all cursor-pointer">Community</button>
+            </div>
+            <div class="flex flex-col sm:flex-row gap-4 mb-2">
+                <input type="text" id="partner-search" placeholder="Search partners by name or website..." class="dark-input flex-1 p-3 rounded-lg text-sm">
+                <button onclick="window.refreshPartners()" class="bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all cursor-pointer">Refresh</button>
+            </div>
+        </div>
+
+        <div id="partners-list" class="space-y-3">
+            <p class="text-neutral-500 font-mono-tag text-xs">Loading partners...</p>
+        </div>
+    </section>
+
     <section id="tab-notifications" class="tab-content hidden">
         <div class="flex justify-between items-center mb-6">
-            <h2 class="font-heading font-bold text-2xl text-white uppercase">Announcements</h2>
+            <div>
+                <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[var(--gold)]">// BROADCAST NOTICES</span>
+                <h2 class="font-heading font-bold text-2xl text-white uppercase mt-0.5">Announcements</h2>
+            </div>
             <button onclick="openNotificationModal()" class="bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-4 md:px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all flex items-center gap-2">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
                 <span>Create Announcement</span>
@@ -611,7 +643,6 @@
         <div id="notifications-list" class="space-y-2"><p class="text-neutral-500 font-mono-tag text-xs">Loading...</p></div>
     </section>
 
-    <!-- TAB 8: INBOX -->
     <section id="tab-messages" class="tab-content hidden">
         <h2 class="font-heading font-bold text-2xl text-white uppercase mb-6">Inbox / Messages</h2>
         <div id="messages-list" class="grid grid-cols-1 gap-4 max-w-4xl">
@@ -622,102 +653,235 @@
 </div>
 </main>
 
-<!-- MODALS -->
 <div id="tournamentModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-    <div class="bg-[var(--dark-card)] rounded-xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
-            <h3 id="tournamentModalTitle" class="font-heading font-bold text-xl text-white uppercase">Create Tournament</h3>
+    <div class="bg-[var(--dark-card)] rounded-2xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+        <div class="sticky top-0 bg-[var(--dark-card)]/95 backdrop-blur-md border-b border-white/10 px-6 py-4 flex justify-between items-center z-10">
+            <div>
+                <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[var(--gold)]">// ORGANIZER CONFIG</span>
+                <h3 id="tournamentModalTitle" class="font-heading font-bold text-xl text-white uppercase mt-0.5">Create Tournament</h3>
+            </div>
             <button onclick="closeModal('tournamentModal')" class="text-neutral-400 hover:text-white transition-colors text-2xl leading-none">&times;</button>
         </div>
         <form id="tournamentForm" class="p-6 space-y-4" novalidate>
-            <div><label for="t-name" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Tournament Name</label><input id="t-name" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
-            <div><label for="t-game" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Game Title</label><input id="t-game" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
             <div>
-                <label for="t-format" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Bracket Format</label>
-                <select id="t-format" class="dark-input w-full p-3 rounded-lg text-sm bg-black">
-                    <option value="Single Elimination">Single Elimination</option>
-                    <option value="Double Elimination">Double Elimination</option>
-                    <option value="Round Robin">Round Robin</option>
-                </select>
+                <label for="t-name" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Tournament Name</label>
+                <input id="t-name" type="text" required class="dark-input w-full p-3 rounded-lg text-xs font-medium">
             </div>
-            <div><label for="t-prize" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Prize Pool (₱)</label><input id="t-prize" type="number" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="t-game" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Game Title</label>
+                    <input id="t-game" type="text" required class="dark-input w-full p-3 rounded-lg text-xs font-mono-tag" placeholder="Valorant, MLBB, etc.">
+                </div>
+                <div>
+                    <label for="t-max-teams" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Max Teams</label>
+                    <input id="t-max-teams" type="number" min="2" max="64" value="8" required class="dark-input w-full p-3 rounded-lg text-xs font-mono-tag">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="t-venue-type" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Venue Type</label>
+                    <select id="t-venue-type" class="dark-select w-full p-3 rounded-lg text-xs font-mono-tag cursor-pointer" onchange="toggleAdminVenueInput()">
+                        <option value="Online">Online / Discord</option>
+                        <option value="LAN">LAN / Onsite Venue</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="t-venue-location" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Venue Location (If LAN)</label>
+                    <input id="t-venue-location" type="text" class="dark-input w-full p-3 rounded-lg text-xs font-medium" placeholder="CZ Arena, Mataas na Kahoy...">
+                </div>
+            </div>
+
+            <div>
+                <label for="t-discord" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Organizer Discord Server Link</label>
+                <input id="t-discord" type="url" class="dark-input w-full p-3 rounded-lg text-xs font-mono-tag" placeholder="https://discord.gg/your-server">
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="t-format" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Bracket Format</label>
+                    <select id="t-format" class="dark-select w-full p-3 rounded-lg text-xs font-mono-tag cursor-pointer">
+                        <option value="Single Elimination">Single Elimination</option>
+                        <option value="Double Elimination">Double Elimination</option>
+                        <option value="Round Robin">Round Robin</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="t-prize" class="block text-xs font-mono-tag uppercase text-[var(--gold)] mb-1 font-bold">Prize Pool (₱)</label>
+                    <input id="t-prize" type="number" required class="dark-input w-full p-3 rounded-lg text-xs font-mono-tag border-[var(--gold)]/30">
+                </div>
+            </div>
+
+            <div class="bg-white/[0.02] border border-white/10 rounded-xl p-4 space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[#FFD700]">// PRIZE DISTRIBUTION SPLIT</span>
+                    <span class="text-[10px] font-mono-tag text-neutral-400">Must equal 100%</span>
+                </div>
+                <div class="grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block font-mono-tag text-[9px] uppercase text-neutral-400 mb-1">1st Place (%)</label>
+                        <input id="t-prize-1st" type="number" min="0" max="100" value="60" required class="dark-input w-full p-2 rounded-lg text-xs font-mono-tag text-center text-[#FFD700] font-bold">
+                    </div>
+                    <div>
+                        <label class="block font-mono-tag text-[9px] uppercase text-neutral-400 mb-1">2nd Place (%)</label>
+                        <input id="t-prize-2nd" type="number" min="0" max="100" value="30" required class="dark-input w-full p-2 rounded-lg text-xs font-mono-tag text-center text-neutral-300 font-bold">
+                    </div>
+                    <div>
+                        <label class="block font-mono-tag text-[9px] uppercase text-neutral-400 mb-1">3rd Place (%)</label>
+                        <input id="t-prize-3rd" type="number" min="0" max="100" value="10" required class="dark-input w-full p-2 rounded-lg text-xs font-mono-tag text-center text-amber-500 font-bold">
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                    <label for="t-entry-type" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Payment Type</label>
+                    <select id="t-entry-type" class="dark-select w-full p-3 rounded-lg text-xs font-mono-tag cursor-pointer">
+                        <option value="Free">Free</option>
+                        <option value="Manual">Manual Payment</option>
+                        <option value="Automatic">Automatic Payment (PayRex)</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="t-entry-fee" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Entry Fee</label>
+                    <input id="t-entry-fee" type="number" min="0" step="0.01" placeholder="0.00" class="dark-input w-full p-3 rounded-lg text-xs font-mono-tag">
+                </div>
+                <div>
+                    <label for="t-entry-currency" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Currency</label>
+                    <select id="t-entry-currency" class="dark-select w-full p-3 rounded-lg text-xs font-mono-tag cursor-pointer">
+                        <option value="PHP">PHP</option>
+                        <option value="USD">USD</option>
+                    </select>
+                </div>
+            </div>
+
             <div class="grid grid-cols-2 gap-4">
-                <div><label for="t-date" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Start Date</label><input id="t-date" type="date" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
-                <div><label for="t-end-date" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">End Date</label><input id="t-end-date" type="date" class="dark-input w-full p-3 rounded-lg text-sm"></div>
+                <div>
+                    <label for="t-date" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Start Date</label>
+                    <input id="t-date" type="date" required class="dark-input w-full p-3 rounded-lg text-xs font-mono-tag">
+                </div>
+                <div>
+                    <label for="t-end-date" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">End Date</label>
+                    <input id="t-end-date" type="date" class="dark-input w-full p-3 rounded-lg text-xs font-mono-tag">
+                </div>
             </div>
+
             <div>
-                <label for="t-banner-upload" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Banner Image Upload</label>
-                <div class="flex items-center gap-4">
-                    <input id="t-banner-upload" type="file" accept="image/*" class="dark-input w-full p-2 rounded-lg text-xs">
+                <label for="t-desc" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Description / Overview</label>
+                <textarea id="t-desc" rows="3" class="dark-input w-full p-3 rounded-lg text-xs"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Banner Image</label>
+                <div class="flex items-center gap-3">
+                    <input id="t-banner-upload" type="file" accept="image/*" class="dark-input w-full p-2 rounded-lg text-xs file:bg-white/10 file:border-0 file:rounded file:px-2 file:py-1 file:text-white file:text-xs">
                     <input id="t-banner" type="hidden">
                 </div>
-                <span id="t-banner-status" class="text-xs font-mono-tag text-neutral-500 mt-1 block"></span>
+                <span id="t-banner-status" class="text-[10px] font-mono-tag text-neutral-500 mt-1 block"></span>
             </div>
+
+            <div>
+                <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Payment Proof QR Code (For Paid Tournaments)</label>
+                <div class="flex items-center gap-3">
+                    <input id="t-proof-upload" type="file" accept="image/*" class="dark-input w-full p-2 rounded-lg text-xs file:bg-white/10 file:border-0 file:rounded file:px-2 file:py-1 file:text-white file:text-xs">
+                    <input id="t-proof" type="hidden">
+                </div>
+                <span id="t-proof-status" class="text-[10px] font-mono-tag text-neutral-500 mt-1 block"></span>
+            </div>
+
             <div class="flex gap-3 pt-4 border-t border-white/5">
                 <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all">Save Tournament</button>
-                <button type="button" onclick="closeModal('tournamentModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-mono-tag text-xs uppercase rounded-lg transition-all">Cancel</button>
+                <button type="button" onclick="closeModal('tournamentModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-mono-tag text-xs uppercase rounded-lg transition-all border border-white/10">Cancel</button>
             </div>
         </form>
     </div>
 </div>
 
 <div id="eventModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-    <div class="bg-[var(--dark-card)] rounded-xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+    <div class="bg-[var(--dark-card)] rounded-2xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+        <div class="sticky top-0 bg-[var(--dark-card)]/95 backdrop-blur-md border-b border-white/10 px-6 py-4 flex justify-between items-center z-10">
             <h3 id="eventModalTitle" class="font-heading font-bold text-xl text-white uppercase">Create Event</h3>
             <button onclick="closeModal('eventModal')" class="text-neutral-400 hover:text-white transition-colors text-2xl leading-none">&times;</button>
         </div>
         <form id="eventForm" class="p-6 space-y-4" novalidate>
-            <div><label for="e-name" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Event Title</label><input id="e-name" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
-            <div class="grid grid-cols-2 gap-4">
-                <div><label for="e-date" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Start Date</label><input id="e-date" type="date" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
-                <div><label for="e-end-date" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">End Date</label><input id="e-end-date" type="date" class="dark-input w-full p-3 rounded-lg text-sm"></div>
-            </div>
-            <div><label for="e-desc" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Description</label><textarea id="e-desc" rows="4" required class="dark-input w-full p-3 rounded-lg text-sm"></textarea></div>
             <div>
-                <label for="e-banner-upload" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Banner Image Upload</label>
-                <div class="flex items-center gap-4">
-                    <input id="e-banner-upload" type="file" accept="image/*" class="dark-input w-full p-2 rounded-lg text-xs">
+                <label for="e-name" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Event Title</label>
+                <input id="e-name" type="text" required class="dark-input w-full p-3 rounded-lg text-xs">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="e-date" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Start Date</label>
+                    <input id="e-date" type="date" required class="dark-input w-full p-3 rounded-lg text-xs font-mono-tag">
+                </div>
+                <div>
+                    <label for="e-end-date" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">End Date</label>
+                    <input id="e-end-date" type="date" class="dark-input w-full p-3 rounded-lg text-xs font-mono-tag">
+                </div>
+            </div>
+            <div>
+                <label for="e-desc" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Description</label>
+                <textarea id="e-desc" rows="4" required class="dark-input w-full p-3 rounded-lg text-xs"></textarea>
+            </div>
+            <div>
+                <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Banner Image Upload</label>
+                <div class="flex items-center gap-3">
+                    <input id="e-banner-upload" type="file" accept="image/*" class="dark-input w-full p-2 rounded-lg text-xs file:bg-white/10 file:border-0 file:rounded file:px-2 file:py-1 file:text-white file:text-xs">
                     <input id="e-banner" type="hidden">
                 </div>
-                <span id="e-banner-status" class="text-xs font-mono-tag text-neutral-500 mt-1 block"></span>
+                <span id="e-banner-status" class="text-[10px] font-mono-tag text-neutral-500 mt-1 block"></span>
             </div>
             <div class="flex gap-3 pt-4 border-t border-white/5">
                 <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all">Save Event</button>
-                <button type="button" onclick="closeModal('eventModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-mono-tag text-xs uppercase rounded-lg transition-all">Cancel</button>
+                <button type="button" onclick="closeModal('eventModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-mono-tag text-xs uppercase rounded-lg transition-all border border-white/10">Cancel</button>
             </div>
         </form>
     </div>
 </div>
 
 <div id="jobModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-    <div class="bg-[var(--dark-card)] rounded-xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+    <div class="bg-[var(--dark-card)] rounded-2xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+        <div class="sticky top-0 bg-[var(--dark-card)]/95 backdrop-blur-md border-b border-white/10 px-6 py-4 flex justify-between items-center z-10">
             <h3 id="jobModalTitle" class="font-heading font-bold text-xl text-white uppercase">Create Job</h3>
             <button onclick="closeModal('jobModal')" class="text-neutral-400 hover:text-white transition-colors text-2xl leading-none">&times;</button>
         </div>
         <form id="jobForm" class="p-6 space-y-4" novalidate>
-            <div><label for="j-title" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Job Title</label><input id="j-title" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
-            <div><label for="j-location" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Location</label><input id="j-location" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
-            <div><label for="j-type" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Type</label><input id="j-type" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
+            <div>
+                <label for="j-title" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Job Title</label>
+                <input id="j-title" type="text" required class="dark-input w-full p-3 rounded-lg text-xs">
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label for="j-location" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Location</label>
+                    <input id="j-location" type="text" required class="dark-input w-full p-3 rounded-lg text-xs" placeholder="Remote, Batangas, etc.">
+                </div>
+                <div>
+                    <label for="j-type" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Employment Type</label>
+                    <input id="j-type" type="text" required class="dark-input w-full p-3 rounded-lg text-xs" placeholder="Full-time, Part-time, Project">
+                </div>
+            </div>
             <div class="flex gap-3 pt-4 border-t border-white/5">
                 <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all">Save Job</button>
-                <button type="button" onclick="closeModal('jobModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-mono-tag text-xs uppercase rounded-lg transition-all">Cancel</button>
+                <button type="button" onclick="closeModal('jobModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-mono-tag text-xs uppercase rounded-lg transition-all border border-white/10">Cancel</button>
             </div>
         </form>
     </div>
 </div>
 
 <div id="talentModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-    <div class="bg-[var(--dark-card)] rounded-xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+    <div class="bg-[var(--dark-card)] rounded-2xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+        <div class="sticky top-0 bg-[var(--dark-card)]/95 backdrop-blur-md border-b border-white/10 px-6 py-4 flex justify-between items-center z-10">
             <h3 id="talentModalTitle" class="font-heading font-bold text-xl text-white uppercase">Add Talent</h3>
             <button onclick="closeModal('talentModal')" class="text-neutral-400 hover:text-white transition-colors text-2xl leading-none">&times;</button>
         </div>
         <form id="talentForm" class="p-6 space-y-4" novalidate>
-            <div><label for="tal-name" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Name / IGN</label><input id="tal-name" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
-            <div><label for="tal-role" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Role</label>
-                <select id="tal-role" class="dark-input w-full p-3 rounded-lg text-sm bg-black">
+            <div>
+                <label for="tal-name" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Name / IGN</label>
+                <input id="tal-name" type="text" required class="dark-input w-full p-3 rounded-lg text-xs">
+            </div>
+            <div>
+                <label for="tal-role" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Role</label>
+                <select id="tal-role" class="dark-select w-full p-3 rounded-lg text-xs font-mono-tag cursor-pointer">
                     <option value="Streamer">Streamer</option>
                     <option value="Caster">Caster</option>
                     <option value="Cosplayer">Cosplayer</option>
@@ -725,43 +889,118 @@
                 </select>
             </div>
             <div>
-                <label for="tal-img-upload" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Profile Image Upload</label>
-                <div class="flex items-center gap-4">
-                    <input id="tal-img-upload" type="file" accept="image/*" class="dark-input w-full p-2 rounded-lg text-xs">
+                <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Profile Image Upload</label>
+                <div class="flex items-center gap-3">
+                    <input id="tal-img-upload" type="file" accept="image/*" class="dark-input w-full p-2 rounded-lg text-xs file:bg-white/10 file:border-0 file:rounded file:px-2 file:py-1 file:text-white file:text-xs">
                     <input id="tal-img" type="hidden">
                 </div>
-                <span id="tal-img-status" class="text-xs font-mono-tag text-neutral-500 mt-1 block"></span>
+                <span id="tal-img-status" class="text-[10px] font-mono-tag text-neutral-500 mt-1 block"></span>
             </div>
-            <div><label for="tal-link" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Social Link</label><input id="tal-link" type="url" class="dark-input w-full p-3 rounded-lg text-sm"></div>
-            <div><label for="tal-bio" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Short Bio</label><textarea id="tal-bio" rows="3" class="dark-input w-full p-3 rounded-lg text-sm"></textarea></div>
+            <div>
+                <label for="tal-link" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Social Link</label>
+                <input id="tal-link" type="url" class="dark-input w-full p-3 rounded-lg text-xs" placeholder="https://facebook.com/...">
+            </div>
+            <div>
+                <label for="tal-bio" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Short Bio</label>
+                <textarea id="tal-bio" rows="3" class="dark-input w-full p-3 rounded-lg text-xs"></textarea>
+            </div>
             <div class="flex gap-3 pt-4 border-t border-white/5">
                 <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all">Save Talent</button>
-                <button type="button" onclick="closeModal('talentModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-mono-tag text-xs uppercase rounded-lg transition-all">Cancel</button>
+                <button type="button" onclick="closeModal('talentModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-mono-tag text-xs uppercase rounded-lg transition-all border border-white/10">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="partnerModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+    <div class="bg-[var(--dark-card)] rounded-2xl border border-white/10 w-full max-w-lg max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+        <div class="sticky top-0 bg-[var(--dark-card)]/95 backdrop-blur-md border-b border-white/10 px-6 py-4 flex justify-between items-center z-10">
+            <div>
+                <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[var(--gold)]">// ALLIANCE CONFIG</span>
+                <h3 id="partnerModalTitle" class="font-heading font-bold text-xl text-white uppercase mt-0.5">Add Partner</h3>
+            </div>
+            <button onclick="closeModal('partnerModal')" class="text-neutral-400 hover:text-white transition-colors text-2xl leading-none cursor-pointer">&times;</button>
+        </div>
+        <form id="partnerForm" class="p-6 space-y-4" novalidate>
+            <div>
+                <label for="p-name" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Partner / Sponsor Name</label>
+                <input id="p-name" type="text" required placeholder="e.g. Razer, Monster Energy" class="dark-input w-full p-3 rounded-lg text-xs font-medium">
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label for="p-category" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Category / Tier</label>
+                    <select id="p-category" class="dark-select w-full p-3 rounded-lg text-xs font-mono-tag cursor-pointer">
+                        <option value="Major Partners">Major Partners</option>
+                        <option value="Official Partners">Official Partners</option>
+                        <option value="Hardware Partners">Hardware Partners</option>
+                        <option value="Media Partners">Media Partners</option>
+                        <option value="Community Partners">Community Partners</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="p-order" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Display Order</label>
+                    <input id="p-order" type="number" min="1" value="1" class="dark-input w-full p-3 rounded-lg text-xs font-mono-tag">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Logo Image</label>
+                <div class="flex items-center gap-3">
+                    <input id="p-logo-upload" type="file" accept="image/*" class="dark-input w-full p-2 rounded-lg text-xs file:bg-white/10 file:border-0 file:rounded file:px-2 file:py-1 file:text-white file:text-xs">
+                    <input id="p-logo" type="hidden">
+                </div>
+                <span id="p-logo-status" class="text-[10px] font-mono-tag text-neutral-500 mt-1 block"></span>
+            </div>
+            <div>
+                <label for="p-logo-url" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Or Logo URL</label>
+                <input id="p-logo-url" type="text" placeholder="https://... or pictures/sponsors/..." class="dark-input w-full p-3 rounded-lg text-xs font-mono-tag" oninput="if(this.value){ document.getElementById('p-logo').value = this.value; document.getElementById('p-logo-preview').src = this.value; }">
+            </div>
+            <div class="flex items-center gap-3 p-3 bg-black/40 rounded-xl border border-white/5">
+                <img id="p-logo-preview" src="pictures/cz_logo.png" alt="Logo Preview" class="w-16 h-12 object-contain bg-white/5 rounded p-1 border border-white/10">
+                <div class="text-[11px] text-neutral-400 font-mono-tag">Preview how the sponsor badge appears on dark backgrounds.</div>
+            </div>
+            <div>
+                <label for="p-website" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Website Link (Optional)</label>
+                <input id="p-website" type="url" placeholder="https://example.com" class="dark-input w-full p-3 rounded-lg text-xs">
+            </div>
+            <div>
+                <label for="p-description" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Short Description (Optional)</label>
+                <textarea id="p-description" rows="2" placeholder="Official gaming gear partner..." class="dark-input w-full p-3 rounded-lg text-xs"></textarea>
+            </div>
+            <div class="flex gap-3 pt-4 border-t border-white/5">
+                <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all cursor-pointer">Save Partner</button>
+                <button type="button" onclick="closeModal('partnerModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-mono-tag text-xs uppercase rounded-lg transition-all border border-white/10 cursor-pointer">Cancel</button>
             </div>
         </form>
     </div>
 </div>
 
 <div id="notificationModal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-    <div class="bg-[var(--dark-card)] rounded-xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-        <div class="sticky top-0 bg-[var(--dark-card)] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+    <div class="bg-[var(--dark-card)] rounded-2xl border border-white/10 w-full max-w-2xl max-h-[90vh] overflow-y-auto custom-scrollbar shadow-2xl">
+        <div class="sticky top-0 bg-[var(--dark-card)]/95 backdrop-blur-md border-b border-white/10 px-6 py-4 flex justify-between items-center z-10">
             <h3 id="notificationModalTitle" class="font-heading font-bold text-xl text-white uppercase">Create Announcement</h3>
             <button onclick="closeModal('notificationModal')" class="text-neutral-400 hover:text-white transition-colors text-2xl leading-none">&times;</button>
         </div>
         <form id="notifForm" class="p-6 space-y-4" novalidate>
-            <div><label for="n-title" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Title</label><input id="n-title" type="text" required class="dark-input w-full p-3 rounded-lg text-sm"></div>
-            <div><label for="n-type" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Type</label>
-                <select id="n-type" class="dark-input w-full p-3 rounded-lg text-sm bg-black">
-                    <option value="general">General 📢</option>
-                    <option value="tournament">Tournament 🏆</option>
-                    <option value="event">Event 🎉</option>
-                    <option value="alert">Alert ⚠️</option>
+            <div>
+                <label for="n-title" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Title</label>
+                <input id="n-title" type="text" required class="dark-input w-full p-3 rounded-lg text-xs">
+            </div>
+            <div>
+                <label for="n-type" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Type</label>
+                <select id="n-type" class="dark-select w-full p-3 rounded-lg text-xs font-mono-tag cursor-pointer">
+                    <option value="general">General Announcement</option>
+                    <option value="tournament">Tournament Notice</option>
+                    <option value="event">Event Broadcast</option>
+                    <option value="alert">System Alert</option>
                 </select>
             </div>
-            <div><label for="n-message" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1">Message</label><textarea id="n-message" rows="4" required class="dark-input w-full p-3 rounded-lg text-sm"></textarea></div>
+            <div>
+                <label for="n-message" class="block text-xs font-mono-tag uppercase text-neutral-400 mb-1 font-bold">Message</label>
+                <textarea id="n-message" rows="4" required class="dark-input w-full p-3 rounded-lg text-xs"></textarea>
+            </div>
             <div class="flex gap-3 pt-4 border-t border-white/5">
                 <button type="submit" class="flex-1 bg-[var(--gold)] text-black font-heading font-bold uppercase text-xs tracking-wider px-6 py-3 rounded-lg hover:bg-[var(--gold-light)] transition-all">Send Announcement</button>
-                <button type="button" onclick="closeModal('notificationModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-mono-tag text-xs uppercase rounded-lg transition-all">Cancel</button>
+                <button type="button" onclick="closeModal('notificationModal')" class="px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-mono-tag text-xs uppercase rounded-lg transition-all border border-white/10">Cancel</button>
             </div>
         </form>
     </div>
@@ -769,10 +1008,10 @@
 
 <div id="customAlertModal" class="fixed inset-0 z-[110] hidden flex items-center justify-center p-4">
     <div id="alertBackdrop" class="absolute inset-0 bg-black/90 backdrop-blur-sm"></div>
-    <div id="alertBox" class="relative bg-[var(--dark-card)] border border-white/10 rounded-xl p-6 shadow-2xl max-w-sm w-full text-center transform scale-95 opacity-0 transition-all duration-300">
-        <h3 id="alertTitle" class="font-heading font-bold text-xl text-white mb-2 uppercase">Notification</h3>
+    <div id="alertBox" class="relative bg-[var(--dark-card)] border border-white/10 rounded-2xl p-6 shadow-2xl max-w-sm w-full text-center transform scale-95 opacity-0 transition-all duration-300">
+        <h3 id="alertTitle" class="font-heading font-bold text-lg text-white mb-2 uppercase">Notification</h3>
         <p id="alertMessage" class="text-neutral-400 text-xs leading-relaxed mb-6">Message...</p>
-        <div id="alertButtons" class="flex justify-center gap-3 font-mono-tag text-xs uppercase"></div>
+        <div id="alertButtons" class="flex justify-center gap-3 font-heading text-xs uppercase"></div>
     </div>
 </div>
 
@@ -786,7 +1025,6 @@
         if(activeItem) activeItem.classList.add('active');
         
         if(tabName === 'users' && !window.usersLoaded && window.fetchUsers) window.fetchUsers();
-
         if(window.innerWidth <= 1024) toggleSidebar();
     }
     
@@ -794,6 +1032,17 @@
         document.getElementById('sidebar').classList.toggle('mobile-open');
         document.getElementById('mobile-overlay').classList.toggle('active');
     }
+    
+    window.toggleSidebar = toggleSidebar;
+
+    window.toggleAdminVenueInput = function() {
+        const type = document.getElementById('t-venue-type')?.value;
+        const locInput = document.getElementById('t-venue-location');
+        if (locInput) {
+            locInput.disabled = (type !== 'LAN');
+            if (type !== 'LAN') locInput.value = '';
+        }
+    };
     
     window.addEventListener('resize', () => {
         if(window.innerWidth > 1024) {
@@ -850,12 +1099,12 @@
             btnContainer.innerHTML = '';
             
             const cancelBtn = document.createElement('button');
-            cancelBtn.className = "px-5 py-2.5 bg-white/10 text-neutral-300 rounded-lg text-xs font-bold hover:bg-white/20 transition-colors font-heading uppercase tracking-wider";
+            cancelBtn.className = "px-4 py-2 bg-white/10 text-neutral-300 rounded-lg text-xs font-bold hover:bg-white/20 transition-colors font-heading uppercase tracking-wider";
             cancelBtn.textContent = "Cancel";
             cancelBtn.onclick = () => { animateGenericClose('customAlertModal', 'alertBackdrop', 'alertBox'); resolve(false); };
             
             const confirmBtn = document.createElement('button');
-            confirmBtn.className = "px-5 py-2.5 bg-[var(--gold)] text-black rounded-lg text-xs font-bold hover:bg-[var(--gold-light)] transition-colors shadow-lg font-heading uppercase tracking-wider";
+            confirmBtn.className = "px-4 py-2 bg-[var(--gold)] text-black rounded-lg text-xs font-bold hover:bg-[var(--gold-light)] transition-colors shadow-lg font-heading uppercase tracking-wider";
             confirmBtn.textContent = "Confirm";
             confirmBtn.onclick = () => { animateGenericClose('customAlertModal', 'alertBackdrop', 'alertBox'); resolve(true); };
             

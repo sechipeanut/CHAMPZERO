@@ -54,7 +54,7 @@ function injectNotificationStyles() {
 
         #notif-btn:hover, #notif-btn.bell-active {
             color: #FFD700 !important; 
-            filter: drop-shadow(0 0 5px rgba(255, 215, 0, 0.5));
+            filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.7));
             animation: bell-ring 0.8s ease-in-out;
         }
         
@@ -64,10 +64,12 @@ function injectNotificationStyles() {
             transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             pointer-events: none;
             z-index: 9999;
-            background: #1A1A1F;
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 0.75rem;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5);
+            background: #0D0D12;
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.9), 0 0 0 1px rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(20px);
         }
 
         .notif-dropdown-active {
@@ -89,14 +91,14 @@ function injectNotificationStyles() {
 
         @media (min-width: 640px) {
             #notif-dropdown {
-                position: absolute; right: 0; top: 120%; width: 20rem;
-                transform: scale(0.95) translateY(-10px);
+                position: absolute; right: 0; top: calc(100% + 12px); width: 22rem;
+                transform: scale(0.95) translateY(-8px);
             }
         }
 
-        #notif-list::-webkit-scrollbar { width: 6px; }
-        #notif-list::-webkit-scrollbar-track { background: #1A1A1F; }
-        #notif-list::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        #notif-list::-webkit-scrollbar { width: 5px; }
+        #notif-list::-webkit-scrollbar-track { background: #0D0D12; }
+        #notif-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
         #notif-list::-webkit-scrollbar-thumb:hover { background: #FFD700; }
         
         .notif-item { display: block; text-decoration: none; }
@@ -126,15 +128,18 @@ function injectNotificationHTML() {
         </button>
 
         <div id="notif-dropdown" class="hidden">
-            <div class="p-4 border-b border-white/10 flex justify-between items-center bg-[#15151a]">
-                <h3 class="font-bold text-white text-sm">Notifications</h3>
-                <span class="text-[10px] text-gray-500 bg-white/5 px-2 py-1 rounded">Recent Updates</span>
+            <div class="p-4 border-b border-white/10 flex justify-between items-center bg-[#111116]">
+                <div>
+                    <span class="text-[9px] font-mono-tag uppercase tracking-widest text-[#FFD700] block">// UPDATES</span>
+                    <h3 class="font-heading font-bold text-white text-sm uppercase">Notifications</h3>
+                </div>
+                <span class="text-[10px] font-mono-tag text-neutral-400 bg-white/5 px-2 py-1 rounded border border-white/5 uppercase">Recent</span>
             </div>
-            <div id="notif-list" class="max-h-[300px] overflow-y-auto">
-                <div class="p-6 text-center text-gray-500 text-sm">Loading updates...</div>
+            <div id="notif-list" class="max-h-[320px] overflow-y-auto">
+                <div class="p-6 text-center text-neutral-500 font-mono-tag text-xs">Loading updates...</div>
             </div>
-            <div class="p-3 border-t border-white/10 bg-[#15151a] text-center">
-                <a href="/events" class="text-xs text-[var(--gold)] hover:underline">View All Events</a>
+            <div class="p-3 border-t border-white/10 bg-[#111116] text-center">
+                <a href="/events" class="font-heading font-bold text-xs uppercase tracking-wider text-[#FFD700] hover:text-white transition-colors">View All Events</a>
             </div>
         </div>
     `;
@@ -145,9 +150,9 @@ function injectNotificationHTML() {
     if (!document.getElementById('announcement-modal')) {
         const modal = document.createElement('div');
         modal.id = 'announcement-modal';
-        modal.style.cssText = 'display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.7); backdrop-filter:blur(4px); align-items:center; justify-content:center; padding:1rem;';
+        modal.style.cssText = 'display:none; position:fixed; inset:0; z-index:99999; background:rgba(0,0,0,0.8); backdrop-filter:blur(6px); align-items:center; justify-content:center; padding:1rem;';
         modal.innerHTML = `
-            <div id="announcement-modal-panel" style="background:#1A1A1F; border:1px solid rgba(255,255,255,0.12); border-radius:1rem; max-width:480px; width:100%; box-shadow:0 25px 50px rgba(0,0,0,0.6); transform:scale(0.95); opacity:0; transition:transform 0.2s cubic-bezier(0.175,0.885,0.32,1.275), opacity 0.2s ease;">
+            <div id="announcement-modal-panel" style="background:#0D0D12; border:1px solid rgba(255,255,255,0.12); border-radius:1rem; overflow:hidden; max-width:480px; width:100%; box-shadow:0 25px 50px rgba(0,0,0,0.8); transform:scale(0.95); opacity:0; transition:transform 0.2s cubic-bezier(0.175,0.885,0.32,1.275), opacity 0.2s ease;">
                 <div style="padding:1.25rem 1.5rem; border-bottom:1px solid rgba(255,255,255,0.08); display:flex; align-items:center; justify-content:space-between; background:#15151a; border-radius:1rem 1rem 0 0;">
                     <div style="display:flex; align-items:center; gap:0.75rem;">
                         <span id="announcement-modal-icon" style="font-size:1.5rem;"></span>
@@ -252,45 +257,49 @@ function initRealTimeListeners(user) {
         });
     };
 
+    const ICONS = {
+        tournament: `<svg class="w-4 h-4 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3-3h1.5a1.5 1.5 0 0 0 1.5-1.5v-2.25a1.5 1.5 0 0 0-1.5-1.5h-1.5a3 3 0 0 1-3-3V6a3 3 0 0 0-3-3h-3a3 3 0 0 0-3 3v1.5a3 3 0 0 1-3 3H3a1.5 1.5 0 0 0-1.5 1.5v2.25A1.5 1.5 0 0 0 3 15.75h1.5a3 3 0 0 1 3 3m9 0v3m-9-3v3m0 0h9"/></svg>`,
+        event: `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>`,
+        career: `<svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 0 0 .75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 0 0-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0 1 12 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 0 1-.673-.38m0 0A2.18 2.18 0 0 1 3 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 0 1 3.413-.387m7.5 0V5.25A2.25 2.25 0 0 0 13.5 3h-3a2.25 2.25 0 0 0-2.25 2.25v.894m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>`,
+        talent: `<svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5Z"/></svg>`,
+        announcement: `<svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0"/></svg>`
+    };
+
     // Standard Listeners (Public Data)
     onSnapshot(query(collection(db, "tournaments"), orderBy("createdAt", "desc"), limit(3)), (snap) => {
-        feedData.tournaments = processSnapshot(snap, 'tournament', '🏆');
+        feedData.tournaments = processSnapshot(snap, 'tournament', ICONS.tournament);
         renderUnifiedFeed();
-    });
+    }, (err) => console.warn("Tournaments notif error:", err));
 
     onSnapshot(query(collection(db, "events"), orderBy("createdAt", "desc"), limit(3)), (snap) => {
-        feedData.events = processSnapshot(snap, 'event', '🎉');
+        feedData.events = processSnapshot(snap, 'event', ICONS.event);
         renderUnifiedFeed();
-    });
+    }, (err) => console.warn("Events notif error:", err));
     
     onSnapshot(query(collection(db, "careers"), orderBy("createdAt", "desc"), limit(3)), (snap) => {
-        feedData.careers = processSnapshot(snap, 'career', '💼');
+        feedData.careers = processSnapshot(snap, 'career', ICONS.career);
         renderUnifiedFeed();
-    });
+    }, (err) => console.warn("Careers notif error:", err));
 
     onSnapshot(query(collection(db, "talents"), orderBy("createdAt", "desc"), limit(3)), (snap) => {
-        feedData.talents = processSnapshot(snap, 'talent', '⭐');
+        feedData.talents = processSnapshot(snap, 'talent', ICONS.talent);
         renderUnifiedFeed();
-    });
+    }, (err) => console.warn("Talents notif error:", err));
 
     // --- ANNOUNCEMENTS LISTENER (PERSONALIZED) ---
     // Only fetch notifications meant for this user
     if (user && !personalUnsubscribe) {
         const q = query(
             collection(db, "specific-notifications"),
-            where("targetUserId", "==", user.uid),  // only THIS user's alerts
-            orderBy("createdAt", "desc"),
-            limit(10)
+            where("targetUserId", "==", user.uid)
         );
 
         personalUnsubscribe = onSnapshot(q, (snap) => {
-            feedData.announcements = snap.docs.map(doc => {
+            const items = snap.docs.map(doc => {
                 const d = doc.data();
-                // Determine icon
-                let icon = '📢'; 
-                if(d.type === 'tournament') icon = '🏆';
-                if(d.type === 'event') icon = '🎉';
-                if(d.type === 'alert') icon = '⚠️';
+                let icon = ICONS.announcement; 
+                if(d.type === 'tournament') icon = ICONS.tournament;
+                if(d.type === 'event') icon = ICONS.event;
 
                 return {
                     id: doc.id, 
@@ -302,7 +311,11 @@ function initRealTimeListeners(user) {
                     dateStr: getDate(d).toLocaleDateString()
                 };
             });
+            items.sort((a, b) => b.dateObj - a.dateObj);
+            feedData.announcements = items.slice(0, 10);
             renderUnifiedFeed();
+        }, (err) => {
+            console.warn("Specific notifications notif error:", err);
         });
     }
 }
@@ -313,7 +326,7 @@ function showAnnouncementModal(item) {
     const panel = document.getElementById('announcement-modal-panel');
     if (!modal || !panel) return;
 
-    document.getElementById('announcement-modal-icon').textContent = item.icon;
+    document.getElementById('announcement-modal-icon').innerHTML = item.icon;
     document.getElementById('announcement-modal-title').textContent = item.title;
     document.getElementById('announcement-modal-message').textContent = item.message;
     document.getElementById('announcement-modal-date').textContent = item.dateStr;
