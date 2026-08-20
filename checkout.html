@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <title>ChampZero — Checkout</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <!-- PayRex JS SDK -->
+    <script type="text/javascript" src="https://js.payrexhq.com"></script>
+    <style>
+        :root { --gold: #FFD700; --gold-darker: #C99700; --dark-bg: #111115; --dark-card: #1A1A1F; }
+        body { font-family: 'Poppins', sans-serif; }
+        .dark-input { background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; }
+        .dark-input:focus { outline: none; border-color: var(--gold); }
+
+        /* Override PayRex Elements label/text colors for dark backgrounds */
+        #payment-element label,
+        #payment-element span,
+        #payment-element p,
+        #payment-element div,
+        #payment-element h1, #payment-element h2, #payment-element h3, #payment-element h4,
+        #payment-element legend,
+        #payment-element summary {
+            color: #e5e7eb !important;
+        }
+        #payment-element select {
+            color: #111 !important;
+        }
+    </style>
+</head>
+<body class="bg-[var(--dark-bg)] text-gray-200 antialiased">
+
+<header class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 h-16 flex items-center justify-center">
+    <a href="/" class="flex items-center gap-3">
+        <img src="pictures/cz_logo.png" alt="ChampZero" width="40" height="40" class="w-10 h-10 rounded-md">
+        <span class="font-bold text-xl text-white">ChampZero</span>
+    </a>
+</header>
+
+<main class="flex justify-center min-h-[calc(100vh-64px)] p-4 md:p-8">
+    <div class="w-full max-w-5xl flex flex-col md:flex-row gap-6 md:gap-8 items-start">
+        
+        <!-- Order Summary Side -->
+        <div class="w-full md:w-1/3 bg-[var(--dark-card)] p-6 rounded-xl shadow-2xl border border-white/10 order-2 md:order-1">
+            <h2 class="text-2xl font-bold mb-2 text-white">Order Summary</h2>
+            <p class="text-gray-400 mb-6 text-sm" id="checkout-subtitle">Loading payment details...</p>
+
+            <div id="order-summary" class="hidden p-5 rounded-lg bg-black/30 border border-white/5 text-sm space-y-4">
+                <div class="flex flex-col">
+                    <span class="text-gray-500 text-xs uppercase font-bold mb-1">Tournament</span>
+                    <span id="summary-tournament" class="font-semibold text-white">---</span>
+                </div>
+                <div class="flex flex-col">
+                    <span class="text-gray-500 text-xs uppercase font-bold mb-1">Team Name</span>
+                    <span id="summary-team" class="font-semibold text-white">---</span>
+                </div>
+                <div class="flex justify-between items-center border-t border-white/10 mt-2 pt-4">
+                    <span class="text-gray-300 font-bold">Total</span>
+                    <span id="summary-total" class="font-bold text-[var(--gold)] text-xl">₱0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Payment Details Side -->
+        <div class="w-full md:w-2/3 bg-[var(--dark-card)] p-6 md:p-8 rounded-xl shadow-2xl border border-white/10 order-1 md:order-2">
+            <h2 class="text-3xl font-bold mb-6 text-white text-center md:text-left">Payment Details</h2>
+            
+            <!-- PayRex Elements form container -->
+            <div id="payment-form-container" class="hidden space-y-6">
+                <div id="payment-element" class="min-h-[200px]">
+                    <!-- PayRex Elements will render here -->
+                </div>
+
+                <button id="submit-button" onclick="payAction()" class="w-full bg-gradient-to-r from-[var(--gold-darker)] to-[var(--gold)] text-black font-bold py-4 px-4 rounded-md hover:opacity-90 transition cursor-pointer text-lg flex items-center justify-center gap-2">
+                    <span id="btn-pay-text">Confirm & Pay Now</span>
+                    <svg id="btn-spinner" class="hidden animate-spin h-5 w-5 text-black" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                    </svg>
+                </button>
+
+                <div id="error-message" class="text-red-400 text-sm hidden text-center bg-red-900/20 p-3 rounded-md border border-red-500/30"></div>
+            </div>
+
+            <div id="loading-spinner" class="flex justify-center py-12">
+                <svg class="animate-spin h-10 w-10 text-[var(--gold)]" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+                </svg>
+            </div>
+        </div>
+
+    </div>
+</main>
+
+<script src="js/toast.js"></script>
+<script type="module" src="js/checkout.js"></script>
+</body>
+</html>

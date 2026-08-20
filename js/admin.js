@@ -384,15 +384,14 @@ window.editItem = async function (collectionName, docId) {
             qs('#t-end-date').value = toDateInputFormat(data.endDate);
             qs('#t-desc').value = data.description || '';
             qs('#t-banner').value = data.banner || '';
-            qs('#t-proof').value = data.paymentProofURL || '';
+            qs('#t-proof').value = data.paymentProofURL || data.paymentQrUrl || '';
 
             if (qs('#t-banner-status')) {
                 qs('#t-banner-status').textContent = data.banner ? 'Banner image loaded.' : '';
             }
             if (qs('#t-proof-status')) {
-                qs('#t-proof-status').textContent = data.paymentProofURL ? 'QR code image loaded.' : '';
+                qs('#t-proof-status').textContent = (data.paymentProofURL || data.paymentQrUrl) ? 'QR code image loaded.' : '';
             }
-
             prepareEditMode('tournaments', docId, '#tournamentForm', 'tournamentModal');
             openModal('tournamentModal');
         }
@@ -1276,7 +1275,8 @@ document.addEventListener('DOMContentLoaded', () => {
             status: calculateStatus(startDate, endDate),
             description: qs('#t-desc').value || '',
             banner: qs('#t-banner').value || "pictures/cz_logo.png",
-            paymentProofURL: qs('#t-proof').value || ""
+            paymentProofURL: qs('#t-proof').value || "",
+            paymentQrUrl: qs('#t-proof').value || ""
         };
     }, "Tournament Created!");
 

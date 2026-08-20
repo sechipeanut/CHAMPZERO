@@ -357,7 +357,7 @@ async function handleCreateTournament() {
         const entryType = isPaid ? 'Paid' : 'Free';
         const entryFee = isPaid ? (parseFloat(qs('#c-entry-fee')?.value) || 0) : 0;
         const entryCurrency = isPaid ? (qs('#c-entry-currency')?.value || 'PHP') : null;
-        
+
         if (paymentType === 'manual' && window._proofFile) {
             const tournamentName = qs('#c-name').value.trim().replace(/\s+/g, '_');
             const fileRef = storageRef(storage, `payment-proofs/${tournamentName}/${window._proofFile.name}`);
@@ -395,7 +395,15 @@ async function handleCreateTournament() {
             paymentType: paymentType,
             entryFee: entryFee,        
             entryCurrency: entryCurrency, 
-            ...(proofURL && { paymentProofURL: proofURL })
+            paymentQrUrl: proofURL,
+            ...(proofURL && { paymentProofURL: proofURL }),
+            createdBy: user.uid,
+            createdAt: serverTimestamp(),
+            status: 'Open',
+            isStarted: false,
+            participants: [],
+            matches: []
+
         };
 
         if (editId) {
@@ -1808,6 +1816,7 @@ async function deleteTournament(id) {
         await deleteDoc(doc(db, "tournaments", id));
         if (window.showSuccessToast) window.showSuccessToast("Deleted", "Tournament successfully removed.");
         window.closeModal('detailsModal');
+        window.history.replaceState({}, '', window.location.pathname);
         fetchTournaments();
     } catch (e) {
         console.error("Delete failed:", e);
@@ -2699,19 +2708,21 @@ async function openModal(t) {
 
     const newUrl = `${window.location.pathname}?id=${t.id}`;
     window.history.pushState({ path: newUrl }, '', newUrl);
-    
-    const detailsModal = document.getElementById('detailsModal');
-    if (detailsModal) {
-        detailsModal.classList.remove('hidden');
-        detailsModal.classList.add('flex');
-        document.body.style.overflow = 'hidden';
-        document.documentElement.style.overflow = 'hidden';
-        
-        const defaultTabBtn = document.getElementById('btn-tab-rundown') || document.querySelector('[onclick*="rundownTab"]');
-        if (defaultTabBtn && typeof window.switchDetailTab === 'function') {
-            window.switchDetailTab('rundownTab', defaultTabBtn);
+        if (qs('#c-status')) {
+            qs('#c-status').value = t.status || 'Open';
         }
-    }
+
+        const pType = t.paymentType || (t.entryType === 'Paid' ? 'manual' : 'free');
+        if (qs('#c-payment-type')) {
+            qs('#c-payment-type').value = pType;
+        }
+        if (qs('#c-entry-fee')) {
+            qs('#c-entry-fee').value = (pType !== 'free' && t.entryFee) ? t.entryFee : '';
+        }
+        if (qs('#c-entry-currency')) {
+            qs('#c-entry-currency').value = t.entryCurrency || 'PHP';
+        }
+
 }
 
 async function renderTournamentView(t) {
@@ -2720,17 +2731,24 @@ async function renderTournamentView(t) {
     if (!t.participants) t.participants = [];
 
     // 1. Basic Info Rendering
-    if (qs('#detailTitle')) qs('#detailTitle').textContent = t.name;
-    if (qs('#detailStatus')) {
-        qs('#detailStatus').textContent = actualStatus;
-        if (actualStatus === 'Archived') {
-            qs('#detailStatus').className = "flex items-center justify-center bg-neutral-800 text-neutral-300 border border-neutral-600 px-2 py-0.5 rounded font-mono-tag text-[9px] uppercase font-bold tracking-wider shadow-md";
-        } else if (actualStatus === 'Cancelled') {
-            qs('#detailStatus').className = "flex items-center justify-center bg-red-500/20 text-red-400 border border-red-500/40 px-2 py-0.5 rounded font-mono-tag text-[9px] uppercase font-bold tracking-wider shadow-md";
-        } else if (actualStatus === 'Ongoing') {
-            qs('#detailStatus').className = "flex items-center justify-center bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 px-2 py-0.5 rounded font-mono-tag text-[9px] uppercase font-bold tracking-wider shadow-md";
-        } else if (actualStatus === 'Completed') {
-            qs('#detailStatus').className = "flex items-center justify-center bg-neutral-800 text-neutral-400 border border-neutral-700 px-2 py-0.5 rounded font-mono-tag text-[9px] uppercase font-bold tracking-wider shadow-md";
+        const proofArea = document.getElementById('proof-upload-area');
+        const existingProof = t.paymentProofURL || t.paymentQrUrl;
+        if (proofArea) {
+            if (pType === 'manual') {
+                proofArea.classList.remove('hidden');
+                if (existingProof) {
+                    const filenameEl = document.getElementById('proof-filename');
+                    if (filenameEl) filenameEl.textContent = 'Existing QR Code uploaded';
+                    const previewBtn = document.getElementById('proof-preview-btn-wrap');
+                    if (previewBtn) previewBtn.classList.remove('hidden');
+                    window._proofPreviewURL = existingProof;
+                }
+            } else {
+                proofArea.classList.add('hidden');
+            }
+        }
+        if (typeof toggleEntryType === 'function') toggleEntryType();
+
         } else {
             qs('#detailStatus').className = "flex items-center justify-center bg-black/70 backdrop-blur-md text-[#FFD700] border border-[#FFD700]/40 px-2 py-0.5 rounded font-mono-tag text-[9px] uppercase font-bold tracking-wider shadow-md";
         }
@@ -2874,55 +2892,44 @@ async function renderTournamentView(t) {
         if (champSection) champSection.classList.add('hidden');
     }
 
-    // Render Tournament MVP Card
-    const mvpCard = document.getElementById('tournamentMvpCard');
-    const awardMvpWrap = document.getElementById('awardMvpBtnWrap');
+        const pType = qs('#c-payment-type')?.value || 'free';
+        const isPaid = (pType === 'manual' || pType === 'automatic');
+        const entryType = isPaid ? 'Paid' : 'Free';
+        const entryFee = isPaid ? (parseFloat(qs('#c-entry-fee')?.value) || 0) : 0;
+        const entryCurrency = isPaid ? (qs('#c-entry-currency')?.value || 'PHP') : null;
 
-    if (t.mvp && t.mvp.ign) {
-        if (mvpCard) {
-            mvpCard.classList.remove('hidden');
-            if (qs('#mvpPlayerName')) qs('#mvpPlayerName').textContent = t.mvp.ign;
-            if (qs('#mvpTeamName')) qs('#mvpTeamName').textContent = t.mvp.team || '';
-            if (qs('#mvpAccolade')) qs('#mvpAccolade').textContent = t.mvp.title || 'Tournament MVP';
-            if (qs('#mvpStatsBadge')) qs('#mvpStatsBadge').textContent = t.mvp.stats || '';
+        const updateData = {
+            name,
+            game: finalGameTitle,
+            venue,
+            venueType,
+            venueLocation: venueLoc,
+            discordLink,
+            format,
+            maxTeams,
+            registrationType,
+            teamSize,
+            prize,
+            prizeSplit,
+            date: startDate,
+            endDate,
+            description: desc,
+            banner,
+            bannerPosition,
+            bannerFit,
+            entryType,
+            paymentType: pType,
+            entryFee,
+            entryCurrency,
+            status,
+            updatedAt: serverTimestamp()
+        };
+
+        if (proofURL) {
+            updateData.paymentProofURL = proofURL;
+            updateData.paymentQrUrl = proofURL;
         }
-    } else if (mvpCard) {
-        mvpCard.classList.add('hidden');
-    }
 
-    if (awardMvpWrap) {
-        awardMvpWrap.classList.toggle('hidden', !isCreator);
-    }
-
-    // Render Payouts Tab
-    renderPayoutsTab(t, isCreator, user);
-
-    // 3. Organizer Dashboard
-    if (isCreator && adminDash) {
-        adminDash.classList.remove('hidden');
-        adminDash.className = "bg-[#0D0D12] border border-white/10 rounded-2xl p-3.5 flex flex-col justify-between gap-2.5 font-mono-tag shadow-xl flex-1 min-h-0 shrink-0";
-        const soloList = t.soloQueue || [];
-        const queuedSoloCount = soloList.filter(p => p.status === 'Queued').length;
-        const teamSize = Number(t.teamSize) || 5;
-        const readySquads = Math.floor(queuedSoloCount / teamSize);
-        const showSoloControls = (t.registrationType === 'solo' || t.registrationType === 'hybrid' || soloList.length > 0);
-
-        const isCancelled = (t.status === 'Cancelled' || t.isCancelled);
-        const isArchived = (t.archived === true || t.isArchived === true || t.status === 'Archived');
-
-        adminDash.innerHTML = `
-            <!-- Organizer Header -->
-            <div class="flex justify-between items-center pb-2 border-b border-white/5 shrink-0">
-                <div class="flex items-center gap-1.5">
-                    <span class="text-[9px] font-bold uppercase tracking-widest text-[#FFD700]">// ORGANIZER</span>
-                    <span class="text-xs font-heading font-bold text-white uppercase">Portal</span>
-                </div>
-                <div class="flex items-center gap-1">
-                    <button type="button" onclick="window.openEditTournamentModal('${t.id}')" class="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-neutral-300 text-[10px] font-bold transition-colors cursor-pointer border border-white/10 uppercase">Edit</button>
-                    <button type="button" onclick="window.toggleArchiveTournament('${t.id}')" class="px-2 py-0.5 rounded ${isArchived ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30' : 'bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10'} text-[10px] font-bold transition-colors cursor-pointer uppercase">${isArchived ? 'Unarchive' : 'Archive'}</button>
-                    <button type="button" onclick="window.toggleCancelTournament('${t.id}')" class="px-2 py-0.5 rounded ${isCancelled ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30' : 'bg-white/5 hover:bg-red-500/20 text-neutral-300 hover:text-red-400 border border-white/10'} text-[10px] font-bold transition-colors cursor-pointer uppercase">${isCancelled ? 'Reopen' : 'Cancel'}</button>
-                    <button type="button" onclick="window.resetTournament('${t.id}')" class="px-2 py-0.5 rounded bg-white/5 hover:bg-white/10 text-neutral-300 text-[10px] font-bold transition-colors cursor-pointer border border-white/10 uppercase">Reset</button>
-                    <button type="button" onclick="window.deleteTournament('${t.id}')" class="px-2 py-0.5 rounded bg-white/5 hover:bg-red-500/20 text-neutral-300 hover:text-red-400 text-[10px] font-bold transition-colors cursor-pointer border border-white/10 uppercase">Delete</button>
                 </div>
             </div>
 
@@ -2999,7 +3006,9 @@ async function renderTournamentView(t) {
         `;
 
         initAdminDashboard(t.id);
-    } else if (adminDash) {
+        const fee = tournDoc.entryFee || 0;
+        const curr = tournDoc.entryCurrency || 'PHP';
+        const sym = curr === 'USD' ? '
         adminDash.classList.add('hidden');
         if (adminUnsubscribe) { adminUnsubscribe(); adminUnsubscribe = null; }
     }
@@ -3169,12 +3178,8 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
     const submitBtn = qs('#joinForm button[type="submit"]');
     const form = qs('#joinForm');
 
-    if (form) {
-        form.dataset.mode = isEdit ? 'edit' : 'new';
-        form.dataset.appId = specificAppId || '';
-    }
-    if (modalTitle && regType !== 'solo') modalTitle.textContent = isEdit ? "Edit Registration" : "Join Tournament";
-    if (submitBtn) submitBtn.textContent = isEdit ? "Request Update" : "Confirm Registration";
+        const isPaid = tournDoc.paymentType === 'manual' || (!tournDoc.paymentType && tournDoc.entryType === 'Paid');
+
 
     const select = qs('#joinTeamSelect');
     if (select) select.innerHTML = '<option value="custom" class="bg-[#1a1a1f] text-white">Loading teams...</option>';
@@ -3307,12 +3312,8 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
     const qrDl    = document.getElementById('join-qr-download');
     const qrLabel = document.getElementById('join-qr-download-label');
 
-    const paymentType = tournDoc?.paymentType || (tournDoc?.entryType === 'Paid' ? 'manual' : (tournDoc?.entryType ? String(tournDoc.entryType).toLowerCase() : 'free'));
-    const isPaid = (paymentType === 'manual' || paymentType === 'automatic' || tournDoc?.entryType === 'Paid') && (tournDoc?.entryFee > 0);
-    const isManual = paymentType === 'manual' || (isPaid && paymentType !== 'automatic');
-    const qrURL  = tournDoc && tournDoc.paymentProofURL;
+        if (isPaid && window._joinProofFile) {
 
-    if (isManual && qrURL && qrPanel && qrImg && qrDl) {
         qrImg.src = qrURL;
         const safeName = (tournDoc.name || 'payment-qr').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
         qrDl.href     = qrURL;
@@ -3336,9 +3337,8 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
 
     const entryFeeUpload = document.getElementById('join-entry-fee-upload');
     if (entryFeeUpload) {
-        if (isManual && isPaid) entryFeeUpload.classList.remove('hidden');
-        else entryFeeUpload.classList.add('hidden');
-        
+        if (proofURL) {
+
         window._entryFeeFile = null;
         window._entryFeePreviewURL = null;
         if (document.getElementById('entry-fee-filename')) document.getElementById('entry-fee-filename').textContent = 'Click or drag image here';
@@ -3530,16 +3530,17 @@ async function submitJoinRequest() {
             membersList.push(input.value.trim());
             if (selectedTeam && selectedTeam.members) {
                 const match = selectedTeam.members.find(m => 
-                    (typeof m === 'object' ? (m.ign || m.name) : m) === input.value.trim()
+                    (typeof m === 'object' ? (m.displayName || m.ign || m.name) : m) === input.value.trim()
                 );
                 if (match && match.uid) memberUids.push(match.uid);
             }
         }
     });
 
-    // Cross-Team / Duplicate Player Collision Check
-    const candidateIgns = membersList.map(m => m.trim().toLowerCase());
-    if (captain) candidateIgns.push(captain.trim().toLowerCase());
+        const proofBtn = app.entryFeeProofURL ? `
+            <button type="button" onclick="window.openEntryFeeProofViewer('${escapeHtml(app.entryFeeProofURL)}')" class="px-1.5 py-1 rounded bg-amber-500/15 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 text-[9px] font-bold uppercase cursor-pointer shrink-0" title="View Payment Proof">Proof</button>
+        ` : '';
+
 
     const participants = tournDoc?.participants || [];
     for (const p of participants) {
@@ -3612,19 +3613,26 @@ async function submitJoinRequest() {
 
     try {
         const appsRef = collection(db, "tournaments", currentJoiningId, "applications");
-        if (isEdit && specificAppId) { await updateDoc(doc(appsRef, specificAppId), appData); }
-        else { await addDoc(appsRef, appData); }
+        let createdAppId = specificAppId;
+        if (isEdit && specificAppId) { 
+            await updateDoc(doc(appsRef, specificAppId), appData); 
+        } else { 
+            const newAppRef = await addDoc(appsRef, appData); 
+            createdAppId = newAppRef.id;
+        }
+
+        if (tournDoc.paymentType === 'automatic') {
+            window.location.href = `/checkout.html?t=${currentJoiningId}&app=${createdAppId}`;
+            return;
+        }
 
         const msg = isEdit ? 'Update request sent!' : 'Application submitted!';
         if (window.showSuccessToast) window.showSuccessToast('Success', msg);
         document.getElementById('joinModal').classList.add('hidden');
-    } catch (error) { 
-        console.error("Error joining:", error); 
-        if (window.showErrorToast) window.showErrorToast('Error', 'Failed: ' + error.message); 
-    } finally { 
-        if (submitBtn) { 
-            submitBtn.disabled = false; 
-            submitBtn.textContent = isEdit ? 'Request Update' : 'Confirm Registration'; 
+        const proofBtn = app.entryFeeProofURL ? `
+            <button type="button" onclick="window.openEntryFeeProofViewer('${escapeHtml(app.entryFeeProofURL)}')" class="px-1.5 py-1 rounded bg-amber-500/15 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 text-[9px] font-bold uppercase cursor-pointer shrink-0" title="View Payment Proof">Proof</button>
+        ` : '';
+
         } 
     }
 }
@@ -3646,18 +3654,28 @@ async function withdrawApplication(tourneyId, appId) {
     } catch (e) { console.error(e); alert("Error withdrawing: " + e.message); }
 }
 
-async function sendTournamentNotification(targetUid, tournamentId, type, message) {
-    try { 
-        await addDoc(collection(db, "specific-notifications"), { 
-            title: "Tournament Update", 
-            type: 'tournament', 
-            message: message, 
-            tournamentId: tournamentId, 
-            targetUserId: targetUid, 
-            isGlobal: false,
-            createdAt: serverTimestamp() 
-        }); 
-    } catch (error) { console.error("Error sending notification:", error); }
+        const isUpdate = app.status === 'pending_update';
+        const item = document.createElement('div');
+        item.className = "flex items-center justify-between bg-black/40 p-3 rounded-xl border border-white/5 gap-2 hover:border-white/15 transition-all";
+        const proofBtn = app.entryFeeProofURL ? `
+            <button type="button" onclick="window.openEntryFeeProofViewer('${escapeHtml(app.entryFeeProofURL)}')" class="px-1.5 py-1 rounded bg-amber-500/15 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 text-[9px] font-bold uppercase cursor-pointer shrink-0" title="View Payment Proof">Proof</button>
+        ` : '';
+
+        item.innerHTML = `
+            <div class="min-w-0 flex-1">
+                <div class="font-heading font-black text-white text-xs flex items-center gap-1.5 truncate">
+                    <span class="truncate">${escapeHtml(app.name)}</span>
+                    ${isUpdate ? '<span class="text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 py-0.2 rounded font-mono-tag uppercase shrink-0">UPDATE</span>' : '<span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 py-0.2 rounded font-mono-tag uppercase shrink-0">NEW</span>'}
+                </div>
+                <div class="text-[10px] text-neutral-400 font-mono-tag truncate mt-0.5">Cap: <span class="text-neutral-200">${escapeHtml(app.captain)}</span></div>
+            </div>
+            <div class="flex items-center gap-1 shrink-0 font-mono-tag">
+                ${proofBtn}
+                <button type="button" onclick="window.viewPendingApplication('${docSnap.id}')" class="bg-white/5 hover:bg-white/15 text-neutral-300 text-[9px] px-2 py-1 rounded border border-white/10 uppercase font-bold cursor-pointer transition-colors">View</button>
+                <button type="button" onclick="window.processApplication('${tournamentId}', '${docSnap.id}', true)" class="bg-[#FFD700] hover:bg-[#FFF099] text-black text-[9px] font-extrabold px-2 py-1 rounded uppercase cursor-pointer shadow-sm transition-colors">Accept</button>
+                <button type="button" onclick="window.processApplication('${tournamentId}', '${docSnap.id}', false)" class="bg-white/5 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 text-[9px] font-bold px-1.5 py-1 rounded uppercase cursor-pointer border border-white/10 transition-colors">✕</button>
+            </div>`;
+
 }
 
 
@@ -3903,28 +3921,9 @@ function initAdminDashboard(tournamentId) {
             const app = docSnap.data();
             pendingApplicationsMap.set(docSnap.id, app);
 
-            const isUpdate = app.status === 'pending_update';
-            const item = document.createElement('div');
-            item.className = "flex items-center justify-between gap-2 bg-[#14141c] hover:bg-[#1a1a24] p-2 rounded-lg border border-white/10 transition-colors";
-            
-            const proofBtn = app.entryFeeProofURL ? `
-                <button type="button" onclick="window.openEntryFeeProofViewer('${escapeHtml(app.entryFeeProofURL)}')" class="px-1.5 py-1 rounded bg-amber-500/15 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 text-[9px] font-bold uppercase cursor-pointer shrink-0" title="View Payment Proof">Proof</button>
-            ` : '';
+        await sendTournamentNotification(uidsToNotify, tournamentId, 'success', `Your application for "${appData.name}" was accepted!`);
+        if (window.showSuccessToast) window.showSuccessToast('Accepted', `Team ${appData.name} added.`);
 
-            item.innerHTML = `
-                <div class="min-w-0 flex-1">
-                    <div class="font-heading font-black text-white text-xs flex items-center gap-1.5 truncate">
-                        <span class="truncate">${escapeHtml(app.name)}</span>
-                        ${isUpdate ? '<span class="text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 py-0.2 rounded font-mono-tag uppercase shrink-0">UPDATE</span>' : '<span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 py-0.2 rounded font-mono-tag uppercase shrink-0">NEW</span>'}
-                    </div>
-                    <div class="text-[10px] text-neutral-400 font-mono-tag truncate mt-0.5">Cap: <span class="text-neutral-200">${escapeHtml(app.captain)}</span></div>
-                </div>
-                <div class="flex items-center gap-1 shrink-0 font-mono-tag">
-                    ${proofBtn}
-                    <button type="button" onclick="window.viewPendingApplication('${docSnap.id}')" class="bg-white/5 hover:bg-white/15 text-neutral-300 text-[9px] px-2 py-1 rounded border border-white/10 uppercase font-bold cursor-pointer transition-colors">View</button>
-                    <button type="button" onclick="window.processApplication('${tournamentId}', '${docSnap.id}', true)" class="bg-[#FFD700] hover:bg-[#FFF099] text-black text-[9px] font-extrabold px-2 py-1 rounded uppercase cursor-pointer shadow-sm transition-colors">Accept</button>
-                    <button type="button" onclick="window.processApplication('${tournamentId}', '${docSnap.id}', false)" class="bg-white/5 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 text-[9px] font-bold px-1.5 py-1 rounded uppercase cursor-pointer border border-white/10 transition-colors">✕</button>
-                </div>`;
             list.appendChild(item);
         });
     });
@@ -3983,9 +3982,8 @@ async function processApplication(tourneyId, appId, isApproved) {
                 ? appData.memberUids
                 : [appData.registeredBy];
 
-            await Promise.all(uidsToNotify.map(uid =>
-                sendTournamentNotification(uid, tourneyId, 'alert', `Your team "${source.name}" has been accepted into "${currentEditingTournament.name}"!`)
-            ));
+            await sendTournamentNotification(uidsToNotify, tourneyId, 'alert', `Your team "${source.name}" has been accepted into "${currentEditingTournament.name}"!`);
+
 
             const refreshedSnap = await getDoc(tourneyRef);
             if (refreshedSnap.exists()) {
@@ -3999,10 +3997,9 @@ async function processApplication(tourneyId, appId, isApproved) {
                 ? appData.memberUids
                 : [appData.registeredBy];
 
-            await Promise.all(uidsToNotify.map(uid =>
-                sendTournamentNotification(uid, tourneyId, 'alert', `Your application for "${appData.name}" was declined.`)
-            ));
-            if (window.showSuccessToast) window.showSuccessToast('Rejected', `Application rejected.`);
+        await sendTournamentNotification(uidsToNotify, tourneyId, 'alert', `Your application for "${appData.name}" was declined.`);
+        if (window.showSuccessToast) window.showSuccessToast('Rejected', `Application rejected.`);
+
         }
     } catch (e) {
         console.error(e);

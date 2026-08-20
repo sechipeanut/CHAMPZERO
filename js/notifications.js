@@ -291,7 +291,9 @@ function initRealTimeListeners(user) {
     if (user && !personalUnsubscribe) {
         const q = query(
             collection(db, "specific-notifications"),
-            where("targetUserId", "==", user.uid)
+            where("targetUserId", "array-contains", user.uid),
+            orderBy("createdAt", "desc"),
+            limit(10)
         );
 
         personalUnsubscribe = onSnapshot(q, (snap) => {

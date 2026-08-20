@@ -1,7 +1,7 @@
 import { db, auth } from './firebase-config.js';
 import {
     collection, getDocs, doc, addDoc, updateDoc, deleteDoc,
-    serverTimestamp, arrayUnion, arrayRemove, getDoc, onSnapshot, query, orderBy, collectionGroup, where, setDoc
+    serverTimestamp, arrayUnion, arrayRemove, getDoc, onSnapshot, query, orderBy, collectionGroup, where, setDoc, increment 
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { uploadImage } from './utils.js';
 
@@ -24,6 +24,25 @@ function formatGameTitle(game) {
     if (g === 'mlbbid' || g === 'mlbb' || g.includes('mobile legends') || g.includes('bang bang')) return 'Mobile Legends: Bang Bang';
     if (g === 'hokid' || g === 'hok' || g.includes('honor of kings')) return 'Honor of Kings';
     return game;
+}
+
+const displayNameCache = new Map();
+
+async function getUserDisplayName(uid, fallbackName) {
+    const fallback = fallbackName || 'Player';
+    if (!uid) return fallback;
+    if (displayNameCache.has(uid)) return displayNameCache.get(uid);
+
+    try {
+        const snap = await getDoc(doc(db, "users", uid));
+        const resolved = snap.exists()
+            ? (snap.data().displayName || snap.data().name || snap.data().ign || snap.data().username || fallback)
+            : fallback;
+        displayNameCache.set(uid, resolved);
+        return resolved;
+    } catch {
+        return fallback;
+    }
 }
 
 // --- FEATURE FLAGS ---
@@ -155,20 +174,64 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 const TAB_ACTIVE_CLASS = "px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-[#FFD700] text-black shadow-md cursor-pointer whitespace-nowrap border border-[#FFD700]";
 const TAB_INACTIVE_CLASS = "px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/20 cursor-pointer whitespace-nowrap";
-
 window.setTab = (tabName) => {
     if (tabName === 'find-teams') { activeView = 'teams'; activeTeamFilter = 'available'; }
     else if (tabName === 'find-players') { activeView = 'players'; activeTeamFilter = 'available'; }
     else if (tabName === 'my-teams') { activeView = 'teams'; activeTeamFilter = 'mine'; }
     else if (tabName === 'my-lft') { activeView = 'players'; activeTeamFilter = 'mine'; }
+    else if (tabName === 'invites') { activeView = 'invites'; activeTeamFilter = 'none'; } // Handles the invites state
 
-    const tabs = ['find-teams', 'find-players', 'my-teams', 'my-lft'];
+    // Updated list to include your invites tab button
+    const tabs = ['find-teams', 'find-players', 'my-teams', 'my-lft', 'invites'];
     tabs.forEach(t => {
         const btn = document.getElementById(`tab-${t}`);
         if (btn) {
             btn.className = (t === tabName) ? TAB_ACTIVE_CLASS : TAB_INACTIVE_CLASS;
         }
     });
+
+    // --- HANDLE COPIABLE USER UID CARD DISPLAY ---
+    const uidContainer = document.getElementById('user-uid-container');
+    const uidDisplay = document.getElementById('user-uid-display');
+    const copyBtn = document.getElementById('btn-copy-uid');
+
+    if (tabName === 'invites') {
+        // Reveal the copy-paste box
+        if (uidContainer) uidContainer.classList.remove('hidden');
+        
+        // Grab the logged-in user from Firebase Auth
+        const user = auth.currentUser; 
+        if (user && uidDisplay) {
+            uidDisplay.textContent = user.uid;
+        } else if (uidDisplay) {
+            uidDisplay.textContent = "Log in to view ID";
+        }
+
+        // Add the copy button functionality once
+        if (copyBtn && !copyBtn.dataset.listenerAttached) {
+            copyBtn.dataset.listenerAttached = "true";
+            copyBtn.addEventListener('click', () => {
+                if (!user) return;
+                
+                navigator.clipboard.writeText(user.uid).then(() => {
+                    const originalText = copyBtn.textContent;
+                    copyBtn.textContent = "Copied!";
+                    copyBtn.classList.remove('text-gray-400');
+                    copyBtn.classList.add('text-green-400');
+
+                    setTimeout(() => {
+                        copyBtn.textContent = originalText;
+                        copyBtn.classList.remove('text-green-400');
+                        copyBtn.classList.add('text-gray-400');
+                    }, 2000);
+                }).catch(err => console.error("Clipboard copy failed:", err));
+            });
+        }
+    } else {
+        // Hide the copy box completely on any other tab view
+        if (uidContainer) uidContainer.classList.add('hidden');
+    }
+
     renderTeams();
 };
 
@@ -195,6 +258,91 @@ window.resetFilters = () => {
 async function renderTeams() {
     const board = qs('#recruitment-board');
     if (!board) return;
+
+    // 1. EARLY HANDLE FOR THE INVITES VIEW
+    if (activeView === 'invites') {
+        // Clear existing real-time listeners for cards
+        cardListeners.forEach(unsub => unsub());
+        cardListeners = [];
+
+        const user = auth.currentUser;
+        if (!user) {
+            board.innerHTML = `
+                <div class="col-span-full py-20 text-center flex flex-col items-center justify-center">
+                    <div class="bg-white/5 p-8 rounded-2xl border border-white/10 max-w-sm">
+                        <svg class="w-12 h-12 text-gray-500 mb-4 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <h3 class="text-xl font-bold text-white mb-2">Sign in to view invites</h3>
+                        <p class="text-gray-400 text-sm mb-6">You need to be logged in to manage and review your direct recruitment invitations.</p>
+                        <a href="/login" class="inline-block bg-[var(--gold)] text-black font-bold px-8 py-3 rounded-lg hover:bg-yellow-400 transition-transform active:scale-95 shadow-lg">
+                            Log In Now
+                        </a>
+                    </div>
+                </div>`;
+            return;
+        }
+        
+        // Fetch and render actual invites from Firestore
+        board.innerHTML = '<div class="col-span-full py-20 text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[var(--gold)] mb-4"></div><p class="text-gray-500">Loading invites...</p></div>';
+
+        try {
+            const invitesSnap = await getDocs(collection(db, "users", user.uid, "invites"));
+
+            if (invitesSnap.empty) {
+                board.innerHTML = `
+                    <div class="col-span-full py-20 text-center flex flex-col items-center justify-center border border-dashed border-white/5 rounded-2xl bg-zinc-900/10">
+                        <svg class="w-10 h-10 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                        </svg>
+                        <p class="text-gray-400 text-sm font-medium">No invites yet</p>
+                        <p class="text-gray-500 text-xs mt-1 max-w-xs mx-auto">Share your Recruitment ID with team leaders so they can invite you directly.</p>
+                    </div>`;
+                return;
+            }
+
+            board.innerHTML = '<div class="col-span-full space-y-3">';
+            const container = document.createElement('div');
+            container.className = 'col-span-full space-y-3';
+
+            invitesSnap.forEach(d => {
+                const inv = d.data();
+                const isPending = inv.status === 'pending';
+
+                const card = document.createElement('div');
+                card.className = 'bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 hover:border-white/20 transition-colors';
+                card.innerHTML = `
+                    <div class="flex flex-col gap-1">
+                        <div class="text-white font-bold text-sm">${escapeHtml(inv.teamName || 'Unknown Team')}</div>
+                        <div class="text-gray-400 text-xs">Invited by <span class="text-[var(--gold)]">${escapeHtml(inv.invitedByName || 'Team Captain')}</span></div>
+                        <div class="text-gray-600 text-[10px] mt-0.5 uppercase tracking-wide font-bold">${isPending ? '⏳ Pending' : inv.status === 'accepted' ? '✅ Accepted' : '❌ Declined'}</div>
+                    </div>
+                    ${isPending ? `
+                    <div class="flex gap-2 w-full sm:w-auto sm:shrink-0">
+                        <button data-action="accept-invite" data-invite-id="${d.id}" data-team-id="${escapeHtml(inv.teamId)}" data-team-name="${escapeHtml(inv.teamName)}"
+                            class="bg-green-600/20 text-green-400 border border-green-600/30 text-xs px-4 py-2 rounded-lg font-bold hover:bg-green-600/30 transition flex-1 sm:flex-none">
+                            Accept
+                        </button>
+                        <button data-action="decline-invite" data-invite-id="${d.id}"
+                            class="bg-red-600/20 text-red-400 border border-red-600/30 text-xs px-4 py-2 rounded-lg font-bold hover:bg-red-600/30 transition">
+                            Decline
+                        </button>
+                    </div>` : ''}
+                `;
+                container.appendChild(card);
+            });
+
+            board.innerHTML = '';
+            board.appendChild(container);
+
+        } catch (e) {
+            console.error("Failed to load invites:", e);
+            board.innerHTML = '<div class="col-span-full py-20 text-center"><p class="text-red-500">Failed to load invites.</p></div>';
+        }
+        return;
+    }
+
+    // 2. AUTH CHECK FOR 'MINE' FILTER ON STANDARD VIEWS
     if ((activeTeamFilter === 'mine') && !auth.currentUser) {
         board.innerHTML = `
             <div class="col-span-full py-20 text-center flex flex-col items-center justify-center">
@@ -417,6 +565,8 @@ function renderTeamCard(post, isAuthor, isMember) {
         actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="flex-1 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer">Manage</button>`;
     } else if (isFull) {
         actionBtn = `<button disabled class="flex-1 py-2 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-xs font-heading font-bold uppercase tracking-wider cursor-not-allowed">Full</button>`;
+    } else if (post.applicationsOpen === false) {
+        actionBtn = `<button disabled class="flex-1 py-2 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-xs font-heading font-bold uppercase tracking-wider cursor-not-allowed">Not Accepting</button>`;
     } else {
         actionBtn = `<button onclick="window.openApplicationModal('${post.id}', '${escapeHtml(post.name)}')" class="flex-1 py-2 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all shadow-md hover:shadow-yellow-500/20 active:scale-95 flex items-center justify-center gap-1 cursor-pointer font-semibold"><span>Apply</span> &rarr;</button>`;
     }
@@ -802,13 +952,16 @@ function startLftChatListener(listingId, participantUid) {
     );
 
     if (chatUnsubscribe) chatUnsubscribe();
-    chatUnsubscribe = onSnapshot(q, (snapshot) => {
-        chatContainer.innerHTML = backBtnHtml;
-        let lastDateLabel = null;
+chatUnsubscribe = onSnapshot(q, async (snapshot) => {
+    chatContainer.innerHTML = backBtnHtml;
+    let lastDateLabel = null;
 
-        snapshot.forEach(doc => {
-            const msg = doc.data();
-            const isMe = auth.currentUser && msg.senderId === auth.currentUser.uid;
+    const docs = snapshot.docs.map(d => d.data());
+    const resolvedNames = await Promise.all(docs.map(msg => getUserDisplayName(msg.senderId, msg.senderName)));
+
+    docs.forEach((msg, i) => {
+        const senderDisplayName = resolvedNames[i];
+        const isMe = auth.currentUser && msg.senderId === auth.currentUser.uid;
             const dateObj = msg.createdAt ? msg.createdAt.toDate() : new Date();
 
             const dateLabel = dateObj.toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' });
@@ -827,7 +980,7 @@ function startLftChatListener(listingId, participantUid) {
             bubble.className = `chat-bubble ${isMe ? 'mine' : 'theirs'} mb-3 shadow-md flex flex-col`;
             bubble.innerHTML = `
                 <div class="flex justify-between items-baseline mb-1 w-full gap-4">
-                    <span class="font-bold text-[10px] opacity-75">${escapeHtml(msg.senderName)}</span>
+                    <span class="font-bold text-[10px] opacity-75">${escapeHtml(senderDisplayName)}</span>
                     <span class="text-[9px] opacity-50 font-mono">${timeString}</span>
                 </div>
                 <div class="leading-relaxed break-words">${escapeHtml(msg.text)}</div>`;
@@ -1104,6 +1257,16 @@ window.openManageModal = async (teamId) => {
                     document.getElementById('edit-team-id').value = teamId;
                     document.getElementById('edit-desc').value = data.description;
                     document.getElementById('edit-max').value = data.maxMembers;
+                    const appsOpen = data.applicationsOpen !== false;
+                    const toggleBtn = document.getElementById('toggle-applications');
+                    const toggleKnob = document.getElementById('toggle-applications-knob');
+                    if (toggleBtn && toggleKnob) {
+                        toggleBtn.setAttribute('aria-checked', appsOpen ? 'true' : 'false');
+                        toggleBtn.classList.toggle('bg-indigo-600', appsOpen);
+                        toggleBtn.classList.toggle('bg-white/20', !appsOpen);
+                        toggleKnob.classList.toggle('translate-x-5', appsOpen);
+                        toggleKnob.classList.toggle('translate-x-0', !appsOpen);
+                    }
                     document.getElementById('edit-form-container').classList.remove('hidden');
                     document.getElementById('btn-disband').style.display = 'block';
                 } else {
@@ -1189,10 +1352,20 @@ window.handleApp = async (appId, applicantId, applicantName, isAccept) => {
                 await window.showCustomAlert("Roster Full", "Cannot accept more members. The team is full.");
                 return;
             }
+            let applicantIgn = applicantName; // fallback to name if nothing else
+                try {
+                    const userSnap = await getDoc(doc(db, "users", applicantId));
+                    if (userSnap.exists()) {
+                        const userData = userSnap.data();
+                        applicantIgn = userData.ign || userData.displayName || userData.username || applicantName;
+                    }
+                } catch (e) { /* silently fall back */ }
+
 
             const newMember = {
                 uid: applicantId,
                 name: applicantName,
+                ign: applicantIgn,
                 role: 'Member', // Default role
                 joinedAt: Date.now()
             };
@@ -1202,7 +1375,8 @@ window.handleApp = async (appId, applicantId, applicantName, isAccept) => {
                 currentMembers: (data.members || []).length + 1
             });
             await updateDoc(appRef, { status: 'accepted' });
-            await sendSystemMessage(currentManageId, `${applicantName} has joined the team`);
+            const applicantDisplayName = await getUserDisplayName(applicantId, applicantName);
+            await sendSystemMessage(currentManageId, `${applicantDisplayName} has joined the team`);
             await window.showCustomAlert("Success", "Player accepted into the roster!");
         } else {
             await updateDoc(appRef, { status: 'rejected' });
@@ -1222,6 +1396,151 @@ window.deleteListing = async (docId) => {
     // Standard delete for LFT players
     if (!await window.showCustomConfirm("Delete Listing?", "Are you sure?")) return;
     try { await deleteDoc(doc(db, "recruitment", docId)); await window.showCustomAlert("Deleted", "Listing removed."); renderTeams(); } catch (e) { console.error(e); }
+};
+
+window.toggleApplications = () => {
+    const btn = document.getElementById('toggle-applications');
+    const knob = document.getElementById('toggle-applications-knob');
+    if (!btn || !knob) return;
+    const isOn = btn.getAttribute('aria-checked') === 'true';
+    const newState = !isOn;
+    btn.setAttribute('aria-checked', newState ? 'true' : 'false');
+    btn.classList.toggle('bg-indigo-600', newState);
+    btn.classList.toggle('bg-white/20', !newState);
+    knob.classList.toggle('translate-x-5', newState);
+    knob.classList.toggle('translate-x-0', !newState);
+    // Show the notice when the user toggles the switch
+    const warningNotice = document.getElementById('unsaved-warning');
+    if (warningNotice) {
+        warningNotice.classList.remove('hidden');
+    }
+};
+
+window.invitePlayer = async (uid, playerName) => {
+    const user = auth.currentUser;
+    if (!user) {
+        window.showCustomAlert("Not Logged In", "You must be logged in to send invites.");
+        return;
+    }
+
+    if (!currentManageId) {
+        window.showCustomAlert("Error", "No team context found. Please re-open the team dashboard.");
+        return;
+    }
+
+    try {
+        // Fetch the team document to get the team name
+        const teamSnap = await getDoc(doc(db, "recruitment", currentManageId));
+        if (!teamSnap.exists()) {
+            window.showCustomAlert("Error", "Team not found.");
+            return;
+        }
+        const teamData = teamSnap.data();
+
+        // Check if an invite already exists for this user
+        const existingInviteSnap = await getDoc(doc(db, "users", uid, "invites", currentManageId));
+        if (existingInviteSnap.exists()) {
+            window.showCustomAlert("Already Invited", `${playerName} has already been invited to this team.`);
+            return;
+        }
+
+        // Write the invite
+        const inviterSnap = await getDoc(doc(db, "users", user.uid));
+        const inviterName = inviterSnap.exists() 
+            ? (inviterSnap.data().displayName || inviterSnap.data().name || user.displayName || "Team Captain")
+            : (user.displayName || "Team Captain");
+
+        await setDoc(doc(db, "users", uid, "invites", currentManageId), {
+            teamId: currentManageId,
+            teamName: teamData.name || "Unknown Team",
+            invitedBy: user.uid,
+            invitedByName: inviterName,
+            invitedAt: serverTimestamp(),
+            status: "pending"
+        });
+
+        window.showCustomAlert("Invite Sent!", `${playerName} has been invited to join ${teamData.name}.`);
+
+    } catch (e) {
+        // Log the FULL error so we can see exactly which path was denied
+        console.error("❌ invitePlayer failed:", e.code, e.message, e);
+        throw e; // Re-throw so inviteByUid catch can also see it
+    }
+};
+
+window.inviteByUid = async () => {
+    if (myTeamRole !== 'Captain' && myTeamRole !== 'Vice Captain') {
+        window.showCustomAlert("Permission Denied", "Only Captains or Vice Captains can invite players.");
+        return;
+    }
+
+    const input = document.getElementById('invite-uid-input');
+    if (!input) return;
+    
+    const uid = input.value.trim();
+
+    if (!uid) {
+        window.showCustomAlert("Missing ID", "Please paste or enter a player's Recruitment ID.");
+        return;
+    }
+
+    try {
+        // Attempt to pull user profile data if it exists
+        const userSnap = await getDoc(doc(db, "users", uid));
+        let playerName = "Recruited Player";
+
+        // SAFELY check if the document exists AND contains data before reading fields
+        if (userSnap.exists() && userSnap.data()) {
+            const data = userSnap.data();
+            playerName = data.displayName || data.name || data.ign || playerName;
+        } else {
+            console.warn(`No user document found in Firestore for UID: ${uid}. Proceeding with fallback name.`);
+        }
+
+        // Send the invite directly using the provided UID and resolved name
+        await window.invitePlayer(uid, playerName);
+        
+        // Clear input field on success
+        input.value = "";
+        
+    } catch (e) {
+        console.error("Invite processing error:", e);
+        window.showCustomAlert("Error", "Failed to process invitation. Please check the ID string.");
+    }
+};
+
+window.acceptInvite = async (inviteDocId, teamId, teamName) => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const confirmed = await window.showCustomConfirm("Accept Invite", `Join <strong>${teamName}</strong>?`);
+    if (!confirmed) return;
+
+    try {
+        // Add the user to the team's members array
+        await updateDoc(doc(db, "recruitment", teamId), {
+            members: arrayUnion({ uid: user.uid, name: user.displayName || "Player", ign: playerIgn, role: "Member" }),
+            currentMembers: increment(1)
+        });
+
+        // Mark invite as accepted
+        await deleteDoc(doc(db, "users", user.uid, "invites", inviteDocId));
+
+        await window.showCustomAlert("Joined!", `You are now a member of ${teamName}.`);
+        renderTeams(); // Refresh the invites view
+
+    } catch (e) {
+        console.error("Accept invite error:", e);
+        window.showCustomAlert("Error", "Failed to accept invite.");
+    }
+};
+
+window.declineInvite = async (inviteDocId) => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    await deleteDoc(doc(db, "users", user.uid, "invites", inviteDocId));
+    renderTeams(); // Refresh
 };
 
 window.disbandTeam = async () => {
@@ -1267,15 +1586,45 @@ window.promoteMember = async (uid) => {
 
             // 2. Send System Message
             // We use the name found in the array index we just modified
-            const memberName = members[index].name;
+            const memberName = await getUserDisplayName(members[index].uid, members[index].name);
             await sendSystemMessage(currentManageId, `${memberName} has been promoted to Vice Captain`);
-
             // 3. Update UI
             renderRosterList(members);
             window.showCustomAlert("Success", "Member promoted to Vice Captain.");
         }
     } catch (error) { console.error(error); }
 }
+
+window.acceptInvite = async (inviteDocId, teamId, teamName) => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const confirmed = await window.showCustomConfirm("Accept Invite", `Join <strong>${teamName}</strong>?`);
+    if (!confirmed) return;
+
+    try {
+        const playerName = await getUserDisplayName(user.uid, user.displayName || "Player");
+
+        // Add the user to the team's members array
+        await updateDoc(doc(db, "recruitment", teamId), {
+            members: arrayUnion({ uid: user.uid, name: playerName, ign: playerName, role: "Member" }),
+            currentMembers: increment(1)
+        });
+
+        // ✅ Post system message to team chat
+        await sendSystemMessage(teamId, `${playerName} has joined the team via invite`);
+
+        // Delete the invite
+        await deleteDoc(doc(db, "users", user.uid, "invites", inviteDocId));
+
+        await window.showCustomAlert("Joined!", `You are now a member of ${teamName}.`);
+        renderTeams();
+
+    } catch (e) {
+        console.error("Accept invite error:", e);
+        window.showCustomAlert("Error", "Failed to accept invite.");
+    }
+};
 
 window.demoteMember = async (uid) => {
     if (myTeamRole !== 'Captain') return;
@@ -1293,7 +1642,7 @@ window.demoteMember = async (uid) => {
             await updateDoc(teamRef, { members: members });
 
             // 2. Send System Message
-            const memberName = members[index].name;
+            const memberName = await getUserDisplayName(members[index].uid, members[index].name);
             await sendSystemMessage(currentManageId, `${memberName} has been demoted to Member`);
 
             // 3. Update UI
@@ -1322,7 +1671,7 @@ window.kickMember = async (uid, memberRole) => {
         const snap = await getDoc(teamRef);
         const allMembers = snap.data().members;
         const kickedMember = allMembers.find(m => m.uid === uid);
-        const kickedName = kickedMember ? kickedMember.name : 'A member';
+        const kickedName = kickedMember ? await getUserDisplayName(kickedMember.uid, kickedMember.name) : 'A member';
         const mems = allMembers.filter(m => m.uid !== uid);
         await updateDoc(teamRef, { members: mems, currentMembers: mems.length });
 
@@ -1338,7 +1687,7 @@ window.leaveTeam = async () => {
     if (!confirm) return;
     try {
         const teamRef = doc(db, "recruitment", currentManageId);
-        const leaverName = auth.currentUser.displayName || auth.currentUser.email.split('@')[0];
+        const leaverName = await getUserDisplayName(auth.currentUser.uid, auth.currentUser.displayName || auth.currentUser.email.split('@')[0]);
         await sendSystemMessage(currentManageId, `${leaverName} has left the team`);
         const appsRef = collection(db, "recruitment", currentManageId, "applications");
         const q = query(appsRef, where("applicantId", "==", auth.currentUser.uid));
@@ -1495,6 +1844,8 @@ function setupForms() {
         try {
             // 1. Check if we are currently in an LFT Private Chat session
             // If activeLftChatId is set, we use the private_chats sub-collection
+            const senderDisplayName = await getUserDisplayName(auth.currentUser.uid, auth.currentUser.displayName || auth.currentUser.email.split('@')[0]);
+
             if (activeLftChatId) {
                 const chatDocRef = doc(db, "recruitment", currentManageId, "private_chats", activeLftChatId);
 
@@ -1502,13 +1853,13 @@ function setupForms() {
                     lastMessage: text,
                     lastMessageTime: serverTimestamp(),
                     participantId: activeLftChatId,
-                    participantName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0]
+                    participantName: senderDisplayName
                 }, { merge: true });
 
                 await addDoc(collection(chatDocRef, "messages"), {
                     text: text,
                     senderId: auth.currentUser.uid,
-                    senderName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
+                    senderName: senderDisplayName,
                     createdAt: serverTimestamp()
                 });
             }
@@ -1518,7 +1869,7 @@ function setupForms() {
                 await addDoc(collection(db, "recruitment", currentManageId, "messages"), {
                     text: text,
                     senderId: auth.currentUser.uid,
-                    senderName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
+                    senderName: senderDisplayName,
                     createdAt: serverTimestamp()
                 });
             }
@@ -1546,17 +1897,19 @@ function setupForms() {
             try {
                 const chatDocRef = doc(db, "recruitment", currentManageId, "private_chats", activeLftChatId);
 
+                const senderDisplayName = await getUserDisplayName(auth.currentUser.uid, auth.currentUser.displayName || auth.currentUser.email.split('@')[0]);
+
                 await setDoc(chatDocRef, {
                     lastMessage: text,
                     lastMessageTime: serverTimestamp(),
                     participantId: activeLftChatId,
-                    participantName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0]
+                    participantName: senderDisplayName
                 }, { merge: true });
 
                 await addDoc(collection(chatDocRef, "messages"), {
                     text: text,
                     senderId: auth.currentUser.uid,
-                    senderName: auth.currentUser.displayName || auth.currentUser.email.split('@')[0],
+                    senderName: senderDisplayName,
                     createdAt: serverTimestamp()
                 });
 
@@ -1577,9 +1930,63 @@ function setupForms() {
             const max = Math.min(parseInt(document.getElementById('edit-max').value) || 7, 7); // clamp to 7
 
             try {
-                await updateDoc(doc(db, "recruitment", id), { description: desc, maxMembers: max });
+                const toggleBtn = document.getElementById('toggle-applications');
+                const applicationsOpen = toggleBtn ? toggleBtn.getAttribute('aria-checked') === 'true' : true;
+                
+                await updateDoc(doc(db, "recruitment", id), { description: desc, maxMembers: max, applicationsOpen });
+                
+                // HIDE THE WARNING BANNER HERE AFTER A SUCCESSFUL SAVE 
+                const warningNotice = document.getElementById('unsaved-warning');
+                if (warningNotice) {
+                    warningNotice.classList.add('hidden');
+                }
+
                 window.showCustomAlert("Saved", "Team settings updated.");
-            } catch (e) { console.error(e); }
+            } catch (e) { 
+                console.error(e); 
+            }
+        });
+    }
+
+    // Delegated click handler — uses data-* attributes instead of inline
+    // onclick="...'${name}'..." so free-text fields (team/player/applicant
+    // names) can safely contain apostrophes without breaking JS syntax.
+    const board = document.getElementById('recruitment-board');
+    if (board) {
+        board.addEventListener('click', (e) => {
+            const applyBtn = e.target.closest('[data-action="apply"]');
+            if (applyBtn) {
+                window.openApplicationModal(
+                    applyBtn.getAttribute('data-team-id'),
+                    applyBtn.getAttribute('data-team-name')
+                );
+                return;
+            }
+
+            const acceptBtn = e.target.closest('[data-action="accept-invite"]');
+            if (acceptBtn) {
+                window.acceptInvite(
+                    acceptBtn.getAttribute('data-invite-id'),
+                    acceptBtn.getAttribute('data-team-id'),
+                    acceptBtn.getAttribute('data-team-name')
+                );
+                return;
+            }
+
+            const declineBtn = e.target.closest('[data-action="decline-invite"]');
+            if (declineBtn) {
+                window.declineInvite(declineBtn.getAttribute('data-invite-id'));
+                return;
+            }
+
+            const lftBtn = e.target.closest('[data-action="lft-chat"]');
+            if (lftBtn) {
+                window.startLftChat(
+                    lftBtn.getAttribute('data-team-id'),
+                    lftBtn.getAttribute('data-team-name')
+                );
+                return;
+            }
         });
     }
 
@@ -1598,12 +2005,23 @@ function setupForms() {
 }
 
 // Helpers for Roster/Chat
-function renderRosterList(members) {
+async function renderRosterList(members) {
     const list = document.getElementById('roster-list');
+    list.innerHTML = '<p class="text-gray-600 text-xs text-center py-4">Loading roster...</p>';
+
+    // Fetch live displayNames from Firestore for all members in parallel
+    const enriched = await Promise.all(members.map(async (m) => {
+        try {
+            const snap = await getDoc(doc(db, "users", m.uid));
+            const displayName = snap.exists() ? (snap.data().displayName || snap.data().name || m.name) : m.name;
+            return { ...m, name: displayName };
+        } catch {
+            return m; // fallback to stored name if fetch fails
+        }
+    }));
+
     list.innerHTML = '';
 
-    // Only regular members see the Leave button in this list (Admins usually have a disband or separate logic, 
-    // but Captain shouldn't leave their own team without disbanding or passing lead)
     if (myTeamRole === 'Member' || myTeamRole === 'Vice Captain') {
         const leaveContainer = document.createElement('div');
         leaveContainer.className = "mb-4 pb-4 border-b border-white/10 text-right";
@@ -1611,7 +2029,7 @@ function renderRosterList(members) {
         list.appendChild(leaveContainer);
     }
 
-    members.forEach(m => {
+    enriched.forEach(m => {
         const isMe = auth.currentUser && m.uid === auth.currentUser.uid;
         const targetRole = m.role || 'Member';
         const roleBadge = targetRole === 'Captain'
@@ -1625,7 +2043,6 @@ function renderRosterList(members) {
 
         let buttons = '';
         if (!isMe) {
-            // Captain Logic
             if (myTeamRole === 'Captain') {
                 if (targetRole === 'Member') {
                     buttons += `<button onclick="window.promoteMember('${m.uid}')" class="text-xs bg-purple-600/20 text-purple-400 border border-purple-600/30 px-2 py-1.5 rounded hover:bg-purple-600/40 mr-2 transition font-bold">Promote</button>`;
@@ -1633,9 +2050,7 @@ function renderRosterList(members) {
                     buttons += `<button onclick="window.demoteMember('${m.uid}')" class="text-xs bg-gray-600/20 text-gray-400 border border-gray-600/30 px-2 py-1.5 rounded hover:bg-gray-600/40 mr-2 transition font-bold">Demote</button>`;
                 }
                 buttons += `<button onclick="window.kickMember('${m.uid}', '${targetRole}')" class="text-xs bg-red-900/30 text-red-300 border border-red-900/50 px-2 py-1.5 rounded hover:bg-red-900/50 transition font-bold">Kick</button>`;
-            }
-            // Vice Captain Logic (Can only kick Members)
-            else if (myTeamRole === 'Vice Captain' && targetRole === 'Member') {
+            } else if (myTeamRole === 'Vice Captain' && targetRole === 'Member') {
                 buttons += `<button onclick="window.kickMember('${m.uid}', '${targetRole}')" class="text-xs bg-red-900/30 text-red-300 border border-red-900/50 px-2 py-1.5 rounded hover:bg-red-900/50 transition font-bold">Kick</button>`;
             }
         }
@@ -1658,13 +2073,18 @@ function startChatListener(teamId) {
     const chatContainer = document.getElementById('chat-messages');
     const q = query(collection(db, "recruitment", teamId, "messages"), orderBy("createdAt", "asc"));
 
-    chatUnsubscribe = onSnapshot(q, (snapshot) => {
-        chatContainer.innerHTML = '';
-        let lastDateLabel = null;
+chatUnsubscribe = onSnapshot(q, async (snapshot) => {
+    chatContainer.innerHTML = '';
+    let lastDateLabel = null;
 
-        snapshot.forEach((doc) => {
-            const msg = doc.data();
-            const isMe = auth.currentUser && msg.senderId === auth.currentUser.uid;
+    const docs = snapshot.docs.map(d => d.data());
+    const resolvedNames = await Promise.all(docs.map(msg =>
+        msg.isSystem ? Promise.resolve(msg.senderName) : getUserDisplayName(msg.senderId, msg.senderName)
+    ));
+
+    docs.forEach((msg, i) => {
+        const senderDisplayName = resolvedNames[i];
+        const isMe = auth.currentUser && msg.senderId === auth.currentUser.uid;
             const dateObj = msg.createdAt ? msg.createdAt.toDate() : new Date();
 
             // Format for date divider (e.g., "January 16, 2026")
@@ -1691,7 +2111,7 @@ function startChatListener(teamId) {
                 bubble.className = `chat-bubble ${isMe ? 'mine' : 'theirs'} mb-3 shadow-md flex flex-col`;
                 bubble.innerHTML = `
                     <div class="flex justify-between items-baseline mb-1 w-full gap-4">
-                        <span class="font-bold text-[10px] opacity-75 tracking-wide">${escapeHtml(msg.senderName)}</span>
+                        <span class="font-bold text-[10px] opacity-75 tracking-wide">${escapeHtml(senderDisplayName)}</span>
                         <span class="text-[9px] opacity-50 font-mono">${timeString}</span>
                     </div>
                     <div class="leading-relaxed break-words">${escapeHtml(msg.text)}</div>`;
@@ -1713,7 +2133,7 @@ async function loadApplications(teamId) {
         const app = d.data();
         if (app.status === 'pending') {
             hasPending = true;
-            const div = document.createElement('div');
+const div = document.createElement('div');
             div.className = "bg-black/20 p-4 rounded-lg border border-white/5 mb-3 hover:border-white/10 transition-colors";
             div.innerHTML = `
                 <div class="flex justify-between items-start mb-2">
@@ -1724,9 +2144,17 @@ async function loadApplications(teamId) {
                 </div>
                 <div class="text-xs text-gray-400 italic mb-3 bg-black/20 p-2 rounded leading-relaxed">"${escapeHtml(app.note)}"</div>
                 <div class="flex gap-2">
-                    <button onclick="window.handleApp('${d.id}', '${app.applicantId}', '${escapeHtml(app.applicantName)}', true)" class="flex-1 bg-green-600/20 text-green-400 border border-green-600/30 text-xs py-2 rounded font-bold hover:bg-green-600/30 transition">Accept</button>
-                    <button onclick="window.handleApp('${d.id}', null, null, false)" class="flex-1 bg-red-600/20 text-red-400 border border-red-600/30 text-xs py-2 rounded font-bold hover:bg-red-600/30 transition">Reject</button>
+                    <button data-action="accept-app" class="flex-1 bg-green-600/20 text-green-400 border border-green-600/30 text-xs py-2 rounded font-bold hover:bg-green-600/30 transition">Accept</button>
+                    <button data-action="reject-app" class="flex-1 bg-red-600/20 text-red-400 border border-red-600/30 text-xs py-2 rounded font-bold hover:bg-red-600/30 transition">Reject</button>
                 </div>`;
+
+            div.querySelector('[data-action="accept-app"]').addEventListener('click', () => {
+                window.handleApp(d.id, app.applicantId, app.applicantName, true);
+            });
+            div.querySelector('[data-action="reject-app"]').addEventListener('click', () => {
+                window.handleApp(d.id, null, null, false);
+            });
+
             list.appendChild(div);
         }
     });
