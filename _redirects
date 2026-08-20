@@ -21,6 +21,7 @@
 /verify-email       /verify-email.html    200
 /forgot-password    /forgot-password.html 200
 /reset-password     /reset-password.html  200
+/checkout           /checkout.html        200
 
 # Catch-all for extensionless HTML files
 /*                  /:splat.html          200
