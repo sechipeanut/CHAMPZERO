@@ -16,9 +16,18 @@ const PORT = 3000;
 app.use(cors());
 app.use(bodyParser.json());
 
+// Disable caching for development so browser always gets latest JS/HTML
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
+  next();
+});
+
 // 3. Serve static files (pictures, js, etc.)
-app.use('/pictures', express.static(path.join(__dirname, 'pictures')));
-app.use('/js', express.static(path.join(__dirname, 'js')));
+app.use('/pictures', express.static(path.join(__dirname, 'pictures'), { maxAge: 0 }));
+app.use('/js', express.static(path.join(__dirname, 'js'), { maxAge: 0 }));
+app.use('/css', express.static(path.join(__dirname, 'css'), { maxAge: 0 }));
 app.get('/favicon.png', (req, res) => {
   res.sendFile(path.join(__dirname, 'favicon.png'));
 });
@@ -186,20 +195,134 @@ apiRouter.get('/user/data/:uid', verifyFirebaseToken, async (req, res) => {
     }
 });
 
-// ---------------- TOURNAMENT ROUTES ----------------
-// NOTE: All existing tournament, event, featured, and static routes remain unchanged.
-apiRouter.get('/tournaments', async (req, res) => { /* ... */ });
-apiRouter.get('/tournaments/:id', async (req, res) => { /* ... */ });
-apiRouter.post('/tournaments', async (req, res) => { /* ... */ });
-apiRouter.post('/tournaments/:id/join', async (req, res) => { /* ... */ });
-apiRouter.patch('/tournaments/:id', async (req, res) => { /* ... */ });
-apiRouter.get('/tournaments/:id/export', async (req, res) => { /* ... */ });
-apiRouter.get('/events', async (req,res)=>{ /* ... */ });
-apiRouter.post('/events', async (req,res)=>{ /* ... */ });
-apiRouter.get('/featured', async (req, res) => { /* ... */ });
-apiRouter.post('/apply', async (req, res) => { /* ... */ });
-apiRouter.get('/static/teams', (req, res) => res.json([ /* ... */ ]));
-apiRouter.get('/static/recruitment', (req, res) => res.json([ /* ... */ ]));
+// ---------------- TOURNAMENT & DATABASE ROUTES ----------------
+apiRouter.get('/tournaments', async (req, res) => {
+    try {
+        const snap = await db.collection('tournaments').get();
+        const items = [];
+        snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        res.json(items);
+    } catch (err) {
+        console.error('Error fetching tournaments in server.js:', err);
+        res.status(500).json({ error: 'Failed to fetch tournaments' });
+    }
+});
+
+apiRouter.get('/tournaments/:id', async (req, res) => {
+    try {
+        const doc = await db.collection('tournaments').doc(req.params.id).get();
+        if (!doc.exists) return res.status(404).json({ error: 'Tournament not found' });
+        res.json({ id: doc.id, ...doc.data() });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+apiRouter.get('/events', async (req, res) => {
+    try {
+        const snap = await db.collection('events').get();
+        const items = [];
+        snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        res.json(items);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+apiRouter.get('/talents', async (req, res) => {
+    try {
+        const snap = await db.collection('talents').get();
+        const items = [];
+        snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        res.json(items);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+apiRouter.get('/teams', async (req, res) => {
+    try {
+        const snap = await db.collection('recruitment').get();
+        const items = [];
+        snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        res.json(items);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ---------------- SOCIAL & FRIEND REQUEST ROUTES ----------------
+apiRouter.post('/friends/request', async (req, res) => {
+    try {
+        const { fromUid, fromName, fromAvatar, toUid, toName, toAvatar } = req.body;
+        if (!fromUid || !toUid) {
+            return res.status(400).json({ error: 'Missing fromUid or toUid' });
+        }
+
+        const reqPayload = {
+            type: "friend_request",
+            fromUid,
+            fromName: fromName || 'Champion',
+            fromAvatar: fromAvatar || '',
+            toUid,
+            toName: toName || 'Champion',
+            toAvatar: toAvatar || '',
+            status: 'pending',
+            createdAt: new Date().toISOString()
+        };
+
+        const docRef = await db.collection('friend_requests').add(reqPayload);
+        res.json({ success: true, id: docRef.id });
+    } catch (err) {
+        console.error('Server error sending friend request:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+apiRouter.post('/friends/respond', async (req, res) => {
+    try {
+        const { reqId, status } = req.body;
+        if (!reqId || !status) {
+            return res.status(400).json({ error: 'Missing reqId or status' });
+        }
+
+        await db.collection('friend_requests').doc(reqId).update({
+            status,
+            updatedAt: new Date().toISOString()
+        });
+
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Server error responding to friend request:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+apiRouter.post('/friends/remove', async (req, res) => {
+    try {
+        const { reqId } = req.body;
+        if (!reqId) {
+            return res.status(400).json({ error: 'Missing reqId' });
+        }
+
+        await db.collection('friend_requests').doc(reqId).delete();
+        res.json({ success: true });
+    } catch (err) {
+        console.error('Server error removing friend:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+apiRouter.post('/chat/send', async (req, res) => {
+    try {
+        const msgPayload = req.body;
+        const docRef = await db.collection('global_chat_messages').add(msgPayload);
+        res.json({ success: true, id: docRef.id });
+    } catch (err) {
+        console.error('Server error sending chat message:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
 
 
 // ---------------- PAYREX PAYMENT ROUTES ----------------
@@ -400,13 +523,63 @@ apiRouter.get('/payrex/verify-session/:sessionId', async (req, res) => {
 // Attach the API router to the /api path
 app.use('/api', apiRouter);
 
+// Netlify functions compatibility adapter for local Express server
+app.all('/.netlify/functions/:fnName', async (req, res) => {
+    const fnName = req.params.fnName;
+    const fnPath = path.join(__dirname, 'netlify', 'functions', `${fnName}.js`);
+    
+    const fs = require('fs');
+    if (!fs.existsSync(fnPath)) {
+        return res.status(404).json({ error: `Function ${fnName} not found` });
+    }
+
+    try {
+        delete require.cache[require.resolve(fnPath)];
+        const fnModule = require(fnPath);
+        const handler = fnModule.handler || fnModule;
+
+        const event = {
+            httpMethod: req.method,
+            path: req.path,
+            headers: req.headers,
+            queryStringParameters: req.query,
+            body: typeof req.body === 'object' ? JSON.stringify(req.body) : req.body
+        };
+
+        const result = await handler(event, {});
+        if (!result) {
+            return res.status(200).end();
+        }
+
+        if (result.headers) {
+            for (const [key, val] of Object.entries(result.headers)) {
+                res.set(key, val);
+            }
+        }
+        res.status(result.statusCode || 200);
+        if (result.body) {
+            try {
+                const parsed = JSON.parse(result.body);
+                res.json(parsed);
+            } catch {
+                res.send(result.body);
+            }
+        } else {
+            res.end();
+        }
+    } catch (err) {
+        console.error(`Error running function ${fnName}:`, err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 
 // =======================================================
 // F R O N T E N D   F I L E   S E R V I N G (STRICT)
 // =======================================================
 
 const htmlFiles = [
-    'home.html', 'tournaments.html', 'events.html', 'teams.html', 'rising.html', 
+    'index.html', 'home.html', 'tournaments.html', 'events.html', 'teams.html', 'rising.html', 
     'partners.html', 'about.html', 'support.html', 'contact.html', 'terms.html', 'refund-policy.html',
     'careers.html', 'login.html', 'signup.html', 'profile.html', 'edit-profile.html',
     'admin.html', 'livestream.html', 'forgot-password.html', 
@@ -424,9 +597,12 @@ htmlFiles.forEach(file => {
     });
 });
 
-// Serve the root path as home.html
+// Serve root path as home.html
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'home.html')); 
+});
+app.get('/home', (req, res) => {
+  res.sendFile(path.join(__dirname, 'home.html'));
 });
 
 // 404 handler - must be last

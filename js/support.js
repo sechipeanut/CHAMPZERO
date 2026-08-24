@@ -166,7 +166,7 @@ function initCheckoutForm() {
                 tier: currentSelectedTier,
                 badge: supporterBadge,
                 amount: currentAmount,
-                message: message || "Fueling the future of Southeast Asian esports!",
+                message: message || "Fueling the future of global grassroots esports!",
                 channel: channel,
                 timestamp: Date.now(),
                 createdAt: serverTimestamp()

@@ -1,4 +1,4 @@
-import { db, storage } from './firebase-config.js';
+import { auth, db, storage } from './firebase-config.js';
 import { collection, getDocs, doc, getDoc, updateDoc, addDoc, deleteDoc, arrayUnion, arrayRemove, serverTimestamp, query, where, writeBatch, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-storage.js";
@@ -62,6 +62,31 @@ window.showCustomConfirm = (title, message) => {
     });
 };
 
+// --- TOURNAMENT STAFF & PERMISSIONS HELPER ---
+export function isTournamentStaff(t, user) {
+    if (!t || !user) return false;
+    const cachedRole = String(sessionStorage.getItem('cz_user_role') || window.currentUserRole || '').toLowerCase();
+    if (cachedRole === 'admin' || user.email === 'admin@champzero.com') return true;
+    if (t.createdBy === user.uid) return true;
+    
+    // Check co-organizers & marshals list
+    if (Array.isArray(t.coOrganizers)) {
+        if (t.coOrganizers.some(c => (c.uid && c.uid === user.uid) || (c.email && c.email.toLowerCase() === user.email?.toLowerCase()) || (c.name && c.name.toLowerCase() === user.displayName?.toLowerCase()))) {
+            return true;
+        }
+    }
+    if (Array.isArray(t.coOrganizerUids) && t.coOrganizerUids.includes(user.uid)) {
+        return true;
+    }
+    if (Array.isArray(t.marshals)) {
+        if (t.marshals.some(m => (m.uid && m.uid === user.uid) || (m.email && m.email.toLowerCase() === user.email?.toLowerCase()) || (m.name && m.name.toLowerCase() === user.displayName?.toLowerCase()))) {
+            return true;
+        }
+    }
+    return false;
+}
+window.isTournamentStaff = isTournamentStaff;
+
 // --- TREE STYLES INJECTION ---
 function injectTreeStyles() {
     if (document.getElementById('tree-bracket-styles')) return;
@@ -107,17 +132,20 @@ function injectTreeStyles() {
         .header-item {
             width: var(--tree-card-width);
             display: flex;
+            flex-direction: row;
             justify-content: center;
             align-items: center;
+            gap: 6px;
             font-weight: 800;
             color: var(--gold);
             text-transform: uppercase;
-            letter-spacing: 0.08em;
-            font-size: 0.8rem;
+            letter-spacing: 0.06em;
+            font-size: 0.75rem;
             margin-right: calc(var(--tree-gap-parent) + var(--tree-gap-child));
             flex-shrink: 0;
             position: relative;
             font-family: 'Space Mono', monospace;
+            white-space: nowrap;
         }
         .header-item.gf-header {
             margin-left: var(--gf-header-offset) !important;
@@ -237,32 +265,58 @@ function injectTreeStyles() {
 }
 
 // --- INITIALIZATION ---
-injectTreeStyles();
-fetchTournaments();
+function initTournaments() {
+    injectTreeStyles();
+    fetchTournaments();
 
-const auth = getAuth();
+    if (qs('#searchName')) qs('#searchName').addEventListener('input', renderTournaments);
+    if (qs('#filterGame')) qs('#filterGame').addEventListener('change', renderTournaments);
+    if (qs('#filterStatus')) qs('#filterStatus').addEventListener('change', renderTournaments);
+    if (qs('#sortBy')) qs('#sortBy').addEventListener('change', renderTournaments);
+
+    const createForm = qs('#createForm');
+    if (createForm) { 
+        createForm.addEventListener('submit', async (e) => { 
+            e.preventDefault(); 
+            await handleCreateTournament(); 
+        }); 
+    }
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTournaments);
+} else {
+    initTournaments();
+}
+
 onAuthStateChanged(auth, async (user) => {
     if (user) { 
+        if (user.email === 'admin@champzero.com') {
+            window.currentUserRole = 'admin';
+            try { sessionStorage.setItem('cz_user_role', 'admin'); } catch (e) {}
+        }
         await checkCreatorPermissions(user); 
-        await fetchUserTeamIds(user); 
+        fetchUserTeamIds(user); 
+        renderTournaments();
+        if (window.currentEditingTournament) {
+            renderTournamentView(window.currentEditingTournament);
+            if (typeof window.updateOrganizerPermissions === 'function') {
+                window.updateOrganizerPermissions(window.currentEditingTournament);
+            }
+        }
     } else { 
         currentUserTeamIds.clear(); 
         window.currentUserRole = 'guest';
+        try { sessionStorage.removeItem('cz_user_role'); } catch (e) {}
+        renderTournaments();
+        if (window.currentEditingTournament) {
+            renderTournamentView(window.currentEditingTournament);
+            if (typeof window.updateOrganizerPermissions === 'function') {
+                window.updateOrganizerPermissions(window.currentEditingTournament);
+            }
+        }
     }
 });
-
-if (qs('#searchName')) qs('#searchName').addEventListener('input', renderTournaments);
-if (qs('#filterGame')) qs('#filterGame').addEventListener('change', renderTournaments);
-if (qs('#filterStatus')) qs('#filterStatus').addEventListener('change', renderTournaments);
-if (qs('#sortBy')) qs('#sortBy').addEventListener('change', renderTournaments);
-
-const createForm = qs('#createForm');
-if (createForm) { 
-    createForm.addEventListener('submit', async (e) => { 
-        e.preventDefault(); 
-        await handleCreateTournament(); 
-    }); 
-}
 
 async function fetchUserTeamIds(user) {
     if (!user) return;
@@ -276,34 +330,257 @@ async function fetchUserTeamIds(user) {
             const isMember = data.members && Array.isArray(data.members) && data.members.some(m => m.uid === user.uid);
             if (isAuthor || isMember) currentUserTeamIds.add(doc.id);
         });
+        if (window.currentEditingTournament && window.currentEditingTournament.participants) {
+            renderParticipantsList(window.currentEditingTournament.participants);
+        }
     } catch (e) { console.error(e); }
 }
 
 async function checkCreatorPermissions(user) {
+    if (!user) return;
     try {
+        if (user.email === 'admin@champzero.com') {
+            window.currentUserRole = 'admin';
+            try { sessionStorage.setItem('cz_user_role', 'admin'); } catch (e) {}
+        }
         const userRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
-            window.currentUserRole = userSnap.data().role || 'user';
+            const role = userSnap.data().role || 'user';
+            window.currentUserRole = role;
+            try { sessionStorage.setItem('cz_user_role', role); } catch (e) {}
         }
         const controls = qs('#creator-controls');
         if (controls) controls.classList.remove('hidden');
+        if (window.currentEditingTournament && typeof window.updateOrganizerPermissions === 'function') {
+            window.updateOrganizerPermissions(window.currentEditingTournament);
+        }
     } catch (error) { console.error(error); }
 }
+
+function getGrandFinalMatch(matches) {
+    if (!matches || !Array.isArray(matches) || !matches.length) return null;
+    let gf = matches.find(m => m.id === 'GF-1');
+    if (gf) return gf;
+    const nonBronze = matches.filter(m => !m.isBronzeMatch && m.id !== 'M-3RD' && m.id !== 'BM-1' && m.id !== '3RD-1');
+    if (!nonBronze.length) return null;
+    gf = nonBronze.find(m => !m.nextMatchId || !matches.some(other => other.id === m.nextMatchId));
+    if (gf) return gf;
+    return nonBronze.reduce((prev, curr) => (curr.round > prev.round) ? curr : prev, nonBronze[0]);
+}
+window.getGrandFinalMatch = getGrandFinalMatch;
+
+function isTournamentCompleteCheck(t) {
+    if (!t) return false;
+    if (t.status === 'Completed' || t.isCompleted === true) return true;
+    if (!t.isStarted || !t.matches || !Array.isArray(t.matches) || !t.matches.length) return false;
+
+    if (t.format === 'Round Robin') {
+        return t.matches.every(m => m.winner !== null && m.winner !== undefined && m.winner !== '');
+    }
+
+    const gfMatch = getGrandFinalMatch(t.matches);
+    if (!gfMatch || !gfMatch.winner) return false;
+
+    const bronzeMatch = t.matches.find(m => m.id === 'M-3RD' || m.id === 'BM-1' || m.id === '3RD-1' || m.isBronzeMatch);
+    if (bronzeMatch && bronzeMatch.team1 && bronzeMatch.team2 && bronzeMatch.team1 !== 'TBD' && bronzeMatch.team2 !== 'TBD' && bronzeMatch.team1 !== 'BYE' && bronzeMatch.team2 !== 'BYE') {
+        if (!bronzeMatch.winner) return false;
+    }
+
+    return true;
+}
+window.isTournamentCompleteCheck = isTournamentCompleteCheck;
 
 function getTournamentStatus(t) {
     if (!t) return 'Unknown';
     if (t.archived === true || t.isArchived === true || t.status === 'Archived') return 'Archived';
     if (t.status === 'Cancelled' || t.isCancelled) return 'Cancelled';
-    if (t.isStarted && t.status !== 'Completed') return 'Ongoing';
-    if (t.status === 'Completed') return 'Completed';
+    if (t.status === 'Completed' || isTournamentCompleteCheck(t)) return 'Completed';
+    if (t.isStarted) return 'Ongoing';
     const calc = calculateStatus(t.date, t.endDate);
     return (calc === 'Ongoing') ? 'Ready to Start' : calc;
 }
 
+// --- TOURNAMENT CREATION 4-STEP WIZARD CONTROLLER ---
+let currentCreateStep = 1;
+const TOTAL_CREATE_STEPS = 4;
+
+function syncCreateWizardSummary() {
+    const gameSelect = qs('#c-game-select')?.value;
+    const gameOther = qs('#c-game-other')?.value?.trim();
+    const game = (gameSelect === 'Others' && gameOther) ? gameOther : (gameSelect || 'Valorant');
+    
+    const format = qs('#c-format')?.value || 'Single Elimination';
+    const teams = qs('#c-max-teams')?.value || '8';
+    const prize = qs('#c-prize')?.value || '0';
+    const pType = qs('#c-payment-type')?.value || 'free';
+    const fee = qs('#c-entry-fee')?.value || '0';
+    const curr = qs('#c-entry-currency')?.value || 'PHP';
+
+    const gameEl = qs('#createSummaryGame');
+    const formatEl = qs('#createSummaryFormat');
+    const prizeEl = qs('#createSummaryPrize');
+    const feeEl = qs('#createSummaryFee');
+
+    if (gameEl) gameEl.textContent = game;
+    if (formatEl) formatEl.textContent = `${format} (${teams} Teams)`;
+    if (prizeEl) prizeEl.textContent = `₱${parseFloat(prize || 0).toLocaleString()}`;
+    if (feeEl) feeEl.textContent = pType === 'free' ? 'Free Entry' : `${curr} ${parseFloat(fee || 0).toLocaleString()}`;
+}
+window.syncCreateWizardSummary = syncCreateWizardSummary;
+
+function validateCurrentCreateStep(step) {
+    if (step === 1) {
+        const name = qs('#c-name')?.value?.trim();
+        if (!name) {
+            if (window.showToast) window.showToast("Required Field", "Please enter a Tournament Name.", "error");
+            qs('#c-name')?.focus();
+            return false;
+        }
+        const gameSelect = qs('#c-game-select')?.value;
+        const gameOther = qs('#c-game-other')?.value?.trim();
+        if (gameSelect === 'Others' && !gameOther) {
+            if (window.showToast) window.showToast("Required Field", "Please specify the custom game title.", "error");
+            qs('#c-game-other')?.focus();
+            return false;
+        }
+    } else if (step === 2) {
+        const maxTeams = parseInt(qs('#c-max-teams')?.value);
+        if (isNaN(maxTeams) || maxTeams < 2) {
+            if (window.showToast) window.showToast("Validation Error", "Max teams must be at least 2.", "error");
+            qs('#c-max-teams')?.focus();
+            return false;
+        }
+        const date = qs('#c-date')?.value;
+        if (!date) {
+            if (window.showToast) window.showToast("Required Field", "Please select a Start Date.", "error");
+            qs('#c-date')?.focus();
+            return false;
+        }
+    } else if (step === 3) {
+        const prize = qs('#c-prize')?.value;
+        if (prize === '' || isNaN(parseFloat(prize)) || parseFloat(prize) < 0) {
+            if (window.showToast) window.showToast("Required Field", "Please set the Total Prize Pool (enter 0 if no cash prize).", "error");
+            qs('#c-prize')?.focus();
+            return false;
+        }
+        const pType = qs('#c-payment-type')?.value;
+        if (pType !== 'free') {
+            const fee = parseFloat(qs('#c-entry-fee')?.value);
+            if (isNaN(fee) || fee <= 0) {
+                if (window.showToast) window.showToast("Required Field", "Please specify an Entry Fee amount for paid tournaments.", "error");
+                qs('#c-entry-fee')?.focus();
+                return false;
+            }
+        }
+    }
+    return true;
+}
+window.validateCurrentCreateStep = validateCurrentCreateStep;
+
+function goToCreateStep(step) {
+    if (step < 1) step = 1;
+    if (step > TOTAL_CREATE_STEPS) step = TOTAL_CREATE_STEPS;
+
+    // Validate if trying to move forward
+    if (step > currentCreateStep) {
+        for (let s = currentCreateStep; s < step; s++) {
+            if (!validateCurrentCreateStep(s)) return;
+        }
+    }
+
+    currentCreateStep = step;
+
+    // Update Step Panes
+    for (let i = 1; i <= TOTAL_CREATE_STEPS; i++) {
+        const pane = qs(`#createStepPane-${i}`);
+        if (pane) {
+            pane.classList.toggle('hidden', i !== currentCreateStep);
+        }
+    }
+
+    // Update Step Nodes
+    document.querySelectorAll('.create-step-node').forEach(node => {
+        const nodeStep = parseInt(node.dataset.step);
+        const circle = node.querySelector('.step-circle');
+        const label = node.querySelector('.step-label');
+
+        if (nodeStep === currentCreateStep) {
+            // Active Step
+            if (circle) {
+                circle.className = "step-circle w-8 h-8 rounded-full flex items-center justify-center font-heading font-extrabold text-xs transition-all bg-[#FFD700] text-black shadow-[0_0_15px_rgba(255,215,0,0.35)] ring-4 ring-[#FFD700]/20";
+                circle.textContent = nodeStep;
+            }
+            if (label) label.className = "step-label text-[10px] font-mono-tag font-bold text-[#FFD700] uppercase tracking-wider";
+        } else if (nodeStep < currentCreateStep) {
+            // Completed Step
+            if (circle) {
+                circle.className = "step-circle w-8 h-8 rounded-full flex items-center justify-center font-heading font-bold text-xs transition-all bg-[#1c1a0e] text-[#FFD700] border border-[#FFD700]/40";
+                circle.innerHTML = `<svg class="w-4 h-4 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>`;
+            }
+            if (label) label.className = "step-label text-[10px] font-mono-tag font-bold text-neutral-300 uppercase tracking-wider";
+        } else {
+            // Upcoming Step
+            if (circle) {
+                circle.className = "step-circle w-8 h-8 rounded-full flex items-center justify-center font-heading font-bold text-xs transition-all bg-[#14141A] text-neutral-400 border border-white/15";
+                circle.textContent = nodeStep;
+            }
+            if (label) label.className = "step-label text-[10px] font-mono-tag font-bold text-neutral-400 uppercase tracking-wider";
+        }
+    });
+
+    // Update Progress Bar
+    const progressBar = qs('#createWizardProgressBar');
+    if (progressBar) {
+        const percent = ((currentCreateStep - 1) / (TOTAL_CREATE_STEPS - 1)) * 100;
+        progressBar.style.width = `${percent}%`;
+    }
+
+    // Update Navigation Buttons
+    const prevBtn = qs('#createWizardPrevBtn');
+    const nextBtn = qs('#createWizardNextBtn');
+    const submitBtn = qs('#createWizardSubmitBtn');
+
+    if (prevBtn) prevBtn.classList.toggle('hidden', currentCreateStep === 1);
+    
+    if (nextBtn) {
+        nextBtn.classList.toggle('hidden', currentCreateStep === TOTAL_CREATE_STEPS);
+        const nextLabels = ["", "Next: Format →", "Next: Prize & Fee →", "Next: Rules & Launch →"];
+        nextBtn.innerHTML = nextLabels[currentCreateStep] || "Next →";
+    }
+
+    if (submitBtn) {
+        submitBtn.classList.toggle('hidden', currentCreateStep !== TOTAL_CREATE_STEPS);
+        const form = qs('#createForm');
+        const isEditing = form && form.dataset && form.dataset.editId;
+        submitBtn.innerHTML = isEditing ? "Update Tournament" : "Launch Tournament";
+    }
+
+    if (currentCreateStep === 4) {
+        syncCreateWizardSummary();
+    }
+}
+window.goToCreateStep = goToCreateStep;
+
+function nextCreateStep() {
+    if (validateCurrentCreateStep(currentCreateStep)) {
+        goToCreateStep(currentCreateStep + 1);
+    }
+}
+window.nextCreateStep = nextCreateStep;
+
+function prevCreateStep() {
+    goToCreateStep(currentCreateStep - 1);
+}
+window.prevCreateStep = prevCreateStep;
+
 // --- CREATE & EDIT TOURNAMENT (IN-PAGE ORGANIZER ACCESS) ---
+let isSubmittingTournament = false;
 async function handleCreateTournament() {
-    const submitBtn = qs('#createForm button[type="submit"]');
+    if (isSubmittingTournament) return;
+    isSubmittingTournament = true;
+
+    const submitBtn = qs('#createWizardSubmitBtn') || qs('#createForm button[type="submit"]');
     const form = qs('#createForm');
     const editId = form?.dataset?.editId;
 
@@ -349,7 +626,18 @@ async function handleCreateTournament() {
         const startDate = qs('#c-date').value;
         const endDate = qs('#c-end-date').value;
         const desc = qs('#c-desc').value || "";
-        const banner = qs('#c-banner').value || "";
+        const rules = qs('#c-rules')?.value?.trim() || "";
+        
+        let bannerURL = qs('#c-banner')?.value || "";
+        if (window._tournamentBannerFile) {
+            const tourneyFolder = (name || 'tournament').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+            const fileRef = storageRef(storage, `tournament-banners/${tourneyFolder}/${Date.now()}_${window._tournamentBannerFile.name}`);
+            const snapshot = await uploadBytes(fileRef, window._tournamentBannerFile);
+            bannerURL = await getDownloadURL(snapshot.ref);
+            window._tournamentBannerFile = null;
+        } else if (!bannerURL) {
+            bannerURL = "pictures/cz_logo.png";
+        }
 
         let proofURL = "";
         const paymentType = qs('#c-payment-type')?.value || 'free';
@@ -388,7 +676,8 @@ async function handleCreateTournament() {
             date: startDate,
             endDate: endDate,
             description: desc,
-            banner: banner,
+            rules: rules,
+            banner: bannerURL,
             bannerPosition: bannerPosition,
             bannerFit: bannerFit,
             entryType: entryType,
@@ -429,6 +718,7 @@ async function handleCreateTournament() {
 
         window._proofFile = null;
         window._proofPreviewURL = null;
+        window._tournamentBannerFile = null;
 
         if (window.closeModal) window.closeModal('createModal');
 
@@ -437,17 +727,29 @@ async function handleCreateTournament() {
         delete form.dataset.editId;
         qs('#c-game-select').value = "Valorant";
         qs('#c-game-other').classList.add('hidden');
+        if (qs('#c-rules')) qs('#c-rules').value = '';
+        if (qs('#c-banner')) qs('#c-banner').value = '';
+        if (qs('#c-banner-file')) qs('#c-banner-file').value = '';
+        if (qs('#c-banner-filename')) qs('#c-banner-filename').textContent = 'Click or drag banner image here';
+        if (qs('#c-banner-preview-img')) qs('#c-banner-preview-img').src = 'pictures/cz_logo.png';
+        const bannerDropzone = qs('#c-banner-dropzone');
+        if (bannerDropzone) {
+            bannerDropzone.classList.remove('border-emerald-500/50', 'bg-emerald-500/5');
+            bannerDropzone.classList.add('border-white/15');
+        }
         if (qs('#c-registration-type')) qs('#c-registration-type').value = "team";
         if (qs('#c-team-size')) qs('#c-team-size').value = "5";
         if (qs('#c-status-wrap')) qs('#c-status-wrap').classList.add('hidden');
         if (qs('#c-payment-type')) qs('#c-payment-type').value = "free";
         if (window.toggleEntryType) window.toggleEntryType();
         if (window.setPrizeTierPreset) window.setPrizeTierPreset('winner_takes_all');
+        if (window.goToCreateStep) window.goToCreateStep(1);
 
     } catch (error) {
         console.error("Error saving tournament:", error);
         alert("Failed to save tournament: " + error.message);
     } finally {
+        isSubmittingTournament = false;
         if (submitBtn) {
             submitBtn.disabled = false;
             submitBtn.textContent = editId ? "Update Tournament" : "Launch Tournament";
@@ -539,6 +841,7 @@ function openEditTournamentModal(t) {
     if (paymentType !== 'free') {
         if (qs('#c-entry-fee')) qs('#c-entry-fee').value = t.entryFee || '';
         if (qs('#c-entry-currency')) qs('#c-entry-currency').value = t.entryCurrency || 'PHP';
+        if (window.updatePlatformFeePreview) window.updatePlatformFeePreview();
         if (paymentType === 'manual' && t.paymentProofURL) {
             window._proofPreviewURL = t.paymentProofURL;
             const proofFilename = document.getElementById('proof-filename');
@@ -551,7 +854,26 @@ function openEditTournamentModal(t) {
     if (qs('#c-date')) qs('#c-date').value = t.date ? (t.date.toDate ? t.date.toDate().toISOString().split('T')[0] : t.date) : '';
     if (qs('#c-end-date')) qs('#c-end-date').value = t.endDate ? (t.endDate.toDate ? t.endDate.toDate().toISOString().split('T')[0] : t.endDate) : '';
     if (qs('#c-desc')) qs('#c-desc').value = t.description || '';
+    if (qs('#c-rules')) qs('#c-rules').value = t.rules || '';
     if (qs('#c-banner')) qs('#c-banner').value = t.banner || '';
+
+    window._tournamentBannerFile = null;
+    const bannerFilenameEl = qs('#c-banner-filename');
+    const bannerDropzoneEl = qs('#c-banner-dropzone');
+    const bannerFileInput = qs('#c-banner-file');
+    if (bannerFileInput) bannerFileInput.value = '';
+
+    if (t.banner) {
+        if (qs('#c-banner-preview-img')) qs('#c-banner-preview-img').src = t.banner;
+        if (bannerFilenameEl) bannerFilenameEl.textContent = 'Existing Banner (Click or drag to replace)';
+        if (bannerDropzoneEl) {
+            bannerDropzoneEl.classList.remove('border-emerald-500/50', 'bg-emerald-500/5');
+            bannerDropzoneEl.classList.add('border-white/15');
+        }
+    } else {
+        if (qs('#c-banner-preview-img')) qs('#c-banner-preview-img').src = 'pictures/cz_logo.png';
+        if (bannerFilenameEl) bannerFilenameEl.textContent = 'Click or drag banner image here';
+    }
 
     if (qs('#c-banner-pos-y')) {
         let posY = 50;
@@ -564,21 +886,104 @@ function openEditTournamentModal(t) {
     }
     if (qs('#c-banner-fit')) qs('#c-banner-fit').value = t.bannerFit || 'cover';
     if (window.updateCreateModalBannerPreview) window.updateCreateModalBannerPreview();
+    if (window.goToCreateStep) window.goToCreateStep(1);
 
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 };
 
+function parseFirestoreValue(val) {
+    if (!val) return null;
+    if (val.stringValue !== undefined) return val.stringValue;
+    if (val.integerValue !== undefined) return parseInt(val.integerValue, 10);
+    if (val.doubleValue !== undefined) return parseFloat(val.doubleValue);
+    if (val.booleanValue !== undefined) return val.booleanValue;
+    if (val.timestampValue !== undefined) return val.timestampValue;
+    if (val.nullValue !== undefined) return null;
+    if (val.arrayValue !== undefined) {
+        return (val.arrayValue.values || []).map(v => parseFirestoreValue(v));
+    }
+    if (val.mapValue !== undefined) {
+        const out = {};
+        const fields = val.mapValue.fields || {};
+        for (const k in fields) {
+            out[k] = parseFirestoreValue(fields[k]);
+        }
+        return out;
+    }
+    return val;
+}
+
+function parseFirestoreDoc(doc) {
+    const id = doc.name ? doc.name.split('/').pop() : (doc.id || '');
+    const data = { id };
+    const fields = doc.fields || {};
+    for (const key in fields) {
+        data[key] = parseFirestoreValue(fields[key]);
+    }
+    return data;
+}
+
 async function fetchTournaments() {
     const grid = qs('#tournamentGrid');
     if (!grid) return;
-    grid.innerHTML = '<div class="col-span-full text-center text-neutral-500 py-12 font-mono-tag text-xs">Loading tournaments...</div>';
-    try {
+    grid.innerHTML = '<div class="col-span-full text-center text-neutral-500 py-16 font-mono-tag text-xs">Loading tournaments...</div>';
+
+    let loaded = false;
+
+    // 1. Fast Local Backend API
+    const fetchLocalApi = async () => {
+        const res = await fetch('/api/tournaments');
+        const cType = res.headers.get('content-type') || '';
+        if (!res.ok || !cType.includes('application/json')) {
+            throw new Error('API HTTP ' + res.status + ' (non-JSON content)');
+        }
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+        throw new Error('No items from API');
+    };
+
+    // 2. Direct Firestore REST endpoint
+    const fetchRest = async () => {
+        const res = await fetch('https://firestore.googleapis.com/v1/projects/champzero-92951/databases/(default)/documents/tournaments');
+        if (!res.ok) throw new Error('REST HTTP ' + res.status);
+        const data = await res.json();
+        const items = (data.documents || []).map(parseFirestoreDoc);
+        if (items.length > 0) return items;
+        throw new Error('No documents from REST');
+    };
+
+    // 3. Firestore Client SDK
+    const fetchSDK = async () => {
         const querySnapshot = await getDocs(collection(db, "tournaments"));
-        allTournaments = [];
+        const items = [];
         querySnapshot.forEach((doc) => { 
-            allTournaments.push({ id: doc.id, ...doc.data() }); 
+            items.push({ id: doc.id, ...doc.data() }); 
         });
+        if (items.length > 0) return items;
+        return items;
+    };
+
+    try {
+        allTournaments = await Promise.any([fetchLocalApi(), fetchRest(), fetchSDK()]);
+        loaded = true;
+    } catch (allErrors) {
+        console.warn("Parallel fetch attempts failed, trying individual fallbacks:", allErrors);
+        try {
+            allTournaments = await fetchRest();
+            loaded = true;
+        } catch (restErr) {
+            try {
+                allTournaments = await fetchSDK();
+                loaded = true;
+            } catch (sdkErr) {
+                console.error("All tournament fetch attempts failed:", { restErr, sdkErr, allErrors });
+            }
+        }
+    }
+
+    if (loaded && Array.isArray(allTournaments)) {
+        console.log(`[Tournaments] Successfully loaded ${allTournaments.length} tournament(s):`, allTournaments);
         renderTournaments();
 
         const params = new URLSearchParams(window.location.search);
@@ -587,9 +992,8 @@ async function fetchTournaments() {
             const found = allTournaments.find(t => t.id === tourneyId);
             if (found) openModal(found);
         }
-    } catch (error) { 
-        console.error("fetchTournaments error:", error); 
-        grid.innerHTML = '<div class="col-span-full text-center text-red-500 py-12 font-mono-tag text-xs">Failed to load tournaments.</div>'; 
+    } else {
+        grid.innerHTML = '<div class="col-span-full text-center text-red-500 py-16 font-mono-tag text-xs">Failed to load tournaments from database.</div>';
     }
 }
 
@@ -602,6 +1006,39 @@ function getTournamentTime(dateVal) {
     return isNaN(parsed) ? 0 : parsed;
 }
 
+// --- TOURNAMENT SCOPE NAVIGATION (ALL, HOSTED BY ME, JOINED) ---
+let currentTournamentScope = 'all'; // 'all' | 'hosted' | 'joined'
+window.currentTournamentScope = currentTournamentScope;
+
+function setTournamentScope(scope) {
+    currentTournamentScope = scope;
+    window.currentTournamentScope = scope;
+
+    const tabs = [
+        { id: 'tabAllTournaments', scope: 'all' },
+        { id: 'tabMyTournaments', scope: 'hosted' },
+        { id: 'tabJoinedTournaments', scope: 'joined' }
+    ];
+
+    tabs.forEach(tab => {
+        const btn = document.getElementById(tab.id);
+        if (!btn) return;
+        const isActive = (tab.scope === currentTournamentScope);
+        if (isActive) {
+            btn.className = "px-3.5 py-1.5 rounded-lg bg-[#FFD700] text-black font-extrabold shadow-sm transition-all cursor-pointer flex items-center gap-1.5";
+            const badge = btn.querySelector('span:last-child');
+            if (badge) badge.className = "text-[10px] bg-black/20 text-black px-1.5 py-0.2 rounded-full font-mono-tag font-bold";
+        } else {
+            btn.className = "px-3.5 py-1.5 rounded-lg text-neutral-400 hover:text-white font-bold transition-all cursor-pointer flex items-center gap-1.5";
+            const badge = btn.querySelector('span:last-child');
+            if (badge) badge.className = "text-[10px] bg-white/10 text-neutral-300 px-1.5 py-0.2 rounded-full font-mono-tag font-bold";
+        }
+    });
+
+    renderTournaments();
+}
+window.setTournamentScope = setTournamentScope;
+
 function renderTournaments() {
     const grid = qs('#tournamentGrid');
     if (!grid) return;
@@ -610,6 +1047,53 @@ function renderTournaments() {
     const filterStatus = (qs('#filterStatus')?.value || '').toLowerCase();
     const sortBy = qs('#sortBy')?.value || 'dateDesc';
 
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    const currentRole = String(window.currentUserRole || '').toLowerCase();
+    const isAdmin = (currentRole === 'admin' || (currentUser && currentUser.email === 'admin@champzero.com'));
+
+    // Count statistics across all categories
+    let totalAll = 0;
+    let totalHosted = 0;
+    let totalJoined = 0;
+
+    allTournaments.forEach(t => {
+        if (!t) return;
+        const actualStatus = getTournamentStatus(t);
+        const statusLower = (actualStatus || '').toLowerCase();
+        const isArchived = (t.archived === true || t.isArchived === true || statusLower === 'archived');
+        
+        const isHost = currentUser && (
+            t.createdBy === currentUser.uid ||
+            (Array.isArray(t.coOrganizerUids) && t.coOrganizerUids.includes(currentUser.uid)) ||
+            (Array.isArray(t.marshals) && t.marshals.includes(currentUser.uid)) ||
+            isAdmin
+        );
+
+        const isParticipant = currentUser && (
+            (Array.isArray(t.participants) && t.participants.some(p => {
+                if (!p) return false;
+                if (p.captainId === currentUser.uid || p.userId === currentUser.uid || p.uid === currentUser.uid || p.id === currentUser.uid) return true;
+                if (p.captainEmail && p.captainEmail.toLowerCase() === currentUser.email?.toLowerCase()) return true;
+                if (p.teamId && currentUserTeamIds && currentUserTeamIds.has(p.teamId)) return true;
+                if (Array.isArray(p.members) && p.members.some(m => (m && (m.uid === currentUser.uid || m.id === currentUser.uid || (m.email && m.email.toLowerCase() === currentUser.email?.toLowerCase()))))) return true;
+                return false;
+            })) ||
+            (Array.isArray(t.soloQueue) && t.soloQueue.some(s => s && (s.userId === currentUser.uid || s.uid === currentUser.uid || (s.email && s.email.toLowerCase() === currentUser.email?.toLowerCase()))))
+        );
+
+        if (!isArchived || isHost) totalAll++;
+        if (isHost) totalHosted++;
+        if (isParticipant) totalJoined++;
+    });
+
+    const cntAll = qs('#countAllTournaments');
+    const cntHosted = qs('#countMyTournaments');
+    const cntJoined = qs('#countJoinedTournaments');
+    if (cntAll) cntAll.textContent = totalAll;
+    if (cntHosted) cntHosted.textContent = totalHosted;
+    if (cntJoined) cntJoined.textContent = totalJoined;
+
     let filtered = allTournaments.filter(t => {
         if (!t) return false;
         const matchesName = (t.name || '').toLowerCase().includes(searchName);
@@ -617,14 +1101,44 @@ function renderTournaments() {
         const actualStatus = getTournamentStatus(t);
         const statusLower = (actualStatus || '').toLowerCase();
         const isArchived = (t.archived === true || t.isArchived === true || statusLower === 'archived');
+        
+        const isHost = currentUser && (
+            t.createdBy === currentUser.uid ||
+            (Array.isArray(t.coOrganizerUids) && t.coOrganizerUids.includes(currentUser.uid)) ||
+            (Array.isArray(t.marshals) && t.marshals.includes(currentUser.uid)) ||
+            isAdmin
+        );
 
-        // If specifically filtering for Archived:
-        if (filterStatus === 'archived') {
-            return isArchived && matchesName && matchesGame;
+        const isParticipant = currentUser && (
+            (Array.isArray(t.participants) && t.participants.some(p => {
+                if (!p) return false;
+                if (p.captainId === currentUser.uid || p.userId === currentUser.uid || p.uid === currentUser.uid || p.id === currentUser.uid) return true;
+                if (p.captainEmail && p.captainEmail.toLowerCase() === currentUser.email?.toLowerCase()) return true;
+                if (p.teamId && currentUserTeamIds && currentUserTeamIds.has(p.teamId)) return true;
+                if (Array.isArray(p.members) && p.members.some(m => (m && (m.uid === currentUser.uid || m.id === currentUser.uid || (m.email && m.email.toLowerCase() === currentUser.email?.toLowerCase()))))) return true;
+                return false;
+            })) ||
+            (Array.isArray(t.soloQueue) && t.soloQueue.some(s => s && (s.userId === currentUser.uid || s.uid === currentUser.uid || (s.email && s.email.toLowerCase() === currentUser.email?.toLowerCase()))))
+        );
+
+        // Filter based on Scope tab
+        if (currentTournamentScope === 'hosted' && !isHost) return false;
+        if (currentTournamentScope === 'joined' && !isParticipant) return false;
+
+        // ARCHIVE PRIVACY ENFORCEMENT:
+        // Once archived, ONLY organizers who host it or admins can view it
+        if (isArchived) {
+            if (!isHost) return false;
+            if (filterStatus === 'archived' || currentTournamentScope === 'hosted') {
+                return matchesName && matchesGame;
+            }
+            return false;
         }
 
-        // For all other filter statuses (and default active view), exclude archived tournaments!
-        if (isArchived) return false;
+        // If user specifically filtered for "archived" but this tournament is active:
+        if (filterStatus === 'archived') {
+            return false;
+        }
 
         let matchesStatus = true;
         if (filterStatus) {
@@ -650,9 +1164,43 @@ function renderTournaments() {
 
     grid.innerHTML = '';
     if (filtered.length === 0) { 
-        grid.innerHTML = '<div class="col-span-full text-center text-neutral-500 py-12 font-mono-tag text-xs">No tournaments found.</div>'; 
+        if (currentTournamentScope === 'hosted') {
+            grid.innerHTML = `
+                <div class="col-span-full text-center text-neutral-400 py-16 font-mono-tag text-xs space-y-3 bg-[#0A0A0E] border border-white/10 rounded-2xl p-8">
+                    <div class="w-12 h-12 rounded-full bg-[#FFD700]/10 border border-[#FFD700]/30 mx-auto flex items-center justify-center text-[#FFD700]">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+                    </div>
+                    <div class="font-heading font-bold text-sm text-white uppercase tracking-wider">No Hosted Tournaments Found</div>
+                    <p class="text-neutral-400 text-xs max-w-sm mx-auto">You haven't created or co-organized any tournaments matching this filter yet.</p>
+                    <div class="pt-2">
+                        <button type="button" onclick="openCreateModal()" class="px-5 py-2.5 bg-[#FFD700] text-black font-heading font-extrabold uppercase text-xs rounded-xl hover:bg-[#FFF099] transition-all shadow-[0_0_20px_rgba(255,215,0,0.3)] cursor-pointer">
+                            + Host A Tournament Now
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else if (currentTournamentScope === 'joined') {
+            grid.innerHTML = `
+                <div class="col-span-full text-center text-neutral-400 py-16 font-mono-tag text-xs space-y-3 bg-[#0A0A0E] border border-white/10 rounded-2xl p-8">
+                    <div class="w-12 h-12 rounded-full bg-emerald-500/10 border border-emerald-500/30 mx-auto flex items-center justify-center text-emerald-400">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <div class="font-heading font-bold text-sm text-white uppercase tracking-wider">No Competing Tournaments Found</div>
+                    <p class="text-neutral-400 text-xs max-w-sm mx-auto">You haven't registered in any tournaments matching this filter yet.</p>
+                    <div class="pt-2">
+                        <button type="button" onclick="window.setTournamentScope('all')" class="px-5 py-2.5 bg-white/10 text-white font-mono-tag uppercase text-xs rounded-xl hover:bg-white/20 transition-all border border-white/10 cursor-pointer">
+                            Browse All Tournaments &rarr;
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            grid.innerHTML = '<div class="col-span-full text-center text-neutral-500 py-12 font-mono-tag text-xs">No tournaments found.</div>'; 
+        }
         return; 
     }
+
+    console.log(`[Tournaments] Rendering ${filtered.length} active card(s) to #tournamentGrid.`);
 
     filtered.forEach(t => {
         try {
@@ -668,6 +1216,36 @@ function renderTournaments() {
             const entryFee = Number(t.entryFee) || 0;
             const entryBadgeText = isPaid ? (entryFee > 0 ? `₱${entryFee.toLocaleString()} ENTRY` : 'PAID ENTRY') : 'FREE ENTRY';
             const entryColor = isPaid ? 'text-amber-400' : 'text-emerald-400';
+
+            const isHost = currentUser && (
+                t.createdBy === currentUser.uid ||
+                (Array.isArray(t.coOrganizerUids) && t.coOrganizerUids.includes(currentUser.uid)) ||
+                (Array.isArray(t.marshals) && t.marshals.includes(currentUser.uid)) ||
+                isAdmin
+            );
+
+            const isParticipant = currentUser && (
+                (Array.isArray(t.participants) && t.participants.some(p => {
+                    if (!p) return false;
+                    if (p.captainId === currentUser.uid || p.userId === currentUser.uid || p.uid === currentUser.uid || p.id === currentUser.uid) return true;
+                    if (p.captainEmail && p.captainEmail.toLowerCase() === currentUser.email?.toLowerCase()) return true;
+                    if (p.teamId && currentUserTeamIds && currentUserTeamIds.has(p.teamId)) return true;
+                    if (Array.isArray(p.members) && p.members.some(m => (m && (m.uid === currentUser.uid || m.id === currentUser.uid || (m.email && m.email.toLowerCase() === currentUser.email?.toLowerCase()))))) return true;
+                    return false;
+                })) ||
+                (Array.isArray(t.soloQueue) && t.soloQueue.some(s => s && (s.userId === currentUser.uid || s.uid === currentUser.uid || (s.email && s.email.toLowerCase() === currentUser.email?.toLowerCase()))))
+            );
+
+            let roleBadgeHtml = '';
+            if (currentUser && t.createdBy === currentUser.uid) {
+                roleBadgeHtml = `<span class="bg-[#FFD700]/25 border border-[#FFD700]/60 text-[#FFD700] font-mono-tag text-[9px] font-extrabold px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_10px_rgba(255,215,0,0.3)]"><span class="w-1.5 h-1.5 rounded-full bg-[#FFD700]"></span>YOUR TOURNAMENT</span>`;
+            } else if (currentUser && Array.isArray(t.coOrganizerUids) && t.coOrganizerUids.includes(currentUser.uid)) {
+                roleBadgeHtml = `<span class="bg-indigo-500/25 border border-indigo-400/60 text-indigo-300 font-mono-tag text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_10px_rgba(99,102,241,0.25)]"><span class="w-1.5 h-1.5 rounded-full bg-indigo-400"></span>CO-HOST</span>`;
+            } else if (currentUser && Array.isArray(t.marshals) && t.marshals.includes(currentUser.uid)) {
+                roleBadgeHtml = `<span class="bg-purple-500/25 border border-purple-400/60 text-purple-300 font-mono-tag text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-purple-400"></span>MARSHAL</span>`;
+            } else if (isParticipant) {
+                roleBadgeHtml = `<span class="bg-emerald-500/25 border border-emerald-400/60 text-emerald-300 font-mono-tag text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>REGISTERED</span>`;
+            }
 
             let statusBadgeHtml = '';
             if (actualStatus === 'Archived') {
@@ -685,8 +1263,11 @@ function renderTournaments() {
             const fillPercent = Math.min(100, Math.round((pCount / maxTeams) * 100));
 
             const card = document.createElement('article');
-            card.className = "gamer-tournament-card group relative flex flex-col justify-between h-[430px] w-full rounded-2xl bg-[#090A0F] border border-white/10 hover:border-[#FFD700]/70 transition-all duration-300 overflow-hidden cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:shadow-[0_0_30px_rgba(255,215,0,0.2)]";
+            card.className = `gamer-tournament-card group relative flex flex-col justify-between h-[430px] w-full rounded-2xl bg-[#090A0F] border ${isHost ? 'border-[#FFD700]/40 shadow-[0_0_20px_rgba(255,215,0,0.1)]' : 'border-white/10'} hover:border-[#FFD700]/70 transition-all duration-300 overflow-hidden cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:shadow-[0_0_30px_rgba(255,215,0,0.2)]`;
             
+            const actionBtnText = isHost ? "MANAGE TOURNAMENT" : "ENTER TOURNAMENT";
+            const actionBtnIcon = "&rarr;";
+
             card.innerHTML = `
                 <!-- Background Banner with Zoom & Cyber Vignette -->
                 <div class="absolute inset-0 bg-cover bg-center transition-transform duration-700 group-hover:scale-110 group-hover:filter group-hover:brightness-110" 
@@ -700,13 +1281,13 @@ function renderTournaments() {
                 <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-white/[0.03] via-transparent to-black/60"></div>
                 
                 <!-- Sci-Fi Corner Brackets -->
-                <div class="pointer-events-none absolute top-2.5 left-2.5 w-3 h-3 border-t-2 border-l-2 border-white/20 group-hover:border-[#FFD700] transition-colors duration-300 z-20"></div>
-                <div class="pointer-events-none absolute top-2.5 right-2.5 w-3 h-3 border-t-2 border-r-2 border-white/20 group-hover:border-[#FFD700] transition-colors duration-300 z-20"></div>
-                <div class="pointer-events-none absolute bottom-2.5 left-2.5 w-3 h-3 border-b-2 border-l-2 border-white/20 group-hover:border-[#FFD700] transition-colors duration-300 z-20"></div>
-                <div class="pointer-events-none absolute bottom-2.5 right-2.5 w-3 h-3 border-b-2 border-r-2 border-white/20 group-hover:border-[#FFD700] transition-colors duration-300 z-20"></div>
+                <div class="pointer-events-none absolute top-2.5 left-2.5 w-3 h-3 border-t-2 border-l-2 ${isHost ? 'border-[#FFD700]' : 'border-white/20'} group-hover:border-[#FFD700] transition-colors duration-300 z-20"></div>
+                <div class="pointer-events-none absolute top-2.5 right-2.5 w-3 h-3 border-t-2 border-r-2 ${isHost ? 'border-[#FFD700]' : 'border-white/20'} group-hover:border-[#FFD700] transition-colors duration-300 z-20"></div>
+                <div class="pointer-events-none absolute bottom-2.5 left-2.5 w-3 h-3 border-b-2 border-l-2 ${isHost ? 'border-[#FFD700]' : 'border-white/20'} group-hover:border-[#FFD700] transition-colors duration-300 z-20"></div>
+                <div class="pointer-events-none absolute bottom-2.5 right-2.5 w-3 h-3 border-b-2 border-r-2 ${isHost ? 'border-[#FFD700]' : 'border-white/20'} group-hover:border-[#FFD700] transition-colors duration-300 z-20"></div>
 
-                <!-- TOP HEADER: Game Badge, Format Pill, and Live Radar Status -->
-                <div class="relative z-10 p-4 flex justify-between items-center gap-2">
+                <!-- TOP HEADER: Game Badge, Format Pill, Role Badge, and Live Radar Status -->
+                <div class="relative z-10 p-4 flex justify-between items-start gap-2">
                     <div class="flex items-center gap-1.5 flex-wrap">
                         <span class="bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] font-mono-tag font-bold text-white uppercase tracking-wider border border-white/15 flex items-center gap-1.5 shadow-md">
                             <span class="w-1.5 h-1.5 rounded-full bg-[#FFD700] shadow-[0_0_6px_#FFD700]"></span>
@@ -715,6 +1296,7 @@ function renderTournaments() {
                         <span class="bg-white/10 backdrop-blur-md px-2 py-1 rounded-md text-[9px] font-mono-tag font-bold text-neutral-300 uppercase tracking-wider border border-white/10">
                             ${escapeHtml(modePill)}
                         </span>
+                        ${roleBadgeHtml}
                     </div>
 
                     <div>
@@ -778,9 +1360,9 @@ function renderTournaments() {
 
                     <!-- ACTION BUTTON -->
                     <div class="pt-0.5">
-                        <button class="details-btn w-full py-2.5 px-4 bg-gradient-to-r from-[#FFD700] via-[#FFE566] to-[#E6B800] hover:brightness-110 active:scale-[0.98] text-black font-heading font-black text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_0_15px_rgba(255,215,0,0.25)] flex items-center justify-center gap-2 cursor-pointer border border-[#FFF099]/40">
-                            <span>ENTER TOURNAMENT</span>
-                            <span class="text-sm font-sans transition-transform group-hover:translate-x-1">&rarr;</span>
+                        <button class="details-btn w-full py-2.5 px-4 ${isHost ? 'bg-gradient-to-r from-[#FFD700] via-[#FFE566] to-[#E6B800] text-black font-extrabold ring-2 ring-[#FFD700]/40' : 'bg-gradient-to-r from-[#FFD700] via-[#FFE566] to-[#E6B800] text-black font-black'} hover:brightness-110 active:scale-[0.98] font-heading text-xs uppercase tracking-widest rounded-xl transition-all shadow-[0_0_15px_rgba(255,215,0,0.25)] flex items-center justify-center gap-2 cursor-pointer border border-[#FFF099]/40">
+                            <span>${escapeHtml(actionBtnText)}</span>
+                            <span class="text-sm font-sans transition-transform group-hover:translate-x-1">${actionBtnIcon}</span>
                         </button>
                     </div>
 
@@ -1229,19 +1811,179 @@ async function saveTournamentSchedule() {
     }
 }
 
+function getTeamInitials(name) {
+    if (!name || name === 'TBD' || name === 'BYE') return '—';
+    const words = name.trim().split(/\s+/);
+    if (words.length >= 2) {
+        return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+}
+window.getTeamInitials = getTeamInitials;
+
+function renderPodiumShowcase(t, containerId) {
+    const container = typeof containerId === 'string' ? document.getElementById(containerId) : containerId;
+    if (!container) return;
+
+    const isCompleted = t && (t.status === 'Completed' || isTournamentCompleteCheck(t));
+    if (!isCompleted) {
+        container.classList.add('hidden');
+        container.innerHTML = '';
+        return;
+    }
+
+    const { firstTeam, secondTeam, thirdTeam } = determinePodiumTeams(t);
+    const totalPrize = Number(t.prize) || 0;
+    const split = t.prizeSplit || { first: 60, second: 30, third: 10 };
+    const split1 = Number(split.first) || 0;
+    const split2 = Number(split.second) || 0;
+    const split3 = Number(split.third) || 0;
+
+    const prize1 = Math.round(totalPrize * (split1 / 100));
+    const prize2 = Math.round(totalPrize * (split2 / 100));
+    const prize3 = Math.round(totalPrize * (split3 / 100));
+
+    const firstInitials = getTeamInitials(firstTeam);
+    const secondInitials = getTeamInitials(secondTeam);
+    const thirdInitials = getTeamInitials(thirdTeam);
+
+    const hasThird = thirdTeam && thirdTeam !== 'TBD' && thirdTeam !== 'BYE';
+
+    container.classList.remove('hidden');
+    container.innerHTML = `
+        <div class="relative w-full pt-4 pb-2 px-1 sm:px-4">
+            <!-- Ambient Stage Lighting (Dark Esports Onyx) -->
+            <div class="absolute inset-0 bg-gradient-to-b from-[#FFD700]/5 via-transparent to-black/60 pointer-events-none rounded-2xl"></div>
+            
+            <!-- 3D Podium Pillars Grid -->
+            <div class="relative z-10 grid ${hasThird ? 'grid-cols-3' : 'grid-cols-2 max-w-sm'} gap-2 sm:gap-4 items-end max-w-md sm:max-w-lg mx-auto">
+                
+                <!-- 2ND PLACE (SILVER) -->
+                <div class="flex flex-col items-center">
+                    <div class="flex flex-col items-center mb-2 text-center w-full px-1">
+                        <div class="relative mb-1.5">
+                            <div class="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-gradient-to-b from-slate-200 via-slate-400 to-slate-700 p-0.5 shadow-[0_0_15px_rgba(203,213,225,0.35)] flex items-center justify-center">
+                                <div class="w-full h-full rounded-full bg-[#101116] flex items-center justify-center overflow-hidden">
+                                    <span class="font-heading font-black text-xs sm:text-sm text-slate-200 uppercase">${firstInitials === secondInitials ? '2ND' : secondInitials}</span>
+                                </div>
+                            </div>
+                            <span class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-slate-300 text-black text-[8px] font-mono-tag font-black uppercase tracking-wider shadow">2ND</span>
+                        </div>
+                        <h4 class="font-heading font-black text-[11px] sm:text-xs text-white uppercase truncate max-w-full" title="${escapeHtml(secondTeam)}">${escapeHtml(secondTeam)}</h4>
+                        <div class="text-[10px] font-mono-tag font-bold text-slate-300 mt-0.5">${prize2 > 0 ? `₱${prize2.toLocaleString()}` : 'Runner-Up'}</div>
+                    </div>
+
+                    <!-- 2nd Place 3D Pillar (Medium Height) -->
+                    <div class="w-full h-24 sm:h-28 bg-gradient-to-b from-[#1C1D24] via-[#111216] to-[#08080A] border-t-4 border-t-slate-300 border-x border-b border-white/10 rounded-t-xl flex flex-col items-center justify-center shadow-[0_10px_25px_rgba(0,0,0,0.6)] relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-r from-white/5 via-transparent to-black/20 pointer-events-none"></div>
+                        <span class="font-heading font-black text-3xl sm:text-4xl text-slate-300/80 drop-shadow-[0_2px_8px_rgba(203,213,225,0.3)]">2</span>
+                        <span class="text-[7px] sm:text-[8px] font-mono-tag font-bold text-slate-400 uppercase tracking-widest mt-0.5">RUNNER-UP</span>
+                    </div>
+                </div>
+
+                <!-- 1ST PLACE (GOLD CHAMPION) -->
+                <div class="flex flex-col items-center -translate-y-2">
+                    <div class="flex flex-col items-center mb-2 text-center w-full px-1">
+                        <!-- Floating Golden Crown Icon -->
+                        <div class="text-[#FFD700] mb-0.5 animate-bounce drop-shadow-[0_0_10px_rgba(255,215,0,0.6)]">
+                            <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M5 16L3 5l5.5 5L12 4l3.5 6L21 5l-2 11H5zm14 3c0 .6-.4 1-1 1H6c-.6 0-1-.4-1-1v-1h14v1z"/></svg>
+                        </div>
+                        <div class="relative mb-1.5">
+                            <div class="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-gradient-to-b from-[#FFF5C0] via-[#FFD700] to-[#B8860B] p-0.5 shadow-[0_0_25px_rgba(255,215,0,0.55)] flex items-center justify-center">
+                                <div class="w-full h-full rounded-full bg-[#141004] flex items-center justify-center overflow-hidden">
+                                    <span class="font-heading font-black text-sm sm:text-base text-[#FFD700] uppercase">${firstInitials}</span>
+                                </div>
+                            </div>
+                            <span class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 px-2 py-0.2 rounded-full bg-[#FFD700] text-black text-[9px] font-mono-tag font-black uppercase tracking-wider shadow">1ST</span>
+                        </div>
+                        <h4 class="font-heading font-black text-xs sm:text-sm text-[#FFD700] uppercase truncate max-w-full drop-shadow-[0_0_10px_rgba(255,215,0,0.4)]" title="${escapeHtml(firstTeam)}">${escapeHtml(firstTeam)}</h4>
+                        <div class="text-[11px] font-mono-tag font-black text-white mt-0.5">${prize1 > 0 ? `₱${prize1.toLocaleString()}` : 'Champion'}</div>
+                    </div>
+
+                    <!-- 1st Place 3D Pillar (Tallest) -->
+                    <div class="w-full h-32 sm:h-38 bg-gradient-to-b from-[#2A2105] via-[#161202] to-[#080601] border-t-4 border-t-[#FFD700] border-x border-b border-[#FFD700]/40 rounded-t-xl flex flex-col items-center justify-center shadow-[0_15px_35px_rgba(255,215,0,0.25)] relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-r from-[#FFD700]/10 via-transparent to-black/30 pointer-events-none"></div>
+                        <span class="font-heading font-black text-4xl sm:text-5xl text-[#FFD700] drop-shadow-[0_2px_12px_rgba(255,215,0,0.6)]">1</span>
+                        <span class="text-[7px] sm:text-[8px] font-mono-tag font-black text-[#FFD700]/80 uppercase tracking-widest mt-0.5">CHAMPION</span>
+                    </div>
+                </div>
+
+                ${hasThird ? `
+                <!-- 3RD PLACE (BRONZE) -->
+                <div class="flex flex-col items-center">
+                    <div class="flex flex-col items-center mb-2 text-center w-full px-1">
+                        <div class="relative mb-1.5">
+                            <div class="w-11 h-11 sm:w-13 sm:h-13 rounded-full bg-gradient-to-b from-amber-600 via-amber-800 to-amber-950 p-0.5 shadow-[0_0_12px_rgba(217,119,6,0.3)] flex items-center justify-center">
+                                <div class="w-full h-full rounded-full bg-[#120B07] flex items-center justify-center overflow-hidden">
+                                    <span class="font-heading font-black text-xs sm:text-sm text-amber-500 uppercase">${thirdInitials}</span>
+                                </div>
+                            </div>
+                            <span class="absolute -bottom-1.5 left-1/2 -translate-x-1/2 px-1.5 py-0.2 rounded-full bg-amber-700 text-white text-[8px] font-mono-tag font-black uppercase tracking-wider shadow">3RD</span>
+                        </div>
+                        <h4 class="font-heading font-black text-[11px] sm:text-xs text-white uppercase truncate max-w-full" title="${escapeHtml(thirdTeam)}">${escapeHtml(thirdTeam)}</h4>
+                        <div class="text-[10px] font-mono-tag font-bold text-amber-500 mt-0.5">${prize3 > 0 ? `₱${prize3.toLocaleString()}` : '3rd Place'}</div>
+                    </div>
+
+                    <!-- 3rd Place 3D Pillar (Shorter Height) -->
+                    <div class="w-full h-18 sm:h-22 bg-gradient-to-b from-[#201107] via-[#120904] to-[#060301] border-t-4 border-t-amber-600 border-x border-b border-white/10 rounded-t-xl flex flex-col items-center justify-center shadow-[0_10px_25px_rgba(0,0,0,0.6)] relative overflow-hidden">
+                        <div class="absolute inset-0 bg-gradient-to-r from-white/5 via-transparent to-black/20 pointer-events-none"></div>
+                        <span class="font-heading font-black text-2xl sm:text-3xl text-amber-600/80 drop-shadow-[0_2px_8px_rgba(217,119,6,0.3)]">3</span>
+                        <span class="text-[7px] sm:text-[8px] font-mono-tag font-bold text-amber-700 uppercase tracking-widest mt-0.5">3RD PLACE</span>
+                    </div>
+                </div>
+                ` : ''}
+
+            </div>
+        </div>
+    `;
+}
+window.renderPodiumShowcase = renderPodiumShowcase;
+
+function isUserWinnerOrStaff(t, user) {
+    if (!t) return false;
+    if (!user) return false;
+    if (typeof isTournamentStaff === 'function' && isTournamentStaff(t, user)) return true;
+
+    const { firstTeam, secondTeam, thirdTeam } = determinePodiumTeams(t);
+    const winningTeams = [firstTeam, secondTeam, thirdTeam].filter(name => name && name !== 'TBD' && name !== 'BYE');
+    if (winningTeams.length === 0) return false;
+
+    const participants = t.participants || [];
+    return participants.some(pt => {
+        const ptName = typeof pt === 'object' ? (pt.name || pt.teamName) : pt;
+        if (!winningTeams.includes(ptName)) return false;
+
+        if (pt.registeredBy === user.uid || pt.captainUid === user.uid) return true;
+        if (pt.captain && user.displayName && pt.captain.toLowerCase() === user.displayName.toLowerCase()) return true;
+        if (user.email && pt.captainEmail && pt.captainEmail.toLowerCase() === user.email.toLowerCase()) return true;
+        if (Array.isArray(pt.members)) {
+            return pt.members.some(m => {
+                const mName = typeof m === 'object' ? (m.name || m.ign) : m;
+                return mName && user.displayName && mName.toLowerCase() === user.displayName.toLowerCase();
+            });
+        }
+        if (ptName && user.displayName && ptName.toLowerCase() === user.displayName.toLowerCase()) return true;
+        return false;
+    });
+}
+window.isUserWinnerOrStaff = isUserWinnerOrStaff;
+
 function renderTournamentRankings(participants, prizePool, matches, prizeSplit, tourn) {
     const tbody = document.getElementById('rankingsTableBody');
     if (!tbody) return;
+
+    const t = tourn || currentEditingTournament;
+    const isCancelled = t && (t.status === 'Cancelled' || t.isCancelled);
+    const isStarted = t && !!t.isStarted;
+    const isCompleted = t && (t.status === 'Completed' || isTournamentCompleteCheck(t));
+
+    // Render 3D Podium in Rankings Tab if Completed
+    renderPodiumShowcase(t, 'standingsPodiumContainer');
 
     if (!participants || participants.length === 0) {
         tbody.innerHTML = `<tr><td colspan="6" class="py-10 text-center text-neutral-500 font-mono-tag text-xs italic">No teams registered yet.</td></tr>`;
         return;
     }
-
-    const t = tourn || currentEditingTournament;
-    const isCancelled = t && (t.status === 'Cancelled' || t.isCancelled);
-    const isStarted = t && !!t.isStarted;
-    const isCompleted = t && t.status === 'Completed';
 
     if (isCancelled) {
         tbody.innerHTML = `
@@ -1297,8 +2039,8 @@ function renderTournamentRankings(participants, prizePool, matches, prizeSplit, 
     let sorted = Object.values(stats);
 
     // In completed bracket tournaments, sort podium by official match outcomes
-    const grandFinalMatch = matches && matches.find(m => m.id === 'GF-1' || (!m.nextMatchId && !m.isBronzeMatch && m.id !== 'M-3RD'));
-    const bronzeMatch = matches && matches.find(m => m.id === 'M-3RD' || m.isBronzeMatch);
+    const grandFinalMatch = getGrandFinalMatch(matches);
+    const bronzeMatch = matches && matches.find(m => m.id === 'M-3RD' || m.id === 'BM-1' || m.id === '3RD-1' || m.isBronzeMatch);
     
     if (isCompleted && grandFinalMatch && grandFinalMatch.winner) {
         const champ = grandFinalMatch.winner;
@@ -1422,17 +2164,20 @@ function renderParticipantsList(participants) {
 
     if (!participants || participants.length === 0) {
         list.innerHTML = `
-            <div class="col-span-full py-12 text-center bg-[#050507] border border-dashed border-white/10 rounded-xl p-6">
-                <div class="w-12 h-12 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-3 text-neutral-500 text-2xl font-mono-tag font-bold">
-                    ${isSoloTournament ? '1v1' : 'SQ'}
+            <div class="col-span-full py-12 text-center bg-[#070709] border border-white/5 rounded-2xl p-6">
+                <div class="w-10 h-10 rounded-xl bg-white/[0.03] border border-white/10 flex items-center justify-center mx-auto mb-3 text-neutral-500">
+                    <svg class="w-5 h-5 text-neutral-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
                 </div>
-                <div class="text-neutral-300 font-heading font-bold text-sm uppercase">${isSoloTournament ? 'No Players Registered Yet' : 'No Teams Registered Yet'}</div>
-                <p class="text-neutral-500 font-mono-tag text-xs mt-1">${isSoloTournament ? 'Be the first competitor to register for this tournament!' : 'Be the first squad to register for this tournament!'}</p>
+                <div class="text-neutral-300 font-heading font-bold text-xs uppercase tracking-wider">${isSoloTournament ? 'No Players Registered Yet' : 'No Teams Registered Yet'}</div>
+                <p class="text-neutral-500 font-mono-tag text-[11px] mt-1">${isSoloTournament ? 'Be the first competitor to register for this tournament.' : 'Be the first squad to register for this tournament.'}</p>
             </div>
         `;
     } else {
         const auth = getAuth();
         const currentUser = auth.currentUser;
+        const isStaff = isTournamentStaff(currentEditingTournament, currentUser);
 
         list.innerHTML = participants.map((p, idx) => {
             const name = typeof p === 'object' ? (p.name || 'Unnamed') : p;
@@ -1486,7 +2231,15 @@ function renderParticipantsList(participants) {
                         </div>
                         <div class="flex items-center gap-1.5 shrink-0">
                             ${actionButtons}
-                            ${p.checkedIn ? '<span class="text-[9px] font-mono-tag font-bold uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded">Ready</span>' : (currentEditingTournament?.checkInOpen ? '<span class="text-[9px] font-mono-tag font-bold uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded">Pending Check-In</span>' : '')}
+                            ${isStaff ? `
+                                <button type="button" onclick="event.stopPropagation(); window.toggleSingleTeamCheckIn(${idx})" 
+                                    class="px-2 py-1 rounded ${p.checkedIn ? 'bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40' : 'bg-[#FFD700] hover:bg-[#FFF099] text-black'} text-[9px] font-heading font-black uppercase transition-all cursor-pointer shadow-sm flex items-center gap-1"
+                                    title="${p.checkedIn ? 'Organizer: Click to Mark Unready' : 'Organizer: Click to Ready Up this team'}">
+                                    <span>${p.checkedIn ? '✓ Ready' : '+ Ready Up'}</span>
+                                </button>
+                            ` : (
+                                p.checkedIn ? '<span class="text-[9px] font-mono-tag font-bold uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 px-1.5 py-0.5 rounded">Ready</span>' : (currentEditingTournament?.checkInOpen ? '<span class="text-[9px] font-mono-tag font-bold uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30 px-1.5 py-0.5 rounded">Pending Check-In</span>' : '')
+                            )}
                             <span class="text-[10px] font-mono-tag font-bold text-neutral-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-md">
                                 #${String(idx + 1).padStart(2, '0')}
                             </span>
@@ -1980,7 +2733,7 @@ function generateInitialMatches(participants, format) {
             score1: null,
             score2: null,
             winner: null,
-            nextMatchId: `2-${Math.floor(i / 2) + 1}`
+            nextMatchId: (roundCount === 1) ? null : `2-${Math.floor(i / 2) + 1}`
         });
     }
 
@@ -2370,6 +3123,309 @@ function resolveByes(matches) {
     return globalChange;
 }
 
+// --- BRACKET ROUND FORMAT CONFIGURATION (BO1, BO3, BO5, BO7) ---
+function getRoundFormat(t, roundKey, defaultVal = null) {
+    if (!roundKey) return defaultVal || 'BO1';
+    const cleanKey = String(roundKey).trim();
+    if (t?.roundFormats && t.roundFormats[cleanKey]) {
+        return t.roundFormats[cleanKey];
+    }
+    if (t?.roundFormats) {
+        for (const [k, v] of Object.entries(t.roundFormats)) {
+            if (k.toLowerCase() === cleanKey.toLowerCase()) return v;
+        }
+    }
+    if (defaultVal) return defaultVal;
+
+    const keyLower = cleanKey.toLowerCase();
+    if (keyLower.includes('grand') || keyLower === 'gf' || keyLower === 'final' || keyLower === 'finals') {
+        return 'BO5';
+    }
+    if (keyLower.includes('semi') || keyLower.includes('ub final') || keyLower.includes('lb final') || keyLower.includes('3rd') || keyLower.includes('bronze')) {
+        return 'BO3';
+    }
+    return 'BO1';
+}
+window.getRoundFormat = getRoundFormat;
+
+function getTournamentRoundKeys(t) {
+    if (!t) return [];
+    const format = (t.format || 'Single Elimination').trim();
+    const maxTeams = Number(t.maxTeams || (t.participants ? t.participants.length : 8)) || 8;
+    let size = 2;
+    while (size < maxTeams) size *= 2;
+    if (size < 4) size = 4;
+
+    const rounds = [];
+    if (format === 'Double Elimination') {
+        const totalWBRounds = Math.log2(size);
+        for (let r = 1; r <= totalWBRounds; r++) {
+            const name = (r === totalWBRounds) ? "UB Final" : (r === totalWBRounds - 1 && totalWBRounds > 2) ? "UB Semi Finals" : `UB Round ${r}`;
+            rounds.push({ key: name, label: `Upper Bracket - ${name}`, defaultFormat: (r === totalWBRounds ? 'BO3' : 'BO1') });
+        }
+        const totalLBRounds = (totalWBRounds - 1) * 2;
+        for (let r = 1; r <= totalLBRounds; r++) {
+            const name = (r === totalLBRounds) ? "LB Final" : `LB Round ${r}`;
+            rounds.push({ key: name, label: `Lower Bracket - ${name}`, defaultFormat: (r === totalLBRounds ? 'BO3' : 'BO1') });
+        }
+        rounds.push({ key: "Grand Final", label: "Championship - Grand Final", defaultFormat: "BO5" });
+    } else if (format === 'Round Robin') {
+        const numTeams = t.participants?.length || maxTeams;
+        const totalRounds = (numTeams % 2 === 0) ? numTeams - 1 : numTeams;
+        for (let r = 1; r <= Math.max(1, totalRounds); r++) {
+            rounds.push({ key: `Round ${r}`, label: `Round Robin - Matchday ${r}`, defaultFormat: "BO1" });
+        }
+    } else {
+        const roundCount = Math.log2(size);
+        for (let r = 1; r <= roundCount; r++) {
+            let name = `Round ${r}`;
+            let defaultFmt = 'BO1';
+            if (r === roundCount) {
+                name = "Grand Final";
+                defaultFmt = 'BO5';
+            } else if (r === roundCount - 1) {
+                name = "Semi Finals";
+                defaultFmt = 'BO3';
+            } else if (r === roundCount - 2 && roundCount >= 4) {
+                name = "Quarter Finals";
+                defaultFmt = 'BO1';
+            }
+            rounds.push({ key: name, label: name, defaultFormat: defaultFmt });
+        }
+        if (size >= 4) {
+            rounds.push({ key: "3rd Place Decider", label: "Podium - 3rd Place Decider", defaultFormat: "BO3" });
+        }
+    }
+    return rounds;
+}
+window.getTournamentRoundKeys = getTournamentRoundKeys;
+
+function openEditRoundFormatsModal() {
+    const t = currentEditingTournament;
+    if (!t) return;
+    const modal = document.getElementById('editRoundFormatsModal');
+    if (!modal) return;
+
+    const listContainer = document.getElementById('roundFormatsEditorList');
+    if (!listContainer) return;
+    listContainer.innerHTML = '';
+
+    const roundList = getTournamentRoundKeys(t);
+    const existingFormats = t.roundFormats || {};
+
+    roundList.forEach(item => {
+        const currentFmt = existingFormats[item.key] || getRoundFormat(t, item.key, item.defaultFormat);
+        const row = document.createElement('div');
+        row.className = "flex items-center justify-between p-3 bg-black/40 border border-white/10 rounded-xl";
+        row.dataset.roundKey = item.key;
+        row.innerHTML = `
+            <div>
+                <span class="font-heading font-bold text-xs uppercase text-white">${escapeHtml(item.label || item.key)}</span>
+                <span class="text-[9px] text-neutral-500 font-mono-tag block">Format rule for this stage</span>
+            </div>
+            <select class="round-format-select dark-select bg-[#111116] border border-white/20 text-white font-mono-tag font-bold text-xs p-2 rounded-lg cursor-pointer">
+                <option value="BO1" ${currentFmt === 'BO1' ? 'selected' : ''}>BO1 (Best of 1)</option>
+                <option value="BO3" ${currentFmt === 'BO3' ? 'selected' : ''}>BO3 (Best of 3)</option>
+                <option value="BO5" ${currentFmt === 'BO5' ? 'selected' : ''}>BO5 (Best of 5)</option>
+                <option value="BO7" ${currentFmt === 'BO7' ? 'selected' : ''}>BO7 (Best of 7)</option>
+            </select>
+        `;
+        listContainer.appendChild(row);
+    });
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+}
+window.openEditRoundFormatsModal = openEditRoundFormatsModal;
+
+function applyRoundFormatPreset(preset) {
+    const list = document.getElementById('roundFormatsEditorList');
+    if (!list) return;
+    const rows = list.querySelectorAll('[data-round-key]');
+
+    rows.forEach(row => {
+        const key = row.dataset.roundKey.toLowerCase();
+        const select = row.querySelector('.round-format-select');
+        if (!select) return;
+
+        if (preset === 'all_bo1') {
+            select.value = 'BO1';
+        } else if (preset === 'all_bo3') {
+            select.value = (key.includes('grand') || key === 'final') ? 'BO5' : 'BO3';
+        } else if (preset === 'major_bo5') {
+            select.value = (key.includes('grand') || key === 'final') ? 'BO7' : 'BO3';
+        } else if (preset === 'all_bo5') {
+            select.value = 'BO5';
+        } else {
+            // standard esports
+            if (key.includes('grand') || key === 'final') select.value = 'BO5';
+            else if (key.includes('semi') || key.includes('ub final') || key.includes('lb final') || key.includes('3rd')) select.value = 'BO3';
+            else select.value = 'BO1';
+        }
+    });
+
+    if (window.showToast) window.showToast(`Applied preset. Click "Save Formats" to confirm.`, 'info');
+}
+window.applyRoundFormatPreset = applyRoundFormatPreset;
+
+async function saveTournamentRoundFormats() {
+    const t = currentEditingTournament;
+    if (!t) return;
+
+    const list = document.getElementById('roundFormatsEditorList');
+    if (!list) return;
+
+    const saveBtn = document.getElementById('saveRoundFormatsBtn');
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.textContent = 'Saving...';
+    }
+
+    try {
+        const updatedFormats = {};
+        const rows = list.querySelectorAll('[data-round-key]');
+        rows.forEach(row => {
+            const key = row.dataset.roundKey;
+            const select = row.querySelector('.round-format-select');
+            if (key && select) {
+                updatedFormats[key] = select.value;
+            }
+        });
+
+        let updatedMatches = t.matches ? JSON.parse(JSON.stringify(t.matches)) : null;
+        if (updatedMatches && Array.isArray(updatedMatches)) {
+            const maxDepth = t.matches.reduce((max, m) => Math.max(max, m.round || 1), 1);
+            updatedMatches.forEach(m => {
+                let matchRoundName = `Round ${m.round}`;
+                if (m.isBronzeMatch || m.id === 'M-3RD') matchRoundName = '3rd Place Decider';
+                else if (m.bracket === 'final' || m.id === 'GF-1' || (!m.nextMatchId && !m.isBronzeMatch && m.round === maxDepth)) matchRoundName = 'Grand Final';
+                else if (m.bracket === 'upper') {
+                    const ubMax = t.matches.filter(x => x.bracket === 'upper').reduce((max, x) => Math.max(max, x.round || 1), 1);
+                    if (m.round === ubMax) matchRoundName = 'UB Final';
+                    else matchRoundName = `UB Round ${m.round}`;
+                } else if (m.bracket === 'lower') {
+                    const lbMax = t.matches.filter(x => x.bracket === 'lower').reduce((max, x) => Math.max(max, x.round || 1), 1);
+                    if (m.round === lbMax) matchRoundName = 'LB Final';
+                    else matchRoundName = `LB Round ${m.round}`;
+                } else if (m.round === maxDepth - 1 && maxDepth >= 2) {
+                    matchRoundName = 'Semi Finals';
+                }
+
+                if (updatedFormats[matchRoundName]) {
+                    m.format = updatedFormats[matchRoundName];
+                }
+            });
+        }
+
+        const payload = { roundFormats: updatedFormats };
+        if (updatedMatches) payload.matches = updatedMatches;
+
+        await updateDoc(doc(db, "tournaments", t.id), payload);
+
+        t.roundFormats = updatedFormats;
+        if (updatedMatches) t.matches = updatedMatches;
+        currentEditingTournament = t;
+        window.currentEditingTournament = t;
+
+        renderTournamentView(t);
+        closeModal('editRoundFormatsModal');
+
+        if (window.showSuccessToast) {
+            window.showSuccessToast("Round Formats Saved", "Bracket rules updated for all rounds.");
+        }
+    } catch (e) {
+        console.error("Save round formats error:", e);
+        alert("Failed to save round formats: " + e.message);
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.textContent = 'Save Formats';
+        }
+    }
+}
+window.saveTournamentRoundFormats = saveTournamentRoundFormats;
+
+window.quickEditRoundFormat = async function(roundName, event) {
+    if (event) event.stopPropagation();
+    const t = currentEditingTournament;
+    if (!t) return;
+
+    const currentFmt = getRoundFormat(t, roundName);
+    const formats = ['BO1', 'BO3', 'BO5', 'BO7'];
+    const nextIdx = (formats.indexOf(currentFmt) + 1) % formats.length;
+    const nextFmt = formats[nextIdx];
+
+    const currentFormats = t.roundFormats ? { ...t.roundFormats } : {};
+    currentFormats[roundName] = nextFmt;
+
+    let updatedMatches = t.matches ? JSON.parse(JSON.stringify(t.matches)) : null;
+    if (updatedMatches && Array.isArray(updatedMatches)) {
+        const maxDepth = t.matches.reduce((max, m) => Math.max(max, m.round || 1), 1);
+        updatedMatches.forEach(m => {
+            let matchRoundName = `Round ${m.round}`;
+            if (m.isBronzeMatch || m.id === 'M-3RD') matchRoundName = '3rd Place Decider';
+            else if (m.bracket === 'final' || m.id === 'GF-1' || (!m.nextMatchId && !m.isBronzeMatch && m.round === maxDepth)) matchRoundName = 'Grand Final';
+            else if (m.bracket === 'upper') {
+                const ubMax = t.matches.filter(x => x.bracket === 'upper').reduce((max, x) => Math.max(max, x.round || 1), 1);
+                if (m.round === ubMax) matchRoundName = 'UB Final';
+                else matchRoundName = `UB Round ${m.round}`;
+            } else if (m.bracket === 'lower') {
+                const lbMax = t.matches.filter(x => x.bracket === 'lower').reduce((max, x) => Math.max(max, x.round || 1), 1);
+                if (m.round === lbMax) matchRoundName = 'LB Final';
+                else matchRoundName = `LB Round ${m.round}`;
+            } else if (m.round === maxDepth - 1 && maxDepth >= 2) {
+                matchRoundName = 'Semi Finals';
+            }
+
+            if (matchRoundName === roundName) {
+                m.format = nextFmt;
+            }
+        });
+    }
+
+    try {
+        const payload = { roundFormats: currentFormats };
+        if (updatedMatches) payload.matches = updatedMatches;
+
+        await updateDoc(doc(db, "tournaments", t.id), payload);
+
+        t.roundFormats = currentFormats;
+        if (updatedMatches) t.matches = updatedMatches;
+        currentEditingTournament = t;
+        window.currentEditingTournament = t;
+        renderTournamentView(t);
+        if (window.showSuccessToast) {
+            window.showSuccessToast("Round Format Updated", `${roundName} set to ${nextFmt}`);
+        }
+    } catch (e) {
+        console.error(e);
+        openEditRoundFormatsModal();
+    }
+};
+
+window.handleScoreMatchFormatChange = async function() {
+    const matchId = document.getElementById('scoreMatchId')?.value;
+    const select = document.getElementById('scoreMatchFormatSelect');
+    const display = document.getElementById('scoreMatchFormatDisplay');
+    if (!matchId || !select) return;
+
+    const newFmt = select.value;
+    if (display) display.textContent = `${newFmt} (${newFmt === 'BO1' ? 'First to 1' : newFmt === 'BO3' ? 'First to 2' : newFmt === 'BO5' ? 'First to 3' : 'First to 4'})`;
+
+    const t = currentEditingTournament;
+    if (t?.matches) {
+        const m = t.matches.find(x => x.id === matchId);
+        if (m) {
+            m.format = newFmt;
+            try {
+                await updateDoc(doc(db, "tournaments", t.id), { matches: t.matches });
+            } catch (e) {
+                console.error("Match format update error:", e);
+            }
+        }
+    }
+};
+
 // --- SCORE SUBMISSIONS ---
 window.openScoreModal = function (matchId) {
     const t = currentEditingTournament;
@@ -2392,6 +3448,15 @@ window.openScoreModal = function (matchId) {
     document.getElementById('scoreTeam2').value = match.score2 || 0;
     document.getElementById('lblTeam1').textContent = match.team1;
     document.getElementById('lblTeam2').textContent = match.team2;
+
+    // Match Format Rule
+    const formatSelect = document.getElementById('scoreMatchFormatSelect');
+    const formatDisplay = document.getElementById('scoreMatchFormatDisplay');
+    const matchFmt = match.format || getRoundFormat(t, `Round ${match.round}`);
+    if (formatSelect) formatSelect.value = matchFmt;
+    if (formatDisplay) {
+        formatDisplay.textContent = `${matchFmt} (${matchFmt === 'BO1' ? 'First to 1' : matchFmt === 'BO3' ? 'First to 2' : matchFmt === 'BO5' ? 'First to 3' : 'First to 4'})`;
+    }
 
     // Reset / Set Winner Radio
     document.querySelectorAll('input[name="matchWinner"]').forEach(r => r.checked = false);
@@ -2635,9 +3700,9 @@ window.saveMatchScore = async function () {
                 if (rrSorted.length > 0) championName = rrSorted[0].name;
             }
         } else {
-            const grandFinalMatch = matches.find(m => m.id === 'GF-1' || (!m.nextMatchId && !m.isBronzeMatch && m.id !== 'M-3RD'));
-            const bronzeMatch = matches.find(m => m.id === 'M-3RD' || m.isBronzeMatch);
-            const isBronzeDone = !bronzeMatch || !!bronzeMatch.winner;
+            const grandFinalMatch = getGrandFinalMatch(matches);
+            const bronzeMatch = matches.find(m => m.id === 'M-3RD' || m.id === 'BM-1' || m.id === '3RD-1' || m.isBronzeMatch);
+            const isBronzeDone = !bronzeMatch || (bronzeMatch.team1 === 'TBD' || bronzeMatch.team2 === 'TBD' || bronzeMatch.team1 === 'BYE' || bronzeMatch.team2 === 'BYE') || !!bronzeMatch.winner;
             const isFinalDone = !!(grandFinalMatch && grandFinalMatch.winner);
 
             if (isFinalDone && isBronzeDone) {
@@ -2677,9 +3742,45 @@ window.saveMatchScore = async function () {
 
 // --- MODAL / HUB LIFECYCLE ---
 async function openModal(t) {
-    if (tournamentUnsubscribe) { tournamentUnsubscribe(); tournamentUnsubscribe = null; }
+    if (!t) return;
+    const actualStatus = getTournamentStatus(t);
+    const isArchived = (t.archived === true || t.isArchived === true || actualStatus === 'Archived');
+    if (isArchived) {
+        const auth = getAuth();
+        const user = auth.currentUser;
+        const cachedRole = sessionStorage.getItem('cz_user_role') || window.currentUserRole || '';
+        const role = String(cachedRole).toLowerCase();
+        const isCreator = user && (t.createdBy === user.uid || role === 'admin' || ["admin@champzero.com"].includes(user.email));
+        if (!isCreator) {
+            if (window.showErrorToast) {
+                window.showErrorToast("Tournament Archived", "This tournament has been archived by the organizer and is no longer publicly accessible.");
+            } else {
+                alert("This tournament has been archived by the organizer and is no longer publicly accessible.");
+            }
+            if (window.clearTournamentUrl) window.clearTournamentUrl();
+            return;
+        }
+    }
+
+    // 1. Instantly open detailsModal
+    const detailsModal = document.getElementById('detailsModal');
+    if (detailsModal) {
+        detailsModal.classList.remove('hidden');
+        detailsModal.classList.add('flex');
+    }
 
     window._currentTournamentId = t.id;
+    currentEditingTournament = t;
+    window.currentEditingTournament = t;
+
+    const newUrl = `${window.location.pathname}?id=${t.id}`;
+    window.history.pushState({ path: newUrl }, '', newUrl);
+
+    // 2. Render initial view immediately
+    renderTournamentView(t);
+
+    // 3. Realtime listener
+    if (tournamentUnsubscribe) { tournamentUnsubscribe(); tournamentUnsubscribe = null; }
 
     tournamentUnsubscribe = onSnapshot(doc(db, "tournaments", t.id), async (docSnap) => {
         if (!docSnap.exists()) return;
@@ -2688,11 +3789,12 @@ async function openModal(t) {
         currentEditingTournament = latestData;
         window.currentEditingTournament = latestData;
         
-        await renderTournamentView(latestData);
+        renderTournamentView(latestData);
 
         const auth = getAuth();
         const user = auth.currentUser;
-        const role = String(window.currentUserRole || '').toLowerCase();
+        const cachedRole = sessionStorage.getItem('cz_user_role') || window.currentUserRole || '';
+        const role = String(cachedRole).toLowerCase();
         const isOrganizerRole = (role === 'admin' || role === 'organizer');
         const isCreator = (user && (latestData.createdBy === user.uid || isOrganizerRole || ["admin@champzero.com"].includes(user.email)));
 
@@ -2705,50 +3807,82 @@ async function openModal(t) {
             }
         }
     });
-
-    const newUrl = `${window.location.pathname}?id=${t.id}`;
-    window.history.pushState({ path: newUrl }, '', newUrl);
-        if (qs('#c-status')) {
-            qs('#c-status').value = t.status || 'Open';
-        }
-
-        const pType = t.paymentType || (t.entryType === 'Paid' ? 'manual' : 'free');
-        if (qs('#c-payment-type')) {
-            qs('#c-payment-type').value = pType;
-        }
-        if (qs('#c-entry-fee')) {
-            qs('#c-entry-fee').value = (pType !== 'free' && t.entryFee) ? t.entryFee : '';
-        }
-        if (qs('#c-entry-currency')) {
-            qs('#c-entry-currency').value = t.entryCurrency || 'PHP';
-        }
-
 }
+
+function updateOrganizerPermissions(t) {
+    if (!t) return;
+    const auth = getAuth();
+    const user = auth.currentUser;
+    const isStaff = isTournamentStaff(t, user);
+
+    const editBtn = document.getElementById('editTournamentBtn');
+    if (editBtn) {
+        editBtn.classList.toggle('hidden', !isStaff);
+        editBtn.classList.toggle('inline-flex', isStaff);
+        editBtn.onclick = () => openEditTournamentModal(t);
+    }
+
+    const isArchived = (t.archived === true || t.isArchived === true || t.status === 'Archived');
+
+    const archiveBtn = document.getElementById('archiveTournamentBtn');
+    const archiveBtnText = document.getElementById('archiveBtnText');
+    if (archiveBtn) {
+        archiveBtn.classList.toggle('hidden', !isStaff);
+        archiveBtn.classList.toggle('inline-flex', isStaff);
+        if (archiveBtnText) {
+            archiveBtnText.textContent = isArchived ? "Unarchive" : "Archive";
+        }
+        archiveBtn.onclick = () => window.toggleArchiveTournament(t.id);
+    }
+
+    const adjustQuickBtn = document.getElementById('adjustBannerQuickBtn');
+    if (adjustQuickBtn) {
+        adjustQuickBtn.classList.toggle('hidden', !isStaff);
+        adjustQuickBtn.classList.toggle('inline-flex', isStaff);
+    }
+
+    const schedControls = document.getElementById('scheduleOrganizerControls');
+    if (schedControls) {
+        schedControls.classList.toggle('hidden', !isStaff);
+    }
+
+    const editRulesQuickBtn = document.getElementById('editRulesQuickBtn');
+    if (editRulesQuickBtn) {
+        editRulesQuickBtn.classList.toggle('hidden', !isStaff);
+        editRulesQuickBtn.classList.toggle('inline-flex', isStaff);
+    }
+
+    const roundFormatsBtn = document.getElementById('editRoundFormatsBtn');
+    if (roundFormatsBtn) {
+        roundFormatsBtn.classList.toggle('hidden', !isStaff);
+        roundFormatsBtn.classList.toggle('inline-flex', isStaff);
+    }
+}
+window.updateOrganizerPermissions = updateOrganizerPermissions;
 
 async function renderTournamentView(t) {
     const actualStatus = getTournamentStatus(t);
     const format = t.format || "Single Elimination";
     if (!t.participants) t.participants = [];
 
-    // 1. Basic Info Rendering
-        const proofArea = document.getElementById('proof-upload-area');
-        const existingProof = t.paymentProofURL || t.paymentQrUrl;
-        if (proofArea) {
-            if (pType === 'manual') {
-                proofArea.classList.remove('hidden');
-                if (existingProof) {
-                    const filenameEl = document.getElementById('proof-filename');
-                    if (filenameEl) filenameEl.textContent = 'Existing QR Code uploaded';
-                    const previewBtn = document.getElementById('proof-preview-btn-wrap');
-                    if (previewBtn) previewBtn.classList.remove('hidden');
-                    window._proofPreviewURL = existingProof;
-                }
-            } else {
-                proofArea.classList.add('hidden');
-            }
-        }
-        if (typeof toggleEntryType === 'function') toggleEntryType();
+    const auth = getAuth();
+    const user = auth.currentUser;
+    const isStaff = isTournamentStaff(t, user);
+    const isCreator = isStaff;
 
+    // 1. Basic Info Rendering
+    if (qs('#detailTitle')) qs('#detailTitle').textContent = t.name || 'Untitled Tournament';
+    if (qs('#detailName')) qs('#detailName').textContent = t.name || 'Untitled Tournament';
+    if (qs('#detailStatus')) {
+        qs('#detailStatus').textContent = actualStatus.toUpperCase();
+        if (actualStatus === 'Archived') {
+            qs('#detailStatus').className = "flex items-center justify-center bg-neutral-800 text-neutral-300 border border-neutral-600 px-2 py-0.5 rounded font-mono-tag text-[9px] uppercase font-bold tracking-wider";
+        } else if (actualStatus === 'Cancelled') {
+            qs('#detailStatus').className = "flex items-center justify-center bg-red-950 text-red-400 border border-red-500/50 px-2 py-0.5 rounded font-mono-tag text-[9px] uppercase font-bold tracking-wider";
+        } else if (actualStatus === 'Ongoing') {
+            qs('#detailStatus').className = "flex items-center justify-center bg-emerald-950 text-emerald-300 border border-emerald-500/60 px-2 py-0.5 rounded font-mono-tag text-[9px] uppercase font-bold tracking-wider";
+        } else if (actualStatus === 'Completed') {
+            qs('#detailStatus').className = "flex items-center justify-center bg-neutral-900 text-neutral-400 border border-neutral-700 px-2 py-0.5 rounded font-mono-tag text-[9px] uppercase font-bold tracking-wider";
         } else {
             qs('#detailStatus').className = "flex items-center justify-center bg-black/70 backdrop-blur-md text-[#FFD700] border border-[#FFD700]/40 px-2 py-0.5 rounded font-mono-tag text-[9px] uppercase font-bold tracking-wider shadow-md";
         }
@@ -2761,6 +3895,7 @@ async function renderTournamentView(t) {
         qs('#detailBanner').innerHTML = `
             <img src="${escapeCssUrl(t.banner || 'pictures/cz_logo.png')}" 
                  id="tournamentBannerImg"
+                 onerror="this.onerror=null; this.src='pictures/cz_logo.png';"
                  class="w-full h-full transition-all duration-300 pointer-events-none select-none" 
                  style="object-fit: ${bFit}; object-position: ${bPos}; transform: scale(${bScale}); transform-origin: ${bPos};" />
         `;
@@ -2786,38 +3921,63 @@ async function renderTournamentView(t) {
         }
     }
 
-    // Overview box text
+    // Overview box text (shown inside Prize & Schedule tab if present)
     const descContainer = qs('#detailDesc');
+    const descCard = qs('#detailDescCard');
     if (descContainer) {
-        descContainer.textContent = t.description || "No specific details provided for this tournament.";
+        if (t.description && t.description.trim()) {
+            descContainer.textContent = t.description.trim();
+            if (descCard) descCard.classList.remove('hidden');
+        } else {
+            descContainer.textContent = "";
+            if (descCard) descCard.classList.add('hidden');
+        }
+    }
+
+    // Render Tournament Rules & Guidelines
+    const rulesContainer = qs('#tournamentRulesContent');
+    const rulesSearchInput = qs('#rulesSearchInput');
+    if (rulesSearchInput) rulesSearchInput.value = '';
+    if (rulesContainer) {
+        if (t.rules && t.rules.trim()) {
+            rulesContainer.textContent = t.rules.trim();
+        } else if (isTournamentStaff(t, user)) {
+            rulesContainer.innerHTML = `<div class="text-neutral-500 italic py-8 text-center space-y-3"><div>No custom rules added yet. Click <strong>Edit Rulebook</strong> above to set match regulations, map pick/ban policies, or disqualification rules.</div></div>`;
+        } else {
+            rulesContainer.innerHTML = `<div class="text-neutral-500 italic py-8 text-center">Standard esports tournament regulations apply. Check match chat for specific marshal instructions.</div>`;
+        }
     }
 
     // Render Prize Breakdown, Schedule Timeline, and Rankings with Customizable Prize Split
     renderPrizeBreakdown(t.prize, t.prizeSplit);
     renderScheduleRundown(t);
     renderTournamentRankings(t.participants, t.prize, t.matches, t.prizeSplit, t);
+    renderPayoutsTab(t, isCreator, user);
 
-    const auth = getAuth();
-    const user = auth.currentUser;
-    if (user && !currentUserTeamIds.size) await fetchUserTeamIds(user);
+    // Auto-heal / Auto-sync completed tournaments in Firestore
+    if (isTournamentCompleteCheck(t) && t.status !== 'Completed' && t.id) {
+        t.status = 'Completed';
+        t.isCompleted = true;
+        const autoGf = getGrandFinalMatch(t.matches);
+        if (autoGf && autoGf.winner) t.winner = autoGf.winner;
+        try {
+            updateDoc(doc(db, 'tournaments', t.id), {
+                status: 'Completed',
+                isCompleted: true,
+                completedAt: serverTimestamp(),
+                ...(autoGf?.winner ? { winner: autoGf.winner } : {})
+            }).catch(err => console.warn('Auto-finalize sync notice:', err));
+        } catch (e) {}
+    }
+
+    if (user && !currentUserTeamIds.size) {
+        fetchUserTeamIds(user);
+    }
 
     renderParticipantsList(t.participants);
 
     // 2. Creator & Organizer Permissions
-    const role = String(window.currentUserRole || '').toLowerCase();
-    const isOrganizerRole = (role === 'admin' || role === 'organizer');
-    let isCreator = (user && (t.createdBy === user.uid || isOrganizerRole || ["admin@champzero.com"].includes(user.email)));
-
-    const adjustQuickBtn = document.getElementById('adjustBannerQuickBtn');
-    if (adjustQuickBtn) {
-        adjustQuickBtn.classList.toggle('hidden', !isCreator);
-        adjustQuickBtn.classList.toggle('inline-flex', isCreator);
-    }
-
-    const schedControls = document.getElementById('scheduleOrganizerControls');
-    if (schedControls) {
-        schedControls.classList.toggle('hidden', !isCreator);
-    }
+    updateOrganizerPermissions(t);
 
     const adminDash = qs('#adminDashboard');
     const adminToolbar = qs('#adminBracketToolbar');
@@ -2870,19 +4030,25 @@ async function renderTournamentView(t) {
 
     // Bracket Visibility: Always show for Started, Ongoing, Completed, or when Matches exist
     const hasBracketData = (t.matches && t.matches.length > 0);
-    if (t.isStarted || t.status === 'Completed' || hasBracketData || isCreator) {
-        if (bracketSection) bracketSection.classList.remove('hidden');
-        renderBracket(t.participants || [], format, isCreator, t.isStarted || t.status === 'Completed' || hasBracketData);
+    const isCompletedStatus = (actualStatus === 'Completed' || isTournamentCompleteCheck(t));
 
-        const finalMatch = t.matches ? t.matches.find(m => m.id === 'GF-1' || !m.nextMatchId) : null;
-        if (finalMatch && finalMatch.winner) {
-            if (champSection) champSection.classList.remove('hidden');
-            if (qs('#champName')) qs('#champName').textContent = finalMatch.winner;
-            const winningTeam = t.participants.find(p => (typeof p === 'object' ? p.name : p) === finalMatch.winner);
+    if (t.isStarted || isCompletedStatus || hasBracketData || isCreator) {
+        if (bracketSection) bracketSection.classList.remove('hidden');
+        renderBracket(t.participants || [], format, isCreator, t.isStarted || isCompletedStatus || hasBracketData);
+
+        const finalMatch = t.matches ? getGrandFinalMatch(t.matches) : null;
+        if (isCompletedStatus || (finalMatch && finalMatch.winner)) {
+            if (champSection) {
+                champSection.classList.remove('hidden');
+                renderPodiumShowcase(t, 'championPodiumContainer');
+            }
+            const championName = (finalMatch && finalMatch.winner) ? finalMatch.winner : (t.winner || t.champion || '');
+            if (qs('#champName')) qs('#champName').textContent = championName;
+            const winningTeam = t.participants ? t.participants.find(p => (typeof p === 'object' ? p.name : p) === championName) : null;
             if (winningTeam && typeof winningTeam === 'object' && winningTeam.members && qs('#champRoster')) {
                 qs('#champRoster').innerHTML = winningTeam.members.map(m => `<span class="bg-white/5 border border-white/10 px-2.5 py-1 rounded text-xs text-neutral-300 font-mono-tag">${escapeHtml(m)}</span>`).join('');
             } else if (qs('#champRoster')) {
-                qs('#champRoster').innerHTML = '<span class="text-neutral-400 text-xs font-mono-tag">Champion</span>';
+                qs('#champRoster').innerHTML = '';
             }
         } else if (champSection) {
             champSection.classList.add('hidden');
@@ -2892,125 +4058,175 @@ async function renderTournamentView(t) {
         if (champSection) champSection.classList.add('hidden');
     }
 
-        const pType = qs('#c-payment-type')?.value || 'free';
-        const isPaid = (pType === 'manual' || pType === 'automatic');
-        const entryType = isPaid ? 'Paid' : 'Free';
-        const entryFee = isPaid ? (parseFloat(qs('#c-entry-fee')?.value) || 0) : 0;
-        const entryCurrency = isPaid ? (qs('#c-entry-currency')?.value || 'PHP') : null;
+    // Winner Payouts Access Control: Only visible to Winners (1st, 2nd, 3rd) and Tournament Staff
+    const canAccessPayouts = isCompletedStatus && isUserWinnerOrStaff(t, user);
+    const btnPayouts = qs('#btn-tab-payouts');
+    const tabsNav = qs('#tournamentTabsNav');
 
-        const updateData = {
-            name,
-            game: finalGameTitle,
-            venue,
-            venueType,
-            venueLocation: venueLoc,
-            discordLink,
-            format,
-            maxTeams,
-            registrationType,
-            teamSize,
-            prize,
-            prizeSplit,
-            date: startDate,
-            endDate,
-            description: desc,
-            banner,
-            bannerPosition,
-            bannerFit,
-            entryType,
-            paymentType: pType,
-            entryFee,
-            entryCurrency,
-            status,
-            updatedAt: serverTimestamp()
-        };
-
-        if (proofURL) {
-            updateData.paymentProofURL = proofURL;
-            updateData.paymentQrUrl = proofURL;
+    if (btnPayouts) {
+        if (canAccessPayouts) {
+            btnPayouts.classList.remove('hidden');
+            if (tabsNav) {
+                tabsNav.classList.remove('sm:grid-cols-5');
+                tabsNav.classList.add('sm:grid-cols-6');
+            }
+        } else {
+            btnPayouts.classList.add('hidden');
+            if (tabsNav) {
+                tabsNav.classList.remove('sm:grid-cols-6');
+                tabsNav.classList.add('sm:grid-cols-5');
+            }
+            const payoutsPane = qs('#payoutsTab');
+            if (payoutsPane && !payoutsPane.classList.contains('hidden')) {
+                const redirectTab = isCompletedStatus ? 'standingsTab' : 'rundownTab';
+                const redirectBtn = isCompletedStatus ? qs('#btn-tab-standings') : qs('#btn-tab-rundown');
+                if (typeof window.switchDetailTab === 'function') {
+                    window.switchDetailTab(redirectTab, redirectBtn);
+                }
+            }
         }
+    }
 
+    // 3. Admin / Organizer Dashboard
+    if (adminDash) {
+        if (isCreator) {
+            adminDash.classList.remove('hidden');
+            const isSoloTournament = (t.registrationType === 'solo' || Number(t.teamSize) === 1);
+            const queuedSoloCount = (t.soloQueue || []).length;
+            const teamSize = Number(t.teamSize) || 5;
+            const readySquads = Math.floor(queuedSoloCount / teamSize);
+            const showSoloControls = !isSoloTournament && (t.registrationType === 'hybrid' || (t.registrationType === 'team' && queuedSoloCount > 0));
+
+            adminDash.innerHTML = `
+                <!-- Organizer Header & Actions -->
+                <div class="flex items-center justify-between gap-2 pb-3 border-b border-white/5">
+                    <div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-[#FFD700] animate-pulse"></span>
+                        <span class="text-[10px] font-bold font-mono-tag uppercase tracking-wider text-white">Organizer Controls</span>
+                    </div>
+                    <div class="flex items-center gap-1 flex-wrap justify-end">
+                        <button type="button" onclick="window.openCoOrganizersModal('${t.id}')" class="px-2 py-1 rounded-lg bg-purple-500/15 hover:bg-purple-500/25 text-purple-300 border border-purple-500/30 text-[10px] font-mono-tag font-bold transition-all cursor-pointer uppercase flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+                            <span>Staff (${(t.coOrganizers || []).length})</span>
+                        </button>
+                        <button type="button" onclick="window.openEditTournamentModal('${t.id}')" class="px-2 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 text-[10px] font-mono-tag font-bold transition-all cursor-pointer uppercase">
+                            Edit
+                        </button>
+                        <button type="button" onclick="window.toggleArchiveTournament('${t.id}')" class="px-2 py-1 rounded-lg ${(t.archived === true || t.isArchived === true || t.status === 'Archived') ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30' : 'bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10'} text-[10px] font-mono-tag font-bold transition-all cursor-pointer uppercase">
+                            ${(t.archived === true || t.isArchived === true || t.status === 'Archived') ? 'Unarchive' : 'Archive'}
+                        </button>
+                        <button type="button" onclick="window.toggleCancelTournament('${t.id}')" class="px-2 py-1 rounded-lg ${(t.status === 'Cancelled' || t.isCancelled) ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 hover:bg-amber-500/30' : 'bg-white/5 hover:bg-red-500/20 text-neutral-300 hover:text-red-400 border border-white/10'} text-[10px] font-mono-tag font-bold transition-all cursor-pointer uppercase">
+                            ${(t.status === 'Cancelled' || t.isCancelled) ? 'Reopen' : 'Cancel'}
+                        </button>
+                    </div>
                 </div>
-            </div>
 
-            <!-- Pre-start Bracket Type & Start Button -->
-            <div class="shrink-0">
-                ${!t.isStarted ? `
-                    <div class="p-2.5 bg-white/[0.02] border border-white/10 rounded-xl flex items-center justify-between gap-2">
-                        <div class="flex-1 min-w-0">
-                            <label class="block text-[8px] text-neutral-400 font-bold uppercase mb-0.5">Bracket Type</label>
-                            <select id="organizerFormatSelect" class="dark-select w-full text-xs p-1.5 rounded-lg border border-white/10 bg-[#14141a] text-white cursor-pointer" onchange="window.handleTournamentFormatChange(this.value)">
+                <!-- Section 1: Bracket & Match Execution -->
+                <div class="p-3 bg-black/40 border border-white/5 rounded-xl space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[9px] text-neutral-400 font-mono-tag font-bold uppercase tracking-wider">Bracket Stage</span>
+                        ${t.isStarted ? '<span class="text-[9px] text-emerald-400 font-mono-tag font-bold uppercase flex items-center gap-1"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Live</span>' : ''}
+                    </div>
+                    ${actualStatus === 'Cancelled' ? `
+                        <div class="p-2 bg-red-950/40 border border-red-500/30 rounded-lg flex items-center justify-between text-xs">
+                            <span class="text-red-400 font-bold uppercase flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-red-500"></span>
+                                <span>Tournament Cancelled</span>
+                            </span>
+                            <button type="button" onclick="window.toggleCancelTournament('${t.id}')" class="px-2 py-0.5 bg-red-500/20 hover:bg-red-500/30 text-red-300 border border-red-500/40 rounded text-[10px] uppercase font-bold transition-colors cursor-pointer">
+                                Reopen
+                            </button>
+                        </div>
+                    ` : actualStatus === 'Completed' ? `
+                        <div class="p-2 bg-neutral-900 border border-neutral-700 rounded-lg flex items-center justify-between text-xs">
+                            <span class="text-neutral-400 font-bold uppercase flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-neutral-500"></span>
+                                <span>Tournament Concluded</span>
+                            </span>
+                        </div>
+                    ` : actualStatus === 'Archived' ? `
+                        <div class="p-2 bg-neutral-900 border border-neutral-700 rounded-lg flex items-center justify-between text-xs">
+                            <span class="text-neutral-400 font-bold uppercase flex items-center gap-2">
+                                <span class="w-2 h-2 rounded-full bg-neutral-500"></span>
+                                <span>Tournament Archived</span>
+                            </span>
+                        </div>
+                    ` : !t.isStarted ? `
+                        <div class="flex items-center gap-2">
+                            <select id="organizerFormatSelect" class="dark-select flex-1 text-xs p-2 rounded-lg border border-white/10 bg-[#14141a] text-white cursor-pointer" onchange="window.handleTournamentFormatChange(this.value)">
                                 <option value="Single Elimination" ${format === 'Single Elimination' ? 'selected' : ''}>Single Elimination</option>
                                 <option value="Double Elimination" ${format === 'Double Elimination' ? 'selected' : ''}>Double Elimination</option>
                                 <option value="Round Robin" ${format === 'Round Robin' ? 'selected' : ''}>Round Robin</option>
                             </select>
-                        </div>
-                        <div class="shrink-0 self-end">
-                            <button type="button" onclick="window.startTournament()" class="px-3.5 py-2 bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-extrabold text-xs uppercase tracking-wider rounded-lg transition-all shadow-sm flex items-center justify-center gap-1 cursor-pointer">
-                                <span>▶</span> <span>Start</span>
+                            <button type="button" onclick="window.startTournament()" class="shrink-0 px-3.5 py-2 bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-extrabold text-xs uppercase tracking-wider rounded-lg transition-all shadow-sm flex items-center justify-center gap-1.5 cursor-pointer">
+                                <span>Start Bracket</span>
                             </button>
                         </div>
-                    </div>
-                ` : `
-                    <div class="px-3 py-1.5 bg-white/[0.02] border border-white/10 rounded-xl flex items-center justify-between text-xs">
-                        <span class="text-neutral-300 font-medium uppercase flex items-center gap-2">
-                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                            <span>Tournament Live (${escapeHtml(format)})</span>
-                        </span>
-                    </div>
-                `}
-            </div>
-
-            ${showSoloControls ? `
-                <!-- Solo Queue & Auto-Teaming Controls -->
-                <div class="p-2.5 bg-black/40 border border-[#FFD700]/25 rounded-xl space-y-1.5 shrink-0">
-                    <div class="flex items-center justify-between text-[9px]">
-                        <span class="text-neutral-300 font-bold uppercase flex items-center gap-1.5">
-                            <span>Solo Queue</span>
-                            <span class="px-1.5 py-0.2 rounded-full bg-[#FFD700]/15 text-[#FFD700] font-bold">${queuedSoloCount} Queued</span>
-                        </span>
-                        <span class="text-neutral-400 font-mono-tag">${readySquads} Squads (${teamSize}v${teamSize})</span>
-                    </div>
-                    <button type="button" onclick="window.autoTeamSoloPlayers('${t.id}')" ${queuedSoloCount < teamSize ? 'disabled' : ''} class="w-full py-1.5 rounded-lg ${queuedSoloCount >= teamSize ? 'bg-[#FFD700] hover:bg-[#FFF099] text-black font-black cursor-pointer shadow' : 'bg-white/5 text-neutral-500 border border-white/10 cursor-not-allowed'} font-heading text-[10px] uppercase tracking-wider transition-all flex items-center justify-center gap-1">
-                        <span>Auto-Team Solo Players</span>
-                        ${readySquads > 0 ? `<span class="px-1.5 py-0.2 rounded bg-black/30 text-black text-[8px] font-bold">(${readySquads} Squads)</span>` : ''}
-                    </button>
+                    ` : `
+                        <div class="p-2 bg-emerald-950/40 border border-emerald-500/40 rounded-lg flex items-center justify-between text-xs text-emerald-300 font-mono-tag">
+                            <span>Format: ${escapeHtml(format)}</span>
+                            <span class="text-[10px] text-neutral-400 font-mono-tag">Manage matches in Bracket tab</span>
+                        </div>
+                    `}
                 </div>
-            ` : ''}
 
-            <!-- Pending Applications (Prominent & Clear) -->
-            <div class="flex-1 min-h-0 flex flex-col">
-                <div class="flex items-center justify-between mb-1.5 shrink-0">
-                    <span class="text-[9px] text-neutral-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
-                        <span>Pending Applications</span>
-                        <span id="pendingAppBadge" class="px-1.5 py-0.2 rounded-full text-[9px] bg-white/10 text-neutral-400 font-bold">0</span>
-                    </span>
+                <!-- Section 2: Check-In Management -->
+                <div class="p-3 bg-black/40 border border-white/5 rounded-xl space-y-2">
+                    <div class="flex items-center justify-between">
+                        <span class="text-[9px] text-neutral-400 font-mono-tag font-bold uppercase tracking-wider">Check-In Management</span>
+                        <span class="text-[9px] font-mono-tag font-bold ${t.checkInOpen ? 'text-[#FFD700]' : 'text-neutral-500'} uppercase">${t.checkInOpen ? 'Window Open' : 'Closed'}</span>
+                    </div>
+                    <div class="grid grid-cols-3 gap-1.5 text-[10px] font-mono-tag font-bold">
+                        <button type="button" onclick="window.toggleTournamentCheckIn()" class="py-1.5 px-2 ${t.checkInOpen ? 'bg-amber-500/20 text-[#FFD700] border-amber-500/40' : 'bg-white/5 text-neutral-300 border-white/10'} hover:bg-white/10 border rounded-lg uppercase transition-colors truncate cursor-pointer text-center">
+                            ${t.checkInOpen ? 'Close Check-In' : 'Open Check-In'}
+                        </button>
+                        <button type="button" onclick="window.checkInAllTeams()" class="py-1.5 px-2 bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 hover:text-white rounded-lg uppercase transition-colors cursor-pointer text-center">
+                            Ready All
+                        </button>
+                        <button type="button" onclick="window.dropUnreadyTeams()" class="py-1.5 px-2 bg-white/5 hover:bg-red-500/20 text-neutral-300 hover:text-red-400 border border-white/10 rounded-lg uppercase transition-colors cursor-pointer text-center">
+                            Drop Unready
+                        </button>
+                    </div>
                 </div>
-                <div id="adminAppList" class="space-y-1.5 flex-1 overflow-y-auto custom-scrollbar bg-black/40 border border-white/5 rounded-xl p-2 min-h-[60px] max-h-[120px] text-xs">
-                    <div class="text-neutral-500 text-[11px] py-1 text-center italic">No pending applications.</div>
-                </div>
-            </div>
 
-            <!-- Check-In Controls -->
-            <div class="pt-2 border-t border-white/5 flex flex-wrap gap-1.5 text-[10px] shrink-0">
-                <button type="button" onclick="window.toggleTournamentCheckIn()" class="flex-1 px-2.5 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg text-neutral-300 uppercase font-bold transition-colors truncate cursor-pointer">
-                    ${t.checkInOpen ? 'Close Check-In' : 'Open Check-In'}
-                </button>
-                <button type="button" onclick="window.checkInAllTeams()" class="px-2.5 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 text-neutral-300 rounded-lg uppercase font-bold transition-colors cursor-pointer">
-                    Ready All
-                </button>
-                <button type="button" onclick="window.dropUnreadyTeams()" class="px-2.5 py-1.5 bg-white/5 hover:bg-red-500/20 text-neutral-300 hover:text-red-400 border border-white/10 rounded-lg uppercase font-bold transition-colors cursor-pointer">
-                    Drop Unready
-                </button>
-            </div>
-        `;
+                ${showSoloControls ? `
+                    <!-- Section 3: Solo Free Agents & Auto-Teaming -->
+                    <div class="p-3 bg-black/40 border border-[#FFD700]/25 rounded-xl space-y-2">
+                        <div class="flex items-center justify-between text-[9px] font-mono-tag">
+                            <span class="text-neutral-300 font-bold uppercase flex items-center gap-1.5">
+                                <span>Solo Free Agents</span>
+                                <span class="px-1.5 py-0.5 rounded-full bg-[#FFD700]/15 text-[#FFD700] font-bold">${queuedSoloCount} Queued</span>
+                            </span>
+                            <span class="text-neutral-400">${readySquads} Squads (${teamSize}v${teamSize})</span>
+                        </div>
+                        <button type="button" onclick="window.autoTeamSoloPlayers('${t.id}')" ${queuedSoloCount < teamSize ? 'disabled' : ''} class="w-full py-2 rounded-lg ${queuedSoloCount >= teamSize ? 'bg-[#FFD700] hover:bg-[#FFF099] text-black font-extrabold cursor-pointer shadow-md' : 'bg-white/5 text-neutral-500 border border-white/10 cursor-not-allowed'} font-heading text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5">
+                            <span>Auto-Team Solo Players</span>
+                            ${readySquads > 0 ? `<span class="px-1.5 py-0.5 rounded bg-black/20 text-black text-[9px] font-bold">(${readySquads} Ready)</span>` : ''}
+                        </button>
+                    </div>
+                ` : ''}
 
-        initAdminDashboard(t.id);
-        const fee = tournDoc.entryFee || 0;
-        const curr = tournDoc.entryCurrency || 'PHP';
-        const sym = curr === 'USD' ? '
-        adminDash.classList.add('hidden');
-        if (adminUnsubscribe) { adminUnsubscribe(); adminUnsubscribe = null; }
+                ${!isSoloTournament ? `
+                    <!-- Section 4: Pending Roster Applications -->
+                    <div class="p-3 bg-black/40 border border-white/5 rounded-xl space-y-2">
+                        <div class="flex items-center justify-between text-[9px] font-mono-tag">
+                            <span class="text-neutral-300 font-bold uppercase tracking-wider flex items-center gap-1.5">
+                                <span>Pending Applications</span>
+                            </span>
+                            <span id="pendingAppBadge" class="px-1.5 py-0.5 rounded-full text-[9px] bg-white/10 text-neutral-400 font-bold">0</span>
+                        </div>
+                        <div id="adminAppList" class="space-y-1.5 overflow-y-auto custom-scrollbar bg-[#050507] border border-white/5 rounded-lg p-2 max-h-[100px] text-xs">
+                            <div class="text-neutral-500 text-[10px] py-1 text-center italic font-mono-tag">No pending applications.</div>
+                        </div>
+                    </div>
+                ` : ''}
+            `;
+
+            initAdminDashboard(t.id);
+        } else {
+            adminDash.classList.add('hidden');
+            if (adminUnsubscribe) { adminUnsubscribe(); adminUnsubscribe = null; }
+        }
     }
 
     // 4. Action Area
@@ -3024,13 +4240,17 @@ async function renderTournamentView(t) {
             let userStatus = 'none'; 
             let userAppId = null;
             if (user) {
-                const appsRef = collection(db, "tournaments", t.id, "applications");
-                const q = query(appsRef, where("registeredBy", "==", user.uid));
-                const appSnap = await getDocs(q);
-                if (!appSnap.empty) { 
-                    const app = appSnap.docs[0].data(); 
-                    userStatus = app.status; 
-                    userAppId = appSnap.docs[0].id; 
+                try {
+                    const appsRef = collection(db, "tournaments", t.id, "applications");
+                    const q = query(appsRef, where("registeredBy", "==", user.uid));
+                    const appSnap = await getDocs(q);
+                    if (!appSnap.empty) { 
+                        const app = appSnap.docs[0].data(); 
+                        userStatus = app.status; 
+                        userAppId = appSnap.docs[0].id; 
+                    }
+                } catch (e) {
+                    console.warn("Could not fetch user application:", e);
                 }
             }
 
@@ -3104,15 +4324,31 @@ window.switchJoinMode = function (mode) {
     if (mode === 'solo') {
         if (soloBtn) soloBtn.className = "py-2 rounded-lg bg-[#FFD700] text-black font-extrabold uppercase transition-all shadow-sm cursor-pointer text-center";
         if (teamBtn) teamBtn.className = "py-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 font-bold uppercase transition-all cursor-pointer text-center";
-        if (teamFields) teamFields.classList.add('hidden');
-        if (soloFields) soloFields.classList.remove('hidden');
+        if (teamFields) {
+            teamFields.classList.add('hidden');
+            teamFields.querySelectorAll('input, select').forEach(el => el.removeAttribute('required'));
+        }
+        if (soloFields) {
+            soloFields.classList.remove('hidden');
+            const soloIgn = document.getElementById('joinSoloIgn');
+            if (soloIgn) soloIgn.setAttribute('required', 'true');
+        }
         if (heading) heading.textContent = targetTeamSize === 1 ? "1v1 Tournament Registration" : "Register as Solo Free Agent";
         if (subheading) subheading.textContent = targetTeamSize === 1 ? "Enter your player IGN and details to register for this 1v1 tournament." : "Enter your player details. You will be automatically teamed with other free agents.";
     } else {
         if (teamBtn) teamBtn.className = "py-2 rounded-lg bg-[#FFD700] text-black font-extrabold uppercase transition-all shadow-sm cursor-pointer text-center";
         if (soloBtn) soloBtn.className = "py-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 font-bold uppercase transition-all cursor-pointer text-center";
-        if (teamFields) teamFields.classList.remove('hidden');
-        if (soloFields) soloFields.classList.add('hidden');
+        if (teamFields) {
+            teamFields.classList.remove('hidden');
+            const captain = document.getElementById('joinCaptain');
+            const contact = document.getElementById('joinContact');
+            if (captain) captain.setAttribute('required', 'true');
+            if (contact) contact.setAttribute('required', 'true');
+        }
+        if (soloFields) {
+            soloFields.classList.add('hidden');
+            soloFields.querySelectorAll('input, select').forEach(el => el.removeAttribute('required'));
+        }
         if (heading) heading.textContent = targetTeamSize ? `Join ${targetTeamSize}v${targetTeamSize} Tournament` : "Join Tournament";
         if (subheading) subheading.textContent = `Register your competitive team roster below (${targetTeamSize} players).`;
     }
@@ -3158,6 +4394,8 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
 
     currentJoiningId = id;
     userTeams = [];
+    let proofURL = null;
+    const qrURL = tournDoc?.paymentQrUrl || tournDoc?.qrUrl || tournDoc?.qr || '';
 
     const regType = tournDoc?.registrationType || 'team';
     const targetTeamSize = parseInt(tournDoc?.teamSize) || 5;
@@ -3178,8 +4416,7 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
     const submitBtn = qs('#joinForm button[type="submit"]');
     const form = qs('#joinForm');
 
-        const isPaid = tournDoc.paymentType === 'manual' || (!tournDoc.paymentType && tournDoc.entryType === 'Paid');
-
+    const isPaid = tournDoc?.paymentType === 'manual' || (!tournDoc?.paymentType && tournDoc?.entryType === 'Paid');
 
     const select = qs('#joinTeamSelect');
     if (select) select.innerHTML = '<option value="custom" class="bg-[#1a1a1f] text-white">Loading teams...</option>';
@@ -3244,6 +4481,7 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
             const appSnap = await getDoc(appRef);
             if (appSnap.exists()) {
                 const data = appSnap.data();
+                proofURL = data.proofURL || data.paymentProof || data.proof || null;
                 const matchingTeam = userTeams.find(t => t.name === data.name);
                 if (matchingTeam && select) { 
                     select.value = matchingTeam.id; 
@@ -3302,7 +4540,7 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
         if (qs('#joinSoloPhone')) qs('#joinSoloPhone').value = '';
         if (qs('#joinSoloNotes')) qs('#joinSoloNotes').value = '';
         if (qs('#membersContainer')) {
-            qs('#membersContainer').innerHTML = `<div class="flex gap-2 w-full"><input type="text" name="memberIgn[]" placeholder="Member IGN" class="dark-input w-full p-2.5 rounded-lg text-xs font-mono-tag" required></div>`;
+            qs('#membersContainer').innerHTML = `<div class="flex gap-2 w-full"><input type="text" name="memberIgn[]" placeholder="Member IGN" class="dark-input w-full p-2.5 rounded-lg text-xs font-mono-tag"></div>`;
         }
         if (select && window.toggleTeamInput) window.toggleTeamInput(select);
     }
@@ -3312,14 +4550,15 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
     const qrDl    = document.getElementById('join-qr-download');
     const qrLabel = document.getElementById('join-qr-download-label');
 
-        if (isPaid && window._joinProofFile) {
-
-        qrImg.src = qrURL;
+    if (isPaid && qrURL) {
+        if (qrImg) qrImg.src = qrURL;
         const safeName = (tournDoc.name || 'payment-qr').replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_-]/g, '');
-        qrDl.href     = qrURL;
-        qrDl.download = `${safeName}_QR`;
+        if (qrDl) {
+            qrDl.href     = qrURL;
+            qrDl.download = `${safeName}_QR`;
+        }
         if (qrLabel) qrLabel.textContent = `Download QR`;
-        qrPanel.classList.remove('hidden');
+        if (qrPanel) qrPanel.classList.remove('hidden');
     } else if (qrPanel) {
         qrPanel.classList.add('hidden');
     }
@@ -3338,13 +4577,17 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
     const entryFeeUpload = document.getElementById('join-entry-fee-upload');
     if (entryFeeUpload) {
         if (proofURL) {
-
-        window._entryFeeFile = null;
-        window._entryFeePreviewURL = null;
-        if (document.getElementById('entry-fee-filename')) document.getElementById('entry-fee-filename').textContent = 'Click or drag image here';
-        if (document.getElementById('entry-fee-dropzone')) document.getElementById('entry-fee-dropzone').style.borderColor = 'rgba(255,255,255,0.15)';
-        if (document.getElementById('entry-fee-preview-btn-wrap')) document.getElementById('entry-fee-preview-btn-wrap').classList.add('hidden');
-        if (document.getElementById('entry-fee-file-input')) document.getElementById('entry-fee-file-input').value = '';
+            window._entryFeePreviewURL = proofURL;
+            if (document.getElementById('entry-fee-filename')) document.getElementById('entry-fee-filename').textContent = 'Existing Proof Uploaded';
+            if (document.getElementById('entry-fee-preview-btn-wrap')) document.getElementById('entry-fee-preview-btn-wrap').classList.remove('hidden');
+        } else {
+            window._entryFeeFile = null;
+            window._entryFeePreviewURL = null;
+            if (document.getElementById('entry-fee-filename')) document.getElementById('entry-fee-filename').textContent = 'Click or drag image here';
+            if (document.getElementById('entry-fee-dropzone')) document.getElementById('entry-fee-dropzone').style.borderColor = 'rgba(255,255,255,0.15)';
+            if (document.getElementById('entry-fee-preview-btn-wrap')) document.getElementById('entry-fee-preview-btn-wrap').classList.add('hidden');
+            if (document.getElementById('entry-fee-file-input')) document.getElementById('entry-fee-file-input').value = '';
+        }
     }
 
     document.getElementById('joinModal').classList.remove('hidden');
@@ -3537,11 +4780,7 @@ async function submitJoinRequest() {
         }
     });
 
-        const proofBtn = app.entryFeeProofURL ? `
-            <button type="button" onclick="window.openEntryFeeProofViewer('${escapeHtml(app.entryFeeProofURL)}')" class="px-1.5 py-1 rounded bg-amber-500/15 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 text-[9px] font-bold uppercase cursor-pointer shrink-0" title="View Payment Proof">Proof</button>
-        ` : '';
-
-
+    const candidateIgns = [captain.trim().toLowerCase(), ...membersList.map(m => m.trim().toLowerCase())].filter(Boolean);
     const participants = tournDoc?.participants || [];
     for (const p of participants) {
         if (isEdit && p.registeredBy === user.uid) continue;
@@ -3629,11 +4868,11 @@ async function submitJoinRequest() {
         const msg = isEdit ? 'Update request sent!' : 'Application submitted!';
         if (window.showSuccessToast) window.showSuccessToast('Success', msg);
         document.getElementById('joinModal').classList.add('hidden');
-        const proofBtn = app.entryFeeProofURL ? `
-            <button type="button" onclick="window.openEntryFeeProofViewer('${escapeHtml(app.entryFeeProofURL)}')" class="px-1.5 py-1 rounded bg-amber-500/15 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 text-[9px] font-bold uppercase cursor-pointer shrink-0" title="View Payment Proof">Proof</button>
-        ` : '';
-
-        } 
+    } catch (e) {
+        console.error(e);
+        alert("Error submitting application: " + e.message);
+    } finally {
+        if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = isEdit ? 'Save Changes' : 'Submit Application'; }
     }
 }
 
@@ -3652,30 +4891,6 @@ async function withdrawApplication(tourneyId, appId) {
         await deleteDoc(doc(db, "tournaments", tourneyId, "applications", appId));
         if (window.showSuccessToast) window.showSuccessToast('Success', 'Application withdrawn.');
     } catch (e) { console.error(e); alert("Error withdrawing: " + e.message); }
-}
-
-        const isUpdate = app.status === 'pending_update';
-        const item = document.createElement('div');
-        item.className = "flex items-center justify-between bg-black/40 p-3 rounded-xl border border-white/5 gap-2 hover:border-white/15 transition-all";
-        const proofBtn = app.entryFeeProofURL ? `
-            <button type="button" onclick="window.openEntryFeeProofViewer('${escapeHtml(app.entryFeeProofURL)}')" class="px-1.5 py-1 rounded bg-amber-500/15 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 text-[9px] font-bold uppercase cursor-pointer shrink-0" title="View Payment Proof">Proof</button>
-        ` : '';
-
-        item.innerHTML = `
-            <div class="min-w-0 flex-1">
-                <div class="font-heading font-black text-white text-xs flex items-center gap-1.5 truncate">
-                    <span class="truncate">${escapeHtml(app.name)}</span>
-                    ${isUpdate ? '<span class="text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 py-0.2 rounded font-mono-tag uppercase shrink-0">UPDATE</span>' : '<span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 py-0.2 rounded font-mono-tag uppercase shrink-0">NEW</span>'}
-                </div>
-                <div class="text-[10px] text-neutral-400 font-mono-tag truncate mt-0.5">Cap: <span class="text-neutral-200">${escapeHtml(app.captain)}</span></div>
-            </div>
-            <div class="flex items-center gap-1 shrink-0 font-mono-tag">
-                ${proofBtn}
-                <button type="button" onclick="window.viewPendingApplication('${docSnap.id}')" class="bg-white/5 hover:bg-white/15 text-neutral-300 text-[9px] px-2 py-1 rounded border border-white/10 uppercase font-bold cursor-pointer transition-colors">View</button>
-                <button type="button" onclick="window.processApplication('${tournamentId}', '${docSnap.id}', true)" class="bg-[#FFD700] hover:bg-[#FFF099] text-black text-[9px] font-extrabold px-2 py-1 rounded uppercase cursor-pointer shadow-sm transition-colors">Accept</button>
-                <button type="button" onclick="window.processApplication('${tournamentId}', '${docSnap.id}', false)" class="bg-white/5 hover:bg-red-500/20 text-neutral-400 hover:text-red-400 text-[9px] font-bold px-1.5 py-1 rounded uppercase cursor-pointer border border-white/10 transition-colors">✕</button>
-            </div>`;
-
 }
 
 
@@ -3921,12 +5136,45 @@ function initAdminDashboard(tournamentId) {
             const app = docSnap.data();
             pendingApplicationsMap.set(docSnap.id, app);
 
-        await sendTournamentNotification(uidsToNotify, tournamentId, 'success', `Your application for "${appData.name}" was accepted!`);
-        if (window.showSuccessToast) window.showSuccessToast('Accepted', `Team ${appData.name} added.`);
+            const isUpdate = app.status === 'pending_update';
+            const item = document.createElement('div');
+            item.className = "flex items-center justify-between bg-black/40 p-3 rounded-xl border border-white/5 gap-2 hover:border-white/15 transition-all";
+            const proofBtn = app.entryFeeProofURL ? `
+                <button type="button" onclick="window.openEntryFeeProofViewer('${escapeHtml(app.entryFeeProofURL)}')" class="px-1.5 py-1 rounded bg-amber-500/15 text-amber-400 hover:bg-amber-500/30 border border-amber-500/30 text-[9px] font-bold uppercase cursor-pointer shrink-0" title="View Payment Proof">Proof</button>
+            ` : '';
+
+            item.innerHTML = `
+                <div class="min-w-0 flex-1">
+                    <div class="font-heading font-black text-white text-xs flex items-center gap-1.5 truncate">
+                        <span class="truncate">${escapeHtml(app.name)}</span>
+                        ${isUpdate ? '<span class="text-[8px] bg-amber-500/20 text-amber-400 border border-amber-500/30 px-1 py-0.2 rounded font-mono-tag uppercase shrink-0">UPDATE</span>' : '<span class="text-[8px] bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-1 py-0.2 rounded font-mono-tag uppercase shrink-0">NEW</span>'}
+                    </div>
+                    <div class="text-[10px] text-neutral-400 font-mono-tag truncate mt-0.5">Cap: <span class="text-neutral-200">${escapeHtml(app.captain)}</span></div>
+                </div>
+                <div class="flex items-center gap-1 shrink-0 font-mono-tag">
+                    ${proofBtn}
+                    <button type="button" onclick="window.viewPendingApplication('${docSnap.id}')" class="bg-white/5 hover:bg-white/15 text-neutral-300 text-[9px] px-2 py-1 rounded border border-white/10 uppercase font-bold cursor-pointer transition-colors">View</button>
+                    <button type="button" onclick="window.processApplication('${tournamentId}', '${docSnap.id}', true)" class="bg-[#FFD700] hover:bg-[#FFF099] text-black text-[9px] font-extrabold px-2 py-1 rounded uppercase cursor-pointer shadow-sm transition-colors">Accept</button>
+                </div>`;
 
             list.appendChild(item);
         });
     });
+}
+
+async function sendTournamentNotification(uids, tourneyId, type, message) {
+    if (!uids || !uids.length) return;
+    for (const uid of uids) {
+        if (window.sendPlayerNotification) {
+            await window.sendPlayerNotification(uid, {
+                title: type === 'alert' ? 'Tournament Application' : 'Tournament Update',
+                message: message,
+                type: 'tournament',
+                tag: message.includes('accepted') ? 'APPROVED' : 'DECLINED',
+                link: `/tournaments?id=${tourneyId}`
+            });
+        }
+    }
 }
 
 async function processApplication(tourneyId, appId, isApproved) {
@@ -4008,7 +5256,7 @@ async function processApplication(tourneyId, appId, isApproved) {
 }
 
 // ----------------------------------------------------
-// BRACKET ZOOM & FULLSCREEN CONTROLS
+// BRACKET ZOOM, PAN & FULLSCREEN CONTROLS
 // ----------------------------------------------------
 let currentBracketZoom = 1.0;
 window.currentBracketZoom = currentBracketZoom;
@@ -4020,32 +5268,26 @@ function applyBracketZoom(zoom) {
     const indicator = document.getElementById('bracketZoomIndicator');
     if (indicator) indicator.textContent = `${Math.round(currentBracketZoom * 100)}%`;
 
-    const container = document.getElementById('bracketContainer');
     const wrapper = document.getElementById('bracketZoomWrapper');
-    
-    if (container) {
-        if ('zoom' in container.style) {
-            container.style.zoom = currentBracketZoom;
-            container.style.transform = '';
-            if (wrapper) {
-                wrapper.style.transform = '';
-                wrapper.style.width = 'max-content';
-                wrapper.style.minWidth = '100%';
-            }
-        } else if (wrapper) {
-            wrapper.style.transform = `scale(${currentBracketZoom})`;
-            wrapper.style.transformOrigin = '0 0';
-        }
+    if (wrapper) {
+        wrapper.style.transform = `scale(${currentBracketZoom})`;
+        wrapper.style.transformOrigin = '0 0';
+        wrapper.style.display = 'inline-block';
+        wrapper.style.width = 'max-content';
+        wrapper.style.height = 'max-content';
     }
 }
+window.applyBracketZoom = applyBracketZoom;
 
 function zoomBracket(delta) {
     applyBracketZoom(currentBracketZoom + delta);
 }
+window.zoomBracket = zoomBracket;
 
 function resetBracketZoom() {
     applyBracketZoom(1.0);
 }
+window.resetBracketZoom = resetBracketZoom;
 
 function toggleBracketFullscreen() {
     const section = document.getElementById('bracketSection');
@@ -4057,7 +5299,7 @@ function toggleBracketFullscreen() {
     if (btn) {
         if (isFullscreen) {
             btn.title = "Exit Fullscreen (Esc)";
-            btn.innerHTML = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>`;
+            btn.innerHTML = `<svg class="w-3.5 h-3.5 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>`;
             btn.classList.add('text-[#FFD700]', 'bg-white/10');
         } else {
             btn.title = "Fullscreen Bracket View";
@@ -4065,11 +5307,8 @@ function toggleBracketFullscreen() {
             btn.classList.remove('text-[#FFD700]', 'bg-white/10');
         }
     }
-
-    setTimeout(() => {
-        applyBracketZoom(currentBracketZoom);
-    }, 50);
 }
+window.toggleBracketFullscreen = toggleBracketFullscreen;
 
 window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
@@ -4263,7 +5502,7 @@ function renderMatchBadgesHtml(m) {
 
     // 2. Match MVP Star Badge
     if (m.mvp) {
-        html += `<div class="mt-0.5 text-[8px] bg-[#FFD700]/10 text-[#FFD700] px-1 py-0.5 rounded truncate font-mono-tag font-bold">⭐ MVP: ${escapeHtml(m.mvp)}</div>`;
+        html += `<div class="mt-0.5 text-[8px] bg-[#FFD700]/10 text-[#FFD700] px-1 py-0.5 rounded truncate font-mono-tag font-bold">MVP: ${escapeHtml(m.mvp)}</div>`;
     }
 
     // 3. Victory Screenshot Proof Button
@@ -4289,7 +5528,7 @@ function renderMatchBadgesHtml(m) {
         if (remainingMs === 0) {
             html += `<div class="mt-1 text-[8px] bg-rose-500/20 text-rose-400 border border-rose-500/40 px-1 py-0.5 rounded truncate font-mono-tag font-bold">Forfeit Eligible</div>`;
         } else {
-            html += `<div class="mt-1 text-[8px] bg-white/5 text-neutral-400 px-1 py-0.5 rounded truncate font-mono-tag">⏱️ ${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}</div>`;
+            html += `<div class="mt-1 text-[8px] bg-white/5 text-neutral-400 px-1 py-0.5 rounded truncate font-mono-tag font-mono">${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}</div>`;
         }
     }
 
@@ -4344,9 +5583,11 @@ function renderRecursiveBracket(container, treeNode, isAdmin) {
             </div>
         `;
     } else {
+        const mFmt = m.format || getRoundFormat(currentEditingTournament, `Round ${m.round}`);
         card.innerHTML = `
             <div class="flex justify-between items-center mb-1.5 text-[9px] text-neutral-500 font-mono-tag uppercase tracking-wider">
                 <span>M${m.matchNumber} • R${m.round}</span>
+                <span class="px-1.5 py-0.2 rounded bg-white/5 text-[8px] font-bold text-neutral-400 border border-white/10 font-mono-tag">${mFmt}</span>
                 ${isCompleted ? '<span class="text-emerald-400 font-bold text-[10px]">DONE</span>' : ''}
             </div>
             <div class="space-y-1 w-full">
@@ -4391,9 +5632,26 @@ function renderMatchesFromDatabase(container, matches, format, isAdmin) {
     for (let i = maxDepth; i >= 1; i--) {
         const hItem = document.createElement('div');
         hItem.className = 'header-item';
-        if (i === 1) hItem.textContent = "Grand Final";
-        else if (i === 2) hItem.textContent = "Semi Finals";
-        else hItem.textContent = `Round ${maxDepth - i + 1}`;
+        let roundName = `Round ${maxDepth - i + 1}`;
+        if (i === 1) roundName = "Grand Final";
+        else if (i === 2) roundName = "Semi Finals";
+        else if (i === 3 && maxDepth >= 4) roundName = "Quarter Finals";
+
+        const fmt = getRoundFormat(currentEditingTournament, roundName);
+
+        hItem.innerHTML = `
+            <span class="font-heading font-black text-xs uppercase text-white tracking-wider whitespace-nowrap">${escapeHtml(roundName)}</span>
+            ${isAdmin ? `
+                <button type="button" onclick="window.quickEditRoundFormat('${roundName}', event)"
+                    title="Click to cycle format (${fmt})"
+                    class="px-1.5 py-0.5 rounded bg-[#FFD700]/15 hover:bg-[#FFD700]/30 text-[#FFD700] border border-[#FFD700]/40 text-[9px] font-mono-tag font-bold transition-all cursor-pointer inline-flex items-center gap-0.5 shadow-sm shrink-0">
+                    <span>${fmt}</span>
+                    <span class="text-[7px] opacity-70">▾</span>
+                </button>
+            ` : `
+                <span class="px-1.5 py-0.5 rounded bg-white/5 text-neutral-400 border border-white/10 text-[9px] font-mono-tag font-bold shrink-0">${fmt}</span>
+            `}
+        `;
         headersDiv.appendChild(hItem);
     }
 
@@ -4473,8 +5731,25 @@ function renderSingleEliminationPlaceholder(container, participants, isEditable)
         let roundName = `Round ${r + 1}`;
         if (r === rounds - 1) roundName = "Grand Final";
         else if (r === rounds - 2) roundName = "Semi Finals";
+        else if (r === rounds - 3 && rounds >= 4) roundName = "Quarter Finals";
+
+        const fmt = getRoundFormat(currentEditingTournament, roundName);
         
-        roundDiv.innerHTML = `<div class="text-center text-xs text-[var(--gold)] mb-3 font-heading font-bold uppercase tracking-wider border-b border-white/10 pb-1.5">${roundName}</div>`;
+        roundDiv.innerHTML = `
+            <div class="flex items-center justify-center mb-3 border-b border-white/10 pb-1.5 gap-2">
+                <span class="text-center text-xs text-white font-heading font-bold uppercase tracking-wider whitespace-nowrap">${escapeHtml(roundName)}</span>
+                ${isEditable ? `
+                    <button type="button" onclick="window.quickEditRoundFormat('${roundName}', event)"
+                        title="Click to cycle format (${fmt})"
+                        class="px-1.5 py-0.5 rounded bg-[#FFD700]/15 hover:bg-[#FFD700]/30 text-[#FFD700] border border-[#FFD700]/40 text-[9px] font-mono-tag font-bold transition-all cursor-pointer inline-flex items-center gap-0.5 shadow-sm shrink-0">
+                        <span>${fmt}</span>
+                        <span class="text-[7px] opacity-70">▾</span>
+                    </button>
+                ` : `
+                    <span class="px-1.5 py-0.5 rounded bg-white/5 text-neutral-400 border border-white/10 text-[9px] font-mono-tag font-bold shrink-0">${fmt}</span>
+                `}
+            </div>
+        `;
         
         const matchesInRound = bracketSize / Math.pow(2, r + 1);
         const isFinalRound = (r === rounds - 1);
@@ -4574,7 +5849,23 @@ function renderDoubleEliminationPlaceholder(container, participants, isEditable)
     for (let r = 0; r < wbRounds; r++) {
         const roundDiv = document.createElement('div');
         roundDiv.className = 'bracket-round';
-        roundDiv.innerHTML = `<div class="text-center text-xs text-[var(--gold)] mb-3 font-heading font-bold uppercase tracking-wider border-b border-white/10 pb-1.5">WB Round ${r + 1}</div>`;
+        let roundName = (r === wbRounds - 1) ? "UB Final" : `UB Round ${r + 1}`;
+        const fmt = getRoundFormat(currentEditingTournament, roundName, (r === wbRounds - 1 ? 'BO3' : 'BO1'));
+        roundDiv.innerHTML = `
+            <div class="flex items-center justify-center mb-3 border-b border-white/10 pb-1.5 gap-2">
+                <span class="text-center text-xs text-[var(--gold)] font-heading font-bold uppercase tracking-wider whitespace-nowrap">${escapeHtml(roundName)}</span>
+                ${isEditable ? `
+                    <button type="button" onclick="window.quickEditRoundFormat('${roundName}', event)"
+                        title="Click to cycle format (${fmt})"
+                        class="px-1.5 py-0.5 rounded bg-[#FFD700]/15 hover:bg-[#FFD700]/30 text-[#FFD700] border border-[#FFD700]/40 text-[9px] font-mono-tag font-bold transition-all cursor-pointer inline-flex items-center gap-0.5 shadow-sm shrink-0">
+                        <span>${fmt}</span>
+                        <span class="text-[7px] opacity-70">▾</span>
+                    </button>
+                ` : `
+                    <span class="px-1.5 py-0.5 rounded bg-white/5 text-neutral-400 border border-white/10 text-[9px] font-mono-tag font-bold shrink-0">${fmt}</span>
+                `}
+            </div>
+        `;
 
         const matchesInRound = bracketSize / Math.pow(2, r + 1);
 
@@ -4631,8 +5922,21 @@ function renderDoubleEliminationPlaceholder(container, participants, isEditable)
 
     const finalDiv = document.createElement('div');
     finalDiv.className = 'bracket-round flex flex-col justify-center';
+    const gfFmt = getRoundFormat(currentEditingTournament, 'Grand Final', 'BO5');
     finalDiv.innerHTML = `
-        <div class="text-center text-xs text-[var(--gold)] mb-3 font-heading font-bold uppercase tracking-wider border-b border-white/10 pb-1.5">Grand Final</div>
+        <div class="flex items-center justify-center mb-3 border-b border-white/10 pb-1.5 gap-2">
+            <span class="text-center text-xs text-[var(--gold)] font-heading font-bold uppercase tracking-wider whitespace-nowrap">Grand Final</span>
+            ${isEditable ? `
+                <button type="button" onclick="window.quickEditRoundFormat('Grand Final', event)"
+                    title="Click to cycle format (${gfFmt})"
+                    class="px-1.5 py-0.5 rounded bg-[#FFD700]/15 hover:bg-[#FFD700]/30 text-[#FFD700] border border-[#FFD700]/40 text-[9px] font-mono-tag font-bold transition-all cursor-pointer inline-flex items-center gap-0.5 shadow-sm shrink-0">
+                    <span>${gfFmt}</span>
+                    <span class="text-[7px] opacity-70">▾</span>
+                </button>
+            ` : `
+                <span class="px-1.5 py-0.5 rounded bg-white/5 text-neutral-400 border border-white/10 text-[9px] font-mono-tag font-bold shrink-0">${gfFmt}</span>
+            `}
+        </div>
         <div class="match-pair straight-mode">
             <div class="match-card border-[var(--gold)] shadow-[0_0_20px_rgba(255,215,0,0.15)] h-[80px]">
                  <div class="team-slot"><span class="text-[var(--gold)] font-bold text-sm">Winner UB</span></div>
@@ -4650,7 +5954,23 @@ function renderDoubleEliminationPlaceholder(container, participants, isEditable)
     for (let r = 0; r < lbRoundsCount; r++) {
         const roundDiv = document.createElement('div');
         roundDiv.className = 'bracket-round';
-        roundDiv.innerHTML = `<div class="text-center text-xs text-red-400 mb-3 font-heading font-bold uppercase tracking-wider border-b border-white/10 pb-1.5">LB Round ${r + 1}</div>`;
+        let roundName = (r === lbRoundsCount - 1) ? "LB Final" : `LB Round ${r + 1}`;
+        const fmt = getRoundFormat(currentEditingTournament, roundName, (r === lbRoundsCount - 1 ? 'BO3' : 'BO1'));
+        roundDiv.innerHTML = `
+            <div class="flex items-center justify-center mb-3 border-b border-white/10 pb-1.5 gap-2">
+                <span class="text-center text-xs text-red-400 font-heading font-bold uppercase tracking-wider whitespace-nowrap">${escapeHtml(roundName)}</span>
+                ${isEditable ? `
+                    <button type="button" onclick="window.quickEditRoundFormat('${roundName}', event)"
+                        title="Click to cycle format (${fmt})"
+                        class="px-1.5 py-0.5 rounded bg-red-500/15 hover:bg-red-500/30 text-red-300 border border-red-500/40 text-[9px] font-mono-tag font-bold transition-all cursor-pointer inline-flex items-center gap-0.5 shadow-sm shrink-0">
+                        <span>${fmt}</span>
+                        <span class="text-[7px] opacity-70">▾</span>
+                    </button>
+                ` : `
+                    <span class="px-1.5 py-0.5 rounded bg-white/5 text-neutral-400 border border-white/10 text-[9px] font-mono-tag font-bold shrink-0">${fmt}</span>
+                `}
+            </div>
+        `;
         const powerDrop = Math.floor(r / 2);
         const matchesInThisRound = Math.max(1, (bracketSize / 4) / Math.pow(2, powerDrop));
         const nextPowerDrop = Math.floor((r + 1) / 2);
@@ -4705,14 +6025,40 @@ function renderDoubleEliminationLive(container, matches, isAdmin) {
         for (let i = 1; i <= maxRound; i++) {
             const hItem = document.createElement('div');
             hItem.className = 'header-item';
-            if (i === maxRound) hItem.textContent = "UB Final";
-            else hItem.textContent = `Round ${i}`;
+            const roundName = (i === maxRound) ? "UB Final" : (i === maxRound - 1 && maxRound > 2) ? "UB Semi Finals" : `UB Round ${i}`;
+            const fmt = getRoundFormat(currentEditingTournament, roundName, (i === maxRound ? 'BO3' : 'BO1'));
+            hItem.innerHTML = `
+                <span class="font-heading font-black text-xs uppercase text-white tracking-wider whitespace-nowrap">${escapeHtml(roundName)}</span>
+                ${isAdmin ? `
+                    <button type="button" onclick="window.quickEditRoundFormat('${roundName}', event)"
+                        title="Click to cycle format (${fmt})"
+                        class="px-1.5 py-0.5 rounded bg-[#FFD700]/15 hover:bg-[#FFD700]/30 text-[#FFD700] border border-[#FFD700]/40 text-[9px] font-mono-tag font-bold transition-all cursor-pointer inline-flex items-center gap-0.5 shadow-sm shrink-0">
+                        <span>${fmt}</span>
+                        <span class="text-[7px] opacity-70">▾</span>
+                    </button>
+                ` : `
+                    <span class="px-1.5 py-0.5 rounded bg-white/5 text-neutral-400 border border-white/10 text-[9px] font-mono-tag font-bold shrink-0">${fmt}</span>
+                `}
+            `;
             headersDiv.appendChild(hItem);
         }
 
         const gfHeader = document.createElement('div');
         gfHeader.className = 'header-item gf-header';
-        gfHeader.textContent = "Grand Final";
+        const gfFmt = getRoundFormat(currentEditingTournament, 'Grand Final', 'BO5');
+        gfHeader.innerHTML = `
+            <span class="font-heading font-black text-xs uppercase text-white tracking-wider whitespace-nowrap">Grand Final</span>
+            ${isAdmin ? `
+                <button type="button" onclick="window.quickEditRoundFormat('Grand Final', event)"
+                    title="Click to cycle format (${gfFmt})"
+                    class="px-1.5 py-0.5 rounded bg-[#FFD700]/15 hover:bg-[#FFD700]/30 text-[#FFD700] border border-[#FFD700]/40 text-[9px] font-mono-tag font-bold transition-all cursor-pointer inline-flex items-center gap-0.5 shadow-sm shrink-0">
+                    <span>${gfFmt}</span>
+                    <span class="text-[7px] opacity-70">▾</span>
+                </button>
+            ` : `
+                <span class="px-1.5 py-0.5 rounded bg-white/5 text-neutral-400 border border-white/10 text-[9px] font-mono-tag font-bold shrink-0">${gfFmt}</span>
+            `}
+        `;
         if (headersDiv.lastChild) headersDiv.lastChild.style.marginRight = "0";
 
         headersDiv.appendChild(gfHeader);
@@ -4780,8 +6126,21 @@ function renderDoubleEliminationLive(container, matches, isAdmin) {
         for (let i = 1; i <= maxLBRound; i++) {
             const hItem = document.createElement('div');
             hItem.className = 'header-item';
-            if (i === maxLBRound) hItem.textContent = "LB Final";
-            else hItem.textContent = `LB Round ${i}`;
+            const roundName = (i === maxLBRound) ? "LB Final" : `LB Round ${i}`;
+            const fmt = getRoundFormat(currentEditingTournament, roundName, (i === maxLBRound ? 'BO3' : 'BO1'));
+            hItem.innerHTML = `
+                <span class="font-heading font-black text-xs uppercase text-white tracking-wider whitespace-nowrap">${escapeHtml(roundName)}</span>
+                ${isAdmin ? `
+                    <button type="button" onclick="window.quickEditRoundFormat('${roundName}', event)"
+                        title="Click to cycle format (${fmt})"
+                        class="px-1.5 py-0.5 rounded bg-[#FFD700]/15 hover:bg-[#FFD700]/30 text-[#FFD700] border border-[#FFD700]/40 text-[9px] font-mono-tag font-bold transition-all cursor-pointer inline-flex items-center gap-0.5 shadow-sm shrink-0">
+                        <span>${fmt}</span>
+                        <span class="text-[7px] opacity-70">▾</span>
+                    </button>
+                ` : `
+                    <span class="px-1.5 py-0.5 rounded bg-white/5 text-neutral-400 border border-white/10 text-[9px] font-mono-tag font-bold shrink-0">${fmt}</span>
+                `}
+            `;
             lbHeadersDiv.appendChild(hItem);
         }
         lbContainer.appendChild(lbHeadersDiv);
@@ -4822,9 +6181,11 @@ function createLiveMatchCard(m, isAdmin) {
     const score1 = m.score1 !== null ? m.score1 : '-';
     const score2 = m.score2 !== null ? m.score2 : '-';
 
+    const mFmt = m.format || getRoundFormat(currentEditingTournament, m.bracket === 'final' ? 'Grand Final' : m.round ? `Round ${m.round}` : null);
     card.innerHTML = `
         <div class="flex justify-between items-center mb-1.5 text-[9px] text-neutral-500 uppercase tracking-wider font-mono-tag">
             <span>M${m.matchNumber}</span>
+            <span class="px-1.5 py-0.2 rounded bg-white/5 text-[8px] font-bold text-neutral-400 border border-white/10 font-mono-tag">${mFmt}</span>
             ${m.winner ? '<span class="text-emerald-400 font-bold text-[10px]">DONE</span>' : ''}
         </div>
         <div class="space-y-1.5 w-full font-mono-tag">
@@ -4860,10 +6221,6 @@ window.switchBracketTab = function (tabName) {
         lbContainer.classList.remove('hidden');
         if (btnLb) btnLb.className = 'px-4 py-1.5 rounded font-bold transition-all bg-[#FFD700] text-black uppercase cursor-pointer shadow-md';
         if (btnUb) btnUb.className = 'px-4 py-1.5 rounded font-bold transition-all bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/10 uppercase cursor-pointer';
-    }
-
-    if (typeof applyBracketZoom === 'function') {
-        applyBracketZoom(currentBracketZoom);
     }
 };
 
@@ -5154,15 +6511,51 @@ window.openMatchChatFromModal = function() {
 };
 
 // ==========================================
-// FEATURE SUITE 1: CAPTAIN CHECK-IN / READY-UP
+// FEATURE SUITE 1: CAPTAIN CHECK-IN / READY-UP & STAFF SUITE
 // ==========================================
+window.toggleSingleTeamCheckIn = async function (teamIndex) {
+    if (!currentEditingTournament) return;
+    const auth = getAuth();
+    const user = auth.currentUser;
+    if (!isTournamentStaff(currentEditingTournament, user)) {
+        if (window.showErrorToast) window.showErrorToast("Access Denied", "Only organizers or marshals can ready up teams.");
+        else alert("Only organizers or marshals can ready up teams.");
+        return;
+    }
+
+    let participants = currentEditingTournament.participants || [];
+    if (!participants[teamIndex]) return;
+
+    try {
+        const teamObj = participants[teamIndex];
+        const nextState = !teamObj.checkedIn;
+        teamObj.checkedIn = nextState;
+        teamObj.checkedInAt = nextState ? Date.now() : null;
+
+        await updateDoc(doc(db, "tournaments", currentEditingTournament.id), {
+            participants: participants
+        });
+
+        currentEditingTournament.participants = participants;
+        renderParticipantsList(participants);
+
+        const teamName = typeof teamObj === 'object' ? (teamObj.name || `Team #${teamIndex + 1}`) : teamObj;
+        if (window.showSuccessToast) {
+            window.showSuccessToast(nextState ? "Team Ready!" : "Check-In Revoked", `${teamName} has been ${nextState ? 'marked as Ready by Organizer' : 'marked as Unready'}.`);
+        }
+    } catch (e) {
+        console.error("Error toggling single team check-in:", e);
+        if (window.showErrorToast) window.showErrorToast("Error", "Could not update team check-in: " + e.message);
+    }
+};
+
 window.toggleTournamentCheckIn = async function () {
     if (!currentEditingTournament) return;
     const auth = getAuth();
     const user = auth.currentUser;
-    const isCreator = user && (currentEditingTournament.createdBy === user.uid || ["admin", "organizer"].includes(String(window.currentUserRole || '').toLowerCase()) || user.email === "admin@champzero.com");
-    if (!isCreator) {
-        alert("Only tournament organizers can toggle check-in.");
+    const isStaff = isTournamentStaff(currentEditingTournament, user);
+    if (!isStaff) {
+        alert("Only tournament organizers or marshals can toggle check-in.");
         return;
     }
 
@@ -5251,10 +6644,195 @@ window.dropUnreadyTeams = async function () {
         await updateDoc(doc(db, "tournaments", currentEditingTournament.id), {
             participants: readyParticipants
         });
-        if (window.showSuccessToast) window.showSuccessToast("Updated", "Unready teams dropped successfully.");
+        if (window.showSuccessToast) window.showSuccessToast("Updated", "Unready squads have been removed from roster.");
     } catch (e) {
         console.error(e);
-        alert("Failed to drop unready teams: " + e.message);
+        alert("Failed to drop teams: " + e.message);
+    }
+};
+
+// ==========================================
+// FEATURE SUITE: CO-ORGANIZERS & TOURNAMENT MARSHALS
+// ==========================================
+window.openCoOrganizersModal = async function (tId) {
+    const modal = document.getElementById('coOrganizersModal');
+    if (!modal) return;
+
+    let t = currentEditingTournament;
+    if (!t || t.id !== tId) {
+        t = allTournaments.find(item => item.id === tId);
+        currentEditingTournament = t;
+    }
+    if (!t) return;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    renderAppointedStaffList(t);
+};
+
+function renderAppointedStaffList(t) {
+    const list = document.getElementById('appointedStaffList');
+    const countEl = document.getElementById('staffTotalCount');
+    if (!list) return;
+
+    const auth = getAuth();
+    const currentUser = auth.currentUser;
+    const isPrimaryCreator = currentUser && (t.createdBy === currentUser.uid || ["admin"].includes(String(window.currentUserRole || '').toLowerCase()));
+
+    const coOrgs = Array.isArray(t.coOrganizers) ? t.coOrganizers : [];
+    if (countEl) countEl.textContent = `${coOrgs.length + 1} Staff Member(s)`;
+
+    let creatorHtml = `
+        <div class="p-2.5 rounded-xl bg-black/40 border border-[#FFD700]/30 flex items-center justify-between gap-2">
+            <div class="flex items-center gap-2.5 min-w-0">
+                <div class="w-8 h-8 rounded-lg bg-[#FFD700]/20 border border-[#FFD700]/40 flex items-center justify-center text-[#FFD700] shrink-0">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>
+                </div>
+                <div class="min-w-0">
+                    <div class="font-heading font-bold text-white text-xs truncate">Primary Organizer</div>
+                    <div class="text-[10px] text-neutral-400 font-mono-tag">Tournament Host & Creator</div>
+                </div>
+            </div>
+            <span class="px-2 py-0.5 rounded bg-[#FFD700]/15 text-[#FFD700] text-[9px] font-mono-tag font-bold uppercase border border-[#FFD700]/30">Lead Host</span>
+        </div>
+    `;
+
+    if (coOrgs.length === 0) {
+        list.innerHTML = creatorHtml + `<div class="text-center py-4 text-neutral-500 text-xs italic">No Co-Organizers or Marshals appointed yet. Add staff using the form above!</div>`;
+        return;
+    }
+
+    list.innerHTML = creatorHtml + coOrgs.map((staff) => {
+        const isMarshal = staff.role === 'marshal';
+        const roleLabel = isMarshal ? 'Tournament Marshal' : 'Co-Organizer';
+        const badgeClass = isMarshal ? 'bg-blue-500/15 text-blue-300 border-blue-500/30' : 'bg-purple-500/15 text-purple-300 border-purple-500/30';
+        const avatar = staff.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(staff.name || staff.ign || 'Staff') + '&background=111116&color=A855F7');
+
+        return `
+            <div class="p-2.5 rounded-xl bg-black/40 border border-white/5 hover:border-white/15 flex items-center justify-between gap-2 transition-colors">
+                <div class="flex items-center gap-2.5 min-w-0">
+                    <img src="${escapeHtml(avatar)}" class="w-8 h-8 rounded-lg object-cover bg-black border border-white/10 shrink-0" alt="Avatar">
+                    <div class="min-w-0">
+                        <div class="font-heading font-bold text-white text-xs truncate">${escapeHtml(staff.name || staff.ign || staff.email)}</div>
+                        <div class="text-[9px] text-neutral-400 font-mono-tag truncate">${escapeHtml(staff.email || 'Registered Staff')}</div>
+                    </div>
+                </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase border ${badgeClass}">${roleLabel}</span>
+                    ${isPrimaryCreator ? `
+                        <button type="button" onclick="window.removeTournamentStaff('${escapeHtml(staff.uid || staff.email)}')" class="p-1 rounded text-neutral-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer" title="Remove Staff Member">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+window.saveTournamentStaff = async function () {
+    if (!currentEditingTournament) return;
+    const inputEl = document.getElementById('staffUserInput');
+    const roleEl = document.getElementById('staffRoleSelect');
+    const btn = document.getElementById('addStaffBtn');
+    if (!inputEl || !roleEl) return;
+
+    const queryVal = inputEl.value.trim();
+    const roleVal = roleEl.value || 'marshal';
+    if (!queryVal) return;
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<span>Searching User...</span>`;
+    }
+
+    try {
+        let foundUser = null;
+
+        // Search Firestore users collection by IGN or Email
+        const qValLower = queryVal.toLowerCase();
+        try {
+            const usersRef = collection(db, "users");
+            const snap = await getDocs(usersRef);
+            snap.forEach(docSnap => {
+                const u = { id: docSnap.id, ...docSnap.data() };
+                const uIgn = (u.ign || u.displayName || u.username || '').toLowerCase();
+                const uEmail = (u.email || '').toLowerCase();
+                if (uIgn === qValLower || uEmail === qValLower || u.id === queryVal) {
+                    foundUser = u;
+                }
+            });
+        } catch (e) {
+            console.warn("Could not query all users, searching local:", e);
+        }
+
+        const staffEntry = {
+            uid: foundUser ? foundUser.id : ('ext_' + Date.now()),
+            name: foundUser ? (foundUser.ign || foundUser.displayName || queryVal) : queryVal,
+            email: foundUser ? (foundUser.email || '') : (queryVal.includes('@') ? queryVal : ''),
+            avatar: foundUser?.avatar || '',
+            role: roleVal,
+            addedAt: new Date().toISOString()
+        };
+
+        let coOrgs = Array.isArray(currentEditingTournament.coOrganizers) ? [...currentEditingTournament.coOrganizers] : [];
+        let coUids = Array.isArray(currentEditingTournament.coOrganizerUids) ? [...currentEditingTournament.coOrganizerUids] : [];
+
+        // Check if already added
+        if (coOrgs.some(c => (staffEntry.uid && c.uid === staffEntry.uid) || (staffEntry.email && c.email && c.email.toLowerCase() === staffEntry.email.toLowerCase()))) {
+            if (window.showErrorToast) window.showErrorToast("Already Added", `${staffEntry.name} is already in the tournament staff!`);
+            else alert(`${staffEntry.name} is already in tournament staff.`);
+            if (btn) { btn.disabled = false; btn.textContent = 'Add To Tournament Staff'; }
+            return;
+        }
+
+        coOrgs.push(staffEntry);
+        if (staffEntry.uid) coUids.push(staffEntry.uid);
+
+        await updateDoc(doc(db, "tournaments", currentEditingTournament.id), {
+            coOrganizers: coOrgs,
+            coOrganizerUids: coUids
+        });
+
+        currentEditingTournament.coOrganizers = coOrgs;
+        currentEditingTournament.coOrganizerUids = coUids;
+
+        inputEl.value = '';
+        renderAppointedStaffList(currentEditingTournament);
+        if (window.showSuccessToast) window.showSuccessToast("Staff Appointed!", `${staffEntry.name} appointed as ${roleVal === 'marshal' ? 'Tournament Marshal' : 'Co-Organizer'}.`);
+    } catch (err) {
+        console.error("Error adding tournament staff:", err);
+        if (window.showErrorToast) window.showErrorToast("Error", "Could not add staff: " + err.message);
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Add To Tournament Staff';
+        }
+    }
+};
+
+window.removeTournamentStaff = async function (staffIdentifier) {
+    if (!currentEditingTournament) return;
+    const confirmed = await (window.showCustomConfirm ? window.showCustomConfirm("Remove Staff Member?", "Revoke staff permissions for this user?") : confirm("Revoke staff permissions for this user?"));
+    if (!confirmed) return;
+
+    try {
+        let coOrgs = (currentEditingTournament.coOrganizers || []).filter(c => c.uid !== staffIdentifier && c.email !== staffIdentifier);
+        let coUids = (currentEditingTournament.coOrganizerUids || []).filter(uid => uid !== staffIdentifier);
+
+        await updateDoc(doc(db, "tournaments", currentEditingTournament.id), {
+            coOrganizers: coOrgs,
+            coOrganizerUids: coUids
+        });
+
+        currentEditingTournament.coOrganizers = coOrgs;
+        currentEditingTournament.coOrganizerUids = coUids;
+
+        renderAppointedStaffList(currentEditingTournament);
+        if (window.showSuccessToast) window.showSuccessToast("Staff Removed", "User removed from tournament staff.");
+    } catch (e) {
+        console.error("Error removing staff:", e);
+        if (window.showErrorToast) window.showErrorToast("Error", "Could not remove staff: " + e.message);
     }
 };
 
@@ -5575,7 +7153,7 @@ window.declareCurrentMatchForfeit = async function (winningTeamVal = "1") {
 // ==========================================
 function determinePodiumTeams(t) {
     const matches = t.matches || [];
-    let firstTeam = t.champion || 'TBD';
+    let firstTeam = t.champion || t.winner || 'TBD';
     let secondTeam = t.runnerUp || t.secondPlace || 'TBD';
     let thirdTeam = t.thirdPlace || 'TBD';
 
@@ -5596,16 +7174,16 @@ function determinePodiumTeams(t) {
         if (sorted[1]) secondTeam = sorted[1].name;
         if (sorted[2]) thirdTeam = sorted[2].name;
     } else {
-        const gfMatch = matches.find(m => m.id === 'GF-1' || !m.nextMatchId);
+        const gfMatch = getGrandFinalMatch(matches);
         if (gfMatch && gfMatch.winner) {
             firstTeam = gfMatch.winner;
             secondTeam = (gfMatch.winner === gfMatch.team1) ? gfMatch.team2 : gfMatch.team1;
         }
-        const bronzeMatch = matches.find(m => m.id === 'BM-1' || m.id === '3RD-1');
+        const bronzeMatch = matches.find(m => m.id === 'BM-1' || m.id === '3RD-1' || m.id === 'M-3RD' || m.isBronzeMatch);
         if (bronzeMatch && bronzeMatch.winner) {
             thirdTeam = bronzeMatch.winner;
-        } else if (thirdTeam === 'TBD' && matches.length > 0) {
-            const semiMatches = matches.filter(m => m.nextMatchId === 'GF-1' || (gfMatch && m.nextMatchId === gfMatch.id));
+        } else if (thirdTeam === 'TBD' && matches.length > 1 && gfMatch) {
+            const semiMatches = matches.filter(m => m.nextMatchId === 'GF-1' || m.nextMatchId === gfMatch.id);
             if (semiMatches.length > 0) {
                 const sfLosers = [];
                 semiMatches.forEach(sm => {
@@ -5775,20 +7353,26 @@ function renderPayoutsTab(t, isCreator, user) {
             // Update Organizer Fee Summary Breakdown
             const entryFee = parseFloat(t.entryFee) || 0;
             const partCount = (t.participants || []).length;
-            const isPaid = (t.paymentType === 'manual' || t.paymentType === 'automatic' || t.entryType === 'Paid') && entryFee > 0;
+            const pType = t.paymentType || (t.entryType === 'Paid' ? 'manual' : (t.entryType ? String(t.entryType).toLowerCase() : 'free'));
+            const isAuto = pType === 'automatic';
+            const isPaid = (pType === 'manual' || isAuto || t.entryType === 'Paid') && entryFee > 0;
             const grossFees = isPaid ? (partCount * entryFee) : 0;
-            const platformFee = 0; // 0% Platform Fee
+            const platformFee = isAuto ? (grossFees * 0.05) : 0; // 5% Platform Fee on Automated Payments, 0% for Manual
             const netFees = grossFees - platformFee;
 
             const grossEl = document.getElementById('orgPayoutGross');
             const feeEl = document.getElementById('orgPayoutFee');
             const netEl = document.getElementById('orgPayoutNet');
             const prizeEl = document.getElementById('orgPayoutPrize');
+            const feeBadgeEl = document.getElementById('orgPayoutFeeBadge');
+            const feeLabelEl = document.getElementById('orgPayoutFeeLabel');
 
             if (grossEl) grossEl.textContent = `₱${grossFees.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             if (feeEl) feeEl.textContent = `₱${platformFee.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             if (netEl) netEl.textContent = `₱${netFees.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
             if (prizeEl) prizeEl.textContent = `₱${totalPrize.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+            if (feeBadgeEl) feeBadgeEl.textContent = isAuto ? '5% Platform Fee' : (isPaid ? '0% Fee (Manual)' : '0% Fee (Free)');
+            if (feeLabelEl) feeLabelEl.textContent = isAuto ? 'Platform Fee (5%)' : 'Platform Fee (0%)';
 
             if (organizerClaimsList) {
                 if (claims.length === 0) {
@@ -6222,8 +7806,8 @@ window.deleteTournament = deleteTournament;
 window.openEditTournamentModal = openEditTournamentModal;
 window.zoomBracket = zoomBracket;
 window.resetBracketZoom = resetBracketZoom;
-window.toggleBracketFullscreen = toggleBracketFullscreen;
 window.applyBracketZoom = applyBracketZoom;
+window.toggleBracketFullscreen = toggleBracketFullscreen;
 window.openEditScheduleModal = openEditScheduleModal;
 window.addScheduleStageRow = addScheduleStageRow;
 window.saveTournamentSchedule = saveTournamentSchedule;
@@ -6254,6 +7838,10 @@ window.confirmDisbursement = confirmDisbursement;
 window.markPayoutDisbursed = markPayoutDisbursed;
 window.openAwardMvpModal = openAwardMvpModal;
 window.saveTournamentMvp = saveTournamentMvp;
+window.toggleSingleTeamCheckIn = toggleSingleTeamCheckIn;
+window.openCoOrganizersModal = openCoOrganizersModal;
+window.saveTournamentStaff = saveTournamentStaff;
+window.removeTournamentStaff = removeTournamentStaff;
 
 window.openEntryFeeProofViewer = function(url) {
     const modal = document.getElementById('proofViewerModal');
@@ -6292,6 +7880,71 @@ window.closeModal = (id) => {
 };
 
 // --- BANNER FRAMING & ASPECT RATIO ADJUSTMENT SUITE ---
+window._tournamentBannerFile = null;
+window.handleTournamentBannerSelect = function(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    processTournamentBannerFile(file);
+};
+
+window.handleTournamentBannerDrop = function(event) {
+    event.preventDefault();
+    const dropzone = qs('#c-banner-dropzone');
+    if (dropzone) dropzone.style.borderColor = 'rgba(255,255,255,0.15)';
+    const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+    if (!file) return;
+    processTournamentBannerFile(file);
+};
+
+function processTournamentBannerFile(file) {
+    if (!file.type.startsWith('image/')) {
+        if (window.showToast) window.showToast('Invalid File', 'Please upload a valid image file (PNG, JPG, WEBP, GIF).', 'error');
+        return;
+    }
+    if (file.size > 15 * 1024 * 1024) {
+        if (window.showToast) window.showToast('File Too Large', 'Banner image must be under 15MB.', 'error');
+        return;
+    }
+
+    window._tournamentBannerFile = file;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const previewUrl = e.target.result;
+        const bannerInput = qs('#c-banner');
+        const filenameEl = qs('#c-banner-filename');
+        const previewImg = qs('#c-banner-preview-img');
+        const dropzone = qs('#c-banner-dropzone');
+
+        if (bannerInput) bannerInput.value = previewUrl;
+        if (filenameEl) filenameEl.textContent = `Selected: ${file.name}`;
+        if (previewImg) previewImg.src = previewUrl;
+        if (dropzone) {
+            dropzone.classList.remove('border-white/15');
+            dropzone.classList.add('border-emerald-500/50', 'bg-emerald-500/5');
+        }
+    };
+    reader.readAsDataURL(file);
+}
+window.processTournamentBannerFile = processTournamentBannerFile;
+
+window._adjustBannerFile = null;
+window.handleAdjustBannerFileSelect = function(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+        if (window.showToast) window.showToast('Invalid File', 'Please upload a valid image file.', 'error');
+        return;
+    }
+    window._adjustBannerFile = file;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        const previewImg = document.getElementById('adjustBannerPreviewImg');
+        if (previewImg) previewImg.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+};
+
 window.updateCreateModalBannerPreview = function() {
     const bannerUrl = qs('#c-banner')?.value || 'pictures/cz_logo.png';
     const posY = qs('#c-banner-pos-y')?.value || 50;
@@ -6319,6 +7972,10 @@ window.openAdjustBannerModal = function() {
     const modal = document.getElementById('adjustBannerModal');
     const previewImg = document.getElementById('adjustBannerPreviewImg');
     if (!modal || !previewImg) return;
+
+    window._adjustBannerFile = null;
+    const fileInput = document.getElementById('adjustBannerFileInput');
+    if (fileInput) fileInput.value = '';
 
     previewImg.src = t.banner || 'pictures/cz_logo.png';
 
@@ -6397,18 +8054,32 @@ window.saveBannerFraming = async function() {
     const position = `50% ${y}%`;
 
     try {
-        await updateDoc(doc(db, "tournaments", currentEditingTournament.id), {
+        let newBannerUrl = currentEditingTournament.banner;
+        if (window._adjustBannerFile) {
+            const tourneyFolder = (currentEditingTournament.name || 'tournament').trim().replace(/[^a-zA-Z0-9_-]/g, '_');
+            const fileRef = storageRef(storage, `tournament-banners/${tourneyFolder}/${Date.now()}_${window._adjustBannerFile.name}`);
+            const snapshot = await uploadBytes(fileRef, window._adjustBannerFile);
+            newBannerUrl = await getDownloadURL(snapshot.ref);
+            window._adjustBannerFile = null;
+        }
+
+        const updateData = {
             bannerPosition: position,
             bannerFit: fit,
-            bannerScale: scale
-        });
+            bannerScale: scale,
+            ...(newBannerUrl && { banner: newBannerUrl })
+        };
+
+        await updateDoc(doc(db, "tournaments", currentEditingTournament.id), updateData);
 
         currentEditingTournament.bannerPosition = position;
         currentEditingTournament.bannerFit = fit;
         currentEditingTournament.bannerScale = scale;
+        if (newBannerUrl) currentEditingTournament.banner = newBannerUrl;
 
         const mainBannerImg = document.getElementById('tournamentBannerImg');
         if (mainBannerImg) {
+            if (newBannerUrl) mainBannerImg.src = newBannerUrl;
             mainBannerImg.style.objectPosition = position;
             mainBannerImg.style.objectFit = fit;
             mainBannerImg.style.transform = `scale(${scale})`;
@@ -6579,6 +8250,155 @@ window.handlePrizeSplitInput = function() {
     if (c3) c3.textContent = `₱${Math.round(pool * (s3 / 100)).toLocaleString()}`;
 };
 
+// --- TOURNAMENT RULES MANAGEMENT & PRESETS ---
+const RULES_PRESETS = {
+    standard: `1. Match Check-In: All teams and players must check in at least 15 minutes before their scheduled match time. Failure to check in will result in an automatic match forfeit.
+2. Rosters & Substitutions: Only officially registered roster members are eligible to compete. No unregistered ringers or unauthorized substitutions are permitted once brackets are generated.
+3. Map Pick / Bans: High seed chooses starting side or first map ban. Subsequent bans and picks alternate between teams.
+4. Technical Pauses: Each team is entitled to up to 10 minutes of technical pause per series. Pauses must be announced immediately in match chat.
+5. Score Reporting: The winning captain must capture an end-of-game victory scoreboard screenshot and report the score in the match portal.
+6. Code of Conduct: Cheating, glitch exploits, hate speech, or unsportsmanlike behavior will lead to immediate tournament disqualification.`,
+
+    fps: `1. Lobby Settings: Official Tournament Mode, Overtime: Win by 2, Cheats: OFF.
+2. Side Selection: Higher seed selects starting side (Attack / Defend).
+3. Tactical Timeouts: Up to 2 tactical timeouts (60 seconds each) allowed per team per map.
+4. Disconnect Policy: If a player disconnects before first blood in round 1, round may be reloaded upon marshal confirmation.
+5. Anti-Cheat & Proof: Third-party overlays, macro scripts, or unauthorized software will result in an instant ban. Endgame scoreboard screenshot required.`,
+
+    moba: `1. Game Mode: Custom 5v5 Draft Pick.
+2. Hero Restrictions: All official draft bans must be followed. Newly released heroes are prohibited for 14 days from tournament date.
+3. Pause Rules: Maximum 5 minutes total pause time per team for hardware or connectivity issues.
+4. Victory Condition: The team that destroys the enemy Core / Ancient / Base claims the win.
+5. Disputes: In case of match disputes or bugs, pause immediately and ping the Tournament Marshal. Marshal decisions are final.`,
+
+    duel: `1. Format: 1v1 Custom Duel Arena (BO1 for qualifying rounds, BO3 for semifinals & finals).
+2. Punctuality: 10-minute maximum grace period from match call.
+3. Arena Boundaries: Primary duel lane only (no outside jungle farming or side-lane stalling).
+4. Victory Condition: First to score 2 kills OR first to destroy the first turret/tower.
+5. Proof Submission: The winner must submit an undisputed victory screenshot immediately following the match.`
+};
+
+function openEditRulesModal(t) {
+    if (typeof t === 'string') {
+        t = (allTournaments && allTournaments.find(item => item.id === t)) || currentEditingTournament || window.currentEditingTournament;
+    } else if (!t) {
+        t = currentEditingTournament || window.currentEditingTournament || (allTournaments && allTournaments.find(item => item.id === window._currentTournamentId));
+    }
+    if (!t) return;
+
+    window._rulesTargetTournamentId = t.id;
+    const textarea = document.getElementById('editRulesTextarea');
+    if (textarea) {
+        textarea.value = t.rules || '';
+    }
+
+    const modal = document.getElementById('editRulesModal');
+    if (modal) {
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+}
+window.openEditRulesModal = openEditRulesModal;
+
+function applyRulesPreset(type) {
+    const textarea = document.getElementById('editRulesTextarea');
+    if (textarea && RULES_PRESETS[type]) {
+        textarea.value = RULES_PRESETS[type];
+        textarea.focus();
+    }
+}
+window.applyRulesPreset = applyRulesPreset;
+
+function insertCreateRulesTemplate() {
+    const textarea = document.getElementById('c-rules');
+    if (textarea) {
+        textarea.value = RULES_PRESETS.standard;
+        textarea.focus();
+    }
+}
+window.insertCreateRulesTemplate = insertCreateRulesTemplate;
+
+async function saveTournamentRules() {
+    const tourneyId = window._rulesTargetTournamentId || window._currentTournamentId || (window.currentEditingTournament && window.currentEditingTournament.id);
+    if (!tourneyId) {
+        if (window.showToast) window.showToast('Error', 'Tournament not found.', 'error');
+        return;
+    }
+
+    const textarea = document.getElementById('editRulesTextarea');
+    const rulesText = textarea ? textarea.value.trim() : '';
+    const submitBtn = document.getElementById('saveRulesSubmitBtn');
+
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+    }
+
+    try {
+        await updateDoc(doc(db, 'tournaments', tourneyId), {
+            rules: rulesText,
+            updatedAt: serverTimestamp()
+        });
+
+        // Update local memory objects
+        if (window.currentEditingTournament && window.currentEditingTournament.id === tourneyId) {
+            window.currentEditingTournament.rules = rulesText;
+        }
+        if (allTournaments) {
+            const found = allTournaments.find(x => x.id === tourneyId);
+            if (found) found.rules = rulesText;
+        }
+
+        // Update UI DOM
+        const rulesContent = qs('#tournamentRulesContent');
+        if (rulesContent) {
+            if (rulesText) {
+                rulesContent.textContent = rulesText;
+            } else {
+                rulesContent.innerHTML = `<span class="text-neutral-500 italic">No custom rules added yet. Click <strong>Edit Rules</strong> above to set match regulations, pick/ban policies, or disqualification rules.</span>`;
+            }
+        }
+
+        if (window.showSuccessToast) window.showSuccessToast('Rules Updated', 'Tournament rules updated successfully!');
+        if (window.closeModal) window.closeModal('editRulesModal');
+    } catch (err) {
+        console.error('Failed to save tournament rules:', err);
+        if (window.showToast) window.showToast('Error', 'Failed to save rules: ' + err.message, 'error');
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Rules';
+        }
+    }
+}
+window.saveTournamentRules = saveTournamentRules;
+
+function filterRulesSearch(query) {
+    const rulesContent = qs('#tournamentRulesContent');
+    if (!rulesContent) return;
+    const q = (query || '').toLowerCase().trim();
+    const t = currentEditingTournament || window.currentEditingTournament || (allTournaments && allTournaments.find(item => item.id === window._currentTournamentId));
+    const fullRules = (t && t.rules) ? t.rules.trim() : '';
+
+    if (!q) {
+        rulesContent.textContent = fullRules || 'No custom rules configured yet.';
+        return;
+    }
+
+    const lines = fullRules.split('\n');
+    const matchingLines = lines.filter(l => l.toLowerCase().includes(q));
+    if (matchingLines.length > 0) {
+        rulesContent.innerHTML = matchingLines.map(l => {
+            const regex = new RegExp(`(${q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+            const highlighted = escapeHtml(l).replace(regex, '<mark class="bg-[#FFD700] text-black px-1 rounded font-bold">$1</mark>');
+            return `<div class="py-1 border-b border-white/5 last:border-0">${highlighted}</div>`;
+        }).join('');
+    } else {
+        rulesContent.innerHTML = `<div class="text-neutral-500 italic py-4 text-center">No rules matching "${escapeHtml(q)}" found. Clear search to view complete rulebook.</div>`;
+    }
+}
+window.filterRulesSearch = filterRulesSearch;
+
 // Global Window Exports for Event Handlers
 window.openJoinForm = openJoinForm;
 window.submitJoinRequest = submitJoinRequest;
@@ -6588,9 +8408,27 @@ window.resetTournament = resetTournament;
 window.deleteTournament = deleteTournament;
 window.toggleCancelTournament = window.toggleCancelTournament;
 window.openEditTournamentModal = openEditTournamentModal;
-window.createTournament = createTournament;
+window.createTournament = typeof handleCreateTournament === 'function' ? handleCreateTournament : null;
+window.handleCreateTournament = typeof handleCreateTournament === 'function' ? handleCreateTournament : null;
 window.renderParticipantsList = renderParticipantsList;
 window.renderSoloQueueList = renderSoloQueueList;
 window.addNextPrizeTier = window.addNextPrizeTier;
 window.removePrizeTier = window.removePrizeTier;
 window.updatePresetButtonsState = window.updatePresetButtonsState;
+window.getRoundFormat = getRoundFormat;
+window.getTournamentRoundKeys = getTournamentRoundKeys;
+window.openEditRoundFormatsModal = openEditRoundFormatsModal;
+window.applyRoundFormatPreset = applyRoundFormatPreset;
+window.saveTournamentRoundFormats = saveTournamentRoundFormats;
+window.quickEditRoundFormat = window.quickEditRoundFormat;
+window.handleScoreMatchFormatChange = window.handleScoreMatchFormatChange;
+window.goToCreateStep = goToCreateStep;
+window.nextCreateStep = nextCreateStep;
+window.prevCreateStep = prevCreateStep;
+window.validateCurrentCreateStep = validateCurrentCreateStep;
+window.syncCreateWizardSummary = syncCreateWizardSummary;
+window.setTournamentScope = setTournamentScope;
+window.renderPayoutsTab = renderPayoutsTab;
+window.renderTournamentRankings = renderTournamentRankings;
+window.renderPodiumShowcase = renderPodiumShowcase;
+window.isUserWinnerOrStaff = isUserWinnerOrStaff;

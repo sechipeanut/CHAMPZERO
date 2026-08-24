@@ -5,8 +5,7 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "netlify dev",
-    "build": "echo 'No build needed for static site'"
+    "dev": "nodemon server.js"
   },
   "keywords": [
     "gaming",

@@ -8,6 +8,7 @@ import {
     getDoc, 
     setDoc, 
     updateDoc, 
+    deleteDoc,
     doc, 
     query, 
     orderBy, 
@@ -27,6 +28,7 @@ let onlineUsersList = [];
 let allRegisteredUsers = [];
 let myFriendsList = [];
 let pendingRequestsList = [];
+let outgoingRequestsList = [];
 let unsubscribeChat = null;
 let unsubscribeOnline = null;
 let unsubscribeRequests = null;
@@ -225,6 +227,16 @@ function injectCommunityUI() {
                     <div class="border-b border-white/10 my-3"></div>
                 </div>
 
+                <!-- OUTGOING/SENT REQUESTS -->
+                <div id="cz-outgoing-requests-wrap" class="hidden">
+                    <h4 class="text-[10px] font-mono uppercase text-neutral-400 font-bold mb-2 flex items-center justify-between">
+                        <span>Sent Requests (Pending)</span>
+                        <span id="cz-outgoing-count" class="px-1.5 py-0.2 rounded-full bg-white/10 text-neutral-300 text-[9px]">0</span>
+                    </h4>
+                    <div id="cz-outgoing-requests-list" class="space-y-2"></div>
+                    <div class="border-b border-white/10 my-3"></div>
+                </div>
+
                 <!-- CONFIRMED FRIENDS -->
                 <div>
                     <h4 class="text-[10px] font-mono uppercase text-neutral-400 font-bold mb-2 flex items-center justify-between">
@@ -402,15 +414,20 @@ async function sendChatMessage(text) {
     };
 
     try {
-        // Primary write into messages collection
-        await addDoc(collection(db, "messages"), msgPayload);
+        // Dedicated collection for global chat (separated from contact messages)
+        await addDoc(collection(db, "global_chat_messages"), msgPayload);
     } catch (e) {
-        console.warn("Primary messages collection write failed, trying global_chat:", e);
+        console.warn("Primary global_chat_messages write failed, trying fallback:", e);
         try {
-            await addDoc(collection(db, "global_chat"), msgPayload);
-        } catch (e2) {
-            console.error("Error sending chat message:", e2);
-            if (window.showErrorToast) window.showErrorToast("Error", "Could not send message: " + (e2.message || 'Please check connection'));
+            const resp = await fetch('/api/chat/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(msgPayload)
+            });
+            if (!resp.ok) throw new Error("API fallback failed");
+        } catch (apiErr) {
+            console.error("Error sending chat message:", apiErr);
+            if (window.showErrorToast) window.showErrorToast("Error", "Could not send message: " + (e.message || 'Please check connection'));
             return;
         }
     }
@@ -426,9 +443,9 @@ function listenToGlobalChat() {
     if (unsubscribeChat) unsubscribeChat();
     isInitialChatSnapshot = true;
 
-    // Listen to messages collection
+    // Listen to dedicated global_chat_messages collection
     try {
-        const messagesQuery = query(collection(db, "messages"));
+        const messagesQuery = query(collection(db, "global_chat_messages"));
         let previousMsgCount = -1;
 
         unsubscribeChat = onSnapshot(messagesQuery, (snapshot) => {
@@ -669,12 +686,7 @@ function renderOnlineList() {
                         class="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-neutral-300 text-[10px] font-bold border border-white/10 hover:border-white/20 transition-colors cursor-pointer">
                         Profile
                     </button>
-                    ${!isMe ? `
-                        <button type="button" onclick="window.czSendFriendRequest('${escapeHtml(u.id)}', '${escapeHtml(name)}', '${escapeHtml(avatar)}')"
-                            class="px-2 py-1 rounded bg-[#FFD700]/10 hover:bg-[#FFD700] text-[#FFD700] hover:text-black text-[10px] font-black border border-[#FFD700]/30 transition-all cursor-pointer">
-                            + Friend
-                        </button>
-                    ` : ''}
+                    ${renderFriendActionButton(u.id, name, avatar)}
                 </div>
             </div>
         `;
@@ -736,12 +748,7 @@ function filterAndRenderSearch(queryText) {
                         class="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-neutral-300 text-[10px] font-bold border border-white/10 transition-colors cursor-pointer">
                         Profile
                     </button>
-                    ${!isMe ? `
-                        <button type="button" onclick="window.czSendFriendRequest('${escapeHtml(u.id)}', '${escapeHtml(name)}', '${escapeHtml(avatar)}')"
-                            class="px-2 py-1 rounded bg-[#FFD700]/10 hover:bg-[#FFD700] text-[#FFD700] hover:text-black text-[10px] font-black border border-[#FFD700]/30 transition-all cursor-pointer">
-                            + Friend
-                        </button>
-                    ` : ''}
+                    ${renderFriendActionButton(u.id, name, avatar)}
                 </div>
             </div>
         `;
@@ -751,6 +758,67 @@ function filterAndRenderSearch(queryText) {
 // ----------------------------------------------------
 // 6. FRIEND REQUESTS & FRIENDS LIST
 // ----------------------------------------------------
+function getFriendshipStatus(targetUid) {
+    const activeUser = currentUser || auth.currentUser;
+    if (!activeUser || !targetUid || targetUid === activeUser.uid) return 'self';
+    if (myFriendsList.some(f => f.uid === targetUid)) return 'friends';
+    const incomingReq = pendingRequestsList.find(r => r.fromUid === targetUid);
+    if (incomingReq) return { status: 'incoming_pending', reqId: incomingReq.id, reqData: incomingReq };
+    const outgoingReq = outgoingRequestsList.find(r => r.toUid === targetUid);
+    if (outgoingReq) return { status: 'outgoing_pending', reqId: outgoingReq.id, reqData: outgoingReq };
+    return 'none';
+}
+
+function renderFriendActionButton(targetUid, targetName, targetAvatar) {
+    const activeUser = currentUser || auth.currentUser;
+    if (!activeUser || !targetUid || targetUid === activeUser.uid) return '';
+
+    const friendship = getFriendshipStatus(targetUid);
+    const status = typeof friendship === 'object' ? friendship.status : friendship;
+
+    if (status === 'friends') {
+        return `
+            <div class="flex items-center gap-1">
+                <span class="px-2 py-1 rounded bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-bold uppercase">Friends</span>
+            </div>
+        `;
+    }
+
+    if (status === 'incoming_pending') {
+        return `
+            <div class="flex items-center gap-1">
+                <button type="button" onclick="window.czRespondFriendRequest('${friendship.reqId}', 'accepted', '${escapeHtml(targetName)}')"
+                    class="px-2 py-1 bg-[#FFD700] hover:bg-[#FFF099] text-black text-[10px] font-black uppercase rounded transition-colors cursor-pointer">
+                    Accept
+                </button>
+                <button type="button" onclick="window.czRespondFriendRequest('${friendship.reqId}', 'declined', '${escapeHtml(targetName)}')"
+                    class="px-2 py-1 bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white text-[10px] font-bold rounded transition-colors cursor-pointer">
+                    Decline
+                </button>
+            </div>
+        `;
+    }
+
+    if (status === 'outgoing_pending') {
+        return `
+            <div class="flex items-center gap-1">
+                <span class="px-2 py-1 rounded bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[10px] font-bold uppercase">Pending</span>
+                <button type="button" onclick="window.czCancelFriendRequest('${friendship.reqId}', '${escapeHtml(targetName)}')" title="Cancel Request"
+                    class="p-1 rounded text-neutral-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+        `;
+    }
+
+    return `
+        <button type="button" onclick="window.czSendFriendRequest('${escapeHtml(targetUid)}', '${escapeHtml(targetName)}', '${escapeHtml(targetAvatar)}')"
+            class="px-2 py-1 rounded bg-[#FFD700]/10 hover:bg-[#FFD700] text-[#FFD700] hover:text-black text-[10px] font-black border border-[#FFD700]/30 transition-all cursor-pointer">
+            + Friend
+        </button>
+    `;
+}
+
 window.czSendFriendRequest = async function(targetUid, targetName, targetAvatar) {
     const activeUser = currentUser || auth.currentUser;
     if (!activeUser) {
@@ -759,6 +827,21 @@ window.czSendFriendRequest = async function(targetUid, targetName, targetAvatar)
     }
     if (targetUid === activeUser.uid) {
         if (window.showErrorToast) window.showErrorToast("Notice", "You cannot add yourself as a friend.");
+        return;
+    }
+
+    const currentStatus = getFriendshipStatus(targetUid);
+    if (currentStatus === 'friends') {
+        if (window.showSuccessToast) window.showSuccessToast("Already Friends", `You are already friends with ${targetName}.`);
+        return;
+    }
+    if (typeof currentStatus === 'object' && currentStatus.status === 'outgoing_pending') {
+        if (window.showSuccessToast) window.showSuccessToast("Pending Request", `Friend invitation is already pending for ${targetName}.`);
+        return;
+    }
+    if (typeof currentStatus === 'object' && currentStatus.status === 'incoming_pending') {
+        // Automatically accept incoming request
+        await window.czRespondFriendRequest(currentStatus.reqId, 'accepted', targetName);
         return;
     }
 
@@ -778,19 +861,43 @@ window.czSendFriendRequest = async function(targetUid, targetName, targetAvatar)
     };
 
     try {
-        await addDoc(collection(db, "messages"), reqPayload);
+        const docRef = await addDoc(collection(db, "friend_requests"), reqPayload);
+        outgoingRequestsList.push({ id: docRef.id, ...reqPayload });
         if (window.showSuccessToast) {
             window.showSuccessToast("Friend Request Sent!", `Invitation dispatched to ${targetName}.`);
         }
+        if (activeTab === 'online') renderOnlineList();
+        if (activeTab === 'search') {
+            const queryVal = document.getElementById('cz-search-input')?.value || '';
+            filterAndRenderSearch(queryVal);
+        }
+        if (activeTab === 'friends') renderFriendsPanel();
     } catch (e) {
+        console.warn("Client Firestore write failed, attempting server API fallback:", e);
         try {
-            await addDoc(collection(db, "friend_requests"), reqPayload);
-            if (window.showSuccessToast) {
-                window.showSuccessToast("Friend Request Sent!", `Invitation dispatched to ${targetName}.`);
+            const resp = await fetch('/api/friends/request', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(reqPayload)
+            });
+            const resData = await resp.json();
+            if (resp.ok && resData.id) {
+                outgoingRequestsList.push({ id: resData.id, ...reqPayload });
+                if (window.showSuccessToast) {
+                    window.showSuccessToast("Friend Request Sent!", `Invitation dispatched to ${targetName}.`);
+                }
+                if (activeTab === 'online') renderOnlineList();
+                if (activeTab === 'search') {
+                    const queryVal = document.getElementById('cz-search-input')?.value || '';
+                    filterAndRenderSearch(queryVal);
+                }
+                if (activeTab === 'friends') renderFriendsPanel();
+                return;
             }
-        } catch (e2) {
-            console.error("Error sending friend request:", e2);
-            if (window.showErrorToast) window.showErrorToast("Error", "Could not send friend request.");
+            throw new Error(resData.error || 'Server error');
+        } catch (apiErr) {
+            console.error("Error sending friend request:", apiErr);
+            if (window.showErrorToast) window.showErrorToast("Error", "Could not send friend request: " + (e.message || 'Check Firestore permissions'));
         }
     }
 };
@@ -801,9 +908,10 @@ function listenToFriendRequests() {
     if (unsubscribeRequests) unsubscribeRequests();
 
     try {
-        const reqQuery = query(collection(db, "messages"));
+        const reqQuery = query(collection(db, "friend_requests"));
         unsubscribeRequests = onSnapshot(reqQuery, (snapshot) => {
             const incoming = [];
+            const outgoing = [];
             const friends = [];
 
             snapshot.forEach(docSnap => {
@@ -811,6 +919,9 @@ function listenToFriendRequests() {
                 if (data.type === 'friend_request') {
                     if (data.toUid === activeUser.uid && data.status === 'pending') {
                         incoming.push(data);
+                    }
+                    if (data.fromUid === activeUser.uid && data.status === 'pending') {
+                        outgoing.push(data);
                     }
                     if (data.status === 'accepted') {
                         if (data.fromUid === activeUser.uid) {
@@ -823,6 +934,7 @@ function listenToFriendRequests() {
             });
 
             pendingRequestsList = incoming;
+            outgoingRequestsList = outgoing;
             myFriendsList = friends;
 
             const reqBadge = document.getElementById('cz-tab-requests-badge');
@@ -834,6 +946,11 @@ function listenToFriendRequests() {
             if (friendsCount) friendsCount.textContent = `${friends.length} Friends`;
 
             if (activeTab === 'friends') renderFriendsPanel();
+            if (activeTab === 'online') renderOnlineList();
+            if (activeTab === 'search') {
+                const queryVal = document.getElementById('cz-search-input')?.value || '';
+                filterAndRenderSearch(queryVal);
+            }
         });
     } catch (e) {
         console.error("Error setting up friend requests listener:", e);
@@ -843,6 +960,9 @@ function listenToFriendRequests() {
 function renderFriendsPanel() {
     const incWrap = document.getElementById('cz-incoming-requests-wrap');
     const incList = document.getElementById('cz-incoming-requests-list');
+    const outWrap = document.getElementById('cz-outgoing-requests-wrap');
+    const outList = document.getElementById('cz-outgoing-requests-list');
+    const outCount = document.getElementById('cz-outgoing-count');
     const friendsList = document.getElementById('cz-friends-list');
 
     if (incWrap && incList) {
@@ -871,6 +991,30 @@ function renderFriendsPanel() {
         }
     }
 
+    if (outWrap && outList) {
+        if (outgoingRequestsList.length > 0) {
+            outWrap.classList.remove('hidden');
+            if (outCount) outCount.textContent = outgoingRequestsList.length;
+            outList.innerHTML = outgoingRequestsList.map(r => `
+                <div class="p-2.5 rounded-xl bg-white/[0.02] border border-white/5 flex items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <img src="${escapeHtml(r.toAvatar)}" class="w-7 h-7 rounded-lg object-cover bg-black border border-white/10 shrink-0" alt="Avatar">
+                        <span class="font-heading font-bold text-white text-xs truncate">${escapeHtml(r.toName)}</span>
+                    </div>
+                    <div class="flex items-center gap-1 shrink-0">
+                        <span class="px-2 py-0.5 rounded text-[9px] font-mono text-amber-400 bg-amber-500/10 border border-amber-500/20">Pending</span>
+                        <button type="button" onclick="window.czCancelFriendRequest('${r.id}', '${escapeHtml(r.toName)}')" title="Cancel Request"
+                            class="px-2 py-1 bg-white/5 hover:bg-rose-500/20 text-neutral-400 hover:text-rose-400 text-[10px] font-bold rounded transition-colors cursor-pointer">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        } else {
+            outWrap.classList.add('hidden');
+        }
+    }
+
     if (friendsList) {
         if (myFriendsList.length === 0) {
             friendsList.innerHTML = `<div class="text-center py-6 text-neutral-500 text-xs italic">No friends added yet. Connect with Champions from the Search tab!</div>`;
@@ -893,10 +1037,20 @@ function renderFriendsPanel() {
                             </div>
                         </div>
                     </div>
-                    <button type="button" onclick="window.czOpenPlayerModal('${escapeHtml(f.uid)}')"
-                        class="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-neutral-300 text-[10px] font-bold border border-white/10 transition-colors cursor-pointer shrink-0">
-                        Profile
-                    </button>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                        <button type="button" onclick="window.czChatWithFriend('${escapeHtml(f.name)}')" title="Message in Global Chat"
+                            class="px-2 py-1 rounded bg-[#FFD700]/10 hover:bg-[#FFD700] text-[#FFD700] hover:text-black text-[10px] font-bold transition-colors cursor-pointer">
+                            Chat
+                        </button>
+                        <button type="button" onclick="window.czOpenPlayerModal('${escapeHtml(f.uid)}')"
+                            class="px-2 py-1 rounded bg-white/5 hover:bg-white/10 text-neutral-300 text-[10px] font-bold border border-white/10 transition-colors cursor-pointer">
+                            Profile
+                        </button>
+                        <button type="button" onclick="window.czRemoveFriend('${escapeHtml(f.uid)}', '${escapeHtml(f.name)}')" title="Unfriend"
+                            class="p-1 rounded text-neutral-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
                 </div>
             `;
         }).join('');
@@ -915,7 +1069,79 @@ window.czRespondFriendRequest = async function(reqId, newStatus, senderName) {
             else window.showSuccessToast("Request Declined", "Friend request declined.");
         }
     } catch (e) {
-        console.error("Error updating friend request:", e);
+        console.warn("Client Firestore update failed, trying server API fallback:", e);
+        try {
+            await fetch('/api/friends/respond', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reqId, status: newStatus })
+            });
+            if (window.showSuccessToast) {
+                if (newStatus === 'accepted') window.showSuccessToast("Friend Connected!", `You and ${senderName} are now friends!`);
+                else window.showSuccessToast("Request Declined", "Friend request declined.");
+            }
+        } catch (apiErr) {
+            console.error("Error updating friend request:", apiErr);
+        }
+    }
+};
+
+window.czRemoveFriend = async function(friendUid, friendName) {
+    const activeUser = currentUser || auth.currentUser;
+    if (!activeUser) return;
+    const confirmRemove = await (window.showCustomConfirm ? window.showCustomConfirm("Unfriend Player?", `Remove ${friendName} from your friends list?`) : confirm(`Remove ${friendName} from your friends list?`));
+    if (!confirmRemove) return;
+
+    try {
+        const friendEntry = myFriendsList.find(f => f.uid === friendUid);
+        if (friendEntry && friendEntry.docId) {
+            await deleteDoc(doc(db, "friend_requests", friendEntry.docId));
+        }
+        if (window.showSuccessToast) window.showSuccessToast("Friend Removed", `${friendName} removed from friends.`);
+    } catch (e) {
+        console.warn("Client delete failed, trying server API fallback:", e);
+        try {
+            const friendEntry = myFriendsList.find(f => f.uid === friendUid);
+            if (friendEntry && friendEntry.docId) {
+                await fetch('/api/friends/remove', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ reqId: friendEntry.docId })
+                });
+            }
+            if (window.showSuccessToast) window.showSuccessToast("Friend Removed", `${friendName} removed from friends.`);
+        } catch (apiErr) {
+            console.error("Error removing friend:", apiErr);
+            if (window.showErrorToast) window.showErrorToast("Error", "Could not remove friend.");
+        }
+    }
+};
+
+window.czCancelFriendRequest = async function(reqId, targetName) {
+    try {
+        await deleteDoc(doc(db, "friend_requests", reqId));
+        if (window.showSuccessToast) window.showSuccessToast("Request Cancelled", `Friend request to ${targetName} cancelled.`);
+    } catch (e) {
+        console.warn("Client cancel failed, trying server fallback:", e);
+        try {
+            await fetch('/api/friends/remove', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ reqId })
+            });
+            if (window.showSuccessToast) window.showSuccessToast("Request Cancelled", `Friend request to ${targetName} cancelled.`);
+        } catch (apiErr) {
+            console.error("Error cancelling friend request:", apiErr);
+        }
+    }
+};
+
+window.czChatWithFriend = function(friendName) {
+    switchTab('chat');
+    const input = document.getElementById('cz-chat-input');
+    if (input) {
+        input.value = `@${friendName} `;
+        input.focus();
     }
 };
 
@@ -994,17 +1220,59 @@ window.czOpenPlayerModal = async function(uid) {
 
                 <!-- ACTIONS -->
                 <div class="w-full flex items-center gap-2 mt-5">
-                    <a href="/profile" class="flex-1 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-heading font-black text-[11px] uppercase transition-colors">
-                        View Profile
-                    </a>
-                    ${!isMe ? (
-                        isFriend 
-                        ? `<span class="px-3 py-2 rounded-xl bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] font-bold uppercase">Friends</span>`
-                        : `<button type="button" onclick="window.czSendFriendRequest('${escapeHtml(player.id)}', '${escapeHtml(name)}', '${escapeHtml(avatar)}'); window.czClosePlayerModal();"
-                            class="flex-1 py-2 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-black text-[11px] uppercase transition-all shadow cursor-pointer">
-                            + Add Friend
-                        </button>`
-                    ) : ''}
+                    ${(() => {
+                        if (isMe) {
+                            return `<a href="/profile" class="flex-1 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-heading font-black text-[11px] uppercase transition-colors">My Profile</a>`;
+                        }
+
+                        const friendship = getFriendshipStatus(player.id);
+                        const status = typeof friendship === 'object' ? friendship.status : friendship;
+
+                        if (status === 'friends') {
+                            return `
+                                <button type="button" onclick="window.czChatWithFriend('${escapeHtml(name)}'); window.czClosePlayerModal();"
+                                    class="flex-1 py-2 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-black text-[11px] uppercase transition-all shadow cursor-pointer">
+                                    Message
+                                </button>
+                                <button type="button" onclick="window.czRemoveFriend('${escapeHtml(player.id)}', '${escapeHtml(name)}'); window.czClosePlayerModal();"
+                                    class="py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-400 text-[11px] font-bold uppercase border border-rose-500/20 transition-colors cursor-pointer">
+                                    Unfriend
+                                </button>
+                            `;
+                        }
+
+                        if (status === 'incoming_pending') {
+                            return `
+                                <button type="button" onclick="window.czRespondFriendRequest('${friendship.reqId}', 'accepted', '${escapeHtml(name)}'); window.czClosePlayerModal();"
+                                    class="flex-1 py-2 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-black text-[11px] uppercase transition-all shadow cursor-pointer">
+                                    Accept Request
+                                </button>
+                                <button type="button" onclick="window.czRespondFriendRequest('${friendship.reqId}', 'declined', '${escapeHtml(name)}'); window.czClosePlayerModal();"
+                                    class="py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white text-[11px] font-bold uppercase transition-colors cursor-pointer">
+                                    Decline
+                                </button>
+                            `;
+                        }
+
+                        if (status === 'outgoing_pending') {
+                            return `
+                                <div class="flex-1 py-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[11px] font-bold uppercase text-center">
+                                    Request Pending
+                                </div>
+                                <button type="button" onclick="window.czCancelFriendRequest('${friendship.reqId}', '${escapeHtml(name)}'); window.czClosePlayerModal();"
+                                    class="py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white text-[11px] font-bold uppercase transition-colors cursor-pointer">
+                                    Cancel
+                                </button>
+                            `;
+                        }
+
+                        return `
+                            <button type="button" onclick="window.czSendFriendRequest('${escapeHtml(player.id)}', '${escapeHtml(name)}', '${escapeHtml(avatar)}'); window.czClosePlayerModal();"
+                                class="flex-1 py-2 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-black text-[11px] uppercase transition-all shadow cursor-pointer">
+                                + Add Friend
+                            </button>
+                        `;
+                    })()}
                 </div>
             </div>
         `;

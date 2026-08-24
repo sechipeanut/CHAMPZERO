@@ -305,7 +305,9 @@ async function loadUserProfile(uid, email) {
 
         // 3. RENDER SAVED WITHDRAWAL / PAYOUT METHOD
         try {
-            renderWithdrawalMethodDisplay(userData.payoutMethod);
+            if (typeof renderWithdrawalMethodDisplay === 'function') {
+                renderWithdrawalMethodDisplay(userData.payoutMethod);
+            }
         } catch (e) {
             console.warn("Error rendering withdrawal preview:", e);
         }
@@ -522,6 +524,7 @@ async function calculateOrganizerStats(uid, email, allTourneys, isAdmin = false)
     let hostedCount = 0;
     let totalParticipants = 0;
     let grossCollected = 0;
+    let totalPlatformFee = 0;
     let totalPrizePoolsCommitted = 0;
     const hostedItems = [];
 
@@ -539,19 +542,23 @@ async function calculateOrganizerStats(uid, email, allTourneys, isAdmin = false)
         const tournamentPrize = parseFloat(t.prize) || 0;
         totalPrizePoolsCommitted += tournamentPrize;
 
-        const isPaid = (t.paymentType === 'manual' || t.paymentType === 'automatic' || t.entryType === 'Paid') && entryFee > 0;
+        const pType = t.paymentType || (t.entryType === 'Paid' ? 'manual' : (t.entryType ? String(t.entryType).toLowerCase() : 'free'));
+        const isAuto = pType === 'automatic';
+        const isPaid = (pType === 'manual' || isAuto || t.entryType === 'Paid') && entryFee > 0;
         
-        // Gross fees collected from registered participants (0% platform fee)
+        // Gross fees collected from registered participants (5% fee on automated, 0% on manual)
         const tournamentGross = isPaid ? (partCount * entryFee) : 0;
-        const platformFee = 0;
+        const platformFee = isAuto ? (tournamentGross * 0.05) : 0;
         const netRegFunds = tournamentGross - platformFee;
         const netStandingTourney = netRegFunds - tournamentPrize;
 
         grossCollected += tournamentGross;
+        totalPlatformFee += platformFee;
 
         hostedItems.push({
             id: t.id,
             name: t.name || 'Tournament',
+            paymentType: pType,
             game: t.game || 'Esports',
             format: t.format || 'Single Elimination',
             date: t.date || 'TBD',
@@ -567,7 +574,6 @@ async function calculateOrganizerStats(uid, email, allTourneys, isAdmin = false)
         });
     });
 
-    const totalPlatformFee = 0;
     const totalNetRegFunds = grossCollected - totalPlatformFee;
     const rawNetStanding = totalNetRegFunds - totalPrizePoolsCommitted;
 
@@ -620,8 +626,8 @@ async function calculateOrganizerStats(uid, email, allTourneys, isAdmin = false)
                                 <div class="text-xs font-bold text-white">₱${item.tournamentGross.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                             </div>
                             <div class="border-l border-white/10 pl-3">
-                                <div class="text-[8px] text-emerald-400 uppercase">Fee (0%)</div>
-                                <div class="text-xs font-bold text-emerald-400">₱0.00</div>
+                                <div class="text-[8px] text-amber-400 uppercase">Fee (${item.paymentType === 'automatic' ? '5%' : '0%'})</div>
+                                <div class="text-xs font-bold text-amber-400">₱${item.platformFee.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
                             </div>
                             <div class="border-l border-white/10 pl-3">
                                 <div class="text-[8px] text-neutral-400 uppercase">${isSurplus ? 'Net Profit' : 'Deficit'}</div>

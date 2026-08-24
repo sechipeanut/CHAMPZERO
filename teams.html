@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="en" class="scroll-smooth bg-black">
 
 <head>
     <!-- Google tag (gtag.js) -->
@@ -46,14 +46,20 @@
 
             /* Compatibility tokens for teams.js */
             --gold: #FFD700;
+            --gold-light: #FFF099;
             --gold-darker: #C99700;
             --dark-bg: #000000;
             --dark-card: #111116;
         }
 
+        html, body {
+            background-color: #000000 !important;
+            color: #FFFFFF;
+        }
+
         body {
             font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--cz-bg);
+            background-color: #000000 !important;
             color: #FFFFFF;
             overflow-x: hidden;
         }
@@ -222,11 +228,11 @@
 
     <!-- HEADER NAVIGATION -->
     <header id="main-header"
-        class="sticky top-0 z-50 bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
-        <div class="max-w-6xl mx-auto px-6 h-18 flex justify-between items-center py-4">
+        class="sticky top-0 z-[1000] bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-18 flex justify-between items-center py-4">
 
             <!-- BRAND IDENTITY -->
-            <a href="/" class="flex items-center gap-2.5 group">
+            <a href="/" class="flex items-center gap-2.5 group shrink-0">
                 <img src="pictures/cz_logo.png" alt="ChampZero Logo" class="w-7 h-7 object-contain">
                 <div class="flex items-center gap-1.5">
                     <span
@@ -240,7 +246,7 @@
 
             <!-- NAV LINKS -->
             <nav
-                class="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                class="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 text-xs font-semibold uppercase tracking-wider text-neutral-400">
                 <a href="/" class="nav-link hover:text-white">Home</a>
                 <a href="/tournaments" class="nav-link hover:text-white">Tournaments</a>
                 <a href="/events" class="nav-link hover:text-white">Events</a>
@@ -250,9 +256,9 @@
             </nav>
 
             <!-- AUTH CONTROLS -->
-            <div class="flex items-center gap-3">
-                <div id="auth-controls-wrapper" class="flex items-center gap-2">
-                    <div id="auth-controls" class="flex items-center gap-2">
+            <div class="flex items-center gap-3 shrink-0">
+                <div id="auth-controls-wrapper" class="flex items-center gap-2 shrink-0">
+                    <div id="auth-controls" class="flex items-center gap-2 shrink-0">
                         <a href="/login"
                             class="text-xs font-semibold px-3 py-1.5 text-neutral-300 hover:text-white transition-colors">
                             Log In
@@ -277,7 +283,7 @@
 
     <!-- MOBILE DRAWER -->
     <div id="mobile-menu"
-        class="hidden fixed inset-0 bg-black/98 backdrop-blur-2xl z-50 p-6 transition-all duration-300 flex flex-col justify-between">
+        class="hidden fixed inset-0 bg-black/98 backdrop-blur-2xl z-[2000] p-6 transition-all duration-300 flex flex-col justify-between">
         <div>
             <div class="flex justify-between items-center pb-5 border-b border-white/10">
                 <div class="flex items-center gap-2.5">
@@ -337,16 +343,6 @@
                     manage your team roster.
                 </p>
 
-                <div class="mt-8 flex flex-wrap justify-center gap-3">
-                    <a href="#finder"
-                        class="font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] text-black px-6 py-3 rounded-lg hover:bg-[#FFF099] transition-all shadow-lg shadow-yellow-500/10">
-                        Find Players &amp; Teams
-                    </a>
-                    <button onclick="openCreateModal()"
-                        class="font-heading font-bold text-xs uppercase tracking-wider bg-white/5 border border-white/10 text-white px-6 py-3 rounded-lg hover:bg-white/10 hover:border-[#FFD700]/40 transition-all cursor-pointer">
-                        Post a Listing
-                    </button>
-                </div>
             </div>
         </section>
 
@@ -355,32 +351,42 @@
             <!-- FILTER & NAVIGATION DECK -->
             <div class="glass-panel rounded-2xl p-4 sm:p-6 mb-8 transition-all duration-300 space-y-4">
                 <!-- Tier 1: Main View Tabs + Create Listing CTA -->
-                <div
-                    class="flex flex-col sm:flex-row gap-3.5 justify-between items-stretch sm:items-center pb-4 border-b border-white/5">
-                    <div class="flex flex-wrap sm:flex-nowrap items-center gap-2.5 overflow-x-auto custom-scrollbar">
-                        <button onclick="window.setTab('find-teams')" id="tab-find-teams"
-                            class="px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-[#FFD700] text-black shadow-md cursor-pointer whitespace-nowrap border border-[#FFD700]">
-                            Find a Team
-                        </button>
-                        <button onclick="window.setTab('find-players')" id="tab-find-players"
-                            class="px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/20 cursor-pointer whitespace-nowrap">
-                            Find Players
-                        </button>
-                        <button onclick="window.setTab('my-teams')" id="tab-my-teams"
-                            class="px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/20 cursor-pointer whitespace-nowrap">
-                            My Teams
-                        </button>
-                        <button onclick="window.setTab('my-lft')" id="tab-my-lft"
-                            class="px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/20 cursor-pointer whitespace-nowrap">
-                            My Listings
-                        </button>
-                        <button onclick="window.setTab('invites')" id="tab-invites"
-                            class="px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/20 cursor-pointer whitespace-nowrap">
-                            Invites
-                        </button>
+                <div class="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center pb-4 border-b border-white/5">
+                    <!-- Left: Grouped Navigation Pills -->
+                    <div class="flex flex-wrap items-center gap-3 overflow-x-auto custom-scrollbar">
+                        <!-- Browse Public Directory -->
+                        <div class="flex items-center bg-black/50 p-1 rounded-xl border border-white/10">
+                            <button onclick="window.setTab('find-teams')" id="tab-find-teams"
+                                class="px-4 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-[#FFD700] text-black shadow-md cursor-pointer whitespace-nowrap border border-[#FFD700]">
+                                Browse Teams
+                            </button>
+                            <button onclick="window.setTab('find-players')" id="tab-find-players"
+                                class="px-4 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-transparent text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent cursor-pointer whitespace-nowrap">
+                                Free Agents (LFT)
+                            </button>
+                        </div>
+
+                        <!-- Visual Divider -->
+                        <div class="hidden sm:block h-6 w-px bg-white/10"></div>
+
+                        <!-- Personal Hub -->
+                        <div class="flex items-center bg-black/50 p-1 rounded-xl border border-white/10">
+                            <button onclick="window.setTab('my-teams')" id="tab-my-teams"
+                                class="px-3.5 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-transparent text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent cursor-pointer whitespace-nowrap">
+                                My Teams
+                            </button>
+                            <button onclick="window.setTab('my-lft')" id="tab-my-lft"
+                                class="px-3.5 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-transparent text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent cursor-pointer whitespace-nowrap">
+                                My Listings
+                            </button>
+                            <button onclick="window.setTab('invites')" id="tab-invites"
+                                class="px-3.5 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-transparent text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent cursor-pointer whitespace-nowrap">
+                                Invites
+                            </button>
+                        </div>
                     </div>
 
-                    <!-- Post Listing Action -->
+                    <!-- Single Primary Action -->
                     <button onclick="window.openCreateModal()"
                         class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-[#FFD700] hover:brightness-110 active:scale-95 text-black font-heading font-extrabold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer shrink-0">
                         <span>+ Post Listing</span>
@@ -450,26 +456,62 @@
 
                 <!-- Tier 3: Active Filters HUD & Stats Counter -->
                 <div id="filter-hud"
-                    class="flex items-center justify-between pt-2.5 border-t border-white/5 text-[11px] font-mono-tag text-neutral-400">
+                    class="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/5 text-[11px] font-mono-tag text-neutral-400">
                     <div class="flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-[#FFD700] animate-pulse"></span>
                         <span id="filter-count-text">Showing All Listings</span>
+                        <button onclick="window.resetFilters()" id="btn-reset-filters"
+                            class="hidden ml-2 text-[#FFD700] hover:underline font-bold text-[10px] uppercase tracking-wider cursor-pointer">
+                            Clear Filters &times;
+                        </button>
                     </div>
-                    <button onclick="window.resetFilters()" id="btn-reset-filters"
-                        class="hidden text-[#FFD700] hover:underline font-bold text-[10px] uppercase tracking-wider cursor-pointer">
-                        Clear Filters &times;
-                    </button>
+
+                    <!-- View Mode Toggle (Grid vs Dense List) & Page Size Selector -->
+                    <div class="flex items-center gap-3">
+                        <div class="flex items-center gap-1 bg-black/50 border border-white/10 p-0.5 rounded-lg">
+                            <span class="text-[10px] text-neutral-500 pl-2 pr-1 uppercase font-bold">Show:</span>
+                            <select id="teams-page-size-select" onchange="window.setTeamsPageSize(this.value)"
+                                class="bg-transparent text-white font-bold text-[10px] py-1 px-1.5 focus:outline-none cursor-pointer">
+                                <option value="12" class="bg-[#111116] text-white">12 / page</option>
+                                <option value="24" selected class="bg-[#111116] text-white">24 / page</option>
+                                <option value="48" class="bg-[#111116] text-white">48 / page</option>
+                                <option value="all" class="bg-[#111116] text-white">Show All</option>
+                            </select>
+                        </div>
+
+                        <div class="flex items-center bg-black/50 border border-white/10 p-0.5 rounded-lg">
+                            <button type="button" id="btn-view-grid" onclick="window.setTeamsViewMode('grid')"
+                                title="Grid Cards View"
+                                class="p-1.5 rounded text-neutral-400 hover:text-white transition-colors cursor-pointer bg-[#FFD700] text-black">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                                </svg>
+                            </button>
+                            <button type="button" id="btn-view-list" onclick="window.setTeamsViewMode('list')"
+                                title="Compact Directory / List View"
+                                class="p-1.5 rounded text-neutral-400 hover:text-white transition-colors cursor-pointer">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- RECRUITMENT GRID -->
+            <!-- RECRUITMENT GRID / LIST CONTAINER -->
             <div id="recruitment-board"
-                class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 auto-rows-fr min-h-[400px]">
+                class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 auto-rows-fr min-h-[360px]">
                 <div
                     class="col-span-full py-20 text-center flex flex-col items-center justify-center text-neutral-500 font-mono-tag text-xs tracking-wider">
                     <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FFD700] mb-4"></div>
                     <p>LOADING RECRUITMENT DATA...</p>
                 </div>
+            </div>
+
+            <!-- PAGINATION BAR -->
+            <div id="teams-pagination-container"
+                class="mt-8 pt-5 border-t border-white/10 flex flex-col sm:flex-row items-center justify-between gap-4 font-mono-tag text-xs">
             </div>
         </section>
     </main>
@@ -911,6 +953,14 @@
                                     </select>
                                 </div>
                             </div>
+                            <div>
+                                <label for="edit-img-upload"
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Team Logo (Optional)</label>
+                                <input id="edit-img-upload" type="file" accept="image/*"
+                                    class="dark-input w-full p-2 rounded-lg text-xs file:bg-white/10 file:border-0 file:rounded file:px-2 file:py-1 file:text-white file:text-xs">
+                                <span id="edit-img-status"
+                                    class="font-mono-tag text-[10px] text-neutral-500 mt-1 block"></span>
+                            </div>
                             <button type="submit"
                                 class="w-full font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] hover:bg-[#FFF099] text-black py-3 rounded-lg transition shadow-lg mt-2 cursor-pointer">
                                 Save Changes
@@ -1094,11 +1144,11 @@
 
     </script>
 
-    <script src="js/toast.js"></script>
-    <script type="module" src="js/main.js"></script>
-    <script type="module" src="js/auth.js"></script>
-    <script type="module" src="js/teams.js"></script>
-    <script type="module" src="js/notifications.js"></script>
+    <script src="js/toast.js?v=20260823_fix27"></script>
+    <script type="module" src="js/main.js?v=20260823_fix27"></script>
+    <script type="module" src="js/auth.js?v=20260823_fix27"></script>
+    <script type="module" src="js/teams.js?v=20260823_fix27"></script>
+    <script type="module" src="js/notifications.js?v=20260823_fix27"></script>
 </body>
 
 </html>

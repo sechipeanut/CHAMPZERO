@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="en" class="scroll-smooth bg-black">
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -10,8 +10,9 @@
     <!-- PayRex JS SDK -->
     <script type="text/javascript" src="https://js.payrexhq.com"></script>
     <style>
-        :root { --gold: #FFD700; --gold-darker: #C99700; --dark-bg: #111115; --dark-card: #1A1A1F; }
-        body { font-family: 'Poppins', sans-serif; }
+        :root { --gold: #FFD700; --gold-light: #FFF099; --gold-darker: #C99700; --dark-bg: #000000; --dark-card: #0E0E14; }
+        html, body { background-color: #000000 !important; color: #e5e7eb; }
+        body { font-family: 'Poppins', sans-serif; background-color: #000000 !important; }
         .dark-input { background-color: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); color: #fff; }
         .dark-input:focus { outline: none; border-color: var(--gold); }
 
@@ -30,9 +31,9 @@
         }
     </style>
 </head>
-<body class="bg-[var(--dark-bg)] text-gray-200 antialiased">
+<body class="bg-black text-gray-200 antialiased">
 
-<header class="sticky top-0 z-50 bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 h-16 flex items-center justify-center">
+<header class="sticky top-0 z-[1000] bg-[var(--dark-bg)]/95 backdrop-blur-lg border-b border-white/10 h-16 flex items-center justify-center">
     <a href="/" class="flex items-center gap-3">
         <img src="pictures/cz_logo.png" alt="ChampZero" width="40" height="40" class="w-10 h-10 rounded-md">
         <span class="font-bold text-xl text-white">ChampZero</span>

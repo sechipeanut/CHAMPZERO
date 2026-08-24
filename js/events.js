@@ -22,45 +22,102 @@ document.addEventListener('DOMContentLoaded', () => {
     initLiveScores();
 });
 
+function parseFirestoreValue(val) {
+    if (!val) return null;
+    if (val.stringValue !== undefined) return val.stringValue;
+    if (val.integerValue !== undefined) return parseInt(val.integerValue, 10);
+    if (val.doubleValue !== undefined) return parseFloat(val.doubleValue);
+    if (val.booleanValue !== undefined) return val.booleanValue;
+    if (val.timestampValue !== undefined) return val.timestampValue;
+    if (val.nullValue !== undefined) return null;
+    if (val.arrayValue !== undefined) return (val.arrayValue.values || []).map(v => parseFirestoreValue(v));
+    if (val.mapValue !== undefined) {
+        const out = {};
+        const fields = val.mapValue.fields || {};
+        for (const k in fields) out[k] = parseFirestoreValue(fields[k]);
+        return out;
+    }
+    return val;
+}
+
+function parseFirestoreDoc(doc) {
+    const id = doc.name ? doc.name.split('/').pop() : '';
+    const data = { id };
+    const fields = doc.fields || {};
+    for (const key in fields) data[key] = parseFirestoreValue(fields[key]);
+    return data;
+}
+
 // --- 1. Fetch Events from Firebase ---
 async function fetchEvents() {
     const grid = qs('#eventGrid');
     if (!grid) return;
 
-    try {
-        // Try to order by date if you have the index set up in Firebase Console.
-        // If this errors, remove the `orderBy` part or create the index via the link in console error.
+    let firestoreEvents = [];
+    let loaded = false;
+
+    const fetchLocalApi = async () => {
+        const res = await fetch('/api/events');
+        const cType = res.headers.get('content-type') || '';
+        if (!res.ok || !cType.includes('application/json')) throw new Error('API HTTP ' + res.status + ' (non-JSON content)');
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+        throw new Error('No items from API');
+    };
+
+    const fetchRest = async () => {
+        const res = await fetch('https://firestore.googleapis.com/v1/projects/champzero-92951/databases/(default)/documents/events');
+        if (!res.ok) throw new Error('REST HTTP ' + res.status);
+        const data = await res.json();
+        return (data.documents || []).map(parseFirestoreDoc);
+    };
+
+    const fetchSDK = async () => {
         const q = query(collection(db, "events")); 
-        
         const querySnapshot = await getDocs(q);
-        
-        grid.innerHTML = ''; // Clear loading text
-
-        if (querySnapshot.empty) {
-            grid.innerHTML = `
-                <div class="col-span-full flex flex-col items-center justify-center py-16 text-center border border-white/5 rounded-xl bg-white/5">
-                    <h3 class="text-xl font-semibold text-white">No active events found</h3>
-                    <p class="text-gray-400 mt-2 max-w-sm">Check back soon for community nights and watch parties.</p>
-                </div>
-            `;
-            return;
-        }
-
+        const items = [];
         querySnapshot.forEach((doc) => {
-            const ev = { id: doc.id, ...doc.data() };
-            const card = createEventCard(ev);
-            grid.appendChild(card);
+            items.push({ id: doc.id, ...doc.data() });
         });
+        return items;
+    };
 
-    } catch (error) {
-        console.error("Error fetching events:", error);
+    try {
+        firestoreEvents = await Promise.any([fetchLocalApi(), fetchRest(), fetchSDK()]);
+        loaded = true;
+    } catch (allErrors) {
+        try {
+            firestoreEvents = await fetchRest();
+            loaded = true;
+        } catch (fallbackErr) {
+            console.error("Events fetch failed:", fallbackErr);
+        }
+    }
+
+    grid.innerHTML = '';
+    if (!loaded) {
         grid.innerHTML = `
-            <div class="col-span-full text-center py-12">
-                <p class="text-red-400">Unable to load events.</p>
-                <p class="text-xs text-gray-600 mt-1">${error.message}</p>
+            <div class="col-span-full text-center py-16 font-mono-tag text-xs text-red-400">
+                Failed to load events from database.
             </div>
         `;
+        return;
     }
+
+    if (firestoreEvents.length === 0) {
+        grid.innerHTML = `
+            <div class="col-span-full flex flex-col items-center justify-center py-16 text-center border border-white/5 rounded-xl bg-white/5">
+                <h3 class="text-xl font-semibold text-white font-heading uppercase">No active events found</h3>
+                <p class="text-neutral-400 mt-2 max-w-sm text-xs font-mono-tag">Check back soon for community nights, watch parties, and broadcasts.</p>
+            </div>
+        `;
+        return;
+    }
+
+    firestoreEvents.forEach((ev) => {
+        const card = createEventCard(ev);
+        grid.appendChild(card);
+    });
 }
 
 // --- 2. Create the Card (Visual Upgrade) ---

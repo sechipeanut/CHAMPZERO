@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="en" class="scroll-smooth bg-black">
 
 <head>
     <!-- Google tag (gtag.js) -->
@@ -46,14 +46,20 @@
 
             /* Compatibility tokens */
             --gold: #FFD700;
+            --gold-light: #FFF099;
             --gold-darker: #C99700;
             --dark-bg: #000000;
             --dark-card: #111116;
         }
 
+        html, body {
+            background-color: #000000 !important;
+            color: #FFFFFF;
+        }
+
         body {
             font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--cz-bg);
+            background-color: #000000 !important;
             color: #FFFFFF;
             overflow-x: hidden;
         }
@@ -115,8 +121,8 @@
 <body class="antialiased min-h-screen flex flex-col justify-between selection:bg-[#FFD700] selection:text-black">
 
     <!-- HEADER NAVIGATION -->
-    <header class="sticky top-0 z-50 bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
-        <div class="max-w-7xl mx-auto px-6 h-18 flex justify-between items-center py-4">
+    <header class="sticky top-0 z-[1000] bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
+        <div class="max-w-6xl mx-auto px-6 h-18 flex justify-between items-center py-4">
             <a href="/" class="flex items-center gap-2.5 group">
                 <img src="pictures/cz_logo.png" alt="ChampZero Logo"
                     class="w-7 h-7 object-contain">

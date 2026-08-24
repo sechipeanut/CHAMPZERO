@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="en" class="scroll-smooth bg-black">
 
 <head>
     <!-- Google tag (gtag.js) -->
@@ -32,12 +32,12 @@
         :root {
             --cz-gold: #FFD700;
             --cz-gold-light: #FFF099;
-            --cz-gold-glow: rgba(255, 215, 0, 0.08);
+            --cz-gold-glow: rgba(255, 215, 0, 0.12);
             --cz-bg: #000000;
             --cz-surface: #0A0A0E;
             --cz-card: #111116;
             --cz-border: rgba(255, 255, 255, 0.08);
-            --cz-border-gold: rgba(255, 215, 0, 0.3);
+            --cz-border-gold: rgba(255, 215, 0, 0.4);
 
             /* Compatibility tokens */
             --gold: #FFD700;
@@ -47,11 +47,16 @@
             --dark-card: #111116;
         }
 
+        html, body {
+            background-color: #000000 !important;
+            color: #FFFFFF;
+        }
+
         body {
             font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--cz-bg);
-            color: #FFFFFF;
             overflow-x: hidden;
+            background-color: #000000 !important;
+            min-height: 100vh;
         }
 
         .font-heading {
@@ -64,7 +69,8 @@
         }
 
         .ambient-glow {
-            background: radial-gradient(circle at 50% -15%, rgba(255, 215, 0, 0.1) 0%, rgba(0, 0, 0, 0) 70%);
+            background-color: #000000 !important;
+            background-image: radial-gradient(circle at 50% -10%, rgba(255, 215, 0, 0.12) 0%, rgba(0, 0, 0, 1) 75%);
         }
 
         :focus-visible {
@@ -75,38 +81,45 @@
     </style>
 </head>
 
-<body class="antialiased min-h-screen flex flex-col justify-between selection:bg-[#FFD700] selection:text-black ambient-glow">
+<body class="bg-black text-white antialiased min-h-screen flex flex-col justify-between selection:bg-[#FFD700] selection:text-black ambient-glow">
 
     <!-- HEADER MINIMAL -->
-    <header class="sticky top-0 z-50 bg-black/90 backdrop-blur-md border-b border-white/5 h-16 flex items-center justify-between px-6 max-w-6xl mx-auto w-full">
-        <a href="/" class="flex items-center gap-2.5 group">
-            <img src="pictures/cz_logo.png" alt="ChampZero Logo" class="w-7 h-7 object-contain">
-            <span class="font-heading font-bold text-base text-white group-hover:text-[#FFD700] transition-colors">ChampZero</span>
-        </a>
-        <a href="/login" class="text-xs font-semibold text-neutral-400 hover:text-white transition-colors">
-            ← Return to Login
-        </a>
+    <header class="sticky top-0 z-[1000] bg-black/95 backdrop-blur-md border-b border-white/10 h-16 w-full">
+        <div class="max-w-6xl mx-auto h-full flex items-center justify-between px-6">
+            <a href="/" class="flex items-center gap-2.5 group">
+                <img src="pictures/cz_logo.png" alt="ChampZero Logo" class="w-7 h-7 object-contain">
+                <div class="flex items-center gap-1.5">
+                    <span class="font-heading font-bold text-base text-white group-hover:text-[#FFD700] transition-colors">ChampZero</span>
+                    <span class="font-mono-tag bg-[#FFD700] text-black text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">Beta</span>
+                </div>
+            </a>
+            <a href="/login" class="text-xs font-semibold text-neutral-400 hover:text-white transition-colors flex items-center gap-1.5">
+                <span>&larr;</span>
+                <span>Return to Login</span>
+            </a>
+        </div>
     </header>
 
     <!-- CONTENT CARD -->
-    <main class="flex-grow flex items-center justify-center p-4 sm:p-6">
-        <div class="w-full max-w-md bg-[#0A0A0E] p-8 sm:p-10 rounded-2xl shadow-2xl border border-white/10 relative overflow-hidden text-center">
+    <main class="flex-grow flex items-center justify-center p-4 sm:p-6 py-10 relative">
+        <div class="w-full max-w-md bg-[#0E0E14] p-8 sm:p-10 rounded-2xl shadow-2xl border border-white/10 relative overflow-hidden text-center">
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#FFD700] to-transparent"></div>
             <div class="absolute inset-0 bg-gradient-to-b from-[#FFD700]/5 via-transparent to-transparent pointer-events-none"></div>
 
-            <div class="mb-6">
+            <div class="mb-6 relative z-10">
                 <h1 class="font-heading font-bold text-2xl sm:text-3xl text-white uppercase tracking-tight" id="page-title">
                     Email Verification
                 </h1>
             </div>
 
             <!-- LOADING STATE -->
-            <div id="loading" class="hidden py-8">
+            <div id="loading" class="hidden py-8 relative z-10">
                 <div class="inline-block animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-[#FFD700] mb-3"></div>
                 <p class="font-mono-tag text-xs text-neutral-400 uppercase tracking-wider">Verifying confirmation token...</p>
             </div>
 
             <!-- PENDING VERIFICATION STATE -->
-            <div id="pending-state" class="hidden py-4">
+            <div id="pending-state" class="hidden py-4 relative z-10">
                 <div class="w-14 h-14 rounded-full bg-[#FFD700]/10 border border-[#FFD700]/20 text-[#FFD700] flex items-center justify-center mx-auto mb-4">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
@@ -115,11 +128,11 @@
                 <h2 class="font-heading font-bold text-xl text-white uppercase tracking-wider mb-2">Check Your Inbox</h2>
                 <p class="text-xs text-neutral-400 mb-2">We have transmitted a verification link to:</p>
                 <p class="text-xs font-mono-tag text-[#FFD700] font-bold mb-4 break-all" id="user-email">your email</p>
-                <p class="text-xs text-neutral-500 mb-6 leading-relaxed">Please open the link to verify your identity and activate tournament eligibility.</p>
+                <p class="text-xs text-neutral-400 mb-6 leading-relaxed">Please open the link to verify your identity and activate tournament eligibility.</p>
                 
                 <div class="space-y-3">
                     <button id="resend-btn"
-                        class="w-full font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] text-black py-3.5 px-6 rounded-lg hover:bg-[#FFF099] transition-all shadow-lg cursor-pointer">
+                        class="w-full font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] text-black py-3.5 px-6 rounded-xl hover:bg-[#FFF099] transition-all shadow-lg shadow-yellow-500/10 cursor-pointer">
                         Resend Verification Email
                     </button>
                     <a href="/login" class="block text-xs font-mono-tag text-neutral-400 hover:text-white transition-colors pt-2">
@@ -129,7 +142,7 @@
             </div>
 
             <!-- SUCCESS STATE -->
-            <div id="success-state" class="hidden py-4">
+            <div id="success-state" class="hidden py-4 relative z-10">
                 <div class="w-14 h-14 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto mb-4">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -138,13 +151,13 @@
                 <h2 class="font-heading font-bold text-xl text-white uppercase tracking-wider mb-2" id="success-title">Email Verified!</h2>
                 <p class="text-xs text-neutral-400 mb-6" id="success-message">Your email has been authenticated. You can now access all tournaments.</p>
                 <a href="/login"
-                    class="w-full font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] text-black py-3.5 px-6 rounded-lg hover:bg-[#FFF099] transition-all inline-block shadow-lg">
+                    class="w-full font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] text-black py-3.5 px-6 rounded-xl hover:bg-[#FFF099] transition-all inline-block shadow-lg shadow-yellow-500/10">
                     Proceed to Login
                 </a>
             </div>
 
             <!-- ERROR STATE -->
-            <div id="error-state" class="hidden py-4">
+            <div id="error-state" class="hidden py-4 relative z-10">
                 <div class="w-14 h-14 rounded-full bg-red-500/10 border border-red-500/20 text-red-500 flex items-center justify-center mx-auto mb-4">
                     <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -153,7 +166,7 @@
                 <h2 class="font-heading font-bold text-xl text-white uppercase tracking-wider mb-2">Verification Failed</h2>
                 <p class="text-xs text-neutral-400 mb-6 leading-relaxed" id="error-message">This verification link is invalid or has expired.</p>
                 <a href="/login"
-                    class="w-full font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] text-black py-3.5 px-6 rounded-lg hover:bg-[#FFF099] transition-all inline-block shadow-lg">
+                    class="w-full font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] text-black py-3.5 px-6 rounded-xl hover:bg-[#FFF099] transition-all inline-block shadow-lg shadow-yellow-500/10">
                     Return to Login
                 </a>
             </div>
@@ -161,7 +174,7 @@
     </main>
 
     <!-- FOOTER MINIMAL -->
-    <footer class="border-t border-white/5 bg-black/60 py-4 text-center font-mono-tag text-[10px] text-neutral-500 uppercase tracking-wider">
+    <footer class="border-t border-white/5 bg-black/90 py-4 text-center font-mono-tag text-[10px] text-neutral-500 uppercase tracking-wider w-full">
         © 2026 ChampZero Platform. All rights reserved.
     </footer>
 

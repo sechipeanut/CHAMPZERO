@@ -13,25 +13,81 @@ document.addEventListener('DOMContentLoaded', () => {
     checkAdminStatus();
 });
 
+function parseFirestoreValue(val) {
+    if (!val) return null;
+    if (val.stringValue !== undefined) return val.stringValue;
+    if (val.integerValue !== undefined) return parseInt(val.integerValue, 10);
+    if (val.doubleValue !== undefined) return parseFloat(val.doubleValue);
+    if (val.booleanValue !== undefined) return val.booleanValue;
+    if (val.timestampValue !== undefined) return val.timestampValue;
+    if (val.nullValue !== undefined) return null;
+    if (val.arrayValue !== undefined) return (val.arrayValue.values || []).map(v => parseFirestoreValue(v));
+    if (val.mapValue !== undefined) {
+        const out = {};
+        const fields = val.mapValue.fields || {};
+        for (const k in fields) out[k] = parseFirestoreValue(fields[k]);
+        return out;
+    }
+    return val;
+}
+
+function parseFirestoreDoc(doc) {
+    const id = doc.name ? doc.name.split('/').pop() : '';
+    const data = { id };
+    const fields = doc.fields || {};
+    for (const key in fields) data[key] = parseFirestoreValue(fields[key]);
+    return data;
+}
+
 // 1. FETCH TALENTS
 async function fetchTalents() {
     const grid = qs('#talents-grid');
     if (!grid) return;
 
-    try {
+    let loaded = false;
+
+    const fetchLocalApi = async () => {
+        const res = await fetch('/api/talents');
+        const cType = res.headers.get('content-type') || '';
+        if (!res.ok || !cType.includes('application/json')) throw new Error('API HTTP ' + res.status + ' (non-JSON content)');
+        const data = await res.json();
+        if (Array.isArray(data) && data.length > 0) return data;
+        throw new Error('No items from API');
+    };
+
+    const fetchRest = async () => {
+        const res = await fetch('https://firestore.googleapis.com/v1/projects/champzero-92951/databases/(default)/documents/talents');
+        if (!res.ok) throw new Error('REST HTTP ' + res.status);
+        const data = await res.json();
+        return (data.documents || []).map(parseFirestoreDoc);
+    };
+
+    const fetchSDK = async () => {
         const q = query(collection(db, "talents"));
         const snapshot = await getDocs(q);
-        
-        allTalents = [];
+        const items = [];
         snapshot.forEach(doc => {
-            allTalents.push({ id: doc.id, ...doc.data() });
+            items.push({ id: doc.id, ...doc.data() });
         });
+        return items;
+    };
 
+    try {
+        allTalents = await Promise.any([fetchLocalApi(), fetchRest(), fetchSDK()]);
+        loaded = true;
+    } catch (allErrors) {
+        try {
+            allTalents = await fetchRest();
+            loaded = true;
+        } catch (fallbackErr) {
+            console.error("Talents fetch failed:", fallbackErr);
+        }
+    }
+
+    if (loaded) {
         renderTalents(allTalents);
-
-    } catch (err) {
-        console.error(err);
-        grid.innerHTML = '<p class="col-span-full text-center text-red-500">Unable to load talents.</p>';
+    } else {
+        grid.innerHTML = '<p class="col-span-full text-center text-red-500 py-16 font-mono-tag text-xs">Unable to load talents from database.</p>';
     }
 }
 

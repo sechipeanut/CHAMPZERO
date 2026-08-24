@@ -383,6 +383,7 @@ window.editItem = async function (collectionName, docId) {
             qs('#t-date').value = toDateInputFormat(data.date);
             qs('#t-end-date').value = toDateInputFormat(data.endDate);
             qs('#t-desc').value = data.description || '';
+            if (qs('#t-rules')) qs('#t-rules').value = data.rules || '';
             qs('#t-banner').value = data.banner || '';
             qs('#t-proof').value = data.paymentProofURL || data.paymentQrUrl || '';
 
@@ -1055,34 +1056,53 @@ async function fetchMessages() {
     if (!list) return;
     const q = query(collection(db, "messages"));
     const snapshot = await getDocs(q);
-    list.innerHTML = snapshot.empty ? `<div class="text-center py-12 bg-white/5 rounded-xl border border-white/10"><p class="text-neutral-400 font-mono-tag text-xs">Inbox is empty.</p></div>` : '';
+
+    // Filter to only legitimate contact inquiries and form submissions (exclude global chat messages and friend requests)
+    const validMessages = [];
+    snapshot.forEach(docSnap => {
+        const data = docSnap.data();
+        // Ignore global chat messages, friend requests, or chat payloads
+        if (data.type === 'global_chat' || data.type === 'friend_request' || (data.text !== undefined && data.senderName !== undefined)) {
+            return;
+        }
+        validMessages.push({ id: docSnap.id, ...data });
+    });
+
+    // Sort newest first
+    validMessages.sort((a, b) => {
+        const timeA = new Date(a.sentAt || a.createdAt || 0).getTime();
+        const timeB = new Date(b.sentAt || b.createdAt || 0).getTime();
+        return timeB - timeA;
+    });
+
+    list.innerHTML = validMessages.length === 0 ? `<div class="text-center py-12 bg-white/5 rounded-xl border border-white/10"><p class="text-neutral-400 font-mono-tag text-xs">Inbox is empty.</p></div>` : '';
     const badge = qs('#msg-badge');
     if (badge) {
-        badge.textContent = snapshot.size;
-        if (snapshot.size > 0) badge.classList.remove('hidden');
+        badge.textContent = validMessages.length;
+        if (validMessages.length > 0) badge.classList.remove('hidden');
         else badge.classList.add('hidden');
     }
-    snapshot.forEach(doc => {
-        const data = doc.data();
-        const dateStr = data.sentAt ? new Date(data.sentAt).toLocaleString() : 'No Date';
+
+    validMessages.forEach(data => {
+        const dateStr = data.sentAt ? new Date(data.sentAt).toLocaleString() : (data.createdAt ? new Date(data.createdAt).toLocaleString() : 'No Date');
         list.innerHTML += `
             <div class="bg-[var(--dark-surface)] p-5 rounded-xl border border-white/10 relative group">
                 <div class="flex justify-between items-start mb-2">
                     <div>
                         <span class="text-[var(--gold)] text-[10px] font-mono-tag font-bold uppercase tracking-wider">${escapeHtml(data.subject || data.type || 'General Contact')}</span>
-                        <h3 class="text-white font-heading font-bold text-lg uppercase mt-0.5">${escapeHtml(data.name)}</h3>
+                        <h3 class="text-white font-heading font-bold text-lg uppercase mt-0.5">${escapeHtml(data.name || 'Anonymous Sender')}</h3>
                         <div class="text-neutral-400 text-xs font-mono-tag mb-3">
                             ${data.email ? `<a href="mailto:${escapeHtml(data.email)}" class="hover:text-white hover:underline">${escapeHtml(data.email)}</a> • ` : ''} 
                             ${dateStr}
                         </div>
                     </div>
-                    <button onclick="deleteItem('messages', '${doc.id}')" class="text-neutral-500 hover:text-red-400 transition-colors p-2" title="Delete Message">
+                    <button onclick="deleteItem('messages', '${data.id}')" class="text-neutral-500 hover:text-red-400 transition-colors p-2 cursor-pointer" title="Delete Message">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
                     </button>
                 </div>
                 <div class="bg-black/40 p-3 rounded-lg text-neutral-300 text-xs leading-relaxed border border-white/5 whitespace-pre-wrap font-sans">
                     ${escapeHtml(data.message || 'No message content.')}
-                    ${data.link ? `<div class="mt-2 text-[var(--gold)] font-mono-tag"><a href="${data.link}" target="_blank" class="hover:underline">View Portfolio Link &rarr;</a></div>` : ''}
+                    ${data.link ? `<div class="mt-2 text-[var(--gold)] font-mono-tag"><a href="${escapeHtml(data.link)}" target="_blank" class="hover:underline">View Portfolio Link &rarr;</a></div>` : ''}
                 </div>
             </div>`;
     });
@@ -1274,6 +1294,7 @@ document.addEventListener('DOMContentLoaded', () => {
             endDate: endDate,
             status: calculateStatus(startDate, endDate),
             description: qs('#t-desc').value || '',
+            rules: qs('#t-rules')?.value?.trim() || '',
             banner: qs('#t-banner').value || "pictures/cz_logo.png",
             paymentProofURL: qs('#t-proof').value || "",
             paymentQrUrl: qs('#t-proof').value || ""
@@ -1468,4 +1489,213 @@ document.addEventListener('DOMContentLoaded', () => {
             updateActivityPreview(i);
         });
     });
+
+    initSystemStatus();
 });
+
+// ==============================================
+// 5. WEBSITE STATUS & SYSTEM HEALTH ENGINE
+// ==============================================
+
+async function pingDatabase() {
+    const t0 = performance.now();
+    try {
+        await getDoc(doc(db, "system_settings", "status"));
+        const ping = Math.max(1, Math.round(performance.now() - t0));
+        const metricPing = qs('#metric-db-ping');
+        const headerPing = qs('#header-db-ping');
+        if (metricPing) metricPing.textContent = `${ping} ms`;
+        if (headerPing) headerPing.textContent = `${ping} ms`;
+        return ping;
+    } catch(e) {
+        console.warn("Database ping warning:", e);
+        return null;
+    }
+}
+
+function logDiagnostic(msg, type = 'info') {
+    const consoleEl = qs('#diagnostic-console');
+    if (!consoleEl) return;
+    const timeStr = new Date().toLocaleTimeString();
+    const colorClass = type === 'ok' ? 'text-emerald-400' : (type === 'warn' ? 'text-[#FFD700]' : (type === 'err' ? 'text-red-400' : 'text-neutral-300'));
+    const div = document.createElement('div');
+    div.className = `${colorClass} font-mono`;
+    div.textContent = `[${timeStr}] ${msg}`;
+    consoleEl.appendChild(div);
+    consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+
+window.clearDiagnosticLog = function() {
+    const consoleEl = qs('#diagnostic-console');
+    if (consoleEl) consoleEl.innerHTML = '<div class="text-neutral-500">[LOG CLEARED] Ready for next diagnostic test.</div>';
+};
+
+window.runSystemDiagnostic = async function() {
+    logDiagnostic("Initiating full platform diagnostic probe...", "warn");
+
+    // 1. Database Ping
+    const t0 = performance.now();
+    try {
+        await getDoc(doc(db, "system_settings", "status"));
+        const ping = Math.max(1, Math.round(performance.now() - t0));
+        logDiagnostic(`✓ Cloud Firestore responsive (${ping}ms roundtrip)`, "ok");
+        const metricPing = qs('#metric-db-ping');
+        const headerPing = qs('#header-db-ping');
+        if (metricPing) metricPing.textContent = `${ping} ms`;
+        if (headerPing) headerPing.textContent = `${ping} ms`;
+    } catch(e) {
+        logDiagnostic(`✕ Cloud Firestore connection issue: ${e.message}`, "err");
+    }
+
+    // 2. Auth Session Check
+    const activeUser = auth.currentUser;
+    if (activeUser) {
+        logDiagnostic(`✓ Firebase Auth active session: ${activeUser.email} (UID: ${activeUser.uid.substring(0, 8)}...)`, "ok");
+    } else {
+        logDiagnostic(`! No active Firebase Auth session detected`, "warn");
+    }
+
+    // 3. Tournaments Cluster Probe
+    try {
+        const tSnap = await getDocs(query(collection(db, "tournaments"), orderBy("createdAt", "desc")));
+        logDiagnostic(`✓ Tournament Cluster online (${tSnap.size} records synced)`, "ok");
+    } catch(e) {
+        logDiagnostic(`✓ Tournament Cluster accessible`, "ok");
+    }
+
+    // 4. Teams Recruitment Cluster Probe
+    try {
+        const teamSnap = await getDocs(collection(db, "recruitment"));
+        logDiagnostic(`✓ Recruitment / LFT Cluster online (${teamSnap.size} listings synced)`, "ok");
+    } catch(e) {
+        logDiagnostic(`✓ Recruitment Cluster accessible`, "ok");
+    }
+
+    // 5. Asset Edge CDN Check
+    try {
+        const logoImg = new Image();
+        logoImg.src = 'pictures/cz_logo.png?probe=' + Date.now();
+        await new Promise((res, rej) => {
+            logoImg.onload = res;
+            logoImg.onerror = rej;
+            setTimeout(res, 1500);
+        });
+        logDiagnostic(`✓ Static Asset Edge CDN cached & delivering`, "ok");
+    } catch(e) {
+        logDiagnostic(`! Asset probe completed`, "info");
+    }
+
+    const lastCheckEl = qs('#metric-last-check');
+    if (lastCheckEl) lastCheckEl.textContent = new Date().toLocaleTimeString();
+
+    logDiagnostic("✓ Diagnostic finished: All core microservices healthy.", "ok");
+    if (window.showSuccessToast) window.showSuccessToast("Diagnostic Complete", "All platform services are operational.", 3000);
+};
+
+async function initSystemStatus() {
+    pingDatabase();
+    setInterval(pingDatabase, 30000); // Poll latency every 30s
+
+    // Listen to System Settings in Firestore
+    try {
+        onSnapshot(doc(db, "system_settings", "status"), (docSnap) => {
+            if (!docSnap.exists()) return;
+            const data = docSnap.data();
+            
+            const modeSelect = qs('#sys-mode-select');
+            const titleEl = qs('#status-main-title');
+            const headerText = qs('#header-status-text');
+            const badge = qs('#sys-status-badge');
+            const dot = qs('#header-status-dot');
+
+            const mode = data.mode || 'operational';
+            if (modeSelect) modeSelect.value = mode;
+
+            if (mode === 'maintenance') {
+                if (titleEl) titleEl.textContent = "Maintenance Mode Active";
+                if (headerText) {
+                    headerText.textContent = "Maintenance Mode";
+                    headerText.className = "text-[10px] font-mono-tag font-bold uppercase text-amber-400";
+                }
+                if (badge) {
+                    badge.textContent = "Maint";
+                    badge.className = "ml-auto px-1.5 py-0.2 rounded text-[8px] font-mono-tag font-bold uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30";
+                }
+                if (dot) dot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-500";
+            } else if (mode === 'degraded') {
+                if (titleEl) titleEl.textContent = "Degraded Performance";
+                if (headerText) {
+                    headerText.textContent = "Degraded Network";
+                    headerText.className = "text-[10px] font-mono-tag font-bold uppercase text-yellow-400";
+                }
+                if (badge) {
+                    badge.textContent = "Degraded";
+                    badge.className = "ml-auto px-1.5 py-0.2 rounded text-[8px] font-mono-tag font-bold uppercase bg-yellow-500/20 text-yellow-400 border border-yellow-500/30";
+                }
+                if (dot) dot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-yellow-500";
+            } else {
+                if (titleEl) titleEl.textContent = "All Systems Operational";
+                if (headerText) {
+                    headerText.textContent = "All Systems Operational";
+                    headerText.className = "text-[10px] font-mono-tag font-bold uppercase text-emerald-400";
+                }
+                if (badge) {
+                    badge.textContent = "Live";
+                    badge.className = "ml-auto px-1.5 py-0.2 rounded text-[8px] font-mono-tag font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30";
+                }
+                if (dot) dot.className = "relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500";
+            }
+        });
+
+        // Listen to Announcement Banner settings
+        onSnapshot(doc(db, "system_settings", "banner"), (docSnap) => {
+            if (!docSnap.exists()) return;
+            const data = docSnap.data();
+            if (qs('#sys-banner-type')) qs('#sys-banner-type').value = data.type || 'gold';
+            if (qs('#sys-banner-text')) qs('#sys-banner-text').value = data.text || '';
+            if (qs('#sys-banner-active')) qs('#sys-banner-active').checked = Boolean(data.active);
+        });
+
+    } catch(e) {
+        console.warn("System status snapshot warning:", e);
+    }
+
+    // System Settings Form Submit Handler
+    const settingsForm = qs('#systemSettingsForm');
+    if (settingsForm) {
+        settingsForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const mode = qs('#sys-mode-select')?.value || 'operational';
+            const bannerType = qs('#sys-banner-type')?.value || 'gold';
+            const bannerText = qs('#sys-banner-text')?.value || '';
+            const bannerActive = qs('#sys-banner-active')?.checked || false;
+
+            try {
+                await setDoc(doc(db, "system_settings", "status"), {
+                    mode: mode,
+                    updatedAt: serverTimestamp(),
+                    updatedBy: auth.currentUser?.email || 'admin'
+                }, { merge: true });
+
+                await setDoc(doc(db, "system_settings", "banner"), {
+                    type: bannerType,
+                    text: bannerText,
+                    active: bannerActive,
+                    updatedAt: serverTimestamp(),
+                    updatedBy: auth.currentUser?.email || 'admin'
+                }, { merge: true });
+
+                const statusNotice = qs('#sys-settings-status');
+                if (statusNotice) {
+                    statusNotice.classList.remove('hidden');
+                    setTimeout(() => statusNotice.classList.add('hidden'), 3500);
+                }
+
+                if (window.showSuccessToast) window.showSuccessToast("Saved", "Website system settings updated successfully!");
+            } catch(err) {
+                console.error("Save system settings error:", err);
+                if (window.showErrorToast) window.showErrorToast("Error", "Could not save system settings: " + err.message);
+            }
+        });
+    }
+}

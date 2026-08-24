@@ -1,4 +1,6 @@
 // Shared Utility Functions
+import { storage } from './firebase-config.js';
+import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-storage.js";
 
 /**
  * Calculate status based on start and end dates
@@ -63,9 +65,6 @@ export function escapeCssUrl(url) {
  * @param {string} folderPath - The folder path in the storage bucket (e.g. "avatars", "banners")
  * @returns {Promise<string>} - The download URL of the uploaded image
  */
-import { storage } from './firebase-config.js';
-import { ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-storage.js";
-
 export async function uploadImage(file, folderPath) {
     if (!file) throw new Error("No file selected for upload.");
     

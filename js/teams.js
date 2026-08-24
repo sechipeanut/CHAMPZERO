@@ -172,8 +172,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupForms();
 });
 
-const TAB_ACTIVE_CLASS = "px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-[#FFD700] text-black shadow-md cursor-pointer whitespace-nowrap border border-[#FFD700]";
-const TAB_INACTIVE_CLASS = "px-5 py-2.5 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all bg-white/5 text-neutral-400 hover:text-white hover:bg-white/10 border border-white/10 hover:border-white/20 cursor-pointer whitespace-nowrap";
+const TAB_ACTIVE_CLASS = "px-4 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-[#FFD700] text-black shadow-md cursor-pointer whitespace-nowrap border border-[#FFD700]";
+const TAB_INACTIVE_CLASS = "px-3.5 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-transparent text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent cursor-pointer whitespace-nowrap";
 window.setTab = (tabName) => {
     if (tabName === 'find-teams') { activeView = 'teams'; activeTeamFilter = 'available'; }
     else if (tabName === 'find-players') { activeView = 'players'; activeTeamFilter = 'available'; }
@@ -235,15 +235,54 @@ window.setTab = (tabName) => {
     renderTeams();
 };
 
-window.setGameFilter = (game) => { activeGameFilter = game; renderTeams(); }
-window.setRosterFilter = (roster) => { activeRosterFilter = roster; renderTeams(); }
-window.setRoleFilter = (role) => { activeRoleFilter = role; renderTeams(); }
+let teamsViewMode = localStorage.getItem('cz_teams_view_mode') || 'grid';
+let teamsPageSize = localStorage.getItem('cz_teams_page_size') === 'all' ? 'all' : (parseInt(localStorage.getItem('cz_teams_page_size')) || 24);
+let teamsCurrentPage = 1;
+
+window.setTeamsViewMode = (mode) => {
+    teamsViewMode = mode;
+    localStorage.setItem('cz_teams_view_mode', mode);
+    
+    const btnGrid = document.getElementById('btn-view-grid');
+    const btnList = document.getElementById('btn-view-list');
+    if (btnGrid && btnList) {
+        if (mode === 'grid') {
+            btnGrid.className = "p-1.5 rounded bg-[#FFD700] text-black transition-colors cursor-pointer";
+            btnList.className = "p-1.5 rounded text-neutral-400 hover:text-white transition-colors cursor-pointer";
+        } else {
+            btnGrid.className = "p-1.5 rounded text-neutral-400 hover:text-white transition-colors cursor-pointer";
+            btnList.className = "p-1.5 rounded bg-[#FFD700] text-black transition-colors cursor-pointer";
+        }
+    }
+    renderTeams();
+};
+
+window.setTeamsPageSize = (size) => {
+    teamsPageSize = (size === 'all') ? 'all' : parseInt(size);
+    localStorage.setItem('cz_teams_page_size', size);
+    teamsCurrentPage = 1;
+    renderTeams();
+};
+
+window.changeTeamsPage = (page) => {
+    teamsCurrentPage = page;
+    renderTeams();
+    const finderEl = document.getElementById('finder');
+    if (finderEl) {
+        finderEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+};
+
+window.setGameFilter = (game) => { activeGameFilter = game; teamsCurrentPage = 1; renderTeams(); }
+window.setRosterFilter = (roster) => { activeRosterFilter = roster; teamsCurrentPage = 1; renderTeams(); }
+window.setRoleFilter = (role) => { activeRoleFilter = role; teamsCurrentPage = 1; renderTeams(); }
 
 window.resetFilters = () => {
     activeGameFilter = 'all';
     activeRosterFilter = 'all';
     activeRoleFilter = 'all';
     searchTerm = '';
+    teamsCurrentPage = 1;
     const gameSelect = document.getElementById('filter-game');
     const rosterSelect = document.getElementById('filter-roster');
     const roleSelect = document.getElementById('filter-role');
@@ -366,10 +405,51 @@ async function renderTeams() {
 
     board.innerHTML = '<div class="col-span-full py-20 text-center"><div class="inline-block animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[var(--gold)] mb-4"></div><p class="text-gray-500">Loading listings...</p></div>';
 
+    function parseFirestoreValue(val) {
+        if (!val) return null;
+        if (val.stringValue !== undefined) return val.stringValue;
+        if (val.integerValue !== undefined) return parseInt(val.integerValue, 10);
+        if (val.doubleValue !== undefined) return parseFloat(val.doubleValue);
+        if (val.booleanValue !== undefined) return val.booleanValue;
+        if (val.timestampValue !== undefined) return val.timestampValue;
+        if (val.nullValue !== undefined) return null;
+        if (val.arrayValue !== undefined) return (val.arrayValue.values || []).map(v => parseFirestoreValue(v));
+        if (val.mapValue !== undefined) {
+            const out = {};
+            const fields = val.mapValue.fields || {};
+            for (const k in fields) out[k] = parseFirestoreValue(fields[k]);
+            return out;
+        }
+        return val;
+    }
+
     try {
-        const querySnapshot = await getDocs(collection(db, "recruitment"));
         let posts = [];
-        querySnapshot.forEach(doc => posts.push({ id: doc.id, ...doc.data() }));
+        const fetchSDK = new Promise(async (resolve, reject) => {
+            try {
+                const querySnapshot = await getDocs(collection(db, "recruitment"));
+                const items = [];
+                querySnapshot.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+                resolve(items);
+            } catch (e) { reject(e); }
+        });
+        const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('SDK Timeout')), 2500));
+
+        try {
+            posts = await Promise.race([fetchSDK, timeout]);
+        } catch (sdkErr) {
+            console.warn("Teams SDK slow/failed, using REST API:", sdkErr);
+            const res = await fetch('https://firestore.googleapis.com/v1/projects/champzero-92951/databases/(default)/documents/recruitment');
+            if (res.ok) {
+                const data = await res.json();
+                posts = (data.documents || []).map(doc => {
+                    const id = doc.name ? doc.name.split('/').pop() : '';
+                    const d = { id };
+                    for (const k in (doc.fields || {})) d[k] = parseFirestoreValue(doc.fields[k]);
+                    return d;
+                });
+            }
+        }
 
         cachedRecruitmentPosts = posts;
 
@@ -380,10 +460,10 @@ async function renderTeams() {
             return (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0);
         });
 
-        board.innerHTML = '';
         const myUid = auth.currentUser ? auth.currentUser.uid : null;
         let count = 0;
         let openCount = 0;
+        let filteredPosts = [];
 
         // We will collect joined teams to attach listeners later
         let joinedTeamsToListen = [];
@@ -439,25 +519,71 @@ async function renderTeams() {
             }
 
             count++;
-
-            // Check role for blimp permissions
-            const myRole = isAuthor ? 'Captain' : (myMemberData ? myMemberData.role : 'Member');
-            const canSeeApps = (myRole === 'Captain' || myRole === 'Vice Captain');
-
-            const cardHTML = activeView === 'teams'
-                ? renderTeamCard(post, isAuthor, isMember)
-                : renderPlayerCard(post, isAuthor);
-
-            board.innerHTML += cardHTML;
+            filteredPosts.push(post);
 
             // If we are part of this team, add to list for real-time monitoring
             if (isJoined && activeView === 'teams') {
+                const myRole = isAuthor ? 'Captain' : (myMemberData ? myMemberData.role : 'Member');
+                const canSeeApps = (myRole === 'Captain' || myRole === 'Vice Captain');
                 joinedTeamsToListen.push({
                     id: post.id,
                     canSeeApps: canSeeApps
                 });
             }
         });
+
+        // Pagination Calculation
+        const totalCount = filteredPosts.length;
+        const pageSizeNum = (teamsPageSize === 'all') ? totalCount : teamsPageSize;
+        const totalPages = Math.max(1, Math.ceil(totalCount / (pageSizeNum || 1)));
+        if (teamsCurrentPage > totalPages) teamsCurrentPage = totalPages;
+        if (teamsCurrentPage < 1) teamsCurrentPage = 1;
+
+        const startIndex = (teamsCurrentPage - 1) * pageSizeNum;
+        const endIndex = Math.min(totalCount, startIndex + pageSizeNum);
+        const displayedPosts = (teamsPageSize === 'all') ? filteredPosts : filteredPosts.slice(startIndex, endIndex);
+
+        // Sync view toggle buttons & selector UI
+        const btnGrid = document.getElementById('btn-view-grid');
+        const btnList = document.getElementById('btn-view-list');
+        if (btnGrid && btnList) {
+            if (teamsViewMode === 'grid') {
+                btnGrid.className = "p-1.5 rounded bg-[#FFD700] text-black transition-colors cursor-pointer";
+                btnList.className = "p-1.5 rounded text-neutral-400 hover:text-white transition-colors cursor-pointer";
+            } else {
+                btnGrid.className = "p-1.5 rounded text-neutral-400 hover:text-white transition-colors cursor-pointer";
+                btnList.className = "p-1.5 rounded bg-[#FFD700] text-black transition-colors cursor-pointer";
+            }
+        }
+        const pageSizeSelect = document.getElementById('teams-page-size-select');
+        if (pageSizeSelect) pageSizeSelect.value = String(teamsPageSize);
+
+        board.innerHTML = '';
+
+        if (teamsViewMode === 'list') {
+            board.className = "flex flex-col gap-2 min-h-[300px]";
+            displayedPosts.forEach(post => {
+                const isAuthor = myUid === post.authorId;
+                const myMemberData = post.members ? post.members.find(m => m.uid === myUid) : null;
+                const isMember = !!myMemberData;
+                board.innerHTML += (activeView === 'teams')
+                    ? renderTeamRow(post, isAuthor, isMember)
+                    : renderPlayerRow(post, isAuthor);
+            });
+        } else {
+            board.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 auto-rows-fr min-h-[300px]";
+            displayedPosts.forEach(post => {
+                const isAuthor = myUid === post.authorId;
+                const myMemberData = post.members ? post.members.find(m => m.uid === myUid) : null;
+                const isMember = !!myMemberData;
+                board.innerHTML += (activeView === 'teams')
+                    ? renderTeamCard(post, isAuthor, isMember)
+                    : renderPlayerCard(post, isAuthor);
+            });
+        }
+
+        // Render Pagination Controls
+        renderPagination(totalCount, teamsCurrentPage, totalPages, startIndex, endIndex);
 
         // Update Filter HUD / Count
         const countTextEl = document.getElementById('filter-count-text');
@@ -476,7 +602,8 @@ async function renderTeams() {
             else resetBtnEl.classList.add('hidden');
         }
 
-        if (count === 0) board.innerHTML = `
+        if (count === 0) {
+            board.innerHTML = `
                 <div class="col-span-full py-20 text-center flex flex-col items-center justify-center">
                     <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-3 text-neutral-500">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -489,6 +616,9 @@ async function renderTeams() {
                         Reset All Filters
                     </button>
                 </div>`;
+            const pagContainer = document.getElementById('teams-pagination-container');
+            if (pagContainer) pagContainer.classList.add('hidden');
+        }
 
         // Start Real-time Listeners for Blimps
         subscribeToCardUpdates(joinedTeamsToListen);
@@ -497,6 +627,48 @@ async function renderTeams() {
         console.error("Render Error:", error);
         board.innerHTML = '<div class="col-span-full py-20 text-center"><p class="text-red-500">Failed to load listings.</p></div>';
     }
+}
+
+function renderPagination(totalCount, currentPage, totalPages, startIndex, endIndex) {
+    const pagContainer = document.getElementById('teams-pagination-container');
+    if (!pagContainer) return;
+    if (totalCount === 0 || totalPages <= 1 || teamsPageSize === 'all') {
+        pagContainer.innerHTML = '';
+        pagContainer.classList.add('hidden');
+        return;
+    }
+    pagContainer.classList.remove('hidden');
+
+    let pagesHtml = '';
+    const maxButtons = 5;
+    let startPage = Math.max(1, currentPage - 2);
+    let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+    if (endPage - startPage < maxButtons - 1) {
+        startPage = Math.max(1, endPage - maxButtons + 1);
+    }
+
+    for (let p = startPage; p <= endPage; p++) {
+        if (p === currentPage) {
+            pagesHtml += `<button type="button" class="w-7 h-7 rounded-lg bg-[#FFD700] text-black font-bold text-xs cursor-default font-mono-tag">${p}</button>`;
+        } else {
+            pagesHtml += `<button type="button" onclick="window.changeTeamsPage(${p})" class="w-7 h-7 rounded-lg bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 text-xs transition cursor-pointer font-mono-tag">${p}</button>`;
+        }
+    }
+
+    pagContainer.innerHTML = `
+        <div class="text-neutral-400 text-xs font-mono-tag">
+            Showing <span class="text-white font-bold">${totalCount === 0 ? 0 : startIndex + 1}–${endIndex}</span> of <span class="text-[#FFD700] font-bold">${totalCount}</span> ${activeView === 'teams' ? 'squads' : 'listings'}
+        </div>
+        <div class="flex items-center gap-1.5">
+            <button type="button" ${currentPage <= 1 ? 'disabled class="px-2.5 py-1 rounded-lg bg-white/5 text-neutral-600 border border-white/5 text-xs cursor-not-allowed font-mono-tag"' : `onclick="window.changeTeamsPage(${currentPage - 1})" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 text-xs transition cursor-pointer font-mono-tag"`}>
+                &laquo; Prev
+            </button>
+            ${pagesHtml}
+            <button type="button" ${currentPage >= totalPages ? 'disabled class="px-2.5 py-1 rounded-lg bg-white/5 text-neutral-600 border border-white/5 text-xs cursor-not-allowed font-mono-tag"' : `onclick="window.changeTeamsPage(${currentPage + 1})" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 text-xs transition cursor-pointer font-mono-tag"`}>
+                Next &raquo;
+            </button>
+        </div>
+    `;
 }
 
 // --- REAL-TIME CARD UPDATES (The Magic for Live Blimps) ---
@@ -553,38 +725,37 @@ function renderTeamCard(post, isAuthor, isMember) {
     const isFull = memberCount >= maxMembers;
     const spotsLeft = Math.max(0, maxMembers - memberCount);
     const captain = post.members?.find(m => m.role === 'Captain') || { name: post.authorName || 'Captain' };
-    const borderClass = "border-white/10 hover:border-[#FFD700] hover:shadow-[0_0_25px_rgba(255,215,0,0.18)]";
-    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase">PRO</span>` : '';
+    const borderClass = "border-white/10 hover:border-[#FFD700] hover:shadow-[0_0_20px_rgba(255,215,0,0.15)]";
+    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[8px] font-mono-tag font-bold px-1 py-0.2 rounded uppercase">PRO</span>` : '';
     
     const rolesHtml = post.roles && post.roles.length > 0 
-        ? post.roles.slice(0, 3).map(r => `<span class="bg-black/60 text-indigo-200 border border-indigo-500/30 text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase tracking-wider">${escapeHtml(r.trim())}</span>`).join('') + (post.roles.length > 3 ? `<span class="text-[9px] text-neutral-400 font-mono-tag pl-0.5">+${post.roles.length - 3}</span>` : '')
-        : `<span class="text-[9px] text-neutral-500 font-mono-tag">Any Role</span>`;
+        ? post.roles.slice(0, 2).map(r => `<span class="bg-black/60 text-indigo-200 border border-indigo-500/30 text-[8px] font-mono-tag font-bold px-1.5 py-0.2 rounded uppercase tracking-wider">${escapeHtml(r.trim())}</span>`).join(' ') + (post.roles.length > 2 ? `<span class="text-[8px] text-neutral-400 font-mono-tag pl-0.5">+${post.roles.length - 2}</span>` : '')
+        : `<span class="text-[8px] text-neutral-500 font-mono-tag">Any Role</span>`;
 
     let actionBtn = '';
     if (isAuthor || isMember) {
-        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="flex-1 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer">Manage</button>`;
+        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="flex-1 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer text-center">Manage</button>`;
     } else if (isFull) {
-        actionBtn = `<button disabled class="flex-1 py-2 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-xs font-heading font-bold uppercase tracking-wider cursor-not-allowed">Full</button>`;
+        actionBtn = `<button disabled class="flex-1 py-1.5 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider cursor-not-allowed text-center">Full</button>`;
     } else if (post.applicationsOpen === false) {
-        actionBtn = `<button disabled class="flex-1 py-2 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-xs font-heading font-bold uppercase tracking-wider cursor-not-allowed">Not Accepting</button>`;
+        actionBtn = `<button disabled class="flex-1 py-1.5 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider cursor-not-allowed text-center">Closed</button>`;
     } else {
-        actionBtn = `<button onclick="window.openApplicationModal('${post.id}', '${escapeHtml(post.name)}')" class="flex-1 py-2 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all shadow-md hover:shadow-yellow-500/20 active:scale-95 flex items-center justify-center gap-1 cursor-pointer font-semibold"><span>Apply</span> &rarr;</button>`;
+        actionBtn = `<button onclick="window.openApplicationModal('${post.id}', '${escapeHtml(post.name)}')" class="flex-1 py-1.5 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1 cursor-pointer font-semibold"><span>Apply</span> &rarr;</button>`;
     }
 
     const statusBadge = isFull 
-        ? `<span class="bg-red-500/20 text-red-400 border border-red-500/40 text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded-full uppercase">Full</span>`
-        : `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded-full uppercase">${spotsLeft} Open</span>`;
+        ? `<span class="bg-red-500/20 text-red-400 border border-red-500/40 text-[8px] font-mono-tag font-bold px-1.5 py-0.2 rounded-full uppercase">Full</span>`
+        : `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[8px] font-mono-tag font-bold px-1.5 py-0.2 rounded-full uppercase">${spotsLeft} Open</span>`;
 
     return `
-        <article data-id="${post.id}" class="bg-[#0D0D12] border rounded-2xl overflow-hidden transition-all duration-300 min-h-[260px] group flex flex-col justify-between relative ${borderClass}">
-            
+        <article data-id="${post.id}" class="bg-[#0D0D12] border rounded-xl overflow-hidden transition-all duration-200 group flex flex-col justify-between relative ${borderClass}">
             <!-- Card Top Header Banner -->
-            <div class="relative h-28 w-full bg-cover bg-center overflow-hidden" style="background-image: url('${escapeHtml(post.image || 'pictures/cz_logo.png')}');">
+            <div class="relative h-20 w-full bg-cover bg-center overflow-hidden" style="background-image: url('${escapeHtml(post.image || 'pictures/cz_logo.png')}');">
                 <div class="absolute inset-0 bg-gradient-to-t from-[#0D0D12] via-[#0D0D12]/60 to-black/50"></div>
                 
-                <div class="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between z-10">
-                    <div class="flex items-center gap-1.5 min-w-0">
-                        <span class="bg-black/80 backdrop-blur-md text-[#FFD700] border border-[#FFD700]/30 font-mono-tag font-bold text-[9px] px-2 py-0.5 rounded uppercase tracking-wider truncate">${escapeHtml(formatGameBadge(post.game || post.gameId))}</span>
+                <div class="absolute top-2 left-2 right-2 flex items-center justify-between z-10">
+                    <div class="flex items-center gap-1 min-w-0">
+                        <span class="bg-black/80 backdrop-blur-md text-[#FFD700] border border-[#FFD700]/30 font-mono-tag font-bold text-[8px] px-1.5 py-0.2 rounded uppercase tracking-wider truncate">${escapeHtml(formatGameBadge(post.game || post.gameId))}</span>
                         <div class="blimp-container"></div>
                     </div>
                     ${statusBadge}
@@ -592,37 +763,37 @@ function renderTeamCard(post, isAuthor, isMember) {
             </div>
 
             <!-- Card Body Details -->
-            <div class="px-4 pb-4 pt-1 flex-1 flex flex-col justify-between relative z-10 -mt-6">
+            <div class="px-3 pb-3 pt-1 flex-1 flex flex-col justify-between relative z-10 -mt-4">
                 <div>
-                    <div class="flex items-center justify-between gap-2 mb-1">
-                        <h3 class="text-base font-heading font-bold text-white truncate group-hover:text-[#FFD700] transition-colors flex items-center gap-1.5">
+                    <div class="flex items-center justify-between gap-1.5 mb-1">
+                        <h3 class="text-sm font-heading font-bold text-white truncate group-hover:text-[#FFD700] transition-colors flex items-center gap-1">
                             ${escapeHtml(post.name)} ${verifiedBadge}
                         </h3>
                     </div>
                     
-                    <p class="text-[10px] text-neutral-400 font-mono-tag truncate mb-2">
-                        Captain: <span class="text-neutral-200 font-semibold">${escapeHtml(captain.name)}</span>
+                    <p class="text-[9px] text-neutral-400 font-mono-tag truncate mb-1.5">
+                        Capt: <span class="text-neutral-200 font-semibold">${escapeHtml(captain.name)}</span>
                     </p>
 
-                    <div class="flex flex-wrap items-center gap-1 mb-3">
+                    <div class="flex flex-wrap items-center gap-1 mb-2">
                         ${rolesHtml}
                     </div>
                 </div>
 
                 <div>
-                    <div class="mb-3">
-                        <div class="flex justify-between text-[9px] font-mono-tag text-neutral-400 mb-1 font-bold uppercase">
-                            <span>Roster Slot</span>
+                    <div class="mb-2">
+                        <div class="flex justify-between text-[8px] font-mono-tag text-neutral-400 mb-0.5 font-bold uppercase">
+                            <span>Roster</span>
                             <span class="${isFull ? 'text-red-400' : 'text-[#FFD700]'}">${memberCount} / ${maxMembers}</span>
                         </div>
-                        <div class="w-full bg-black/60 h-1.5 rounded-full overflow-hidden border border-white/5">
+                        <div class="w-full bg-black/60 h-1 rounded-full overflow-hidden border border-white/5">
                             <div class="bg-gradient-to-r from-amber-500 to-[#FFD700] h-full transition-all duration-500" style="width: ${Math.min(100, (memberCount / maxMembers) * 100)}%"></div>
                         </div>
                     </div>
 
                     <!-- Action Button Row -->
-                    <div class="flex items-center gap-2 pt-2 border-t border-white/5">
-                        <button onclick="window.openTeamDetailsModal('${post.id}')" class="flex-1 py-2 bg-white/5 hover:bg-white/15 text-neutral-200 border border-white/10 hover:border-white/30 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer text-center">
+                    <div class="flex items-center gap-1.5 pt-1.5 border-t border-white/5">
+                        <button onclick="window.openTeamDetailsModal('${post.id}')" class="px-2.5 py-1.5 bg-white/5 hover:bg-white/15 text-neutral-200 border border-white/10 hover:border-white/30 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer text-center">
                             Roster
                         </button>
                         ${actionBtn}
@@ -630,6 +801,81 @@ function renderTeamCard(post, isAuthor, isMember) {
                 </div>
             </div>
         </article>`;
+}
+
+function renderTeamRow(post, isAuthor, isMember) {
+    const memberCount = post.members ? post.members.length : (post.currentMembers || 1);
+    const maxMembers = post.maxMembers || 5;
+    const isFull = memberCount >= maxMembers;
+    const spotsLeft = Math.max(0, maxMembers - memberCount);
+    const captain = post.members?.find(m => m.role === 'Captain') || { name: post.authorName || 'Captain' };
+    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[8px] font-mono-tag font-bold px-1 py-0.2 rounded uppercase">PRO</span>` : '';
+    
+    const rolesHtml = post.roles && post.roles.length > 0 
+        ? post.roles.slice(0, 2).map(r => `<span class="bg-black/60 text-indigo-200 border border-indigo-500/30 text-[8px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase tracking-tight">${escapeHtml(r.trim())}</span>`).join(' ') + (post.roles.length > 2 ? `<span class="text-[8px] text-neutral-400 font-mono-tag">+${post.roles.length - 2}</span>` : '')
+        : `<span class="text-[8px] text-neutral-500 font-mono-tag">Any Role</span>`;
+
+    let actionBtn = '';
+    if (isAuthor || isMember) {
+        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer">Manage</button>`;
+    } else if (isFull) {
+        actionBtn = `<button disabled class="px-3 py-1.5 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider cursor-not-allowed">Full</button>`;
+    } else if (post.applicationsOpen === false) {
+        actionBtn = `<button disabled class="px-3 py-1.5 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider cursor-not-allowed">Closed</button>`;
+    } else {
+        actionBtn = `<button onclick="window.openApplicationModal('${post.id}', '${escapeHtml(post.name)}')" class="px-3 py-1.5 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 flex items-center gap-1 cursor-pointer font-semibold"><span>Apply</span> &rarr;</button>`;
+    }
+
+    const statusBadge = isFull 
+        ? `<span class="bg-red-500/15 text-red-400 border border-red-500/30 text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded-full uppercase">Full</span>`
+        : `<span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded-full uppercase">${spotsLeft} Open</span>`;
+
+    return `
+        <div data-id="${post.id}" class="bg-[#0D0D12] hover:bg-[#12121A] border border-white/10 hover:border-[#FFD700]/50 rounded-xl p-3 sm:px-4 sm:py-2.5 transition-all duration-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 group">
+            <!-- Left Identity -->
+            <div class="flex items-center gap-3 min-w-0 flex-1">
+                <img src="${escapeHtml(post.image || 'pictures/cz_logo.png')}" class="w-9 h-9 rounded-lg object-cover border border-white/10 shrink-0 group-hover:border-[#FFD700]/50 transition-colors" alt="Team Logo">
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-heading font-bold text-white text-sm truncate group-hover:text-[#FFD700] transition-colors">${escapeHtml(post.name)}</span>
+                        ${verifiedBadge}
+                        <div class="blimp-container"></div>
+                    </div>
+                    <div class="flex items-center gap-2 text-[10px] text-neutral-400 font-mono-tag">
+                        <span>Capt: <strong class="text-neutral-300 font-medium">${escapeHtml(captain.name)}</strong></span>
+                        <span class="text-neutral-600">•</span>
+                        <span class="text-[#FFD700] font-bold">${escapeHtml(formatGameBadge(post.game || post.gameId))}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Center: Roles -->
+            <div class="hidden lg:flex items-center gap-2 shrink-0">
+                ${rolesHtml}
+            </div>
+
+            <!-- Mid-Right: Capacity Progress Bar -->
+            <div class="flex items-center gap-3 shrink-0">
+                <div class="hidden sm:block w-28 text-right">
+                    <div class="flex justify-between text-[9px] font-mono-tag text-neutral-400 mb-1 font-bold uppercase">
+                        <span>Roster</span>
+                        <span class="${isFull ? 'text-red-400' : 'text-[#FFD700]'}">${memberCount}/${maxMembers}</span>
+                    </div>
+                    <div class="w-full bg-black/60 h-1 rounded-full overflow-hidden border border-white/5">
+                        <div class="bg-gradient-to-r from-amber-500 to-[#FFD700] h-full" style="width: ${Math.min(100, (memberCount / maxMembers) * 100)}%"></div>
+                    </div>
+                </div>
+                ${statusBadge}
+            </div>
+
+            <!-- Right Action Buttons -->
+            <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                <button onclick="window.openTeamDetailsModal('${post.id}')" class="px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer">
+                    Roster
+                </button>
+                ${actionBtn}
+            </div>
+        </div>`;
 }
 
 // --- TEAM DETAILS & ROSTER MODAL LOGIC ---
@@ -788,93 +1034,105 @@ window.closeTeamDetailsModal = () => {
 };
 
 function renderPlayerCard(post, isAuthor) {
-    const borderClass = "border-white/10 hover:border-[#FFD700] hover:shadow-[0_0_25px_rgba(255,215,0,0.18)]";
-    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase">PRO</span>` : '';
+    const borderClass = "border-white/10 hover:border-[#FFD700] hover:shadow-[0_0_20px_rgba(255,215,0,0.15)]";
+    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[8px] font-mono-tag font-bold px-1 py-0.2 rounded uppercase">PRO</span>` : '';
     const avatarUrl = post.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.ign || 'Player')}&background=111116&color=FFD700`;
     const gameBadge = formatGameBadge(post.game || post.gameId);
-    const hasDesc = post.description && post.description.trim().length > 0;
 
     let actionBtn = '';
     if (isAuthor) {
         actionBtn = `
-            <button onclick="window.openLftManageModal('${post.id}')" class="flex-1 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer text-center">
+            <button onclick="window.openLftManageModal('${post.id}')" class="flex-1 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer text-center">
                 Manage
             </button>`;
     } else {
         actionBtn = `
-            <button onclick="window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" class="flex-1 py-2 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-all shadow-md hover:shadow-yellow-500/20 active:scale-95 flex items-center justify-center gap-1.5 cursor-pointer font-semibold">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-3.5 h-3.5">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-                </svg>
+            <button onclick="window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" class="flex-1 py-1.5 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1 cursor-pointer font-semibold">
                 <span>Message</span>
             </button>`;
     }
 
-    const deleteBtn = isAuthor ? `
-        <button onclick="window.deleteListing('${post.id}')" title="Delete Listing" class="p-2 bg-red-950/40 hover:bg-red-900/50 text-red-400 border border-red-900/40 rounded-lg transition-colors cursor-pointer">
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2.5" stroke="currentColor" class="w-4 h-4">
-                <path stroke-linecap="round" stroke-linejoin="round" d="m14.74 9-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0" />
-            </svg>
-        </button>` : '';
-
     return `
-        <article data-id="${post.id}" class="bg-[#0D0D12] border rounded-2xl p-4 transition-all duration-300 group flex flex-col justify-between relative ${borderClass}">
-            <div class="blimp-container static mb-2"></div>
+        <article data-id="${post.id}" class="bg-[#0D0D12] border rounded-xl p-3 transition-all duration-200 group flex flex-col justify-between relative ${borderClass}">
+            <div class="blimp-container static mb-1.5"></div>
 
             <div>
                 <!-- Top Header: Game Badge & LFT Status -->
-                <div class="flex items-center justify-between gap-2 mb-3">
-                    <span class="bg-black/80 text-[#FFD700] border border-[#FFD700]/30 font-mono-tag font-bold text-[9px] px-2 py-0.5 rounded uppercase tracking-wider truncate">
+                <div class="flex items-center justify-between gap-1.5 mb-2">
+                    <span class="bg-black/80 text-[#FFD700] border border-[#FFD700]/30 font-mono-tag font-bold text-[8px] px-1.5 py-0.2 rounded uppercase tracking-wider truncate">
                         ${escapeHtml(gameBadge)}
                     </span>
-                    <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded-full uppercase tracking-wider shrink-0">
+                    <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[8px] font-mono-tag font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider shrink-0">
                         FREE AGENT
                     </span>
                 </div>
 
                 <!-- Player Identity -->
-                <div class="flex items-center gap-3 mb-3">
-                    <img src="${escapeHtml(avatarUrl)}" class="w-12 h-12 rounded-xl border border-white/10 object-cover shadow-lg shrink-0 group-hover:border-[#FFD700]/50 transition-colors">
+                <div class="flex items-center gap-2.5 mb-2">
+                    <img src="${escapeHtml(avatarUrl)}" class="w-9 h-9 rounded-lg border border-white/10 object-cover shadow-sm shrink-0 group-hover:border-[#FFD700]/50 transition-colors" alt="Avatar">
                     <div class="min-w-0 flex-1">
-                        <h3 class="text-base font-heading font-bold text-white truncate group-hover:text-[#FFD700] transition-colors flex items-center gap-1.5">
+                        <h3 class="text-sm font-heading font-bold text-white truncate group-hover:text-[#FFD700] transition-colors flex items-center gap-1">
                             ${escapeHtml(post.ign || 'Player')} ${verifiedBadge}
                         </h3>
-                        ${post.discord ? `
-                            <p class="text-[10px] text-neutral-400 font-mono-tag truncate mt-0.5">
-                                Discord: <span class="text-neutral-200 font-semibold">${escapeHtml(post.discord)}</span>
-                            </p>
-                        ` : `
-                            <p class="text-[10px] text-neutral-500 font-mono-tag">Looking for Squad</p>
-                        `}
+                        <p class="text-[9px] text-neutral-400 font-mono-tag truncate">
+                            Role: <span class="text-neutral-200 font-semibold">${escapeHtml(post.role || 'Flex')}</span>
+                        </p>
                     </div>
                 </div>
 
-                <!-- Tactical Stats HUD: Rank & Role -->
-                <div class="grid grid-cols-2 gap-2 mb-3 bg-black/40 p-2.5 rounded-xl border border-white/5">
+                <!-- Tactical Stats HUD -->
+                <div class="grid grid-cols-2 gap-1.5 mb-2 bg-black/40 p-2 rounded-lg border border-white/5">
                     <div class="min-w-0">
-                        <p class="text-[8px] text-neutral-500 uppercase font-mono-tag font-bold tracking-tight">Rank</p>
-                        <p class="text-xs text-[#FFD700] font-heading font-bold truncate mt-0.5">${escapeHtml(post.rank || 'Unranked')}</p>
+                        <p class="text-[7px] text-neutral-500 uppercase font-mono-tag font-bold tracking-tight">Rank</p>
+                        <p class="text-[11px] text-[#FFD700] font-heading font-bold truncate mt-0.2">${escapeHtml(post.rank || 'Unranked')}</p>
                     </div>
                     <div class="min-w-0">
-                        <p class="text-[8px] text-neutral-500 uppercase font-mono-tag font-bold tracking-tight">Role</p>
-                        <p class="text-xs text-white font-heading font-bold truncate mt-0.5">${escapeHtml(post.role || 'Flex')}</p>
+                        <p class="text-[7px] text-neutral-500 uppercase font-mono-tag font-bold tracking-tight">Status</p>
+                        <p class="text-[11px] text-emerald-400 font-heading font-bold truncate mt-0.2">Available</p>
                     </div>
                 </div>
-
-                <!-- Bio Summary -->
-                ${hasDesc ? `
-                    <p class="text-[11px] text-neutral-400 leading-relaxed bg-black/20 p-2.5 rounded-lg border border-white/5 line-clamp-2 mb-3 italic">
-                        "${escapeHtml(post.description)}"
-                    </p>
-                ` : ''}
             </div>
 
-            <!-- Footer Actions -->
-            <div class="flex items-center gap-2 pt-3 border-t border-white/5">
-                ${deleteBtn}
+            <div class="pt-1.5 border-t border-white/5 flex items-center gap-1.5">
                 ${actionBtn}
             </div>
         </article>`;
+}
+
+function renderPlayerRow(post, isAuthor) {
+    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[8px] font-mono-tag font-bold px-1 py-0.2 rounded uppercase">PRO</span>` : '';
+    const avatarUrl = post.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.ign || 'Player')}&background=111116&color=FFD700`;
+    const gameBadge = formatGameBadge(post.game || post.gameId);
+
+    let actionBtn = isAuthor
+        ? `<button onclick="window.openLftManageModal('${post.id}')" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer">Manage</button>`
+        : `<button onclick="window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" class="px-3 py-1.5 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 flex items-center gap-1 cursor-pointer font-semibold">Message</button>`;
+
+    return `
+        <div data-id="${post.id}" class="bg-[#0D0D12] hover:bg-[#12121A] border border-white/10 hover:border-[#FFD700]/50 rounded-xl p-3 sm:px-4 sm:py-2.5 transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group">
+            <div class="flex items-center gap-3 min-w-0 flex-1">
+                <img src="${escapeHtml(avatarUrl)}" class="w-9 h-9 rounded-lg object-cover border border-white/10 shrink-0 group-hover:border-[#FFD700]/50 transition-colors" alt="Avatar">
+                <div class="min-w-0 flex-1">
+                    <div class="flex items-center gap-1.5">
+                        <span class="font-heading font-bold text-white text-sm truncate group-hover:text-[#FFD700] transition-colors">${escapeHtml(post.ign || 'Player')}</span>
+                        ${verifiedBadge}
+                        <div class="blimp-container"></div>
+                    </div>
+                    <div class="flex items-center gap-2 text-[10px] text-neutral-400 font-mono-tag">
+                        <span class="text-[#FFD700] font-bold">${escapeHtml(gameBadge)}</span>
+                        <span class="text-neutral-600">•</span>
+                        <span>Rank: <strong class="text-neutral-300 font-medium">${escapeHtml(post.rank || 'Unranked')}</strong></span>
+                        <span class="text-neutral-600">•</span>
+                        <span>Role: <strong class="text-neutral-300 font-medium">${escapeHtml(post.role || 'Flex')}</strong></span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
+                <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded-full uppercase shrink-0">Free Agent</span>
+                ${actionBtn}
+            </div>
+        </div>`;
 }
 
 let activeLftChatId = null; // Stores the UID of the person the creator is chatting with
@@ -1375,11 +1633,29 @@ window.handleApp = async (appId, applicantId, applicantName, isAccept) => {
                 currentMembers: (data.members || []).length + 1
             });
             await updateDoc(appRef, { status: 'accepted' });
+            if (window.sendPlayerNotification) {
+                await window.sendPlayerNotification(applicantId, {
+                    title: "Team Application Accepted",
+                    message: `You have been officially accepted into ${data.name || 'the team'}!`,
+                    type: 'team',
+                    tag: 'ROSTER ACCEPTED',
+                    link: `/teams?id=${currentManageId}`
+                });
+            }
             const applicantDisplayName = await getUserDisplayName(applicantId, applicantName);
             await sendSystemMessage(currentManageId, `${applicantDisplayName} has joined the team`);
             await window.showCustomAlert("Success", "Player accepted into the roster!");
         } else {
             await updateDoc(appRef, { status: 'rejected' });
+            if (window.sendPlayerNotification) {
+                await window.sendPlayerNotification(applicantId, {
+                    title: "Team Application Update",
+                    message: `Your application to join the team was declined.`,
+                    type: 'team',
+                    tag: 'DECLINED',
+                    link: `/teams`
+                });
+            }
             await window.showCustomAlert("Rejected", "Application rejected.");
         }
         loadApplications(currentManageId);
@@ -1821,6 +2097,22 @@ function setupForms() {
                     status: 'pending',
                     appliedAt: serverTimestamp()
                 });
+                try {
+                    const teamDoc = await getDoc(doc(db, "recruitment", teamId));
+                    if (teamDoc.exists()) {
+                        const leaderId = teamDoc.data().leaderId;
+                        if (leaderId && window.sendPlayerNotification) {
+                            await window.sendPlayerNotification(leaderId, {
+                                title: "New Team Applicant",
+                                message: `${auth.currentUser.displayName || 'A player'} applied to join ${teamDoc.data().name || 'your team'}.`,
+                                type: 'team',
+                                tag: 'NEW APPLICANT',
+                                link: `/teams?id=${teamId}`
+                            });
+                        }
+                    }
+                } catch(err) {}
+
                 await window.showCustomAlert("Success", "Application sent successfully!");
                 document.getElementById('applicationModal').classList.add('hidden');
                 appForm.reset();
@@ -1920,6 +2212,29 @@ function setupForms() {
         });
     }
 
+    // Handle edit-img upload
+    const editImgUpload = document.getElementById('edit-img-upload');
+    if (editImgUpload) {
+        editImgUpload.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+            const statusEl = document.getElementById('edit-img-status');
+            statusEl.textContent = "Uploading image...";
+            statusEl.className = "font-mono-tag text-[10px] text-gray-400 mt-1 block";
+            try {
+                const url = await uploadImage(file, 'teams');
+                const editImgInput = document.getElementById('edit-img');
+                if (editImgInput) editImgInput.value = url;
+                statusEl.textContent = "Upload successful!";
+                statusEl.className = "font-mono-tag text-[10px] text-emerald-400 mt-1 block";
+            } catch (error) {
+                console.error(error);
+                statusEl.textContent = "Upload failed.";
+                statusEl.className = "font-mono-tag text-[10px] text-red-400 mt-1 block";
+            }
+        });
+    }
+
     // Edit Team Form Listener
     const editForm = document.getElementById('editTeamForm');
     if (editForm) {
@@ -1928,12 +2243,16 @@ function setupForms() {
             const id = document.getElementById('edit-team-id').value;
             const desc = document.getElementById('edit-desc').value;
             const max = Math.min(parseInt(document.getElementById('edit-max').value) || 7, 7); // clamp to 7
+            const newImg = document.getElementById('edit-img')?.value;
 
             try {
                 const toggleBtn = document.getElementById('toggle-applications');
                 const applicationsOpen = toggleBtn ? toggleBtn.getAttribute('aria-checked') === 'true' : true;
                 
-                await updateDoc(doc(db, "recruitment", id), { description: desc, maxMembers: max, applicationsOpen });
+                const updatePayload = { description: desc, maxMembers: max, applicationsOpen };
+                if (newImg) updatePayload.image = newImg;
+
+                await updateDoc(doc(db, "recruitment", id), updatePayload);
                 
                 // HIDE THE WARNING BANNER HERE AFTER A SUCCESSFUL SAVE 
                 const warningNotice = document.getElementById('unsaved-warning');

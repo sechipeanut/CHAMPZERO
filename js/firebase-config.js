@@ -9,7 +9,7 @@ const firebaseConfig = {
   authDomain: "champzero-92951.firebaseapp.com",
   databaseURL: "https://champzero-92951-default-rtdb.asia-southeast1.firebasedatabase.app",
   projectId: "champzero-92951",
-  storageBucket: "gs://czcdn",
+  storageBucket: "champzero-92951.firebasestorage.app",
   messagingSenderId: "655748212673",
   appId: "1:655748212673:web:9db0611c8fc7a8f130f140",
   measurementId: "G-FDFF1NLL6L"
@@ -18,6 +18,16 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
-const storage = getStorage(app);
+
+let storage;
+try {
+  storage = getStorage(app, "gs://czcdn");
+} catch (e) {
+  try {
+    storage = getStorage(app);
+  } catch (e2) {
+    console.warn("Storage init notice:", e2);
+  }
+}
 
 export { auth, db, storage };

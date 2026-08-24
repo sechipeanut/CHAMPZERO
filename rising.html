@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="en" class="scroll-smooth bg-black">
 
 <head>
     <!-- Google tag (gtag.js) -->
@@ -46,14 +46,20 @@
 
             /* Compatibility tokens */
             --gold: #FFD700;
+            --gold-light: #FFF099;
             --gold-darker: #C99700;
             --dark-bg: #000000;
             --dark-card: #111116;
         }
 
+        html, body {
+            background-color: #000000 !important;
+            color: #FFFFFF;
+        }
+
         body {
             font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--cz-bg);
+            background-color: #000000 !important;
             color: #FFFFFF;
             overflow-x: hidden;
         }
@@ -142,11 +148,11 @@
 
     <!-- HEADER NAVIGATION -->
     <header id="main-header"
-        class="sticky top-0 z-50 bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
-        <div class="max-w-6xl mx-auto px-6 h-18 flex justify-between items-center py-4">
+        class="sticky top-0 z-[1000] bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-18 flex justify-between items-center py-4">
 
             <!-- BRAND IDENTITY -->
-            <a href="/" class="flex items-center gap-2.5 group">
+            <a href="/" class="flex items-center gap-2.5 group shrink-0">
                 <img src="pictures/cz_logo.png" alt="ChampZero Logo" class="w-7 h-7 object-contain">
                 <div class="flex items-center gap-1.5">
                     <span
@@ -160,7 +166,7 @@
 
             <!-- NAV LINKS -->
             <nav
-                class="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                class="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 text-xs font-semibold uppercase tracking-wider text-neutral-400">
                 <a href="/" class="nav-link hover:text-white">Home</a>
                 <a href="/tournaments" class="nav-link hover:text-white">Tournaments</a>
                 <a href="/events" class="nav-link hover:text-white">Events</a>
@@ -170,9 +176,9 @@
             </nav>
 
             <!-- AUTH CONTROLS -->
-            <div class="flex items-center gap-3">
-                <div id="auth-controls-wrapper" class="flex items-center gap-2">
-                    <div id="auth-controls" class="flex items-center gap-2">
+            <div class="flex items-center gap-3 shrink-0">
+                <div id="auth-controls-wrapper" class="flex items-center gap-2 shrink-0">
+                    <div id="auth-controls" class="flex items-center gap-2 shrink-0">
                         <a href="/login"
                             class="text-xs font-semibold px-3 py-1.5 text-neutral-300 hover:text-white transition-colors">
                             Log In
@@ -197,7 +203,7 @@
 
     <!-- MOBILE DRAWER -->
     <div id="mobile-menu"
-        class="hidden fixed inset-0 bg-black/98 backdrop-blur-2xl z-50 p-6 transition-all duration-300 flex flex-col justify-between">
+        class="hidden fixed inset-0 bg-black/98 backdrop-blur-2xl z-[2000] p-6 transition-all duration-300 flex flex-col justify-between">
         <div>
             <div class="flex justify-between items-center pb-5 border-b border-white/10">
                 <div class="flex items-center gap-2.5">
@@ -460,11 +466,11 @@
         });
     </script>
 
-    <script src="js/toast.js"></script>
-    <script type="module" src="js/main.js"></script>
-    <script type="module" src="js/auth.js"></script>
-    <script type="module" src="js/rising.js"></script>
-    <script type="module" src="js/notifications.js"></script>
+    <script src="js/toast.js?v=20260820_fix3"></script>
+    <script type="module" src="js/main.js?v=20260820_fix3"></script>
+    <script type="module" src="js/auth.js?v=20260820_fix3"></script>
+    <script type="module" src="js/rising.js?v=20260820_fix3"></script>
+    <script type="module" src="js/notifications.js?v=20260820_fix3"></script>
 
 </body>
 

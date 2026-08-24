@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="en" class="scroll-smooth bg-black">
 
 <head>
     <!-- Google tag (gtag.js) -->
@@ -42,14 +42,20 @@
 
             /* Compatibility tokens */
             --gold: #FFD700;
+            --gold-light: #FFF099;
             --gold-darker: #C99700;
             --dark-bg: #000000;
             --dark-card: #111116;
         }
 
+        html, body {
+            background-color: #000000 !important;
+            color: #FFFFFF;
+        }
+
         body {
             font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--cz-bg);
+            background-color: #000000 !important;
             color: #FFFFFF;
             overflow-x: hidden;
         }
@@ -176,7 +182,7 @@
 <body class="antialiased min-h-screen flex flex-col justify-between selection:bg-[#FFD700] selection:text-black">
 
     <!-- HEADER NAVIGATION -->
-    <header id="main-header" class="sticky top-0 z-50 bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
+    <header id="main-header" class="sticky top-0 z-[1000] bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
         <div class="max-w-6xl mx-auto px-6 h-18 flex justify-between items-center py-4">
             
             <!-- BRAND IDENTITY -->
@@ -229,7 +235,7 @@
 
     <!-- MOBILE DRAWER -->
     <div id="mobile-menu"
-        class="hidden fixed inset-0 bg-black/98 backdrop-blur-2xl z-50 p-6 transition-all duration-300 flex flex-col justify-between">
+        class="hidden fixed inset-0 bg-black/98 backdrop-blur-2xl z-[2000] p-6 transition-all duration-300 flex flex-col justify-between">
         <div>
             <div class="flex justify-between items-center pb-5 border-b border-white/10">
                 <div class="flex items-center gap-2.5">

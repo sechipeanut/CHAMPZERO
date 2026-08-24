@@ -1,5 +1,5 @@
 <header id="main-header"
-    class="sticky top-0 z-50 bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
+    class="sticky top-0 z-[1000] bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
     <div class="max-w-6xl mx-auto px-6 h-18 flex justify-between items-center py-4">
         
         <!-- BRAND IDENTITY -->
@@ -16,7 +16,7 @@
         </a>
 
         <!-- DESKTOP NAV -->
-        <nav class="hidden md:flex items-center gap-7 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+        <nav class="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-neutral-400">
             <a href="/"          class="nav-link hover:text-white transition-colors">Home</a>
             <a href="/tournaments" class="nav-link hover:text-white transition-colors">Tournaments</a>
             <a href="/events"    class="nav-link hover:text-white transition-colors">Events</a>
@@ -28,15 +28,12 @@
 
         <!-- AUTH CONTROLS -->
         <div class="flex items-center gap-3">
-            <div id="auth-controls-wrapper"
-                class="transition-opacity duration-500 opacity-0 pointer-events-none md:min-w-[180px] md:flex md:justify-end">
-                <div class="relative">
-                    <div id="auth-controls" class="flex items-center gap-2">
-                        <a href="/login"
-                            class="text-xs font-semibold px-3 py-1.5 rounded-lg text-neutral-300 hover:text-white transition-colors">Log In</a>
-                        <a href="/signup"
-                            class="hidden sm:inline-block font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] hover:bg-[#FFF099] text-black px-4 py-2 rounded-lg transition-all shadow-sm">Sign Up</a>
-                    </div>
+            <div id="auth-controls-wrapper" class="flex items-center gap-2">
+                <div id="auth-controls" class="flex items-center gap-2">
+                    <a href="/login"
+                        class="text-xs font-semibold px-3 py-1.5 rounded-lg text-neutral-300 hover:text-white transition-colors">Log In</a>
+                    <a href="/signup"
+                        class="hidden sm:inline-block font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] hover:bg-[#FFF099] text-black px-4 py-2 rounded-lg transition-all shadow-sm">Sign Up</a>
                 </div>
             </div>
             <button id="mobile-menu-button" aria-label="Toggle navigation menu"
@@ -51,7 +48,7 @@
 </header>
 
 <div id="mobile-menu"
-    class="hidden md:hidden fixed inset-0 bg-black/98 backdrop-blur-2xl z-[100] p-6 transition-all duration-300 flex flex-col justify-between">
+    class="hidden md:hidden fixed inset-0 bg-black/98 backdrop-blur-2xl z-[2000] p-6 transition-all duration-300 flex flex-col justify-between">
     <div>
         <div class="flex justify-between items-center pb-5 border-b border-white/10">
             <div class="flex items-center gap-2.5">

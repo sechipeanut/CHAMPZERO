@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth">
+<html lang="en" class="scroll-smooth bg-black">
 
 <head>
     <!-- Google tag (gtag.js) -->
@@ -37,11 +37,23 @@
             --cz-surface: #0A0A0E;
             --cz-card: #111116;
             --cz-border: rgba(255, 255, 255, 0.08);
+
+            /* Compatibility tokens */
+            --gold: #FFD700;
+            --gold-light: #FFF099;
+            --gold-darker: #C99700;
+            --dark-bg: #000000;
+            --dark-card: #111116;
+        }
+
+        html, body {
+            background-color: #000000 !important;
+            color: #FFFFFF;
         }
 
         body {
             font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-            background-color: var(--cz-bg);
+            background-color: #000000 !important;
             color: #FFFFFF;
             overflow: hidden;
         }
