@@ -82,7 +82,7 @@ function injectNotificationStyles() {
             transform-origin: top right;
             transition: opacity 0.2s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
             pointer-events: none;
-            z-index: 1005 !important;
+            z-index: 2050 !important;
             background: #0B0B10;
             border: 1px solid rgba(255, 255, 255, 0.12);
             border-radius: 1rem;
@@ -534,10 +534,15 @@ function showAnnouncementModal(item) {
     const panel = document.getElementById('announcement-modal-panel');
     if (!modal || !panel) return;
 
-    document.getElementById('announcement-modal-icon').innerHTML = item.icon;
-    document.getElementById('announcement-modal-title').textContent = item.title;
-    document.getElementById('announcement-modal-message').textContent = item.message;
-    document.getElementById('announcement-modal-date').textContent = item.dateStr;
+    const iconEl = document.getElementById('announcement-modal-icon');
+    const titleEl = document.getElementById('announcement-modal-title');
+    const messageEl = document.getElementById('announcement-modal-message');
+    const dateEl = document.getElementById('announcement-modal-date');
+
+    if (iconEl) iconEl.innerHTML = item.icon || '';
+    if (titleEl) titleEl.textContent = item.title || '';
+    if (messageEl) messageEl.textContent = item.message || '';
+    if (dateEl) dateEl.textContent = item.dateStr || '';
 
     const actionBtn = document.getElementById('announcement-modal-action-btn');
     if (actionBtn) {

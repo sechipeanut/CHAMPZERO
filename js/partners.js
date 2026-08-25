@@ -115,4 +115,11 @@ async function renderPartners() {
     }
 }
 
-document.addEventListener('DOMContentLoaded', renderPartners);
+window.renderPartners = renderPartners;
+export { renderPartners };
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', renderPartners);
+} else {
+    renderPartners();
+}

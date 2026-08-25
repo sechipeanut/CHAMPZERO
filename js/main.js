@@ -173,12 +173,14 @@ function renderAuthHeader(user, userData = {}) {
 
     if (user && authControls) {
         const isAdmin = userData.role === "admin";
-        const isSupporter = Boolean(userData.isSupporter || userData.supporterTier || userData.supporterBadge);
+        const now = Date.now();
+        const isSupporter = Boolean((userData.isSupporter || userData.supporterTier || userData.supporterBadge) && (!userData.supporterExpiresAt || userData.supporterExpiresAt > now));
         const supporterTier = String(userData.supporterTier || 'bronze').toLowerCase();
         const displayName = userData.ign || userData.displayName || user.displayName || (user.email ? user.email.split('@')[0] : "Champion");
         const userAvatar = userData.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(displayName) + '&background=111116&color=FFD700');
+        const czPoints = typeof userData.czPoints === 'number' ? userData.czPoints : 0;
 
-        const currentKey = `${user.uid}_${displayName}_${userData.role}_${supporterTier}_${isSupporter}_${userAvatar}`;
+        const currentKey = `${user.uid}_${displayName}_${userData.role}_${supporterTier}_${isSupporter}_${userAvatar}_${czPoints}`;
         if (lastRenderedUserKey === currentKey) {
             // Already rendered identically, avoid DOM thrashing
             return;
@@ -203,48 +205,54 @@ function renderAuthHeader(user, userData = {}) {
                     : '<span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-amber-700/20 text-amber-400 border border-amber-600/30 font-mono" title="Bronze Scout">SCOUT</span>'))
             : '';
 
-        // User is Logged In -> Show Profile Dropdown
+        // User is Logged In -> Show Integrated Compact Profile Pill
         authControls.innerHTML = `
+            <!-- Integrated Luxury Gamer Profile Pill -->
             <div class="relative profile-dropdown-container flex items-center z-[1002]">
-                <button id="profile-dropdown-btn" class="flex items-center gap-2 hover:opacity-80 transition-opacity cursor-pointer">
-                    <div class="text-right hidden sm:block">
-                        <div class="text-[10px] text-neutral-400 font-mono-tag">Welcome,</div>
-                        <div class="text-xs font-bold text-[#FFD700] flex items-center justify-end gap-1 font-heading">
-                            <span>${escapeHtml(displayName)}</span>
-                            ${supporterIcon}
-                        </div>
-                    </div>
-                    <img src="${userAvatar}" class="w-8 h-8 rounded-full ${isSupporter ? (supporterTier === 'gold' ? 'border-2 border-[#FFD700] shadow-[0_0_8px_rgba(255,215,0,0.4)]' : 'border-2 border-slate-300') : 'border border-[#FFD700]'} object-cover">
-                    <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <button id="profile-dropdown-btn" class="flex items-center gap-2 p-1 pr-2.5 rounded-full bg-[#111116]/90 hover:bg-[#181822] border border-white/15 hover:border-[#FFD700]/50 transition-all cursor-pointer group shadow-sm">
+                    <img src="${userAvatar}" class="w-7 h-7 rounded-full ${isSupporter ? (supporterTier === 'gold' ? 'border border-[#FFD700] shadow-[0_0_6px_rgba(255,215,0,0.4)]' : 'border border-slate-300') : 'border border-white/20'} object-cover shrink-0">
+                    <span class="text-xs font-heading font-bold text-white group-hover:text-[#FFD700] transition-colors max-w-[90px] truncate hidden sm:inline-block">${escapeHtml(displayName)}</span>
+                    <a href="/profile?tab=rewards" title="Champ Points Balance" class="text-[10px] font-mono-tag font-bold text-[#FFD700] bg-[#FFD700]/15 hover:bg-[#FFD700]/30 px-2 py-0.5 rounded-full transition-colors hidden sm:inline-flex items-center gap-1" onclick="event.stopPropagation();">
+                        <span>${czPoints}</span><span class="text-[9px] text-[#FFD700]/80">CZ</span>
+                    </a>
+                    ${supporterIcon}
+                    <svg class="w-3.5 h-3.5 text-neutral-400 group-hover:text-white transition-transform duration-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </button>
-                <div id="profile-dropdown-menu" class="hidden absolute right-0 top-full mt-2 w-48 bg-[#111116] border border-white/20 rounded-lg shadow-xl py-2 z-[1005]">
-                    <a href="/profile" class="block px-4 py-2 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-[#FFD700] transition-colors">
-                        <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div id="profile-dropdown-menu" class="hidden absolute right-0 top-full mt-2 w-56 bg-[#111116] border border-white/20 rounded-xl shadow-2xl py-2 z-[2050]">
+                    <a href="/profile" class="block px-4 py-2.5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-[#FFD700] transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
                         </svg>
-                        View Profile
+                        <span>View Profile</span>
                     </a>
-                    <a href="/support" class="block px-4 py-2 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-[#FFD700] transition-colors">
-                        <svg class="w-4 h-4 inline-block mr-2 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <a href="/profile?tab=rewards" class="block px-4 py-2.5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-[#FFD700] transition-colors flex items-center justify-between">
+                        <span class="flex items-center gap-2 whitespace-nowrap">
+                            <svg class="w-4 h-4 text-[#FFD700] shrink-0" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"></path></svg>
+                            <span>Rewards &amp; Quests</span>
+                        </span>
+                        <span class="text-[10px] font-mono-tag font-bold text-[#FFD700] bg-[#FFD700]/15 px-2 py-0.5 rounded-full border border-[#FFD700]/25 whitespace-nowrap shrink-0 ml-2">${czPoints} CZ</span>
+                    </a>
+                    <a href="/support" class="block px-4 py-2.5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-[#FFD700] transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path>
                         </svg>
-                        Supporter Club
+                        <span>Supporter Club</span>
                     </a>
-                    ${isAdmin ? `<a href="/admin" class="block px-4 py-2 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-[#FFD700] transition-colors">
-                        <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    ${isAdmin ? `<a href="/admin" class="block px-4 py-2.5 text-xs font-semibold text-neutral-300 hover:bg-white/10 hover:text-[#FFD700] transition-colors flex items-center gap-2">
+                        <svg class="w-4 h-4 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
                         </svg>
-                        Admin
+                        <span>Admin</span>
                     </a>` : ''}
                     <div class="border-t border-white/10 my-1"></div>
-                    <button id="dropdown-logout-btn" class="w-full text-left block px-4 py-2 text-xs font-semibold text-red-400 hover:bg-red-900/20 transition-colors cursor-pointer">
-                        <svg class="w-4 h-4 inline-block mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <button id="dropdown-logout-btn" class="w-full text-left block px-4 py-2.5 text-xs font-semibold text-red-400 hover:bg-red-900/20 transition-colors cursor-pointer flex items-center gap-2">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
                         </svg>
-                        Log Out
+                        <span>Log Out</span>
                     </button>
                 </div>
             </div>
@@ -289,7 +297,7 @@ function renderAuthHeader(user, userData = {}) {
                         <div class="min-w-0 flex-1">
                             <div class="flex items-center gap-1.5">
                                 <span class="text-xs font-bold text-white font-heading truncate uppercase">${displayName}</span>
-                                <span class="text-[9px] font-mono-tag px-1.5 py-0.2 rounded bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/30 uppercase font-bold">${isAdmin ? 'Admin' : 'Player'}</span>
+                                <span class="text-[9px] font-mono-tag px-1.5 py-0.2 rounded bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/30 uppercase font-bold">${czPoints} CZ</span>
                             </div>
                             <div class="text-[11px] text-neutral-400 font-mono-tag truncate">${user.email || ''}</div>
                         </div>
@@ -297,6 +305,9 @@ function renderAuthHeader(user, userData = {}) {
                     <div class="grid grid-cols-1 gap-2">
                         <a href="/profile" class="w-full text-center py-3 rounded-lg text-black bg-[#FFD700] hover:bg-[#FFF099] font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2">
                             <span>Player Profile &amp; Dashboard</span>
+                        </a>
+                        <a href="/profile?tab=rewards" class="w-full text-center py-2.5 rounded-lg text-[#FFD700] bg-[#FFD700]/10 hover:bg-[#FFD700]/20 border border-[#FFD700]/30 font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2">
+                            <span>🪙 Rewards &amp; Quests (${czPoints} CZ)</span>
                         </a>
                         ${isAdmin ? `
                         <a href="/admin" class="w-full text-center py-3 rounded-lg text-white bg-white/5 hover:bg-white/10 border border-white/10 font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2">

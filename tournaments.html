@@ -498,25 +498,38 @@
                 <a href="/" class="nav-link hover:text-white">Home</a>
                 <a href="/tournaments" class="nav-link text-white active">Tournaments</a>
                 <a href="/events" class="nav-link hover:text-white">Events</a>
-                <a href="/teams" class="nav-link hover:text-white">Teams &amp; Recruitment</a>
+                <a href="/teams" class="nav-link hover:text-white">Teams</a>
                 <a href="/rising" class="nav-link hover:text-white">Rising Champ</a>
                 <a href="/partners" class="nav-link hover:text-white">Partners</a>
             </nav>
 
             <div class="flex items-center gap-3 shrink-0">
                 <div id="auth-controls-wrapper" class="flex items-center gap-2 shrink-0">
-                    <div id="auth-controls" class="flex items-center gap-2 shrink-0">
-                        <a href="/login"
-                            class="text-xs font-semibold px-3 py-1.5 text-neutral-300 hover:text-white transition-colors">
-                            Log In
-                        </a>
-                        <a href="/signup"
-                            class="text-xs font-heading font-bold uppercase tracking-wider px-4 py-2 rounded bg-[#FFD700] text-black hover:bg-[#FFF099] transition-all">
-                            Sign Up
-                        </a>
-                    </div>
+                    <div id="auth-controls" class="flex items-center gap-2 shrink-0"></div>
+                    <script>
+                        (function(){
+                            try {
+                                var el = document.getElementById('auth-controls');
+                                if (!el) return;
+                                var raw = localStorage.getItem('cz_auth_cache');
+                                if (raw) {
+                                    var u = JSON.parse(raw);
+                                    if (u && (u.uid || u.displayName || u.email)) {
+                                        var name = u.ign || u.displayName || (u.email ? u.email.split('@')[0] : 'Champion');
+                                        var avatar = u.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=111116&color=FFD700');
+                                        var pts = typeof u.czPoints === 'number' ? u.czPoints : 0;
+                                        var isSup = Boolean(u.isSupporter);
+                                        var tier = String(u.supporterTier || 'bronze').toLowerCase();
+                                        var supBadge = isSup ? (tier === 'gold' ? '<span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/30 font-mono">PATRON</span>' : (tier === 'silver' ? '<span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-slate-400/20 text-slate-200 border border-slate-300/30 font-mono">ELITE</span>' : '<span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-amber-700/20 text-amber-400 border border-amber-600/30 font-mono">SCOUT</span>')) : '';
+                                        el.innerHTML = '<div class="relative profile-dropdown-container flex items-center"><button class="flex items-center gap-2 p-1 pr-2.5 rounded-full bg-[#111116]/90 hover:bg-[#181822] border border-white/15 hover:border-[#FFD700]/50 transition-all cursor-pointer group shadow-sm"><img src="' + avatar + '" class="w-7 h-7 rounded-full ' + (isSup ? (tier === 'gold' ? 'border border-[#FFD700]' : 'border border-slate-300') : 'border border-white/20') + ' object-cover shrink-0"><span class="text-xs font-heading font-bold text-white max-w-[90px] truncate hidden sm:inline-block">' + name + '</span><span class="text-[10px] font-mono-tag font-bold text-[#FFD700] bg-[#FFD700]/15 px-2 py-0.5 rounded-full hidden sm:inline-flex items-center gap-0.5"><span>' + pts + '</span><span class="text-[9px] text-[#FFD700]/80">CZ</span></span>' + supBadge + '<svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button></div>';
+                                        return;
+                                    }
+                                }
+                                el.innerHTML = '<a href="/login" class="text-xs font-semibold px-3 py-1.5 text-neutral-300 hover:text-white transition-colors">Log In</a><a href="/signup" class="text-xs font-heading font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-lg bg-[#FFD700] text-black hover:bg-[#FFF099] transition-all shadow-sm">Sign Up</a>';
+                            } catch(e){}
+                        })();
+                    </script>
                 </div>
-
                 <button id="mobile-menu-button" aria-label="Toggle navigation menu"
                     class="md:hidden p-2 rounded text-neutral-400 hover:text-white hover:bg-white/5 border border-white/10 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -637,16 +650,9 @@
                             <select id="filterGame"
                                 class="dark-select p-2.5 rounded-lg w-full text-xs font-medium cursor-pointer">
                                 <option value="">All Games</option>
-                                <option value="Valorant">Valorant (PC)</option>
-                                <option value="Mobile Legends">Mobile Legends (Mobile)</option>
-                                <option value="Honor of Kings">Honor of Kings (Mobile)</option>
-                                <option value="Call of Duty">Call of Duty: Mobile</option>
-                                <option value="League of Legends">League of Legends</option>
-                                <option value="Dota 2">Dota 2</option>
-                                <option value="PUBG">PUBG Mobile</option>
-                                <option value="Apex">Apex Legends</option>
-                                <option value="Tekken">Tekken 8 / FGC</option>
-                                <option value="Others">Other Games</option>
+                                <option value="Valorant">Valorant</option>
+                                <option value="Mobile Legends">Mobile Legends: Bang Bang</option>
+                                <option value="Honor of Kings">Honor of Kings</option>
                             </select>
                         </div>
                         <div class="lg:col-span-2">
@@ -1103,9 +1109,16 @@
                                                         class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[#FFD700]">GUARANTEED
                                                         CASH PRIZE</span>
                                                 </div>
-                                                <span
-                                                    class="text-[10px] font-mono-tag text-neutral-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">OFFICIAL
-                                                    POOL</span>
+                                                <div class="flex items-center gap-2">
+                                                    <button type="button" id="btn-edit-prize-pool" onclick="window.openEditPrizeModal()"
+                                                        class="hidden inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FFD700]/15 hover:bg-[#FFD700]/30 text-[#FFD700] border border-[#FFD700]/40 text-[10px] font-mono-tag font-bold uppercase transition-all cursor-pointer shadow-sm" title="Edit Tournament Prize Pool">
+                                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                                                        <span>Edit Prize</span>
+                                                    </button>
+                                                    <span
+                                                        class="text-[10px] font-mono-tag text-neutral-400 bg-white/5 border border-white/10 px-2 py-0.5 rounded-full">OFFICIAL
+                                                        POOL</span>
+                                                </div>
                                             </div>
 
                                             <div class="my-2">
@@ -1137,9 +1150,15 @@
                                                         class="font-heading font-bold text-xs uppercase tracking-wider text-white">
                                                         Prize Split Structure</h4>
                                                 </div>
-                                                <span id="prizeTierCountBadge"
-                                                    class="text-[9px] font-mono-tag text-neutral-500 uppercase">3
-                                                    TIERS</span>
+                                                <div class="flex items-center gap-2">
+                                                    <button type="button" id="btn-edit-prize-split" onclick="window.openEditPrizeModal()"
+                                                        class="hidden inline-flex items-center gap-1 px-2 py-0.5 rounded bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-[#FFD700] border border-white/10 hover:border-[#FFD700]/40 text-[9px] font-mono-tag font-bold uppercase transition-all cursor-pointer" title="Edit Podium Split">
+                                                        <span>Edit Split ✏️</span>
+                                                    </button>
+                                                    <span id="prizeTierCountBadge"
+                                                        class="text-[9px] font-mono-tag text-neutral-500 uppercase">3
+                                                        TIERS</span>
+                                                </div>
                                             </div>
                                             <div id="prizeBreakdownContainer" class="space-y-2 font-mono-tag text-xs">
                                             </div>
@@ -1659,12 +1678,13 @@
                                     Role / Position</label>
                                 <select id="joinSoloRole"
                                     class="dark-select w-full p-3 rounded-xl text-xs cursor-pointer font-medium">
-                                    <option value="Duelist / Carry">Duelist / Hard Carry / Marksman</option>
-                                    <option value="Initiator / Support">Initiator / Support / Roamer</option>
+                                    <option value="Duelist / Carry">Duelist / Hard Carry / Gold Lane / Farm Lane</option>
+                                    <option value="Initiator / Support">Initiator / Roamer / Support / Healer</option>
                                     <option value="Controller / Mid">Controller / Mid Laner / Mage</option>
-                                    <option value="Sentinel / Tank">Sentinel / Tank / Exp Laner</option>
-                                    <option value="Jungler / Flanker">Jungler / Assassin / Flanker</option>
-                                    <option value="Flex / Any">Flex (Any Position)</option>
+                                    <option value="Sentinel / Tank">Sentinel / Tank / Exp Lane / Clash Lane</option>
+                                    <option value="Jungler / Flanker">Jungler / Assassin / Slayer / Flanker</option>
+                                    <option value="Sniper / Marksman">Sniper / Long Range Specialist</option>
+                                    <option value="Flex / Any">Flex (Any Position / Fill)</option>
                                 </select>
                             </div>
                             <div>
@@ -1947,17 +1967,10 @@
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                             <div>
                                 <label class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Game Title <span class="text-red-500">*</span></label>
-                                <select id="c-game-select" class="dark-select w-full p-3 rounded-xl text-xs cursor-pointer font-medium" onchange="toggleOtherGameInput()">
-                                    <option value="Valorant">Valorant (PC)</option>
-                                    <option value="Mobile Legends: Bang Bang">Mobile Legends: Bang Bang (Mobile)</option>
-                                    <option value="Honor of Kings">Honor of Kings (Mobile)</option>
-                                    <option value="Call of Duty: Mobile">Call of Duty: Mobile (CODM)</option>
-                                    <option value="League of Legends">League of Legends (PC)</option>
-                                    <option value="Dota 2">Dota 2 (PC)</option>
-                                    <option value="PUBG Mobile">PUBG Mobile</option>
-                                    <option value="Apex Legends">Apex Legends</option>
-                                    <option value="Tekken 8 / Fighting Games">Tekken 8 / FGC</option>
-                                    <option value="Others">Others (Custom Title)</option>
+                                <select id="c-game-select" class="dark-select w-full p-3 rounded-xl text-xs cursor-pointer font-medium">
+                                     <option value="Valorant">Valorant</option>
+                                     <option value="Mobile Legends: Bang Bang">Mobile Legends: Bang Bang</option>
+                                     <option value="Honor of Kings">Honor of Kings</option>
                                 </select>
                                 <input id="c-game-other" type="text" class="dark-input w-full p-3 rounded-xl mt-2 hidden text-xs">
                             </div>
@@ -2778,6 +2791,105 @@
                     <button type="submit" id="saveRulesSubmitBtn" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-[#FFD700] hover:brightness-110 active:scale-95 text-black font-extrabold text-xs uppercase tracking-wider transition-all cursor-pointer shadow-lg">
                         Save Rules
                     </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- QUICK EDIT PRIZE POOL & SPLIT MODAL -->
+    <div id="editPrizeModal"
+        class="fixed inset-0 bg-black/90 backdrop-blur-md hidden items-center justify-center z-[2500] p-4"
+        onclick="if(event.target.id==='editPrizeModal') window.closeModal('editPrizeModal')">
+        <div class="bg-[#0A0A0E] border border-[#FFD700]/40 rounded-2xl w-full max-w-lg p-6 shadow-[0_0_40px_rgba(255,215,0,0.15)] max-h-[90vh] overflow-y-auto custom-scrollbar"
+            onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="text-[#FFD700]">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    </span>
+                    <div>
+                        <span class="text-[9px] font-bold font-mono-tag uppercase tracking-widest text-[#FFD700]">// PRIZE POOL CONFIG</span>
+                        <h3 class="text-lg font-heading font-bold text-white uppercase mt-0.5">Edit Prize Pool &amp; Payouts</h3>
+                    </div>
+                </div>
+                <button type="button" onclick="window.closeModal('editPrizeModal')"
+                    class="text-neutral-400 hover:text-white text-2xl leading-none cursor-pointer">&times;</button>
+            </div>
+
+            <form id="editPrizeForm" onsubmit="window.saveTournamentPrize(event)" class="space-y-4 font-sans text-xs">
+                <input type="hidden" id="edit-prize-tourney-id">
+
+                <!-- Prize Pool Amount & Currency -->
+                <div class="grid grid-cols-3 gap-3">
+                    <div class="col-span-2">
+                        <label class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Total Prize Pool <span class="text-red-500">*</span></label>
+                        <input type="number" id="edit-prize-total-input" min="0" required
+                            class="dark-input w-full p-3 rounded-xl text-sm font-mono-tag font-bold text-[#FFD700]"
+                            oninput="window.handleEditPrizeSplitInput()">
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Currency</label>
+                        <select id="edit-prize-currency-select" class="dark-select w-full p-3 rounded-xl text-xs font-mono-tag cursor-pointer" onchange="window.handleEditPrizeSplitInput()">
+                            <option value="PHP">PHP (₱)</option>
+                            <option value="USD">USD ($)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Prize Split Section -->
+                <div class="p-4 rounded-xl bg-white/5 border border-white/10 space-y-3">
+                    <div class="flex justify-between items-center">
+                        <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[#FFD700]">// PODIUM DISTRIBUTION</span>
+                        <span id="edit-prize-split-sum" class="text-[10px] font-mono-tag text-emerald-400 font-bold">Total: 100%</span>
+                    </div>
+
+                    <!-- Presets -->
+                    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono-tag text-[10px]">
+                        <button type="button" onclick="window.setEditPrizePreset('winner_takes_all')" id="edit-preset-winner" class="p-2 rounded-lg bg-[#FFD700] text-black font-bold uppercase transition-all cursor-pointer text-center">Winner 100%</button>
+                        <button type="button" onclick="window.setEditPrizePreset('top_2')" id="edit-preset-top2" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 font-bold uppercase transition-all border border-white/10 cursor-pointer text-center">Top 2 (70/30)</button>
+                        <button type="button" onclick="window.setEditPrizePreset('top_3')" id="edit-preset-top3" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 font-bold uppercase transition-all border border-white/10 cursor-pointer text-center">Top 3 (60/30/10)</button>
+                        <button type="button" onclick="window.setEditPrizePreset('custom')" id="edit-preset-custom" class="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 font-bold uppercase transition-all border border-white/10 cursor-pointer text-center">Custom</button>
+                    </div>
+
+                    <!-- Percentage & Live Amount Grid -->
+                    <div class="grid grid-cols-3 gap-2.5 font-mono-tag pt-1">
+                        <div class="p-2.5 bg-black/40 border border-[#FFD700]/30 rounded-xl space-y-1">
+                            <div class="flex items-center justify-between text-[10px]">
+                                <span class="text-[#FFD700] font-bold">1st Place</span>
+                                <span id="edit-prize-calc-1st" class="text-[#FFD700] font-bold text-[9px]">₱0</span>
+                            </div>
+                            <input type="number" id="edit-prize-1st-input" min="0" max="100" value="100"
+                                class="dark-input w-full p-2 rounded-lg text-xs text-center text-[#FFD700] font-bold"
+                                oninput="window.handleEditPrizeSplitInput()">
+                        </div>
+
+                        <div class="p-2.5 bg-black/40 border border-slate-400/30 rounded-xl space-y-1">
+                            <div class="flex items-center justify-between text-[10px]">
+                                <span class="text-slate-300 font-bold">2nd Place</span>
+                                <span id="edit-prize-calc-2nd" class="text-slate-300 font-bold text-[9px]">₱0</span>
+                            </div>
+                            <input type="number" id="edit-prize-2nd-input" min="0" max="100" value="0"
+                                class="dark-input w-full p-2 rounded-lg text-xs text-center text-slate-200 font-bold"
+                                oninput="window.handleEditPrizeSplitInput()">
+                        </div>
+
+                        <div class="p-2.5 bg-black/40 border border-amber-500/30 rounded-xl space-y-1">
+                            <div class="flex items-center justify-between text-[10px]">
+                                <span class="text-amber-400 font-bold">3rd Place</span>
+                                <span id="edit-prize-calc-3rd" class="text-amber-400 font-bold text-[9px]">₱0</span>
+                            </div>
+                            <input type="number" id="edit-prize-3rd-input" min="0" max="100" value="0"
+                                class="dark-input w-full p-2 rounded-lg text-xs text-center text-amber-400 font-bold"
+                                oninput="window.handleEditPrizeSplitInput()">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-end gap-3 pt-3 border-t border-white/10 font-heading text-xs uppercase">
+                    <button type="button" onclick="window.closeModal('editPrizeModal')"
+                        class="px-4 py-2.5 rounded-xl text-neutral-400 hover:text-white font-semibold transition-colors cursor-pointer">Cancel</button>
+                    <button type="submit" id="edit-prize-submit-btn"
+                        class="px-6 py-2.5 bg-gradient-to-r from-amber-500 to-[#FFD700] hover:brightness-110 active:scale-95 text-black font-heading font-bold rounded-xl transition-all shadow-lg cursor-pointer">Save Prize Pool</button>
                 </div>
             </form>
         </div>

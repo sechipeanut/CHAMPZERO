@@ -11,7 +11,7 @@ import {
     sendEmailVerification,
     onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { doc, setDoc, getDoc, updateDoc, collection, query, where, getDocs, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 // Detect mobile/tablet to use redirect instead of popup (popup is blocked on mobile browsers)
 function isMobileDevice() {
@@ -68,13 +68,62 @@ function getFriendlyErrorMessage(error) {
     }
 }
 
+// Generate unique referral code for user
+function generateReferralCode(uid, name = '') {
+    const cleanName = (name || '').replace(/[^a-zA-Z0-9]/g, '').slice(0, 3).toUpperCase() || 'CZ';
+    const randPart = (uid || Math.random().toString(36).substring(2, 6)).slice(-4).toUpperCase();
+    return `CZ-${cleanName}${randPart}`;
+}
+
+// Process referrer reward points
+async function processReferralBonus(newUserId, referralCodeUsed) {
+    if (!referralCodeUsed) return null;
+    const cleanCode = referralCodeUsed.trim().toUpperCase();
+    try {
+        const q = query(collection(db, "users"), where("referralCode", "==", cleanCode));
+        const snap = await getDocs(q);
+        if (!snap.empty) {
+            const referrerDoc = snap.docs[0];
+            if (referrerDoc.id !== newUserId) {
+                // Award +100 CZ points to referrer
+                await updateDoc(doc(db, "users", referrerDoc.id), {
+                    czPoints: increment(100),
+                    lifetimePoints: increment(100),
+                    referralCount: increment(1)
+                });
+                return cleanCode;
+            }
+        }
+    } catch (err) {
+        console.warn("Could not process referral bonus:", err);
+    }
+    return null;
+}
+
+function getPHTDateString(date = new Date()) {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(date);
+}
+
 // Helper: Ensure a comprehensive user profile exists in the database
-async function ensureUserProfile(user, customUsername = '') {
+async function ensureUserProfile(user, customUsername = '', referralCodeUsed = '') {
     const userRef = doc(db, "users", user.uid);
     const userSnap = await getDoc(userRef);
     const resolvedName = customUsername || user.displayName || (user.email ? user.email.split('@')[0] : 'Champion');
     
     if (!userSnap.exists()) {
+        const todayStr = getPHTDateString();
+        let validReferral = null;
+        if (referralCodeUsed) {
+            validReferral = await processReferralBonus(user.uid, referralCodeUsed);
+        }
+
+        const initialPoints = validReferral ? 50 : 0; // +50 bonus if referred by a friend
+
         await setDoc(userRef, {
             username: resolvedName,
             displayName: resolvedName,
@@ -86,7 +135,16 @@ async function ensureUserProfile(user, customUsername = '') {
             prizesEarned: 0,
             role: "user",
             emailVerified: user.emailVerified || false,
-            lastSignInTime: serverTimestamp()
+            lastSignInTime: serverTimestamp(),
+            // Rewards & Referral fields
+            referralCode: generateReferralCode(user.uid, resolvedName),
+            referredBy: validReferral,
+            czPoints: initialPoints,
+            lifetimePoints: initialPoints,
+            referralCount: 0,
+            dailyStreak: 1,
+            lastCheckInDate: '',
+            claimedQuests: ['daily_welcome']
         });
     } else {
         const existingData = userSnap.data();
@@ -97,6 +155,10 @@ async function ensureUserProfile(user, customUsername = '') {
         // Preserve or fill IGN/displayName if missing
         if (!existingData.ign) updates.ign = existingData.displayName || resolvedName;
         if (!existingData.username) updates.username = existingData.displayName || resolvedName;
+        if (!existingData.referralCode) updates.referralCode = generateReferralCode(user.uid, existingData.displayName || resolvedName);
+        if (typeof existingData.czPoints !== 'number') updates.czPoints = 0;
+        if (typeof existingData.lifetimePoints !== 'number') updates.lifetimePoints = 0;
+        if (typeof existingData.dailyStreak !== 'number') updates.dailyStreak = 1;
         
         await updateDoc(userRef, updates);
     }
@@ -128,7 +190,23 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // --- 0. HANDLE GOOGLE REDIRECT RESULT (Mobile sign-in returns here after redirect) ---
+    // --- 0A. AUTO-DETECT REFERRAL CODE FROM URL ---
+    try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const refParam = urlParams.get('ref') || urlParams.get('referral') || urlParams.get('r');
+        const refInput = document.getElementById('referral-code');
+        const refBadge = document.getElementById('referral-applied-badge');
+        if (refParam && refInput) {
+            refInput.value = refParam.trim().toUpperCase();
+            refInput.readOnly = true;
+            refInput.classList.add('border-emerald-500/50', 'text-emerald-400');
+            if (refBadge) refBadge.classList.remove('hidden');
+        }
+    } catch (e) {
+        console.warn("Could not parse referral param:", e);
+    }
+
+    // --- 0B. HANDLE GOOGLE REDIRECT RESULT (Mobile sign-in returns here after redirect) ---
     const googleProvider = new GoogleAuthProvider();
     googleProvider.setCustomParameters({ prompt: 'select_account' });
 
@@ -209,11 +287,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             const passwordInput = document.getElementById('password');
             const confirmInput = document.getElementById('confirm-password');
             const termsCheckbox = document.getElementById('terms');
+            const referralInput = document.getElementById('referral-code');
 
             const username = usernameInput ? usernameInput.value.trim() : '';
             const email = emailInput ? emailInput.value.trim() : '';
             const password = passwordInput ? passwordInput.value : '';
             const confirm = confirmInput ? confirmInput.value : '';
+            const referralCodeUsed = referralInput ? referralInput.value.trim().toUpperCase() : '';
             const btn = signupForm.querySelector('button[type="submit"]');
 
             if (!username || !email || !password) {
@@ -253,20 +333,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     console.warn("Could not set display name on auth profile:", pErr);
                 }
 
-                // Step 3: CRITICAL - Guarantee Firestore User Document Creation BEFORE external actions
-                await setDoc(doc(db, "users", user.uid), {
-                    username: username,
-                    displayName: username,
-                    ign: username,
-                    email: email,
-                    rank: "Unranked",
-                    createdAt: serverTimestamp(),
-                    joinedAt: new Date().toISOString(),
-                    prizesEarned: 0,
-                    role: "user",
-                    emailVerified: false,
-                    lastSignInTime: serverTimestamp()
-                });
+                // Step 3: CRITICAL - Guarantee Firestore User Document Creation with Rewards & Referral initialization
+                await ensureUserProfile(user, username, referralCodeUsed);
 
                 // Step 4: Dispatch Verification Email with Safe Fallback
                 let emailSent = false;
@@ -290,9 +358,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
 
                 if (emailSent) {
-                    notifyToast('success', "Account Created!", "Registration complete! Please check your email to verify your account.", 4500);
+                    notifyToast('success', "Account Created!", "Registration complete! +50 CZ Welcome Points awarded. Check email to verify.", 4500);
                 } else {
-                    notifyToast('success', "Account Created!", "Registration complete! You can now access your player profile.", 4500);
+                    notifyToast('success', "Account Created!", "Registration complete! +50 CZ Welcome Points awarded.", 4500);
                 }
 
                 setTimeout(() => {

@@ -7,11 +7,18 @@ function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>
 
 let allTalents = [];
 
-document.addEventListener('DOMContentLoaded', () => {
+export function initRising() {
     fetchTalents();
     setupApplicationForm();
     checkAdminStatus();
-});
+}
+window.initRising = initRising;
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initRising);
+} else {
+    initRising();
+}
 
 function parseFirestoreValue(val) {
     if (!val) return null;

@@ -653,11 +653,19 @@ function displayUsers() {
                 </div>
             </div>
 
-            <div class="flex items-center justify-between md:justify-start md:w-1/4">
+            <div class="flex items-center justify-between md:justify-start md:w-1/5">
                 <span class="md:hidden text-xs text-neutral-400 font-mono-tag">Role</span>
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono-tag ${roleBadgeClass}">
                     ${roleIcon} ${escapeHtml(role)}
                 </span>
+            </div>
+
+            <div class="flex items-center justify-between md:justify-start md:w-1/5">
+                <span class="md:hidden text-xs text-neutral-400 font-mono-tag">Coins</span>
+                <button type="button" onclick="window.openEditUserCoinsModal('${user.id}')" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFD700]/10 hover:bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/30 font-mono-tag font-bold text-xs transition-all cursor-pointer shadow-sm group" title="Click to Edit Champ Coins">
+                    <span>🪙 ${(user.czPoints !== undefined ? Number(user.czPoints) : 0).toLocaleString()} CZ</span>
+                    <svg class="w-3 h-3 text-[#FFD700]/60 group-hover:text-[#FFD700] transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                </button>
             </div>
 
             <div class="hidden md:block w-1/6 text-xs text-neutral-400 font-mono-tag">
@@ -679,6 +687,114 @@ function displayUsers() {
         container.appendChild(card);
     });
 }
+
+window.openEditUserCoinsModal = function (userId) {
+    const user = allUsers.find(u => u.id === userId);
+    if (!user) return;
+
+    const displayName = user.displayName || user.username || user.ign || 'User';
+    const email = user.email || 'No email';
+    const profilePicture = user.avatar || user.photoURL || null;
+    const czPts = user.czPoints !== undefined ? Number(user.czPoints) : 0;
+    const lifetimePts = user.lifetimePoints !== undefined ? Number(user.lifetimePoints) : czPts;
+
+    if (qs('#edit-coins-user-id')) qs('#edit-coins-user-id').value = userId;
+    if (qs('#edit-coins-user-name')) qs('#edit-coins-user-name').textContent = displayName;
+    if (qs('#edit-coins-user-email')) qs('#edit-coins-user-email').textContent = email;
+    
+    const avatarEl = qs('#edit-coins-user-avatar');
+    if (avatarEl) {
+        if (profilePicture) {
+            avatarEl.innerHTML = `<img src="${escapeHtml(profilePicture)}" alt="${escapeHtml(displayName)}" class="w-full h-full rounded-full object-cover">`;
+        } else {
+            avatarEl.innerHTML = `<span>${escapeHtml(displayName.charAt(0).toUpperCase())}</span>`;
+        }
+    }
+
+    if (qs('#edit-coins-current-val')) qs('#edit-coins-current-val').textContent = `${czPts.toLocaleString()} CZ`;
+    if (qs('#edit-coins-lifetime-val')) qs('#edit-coins-lifetime-val').textContent = `${lifetimePts.toLocaleString()} CZ`;
+    if (qs('#edit-coins-input')) qs('#edit-coins-input').value = czPts;
+    if (qs('#edit-lifetime-coins-input')) qs('#edit-lifetime-coins-input').value = lifetimePts;
+
+    openModal('editUserCoinsModal');
+};
+
+window.closeEditUserCoinsModal = function () {
+    closeModal('editUserCoinsModal');
+};
+
+window.setUserCoinsPreset = function (amount, isAdditive) {
+    const input = qs('#edit-coins-input');
+    const lifeInput = qs('#edit-lifetime-coins-input');
+    if (!input) return;
+
+    if (isAdditive) {
+        const currentVal = parseInt(input.value, 10) || 0;
+        const newVal = Math.max(0, currentVal + amount);
+        input.value = newVal;
+
+        if (lifeInput && amount > 0) {
+            const currentLife = parseInt(lifeInput.value, 10) || 0;
+            lifeInput.value = Math.max(0, currentLife + amount);
+        }
+    } else {
+        input.value = amount;
+    }
+};
+
+window.saveUserCoins = async function (event) {
+    if (event && event.preventDefault) event.preventDefault();
+
+    const userId = qs('#edit-coins-user-id')?.value;
+    const newCzPoints = parseInt(qs('#edit-coins-input')?.value, 10);
+    const newLifetimePoints = parseInt(qs('#edit-lifetime-coins-input')?.value, 10);
+
+    if (!userId || isNaN(newCzPoints) || newCzPoints < 0) {
+        if (window.showWarningToast) window.showWarningToast("Invalid Input", "Please enter a valid coin amount.");
+        return;
+    }
+
+    const submitBtn = qs('#edit-coins-submit-btn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+    }
+
+    try {
+        const userRef = doc(db, "users", userId);
+        const updatePayload = {
+            czPoints: newCzPoints,
+            lifetimePoints: !isNaN(newLifetimePoints) ? newLifetimePoints : newCzPoints,
+            updatedAt: new Date().toISOString()
+        };
+
+        await updateDoc(userRef, updatePayload);
+
+        // Update local user record in state
+        const userIdx = allUsers.findIndex(u => u.id === userId);
+        if (userIdx !== -1) {
+            allUsers[userIdx].czPoints = newCzPoints;
+            allUsers[userIdx].lifetimePoints = updatePayload.lifetimePoints;
+        }
+
+        closeModal('editUserCoinsModal');
+
+        if (window.showSuccessToast) {
+            window.showSuccessToast("Coins Updated! 🪙", `Balance updated to ${newCzPoints.toLocaleString()} CZ Points.`);
+        }
+
+        displayUsers();
+
+    } catch (err) {
+        console.error("Error updating user coins:", err);
+        if (window.showErrorToast) window.showErrorToast("Update Failed", err.message || "Failed to update user coins.");
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Changes';
+        }
+    }
+};
 
 window.changeUserRole = async function (userId, newRole) {
     if (userId === currentUserId && newRole !== 'admin') {
@@ -732,6 +848,341 @@ window.filterUsersByRole = function (role) {
 if (qs('#user-search')) {
     qs('#user-search').addEventListener('input', () => displayUsers());
 }
+
+// ==========================================
+// REWARDS CATALOG & STORE MANAGEMENT
+// ==========================================
+
+const DEFAULT_REWARDS_CATALOG = [
+    {
+        id: 'pro_badge',
+        title: '1-Month PRO Badge',
+        cost: 300,
+        badgeText: 'Instant Unlock',
+        badgeClass: 'bg-[#FFD700]/15 text-[#FFD700] border-[#FFD700]/30',
+        description: 'Verified golden PRO badge across all tournament brackets, profile HUD, and recruitment cards.',
+        gameType: 'platform',
+        active: true,
+        isSpecialDrop: false,
+        stockLimit: 0,
+        claimedCount: 0
+    },
+    {
+        id: 'tournament_pass',
+        title: 'Tournament Entry Pass',
+        cost: 400,
+        badgeText: 'Coupon Pass',
+        badgeClass: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
+        description: '100% waiver ticket for any upcoming paid community tournament registration.',
+        gameType: 'platform',
+        active: true,
+        isSpecialDrop: false,
+        stockLimit: 50,
+        claimedCount: 0
+    },
+    {
+        id: 'spotlight_48h',
+        title: 'Recruitment 48h Spotlight',
+        cost: 500,
+        badgeText: 'Pin Spotlight',
+        badgeClass: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+        description: 'Pin your squad or player LFT listing to the very top of the Recruitment Hub for 48 hours.',
+        gameType: 'platform',
+        active: true,
+        isSpecialDrop: false,
+        stockLimit: 0,
+        claimedCount: 0
+    },
+    {
+        id: 'val_points_475',
+        title: '475 Valorant Points (VP)',
+        cost: 600,
+        badgeText: 'Valorant',
+        badgeClass: 'bg-red-500/15 text-red-400 border-red-500/30',
+        description: 'Riot Games digital redeem code delivered directly to your verified account.',
+        gameType: 'valorant',
+        active: true,
+        isSpecialDrop: true,
+        stockLimit: 25,
+        claimedCount: 0
+    },
+    {
+        id: 'mlbb_diamonds_100',
+        title: '100 MLBB Diamonds',
+        cost: 600,
+        badgeText: 'MLBB',
+        badgeClass: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
+        description: 'Direct in-game diamond top-up. Delivered within 24 hours to your MLBB User ID & Zone.',
+        gameType: 'mlbb',
+        active: true,
+        isSpecialDrop: true,
+        stockLimit: 30,
+        claimedCount: 0
+    },
+    {
+        id: 'hok_tokens_100',
+        title: '100 Honor of Kings Tokens',
+        cost: 600,
+        badgeText: 'Honor of Kings',
+        badgeClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
+        description: 'Direct Honor of Kings in-game token recharge delivered via player UID.',
+        gameType: 'hok',
+        active: true,
+        isSpecialDrop: true,
+        stockLimit: 30,
+        claimedCount: 0
+    }
+];
+
+let currentCatalogItems = [...DEFAULT_REWARDS_CATALOG];
+
+window.fetchRewardsCatalog = async function () {
+    const listEl = qs('#admin-rewards-list');
+    if (!listEl) return;
+
+    try {
+        const docRef = doc(db, "site_config", "rewards_catalog");
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists() && Array.isArray(docSnap.data().items) && docSnap.data().items.length > 0) {
+            currentCatalogItems = docSnap.data().items;
+        } else {
+            currentCatalogItems = [...DEFAULT_REWARDS_CATALOG];
+            await setDoc(docRef, {
+                items: currentCatalogItems,
+                updatedAt: serverTimestamp()
+            }, { merge: true });
+        }
+
+        renderAdminRewardsCatalog();
+    } catch (err) {
+        console.error("Error fetching rewards catalog:", err);
+        if (listEl) {
+            listEl.innerHTML = '<div class="col-span-full text-center py-8 text-red-400 font-mono-tag text-xs">Error loading catalog. Rendering default items.</div>';
+        }
+        currentCatalogItems = [...DEFAULT_REWARDS_CATALOG];
+        renderAdminRewardsCatalog();
+    }
+};
+
+function renderAdminRewardsCatalog() {
+    const listEl = qs('#admin-rewards-list');
+    if (!listEl) return;
+
+    if (!currentCatalogItems || currentCatalogItems.length === 0) {
+        listEl.innerHTML = '<div class="col-span-full text-center py-12 text-neutral-500 font-mono-tag text-xs">No items in rewards catalog. Click "+ Add Reward Item" to create one.</div>';
+        return;
+    }
+
+    listEl.innerHTML = '';
+    currentCatalogItems.forEach(item => {
+        const card = document.createElement('div');
+        const isActive = item.active !== false;
+        const isSpecial = Boolean(item.isSpecialDrop);
+        const stockLimit = Number(item.stockLimit) || 0;
+        const claimedCount = Number(item.claimedCount) || 0;
+        const isSoldOut = stockLimit > 0 && claimedCount >= stockLimit;
+
+        let borderClass = 'border-white/10 hover:border-[#FFD700]/40';
+        let bgClass = 'bg-[var(--dark-card)]';
+
+        if (isSpecial) {
+            borderClass = 'border-2 border-[#FFD700] ring-1 ring-[#FFD700]/40 shadow-[0_0_25px_rgba(255,215,0,0.18)]';
+            bgClass = 'bg-gradient-to-b from-[#FFD700]/10 via-[var(--dark-card)] to-[var(--dark-card)]';
+        } else if (!isActive) {
+            borderClass = 'border-red-500/20 opacity-60';
+        }
+
+        card.className = `${bgClass} border ${borderClass} rounded-2xl p-5 flex flex-col justify-between gap-4 transition-all shadow-lg relative overflow-hidden`;
+
+        const badgeClass = item.badgeClass || 'bg-[#FFD700]/15 text-[#FFD700] border-[#FFD700]/30';
+
+        const stockText = (stockLimit > 0)
+            ? `<span class="px-2 py-0.5 rounded text-[8px] font-mono-tag font-bold uppercase ${isSoldOut ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-white/5 text-neutral-300 border border-white/10'}">📦 ${claimedCount}/${stockLimit} Claimed</span>`
+            : '<span class="px-2 py-0.5 rounded text-[8px] font-mono-tag font-bold uppercase bg-white/5 text-neutral-400 border border-white/10">📦 Unlimited</span>';
+
+        const specialRibbon = isSpecial
+            ? '<div class="absolute top-0 right-0 bg-[#FFD700] text-black font-heading font-black text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-bl-lg shadow-sm">✨ Special Drop</div>'
+            : '';
+
+        card.innerHTML = `
+            ${specialRibbon}
+            <div>
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase ${badgeClass} border">
+                        ${escapeHtml(item.badgeText || item.gameType || 'Perk')}
+                    </span>
+                    <div class="flex items-center gap-2">
+                        <span class="px-2 py-0.5 rounded text-[8px] font-mono-tag font-bold uppercase ${isActive ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/15 text-red-400 border border-red-500/30'}">
+                            ${isActive ? 'Active' : 'Disabled'}
+                        </span>
+                        <div class="font-heading font-extrabold text-base text-[#FFD700]">🪙 ${(Number(item.cost) || 0).toLocaleString()} CZ</div>
+                    </div>
+                </div>
+
+                <h3 class="font-heading font-bold text-base text-white uppercase tracking-tight">${escapeHtml(item.title)}</h3>
+                <p class="text-xs text-neutral-400 mt-1 leading-relaxed line-clamp-2">
+                    ${escapeHtml(item.description)}
+                </p>
+                <div class="mt-2.5 flex items-center justify-between text-[10px] text-neutral-400 font-mono-tag pt-2 border-t border-white/5">
+                    <div>Category: <span class="text-neutral-200 uppercase font-semibold">${escapeHtml(item.gameType || 'platform')}</span></div>
+                    ${stockText}
+                </div>
+            </div>
+
+            <div class="flex gap-2 pt-2 border-t border-white/5">
+                <button type="button" onclick="window.openEditCatalogRewardModal('${escapeHtml(item.id)}')"
+                    class="flex-1 py-2 rounded-xl bg-white/5 hover:bg-[#FFD700] text-neutral-200 hover:text-black font-heading font-bold text-xs uppercase tracking-wider transition-all border border-white/10 hover:border-[#FFD700] cursor-pointer flex items-center justify-center gap-1.5">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+                    <span>Edit Item</span>
+                </button>
+                <button type="button" onclick="window.toggleCatalogRewardActive('${escapeHtml(item.id)}')"
+                    class="px-3 py-2 rounded-xl ${isActive ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'} border text-xs font-mono-tag font-bold transition-all cursor-pointer"
+                    title="${isActive ? 'Disable Reward' : 'Enable Reward'}">
+                    ${isActive ? 'Disable' : 'Enable'}
+                </button>
+            </div>
+        `;
+        listEl.appendChild(card);
+    });
+}
+
+window.openEditCatalogRewardModal = function (rewardId) {
+    const item = currentCatalogItems.find(r => r.id === rewardId);
+    if (!item) return;
+
+    if (qs('#catalogModalTitle')) qs('#catalogModalTitle').textContent = 'Edit Reward Item';
+    if (qs('#edit-reward-id')) qs('#edit-reward-id').value = item.id;
+    if (qs('#edit-reward-title')) qs('#edit-reward-title').value = item.title || '';
+    if (qs('#edit-reward-cost')) qs('#edit-reward-cost').value = item.cost || 100;
+    if (qs('#edit-reward-game')) qs('#edit-reward-game').value = item.gameType || 'platform';
+    if (qs('#edit-reward-badge')) qs('#edit-reward-badge').value = item.badgeText || '';
+    if (qs('#edit-reward-desc')) qs('#edit-reward-desc').value = item.description || '';
+    if (qs('#edit-reward-stock')) qs('#edit-reward-stock').value = item.stockLimit || 0;
+    if (qs('#edit-reward-claimed')) qs('#edit-reward-claimed').value = item.claimedCount || 0;
+    if (qs('#edit-reward-special')) qs('#edit-reward-special').checked = Boolean(item.isSpecialDrop);
+    if (qs('#edit-reward-active')) qs('#edit-reward-active').checked = (item.active !== false);
+
+    openModal('editCatalogRewardModal');
+};
+
+window.openAddCatalogRewardModal = function () {
+    if (qs('#catalogModalTitle')) qs('#catalogModalTitle').textContent = 'Add New Reward Item';
+    if (qs('#edit-reward-id')) qs('#edit-reward-id').value = 'reward_' + Date.now();
+    if (qs('#edit-reward-title')) qs('#edit-reward-title').value = '';
+    if (qs('#edit-reward-cost')) qs('#edit-reward-cost').value = 500;
+    if (qs('#edit-reward-game')) qs('#edit-reward-game').value = 'platform';
+    if (qs('#edit-reward-badge')) qs('#edit-reward-badge').value = 'Special Perk';
+    if (qs('#edit-reward-desc')) qs('#edit-reward-desc').value = '';
+    if (qs('#edit-reward-stock')) qs('#edit-reward-stock').value = 0;
+    if (qs('#edit-reward-claimed')) qs('#edit-reward-claimed').value = 0;
+    if (qs('#edit-reward-special')) qs('#edit-reward-special').checked = false;
+    if (qs('#edit-reward-active')) qs('#edit-reward-active').checked = true;
+
+    openModal('editCatalogRewardModal');
+};
+
+window.saveCatalogReward = async function (event) {
+    if (event && event.preventDefault) event.preventDefault();
+
+    const rewardId = qs('#edit-reward-id')?.value;
+    const title = qs('#edit-reward-title')?.value?.trim();
+    const cost = parseInt(qs('#edit-reward-cost')?.value, 10);
+    const gameType = qs('#edit-reward-game')?.value || 'platform';
+    const badgeText = qs('#edit-reward-badge')?.value?.trim() || (gameType === 'platform' ? 'Instant Perk' : gameType.toUpperCase());
+    const description = qs('#edit-reward-desc')?.value?.trim();
+    const stockLimit = Math.max(0, parseInt(qs('#edit-reward-stock')?.value, 10) || 0);
+    const claimedCount = Math.max(0, parseInt(qs('#edit-reward-claimed')?.value, 10) || 0);
+    const isSpecialDrop = Boolean(qs('#edit-reward-special')?.checked);
+    const active = qs('#edit-reward-active') ? qs('#edit-reward-active').checked : true;
+
+    if (!rewardId || !title || isNaN(cost) || cost <= 0 || !description) {
+        if (window.showWarningToast) window.showWarningToast("Invalid Input", "Please fill out all required fields with a valid price.");
+        return;
+    }
+
+    const submitBtn = qs('#edit-reward-submit-btn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+    }
+
+    try {
+        let badgeClass = 'bg-[#FFD700]/15 text-[#FFD700] border-[#FFD700]/30';
+        if (gameType === 'valorant') badgeClass = 'bg-red-500/15 text-red-400 border-red-500/30';
+        else if (gameType === 'mlbb') badgeClass = 'bg-amber-500/15 text-amber-400 border-amber-500/30';
+        else if (gameType === 'hok') badgeClass = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+        else if (gameType === 'platform') badgeClass = 'bg-purple-500/15 text-purple-400 border-purple-500/30';
+
+        const itemIdx = currentCatalogItems.findIndex(r => r.id === rewardId);
+        const rewardObj = {
+            id: rewardId,
+            title: title,
+            cost: cost,
+            badgeText: badgeText,
+            badgeClass: badgeClass,
+            description: description,
+            gameType: gameType,
+            stockLimit: stockLimit,
+            claimedCount: claimedCount,
+            isSpecialDrop: isSpecialDrop,
+            active: active
+        };
+
+        if (itemIdx !== -1) {
+            currentCatalogItems[itemIdx] = rewardObj;
+        } else {
+            currentCatalogItems.push(rewardObj);
+        }
+
+        const docRef = doc(db, "site_config", "rewards_catalog");
+        await setDoc(docRef, {
+            items: currentCatalogItems,
+            updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        closeModal('editCatalogRewardModal');
+
+        if (window.showSuccessToast) {
+            window.showSuccessToast("Reward Saved! 🎁", `Catalog item "${title}" updated.`);
+        }
+
+        renderAdminRewardsCatalog();
+
+    } catch (err) {
+        console.error("Error saving reward:", err);
+        if (window.showErrorToast) window.showErrorToast("Save Failed", err.message || "Failed to save reward item.");
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Reward';
+        }
+    }
+};
+
+window.toggleCatalogRewardActive = async function (rewardId) {
+    const item = currentCatalogItems.find(r => r.id === rewardId);
+    if (!item) return;
+
+    item.active = (item.active === false);
+    renderAdminRewardsCatalog();
+
+    try {
+        const docRef = doc(db, "site_config", "rewards_catalog");
+        await setDoc(docRef, {
+            items: currentCatalogItems,
+            updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        if (window.showSuccessToast) {
+            window.showSuccessToast("Status Updated", `Reward is now ${item.active ? 'Active' : 'Disabled'}.`, 2000);
+        }
+    } catch (err) {
+        console.error("Error toggling reward status:", err);
+        if (window.showErrorToast) window.showErrorToast("Update Failed", "Could not update reward status.");
+        window.fetchRewardsCatalog();
+    }
+};
 
 // --- 3. FETCH SITE CONFIGURATION ---
 
@@ -2043,3 +2494,120 @@ function initUserAnalytics() {
         console.warn('User analytics listener error:', err);
     });
 }
+
+// ==========================================
+// SUPPORTERS & WALL OF FAME MANAGEMENT (ADMIN)
+// ==========================================
+let allDonations = [];
+
+window.loadSupportersList = async function () {
+    const tbody = qs('#supporters-table-body');
+    if (!tbody) return;
+
+    try {
+        const snap = await getDocs(query(collection(db, "donations"), orderBy("timestamp", "desc")));
+        allDonations = [];
+        snap.forEach(d => {
+            allDonations.push({ id: d.id, ...d.data() });
+        });
+
+        displaySupportersList();
+    } catch (err) {
+        console.error("Error loading supporters:", err);
+        if (tbody) {
+            tbody.innerHTML = `<tr><td colspan="8" class="p-6 text-center text-red-400 font-mono-tag">Failed to load supporters: ${err.message}</td></tr>`;
+        }
+    }
+};
+
+window.refreshSupportersList = function () {
+    window.loadSupportersList();
+    if (window.showSuccessToast) window.showSuccessToast("Refreshed", "Supporters list reloaded.", 1500);
+};
+
+function displaySupportersList() {
+    const tbody = qs('#supporters-table-body');
+    if (!tbody) return;
+
+    if (allDonations.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="p-8 text-center text-neutral-500 font-mono-tag">No supporter contributions recorded yet.</td></tr>`;
+        return;
+    }
+
+    const now = Date.now();
+
+    tbody.innerHTML = allDonations.map(d => {
+        const tier = (d.tier || 'bronze').toLowerCase();
+        let badgeColor = 'bg-amber-700/20 text-amber-400 border-amber-600/40';
+        let tierLabel = 'Bronze Scout';
+        if (tier === 'gold') {
+            badgeColor = 'bg-[#FFD700]/20 text-[#FFD700] border-[#FFD700]/40';
+            tierLabel = 'Gold Patron';
+        } else if (tier === 'silver') {
+            badgeColor = 'bg-slate-400/20 text-slate-200 border-slate-300/40';
+            tierLabel = 'Silver Elite';
+        }
+
+        const dateStr = d.timestamp ? new Date(d.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Unknown';
+        const expiresDateStr = d.expiresAt ? new Date(d.expiresAt).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : '30 days';
+        
+        const isExpired = Boolean(d.expiresAt && d.expiresAt <= now);
+        let statusBadge = isExpired
+            ? `<span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-red-500/20 text-red-400 border border-red-500/30">Expired</span>`
+            : `<span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Active Wall</span>`;
+
+        return `
+            <tr class="hover:bg-white/5 transition-colors">
+                <td class="p-4">
+                    <div class="flex items-center gap-3">
+                        <img src="${escapeHtml(d.userAvatar || 'pictures/cz_logo.png')}" class="w-8 h-8 rounded-lg object-cover bg-black border border-white/10" onerror="this.src='pictures/cz_logo.png'">
+                        <div>
+                            <div class="font-heading font-bold text-white text-xs">${escapeHtml(d.userName || 'Champion Backer')}</div>
+                            <div class="text-[9px] font-mono-tag text-neutral-500">${escapeHtml(d.userId || 'Guest')}</div>
+                        </div>
+                    </div>
+                </td>
+                <td class="p-4">
+                    <span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase border ${badgeColor}">${tierLabel}</span>
+                </td>
+                <td class="p-4 font-mono-tag font-bold text-white text-xs">
+                    ₱${Number(d.amount || 0).toLocaleString()}
+                </td>
+                <td class="p-4 font-mono-tag text-neutral-400 uppercase text-[10px]">
+                    ${escapeHtml(d.channel || 'PayRex / GCash')}
+                </td>
+                <td class="p-4 font-mono-tag text-[10px] text-neutral-300">
+                    <div>${dateStr}</div>
+                    <div class="text-neutral-500 text-[9px]">Expires: ${expiresDateStr}</div>
+                </td>
+                <td class="p-4">
+                    ${statusBadge}
+                </td>
+                <td class="p-4 max-w-xs truncate text-neutral-300 italic text-[11px]" title="${escapeHtml(d.message || '')}">
+                    "${escapeHtml(d.message || 'Grassroots supporter')}"
+                </td>
+                <td class="p-4 text-right">
+                    <button onclick="window.adminDeleteDonation('${d.id}')" class="px-3 py-1.5 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-500/30 text-[10px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer">
+                        Delete
+                    </button>
+                </td>
+            </tr>
+        `;
+    }).join('');
+}
+
+window.adminDeleteDonation = async function (donationId) {
+    if (!donationId) return;
+    const confirmed = await window.showCustomConfirm("Delete Supporter Listing?", "This will permanently remove this donation and remove the backer from the Wall of Fame.");
+    if (!confirmed) return;
+
+    try {
+        await deleteDoc(doc(db, "donations", donationId));
+        allDonations = allDonations.filter(d => d.id !== donationId);
+        displaySupportersList();
+        if (window.showSuccessToast) window.showSuccessToast("Deleted", "Supporter entry removed from Wall of Fame.", 2000);
+    } catch (err) {
+        console.error("Failed to delete donation:", err);
+        if (window.showErrorToast) window.showErrorToast("Error", "Failed to delete supporter entry: " + err.message, 3000);
+    }
+};

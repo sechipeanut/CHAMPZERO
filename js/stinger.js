@@ -245,3 +245,10 @@ export function playStinger(force = false) {
 
 // Global hook to test or play stinger on command
 window.czReplayStinger = () => playStinger(true);
+
+// Auto-play stinger once per session on initial website open
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => playStinger(false));
+} else {
+    playStinger(false);
+}

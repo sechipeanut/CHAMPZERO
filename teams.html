@@ -343,7 +343,7 @@
                 <a href="/" class="nav-link hover:text-white">Home</a>
                 <a href="/tournaments" class="nav-link hover:text-white">Tournaments</a>
                 <a href="/events" class="nav-link hover:text-white">Events</a>
-                <a href="/teams" class="nav-link text-white active">Teams &amp; Recruitment</a>
+                <a href="/teams" class="nav-link text-white active">Teams</a>
                 <a href="/rising" class="nav-link hover:text-white">Rising Champ</a>
                 <a href="/partners" class="nav-link hover:text-white">Partners</a>
             </nav>
@@ -351,18 +351,31 @@
             <!-- AUTH CONTROLS -->
             <div class="flex items-center gap-3 shrink-0">
                 <div id="auth-controls-wrapper" class="flex items-center gap-2 shrink-0">
-                    <div id="auth-controls" class="flex items-center gap-2 shrink-0">
-                        <a href="/login"
-                            class="text-xs font-semibold px-3 py-1.5 text-neutral-300 hover:text-white transition-colors">
-                            Log In
-                        </a>
-                        <a href="/signup"
-                            class="text-xs font-heading font-bold uppercase tracking-wider px-4 py-2 rounded bg-[#FFD700] text-black hover:bg-[#FFF099] transition-all">
-                            Sign Up
-                        </a>
-                    </div>
+                    <div id="auth-controls" class="flex items-center gap-2 shrink-0"></div>
+                    <script>
+                        (function(){
+                            try {
+                                var el = document.getElementById('auth-controls');
+                                if (!el) return;
+                                var raw = localStorage.getItem('cz_auth_cache');
+                                if (raw) {
+                                    var u = JSON.parse(raw);
+                                    if (u && (u.uid || u.displayName || u.email)) {
+                                        var name = u.ign || u.displayName || (u.email ? u.email.split('@')[0] : 'Champion');
+                                        var avatar = u.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=111116&color=FFD700');
+                                        var pts = typeof u.czPoints === 'number' ? u.czPoints : 0;
+                                        var isSup = Boolean(u.isSupporter);
+                                        var tier = String(u.supporterTier || 'bronze').toLowerCase();
+                                        var supBadge = isSup ? (tier === 'gold' ? '<span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/30 font-mono">PATRON</span>' : (tier === 'silver' ? '<span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-slate-400/20 text-slate-200 border border-slate-300/30 font-mono">ELITE</span>' : '<span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-amber-700/20 text-amber-400 border border-amber-600/30 font-mono">SCOUT</span>')) : '';
+                                        el.innerHTML = '<div class="relative profile-dropdown-container flex items-center"><button class="flex items-center gap-2 p-1 pr-2.5 rounded-full bg-[#111116]/90 hover:bg-[#181822] border border-white/15 hover:border-[#FFD700]/50 transition-all cursor-pointer group shadow-sm"><img src="' + avatar + '" class="w-7 h-7 rounded-full ' + (isSup ? (tier === 'gold' ? 'border border-[#FFD700]' : 'border border-slate-300') : 'border border-white/20') + ' object-cover shrink-0"><span class="text-xs font-heading font-bold text-white max-w-[90px] truncate hidden sm:inline-block">' + name + '</span><span class="text-[10px] font-mono-tag font-bold text-[#FFD700] bg-[#FFD700]/15 px-2 py-0.5 rounded-full hidden sm:inline-flex items-center gap-0.5"><span>' + pts + '</span><span class="text-[9px] text-[#FFD700]/80">CZ</span></span>' + supBadge + '<svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button></div>';
+                                        return;
+                                    }
+                                }
+                                el.innerHTML = '<a href="/login" class="text-xs font-semibold px-3 py-1.5 text-neutral-300 hover:text-white transition-colors">Log In</a><a href="/signup" class="text-xs font-heading font-bold uppercase tracking-wider px-3.5 py-1.5 rounded-lg bg-[#FFD700] text-black hover:bg-[#FFF099] transition-all shadow-sm">Sign Up</a>';
+                            } catch(e){}
+                        })();
+                    </script>
                 </div>
-
                 <button id="mobile-menu-button" aria-label="Toggle navigation menu"
                     class="md:hidden p-2 rounded text-neutral-400 hover:text-white hover:bg-white/5 border border-white/10 transition-colors">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -499,21 +512,32 @@
                     </div>
                 </div>
 
-                <!-- Tier 2A: Standard Team / LFT Filter Controls Grid -->
-                <div id="team-filter-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
-                    <!-- Game Filter -->
-                    <select id="filter-game" onchange="window.setGameFilter(this.value)"
-                        class="dark-select rounded-xl text-xs font-semibold uppercase tracking-wider px-3.5 py-2.5 cursor-pointer w-full">
-                        <option value="all">All Games</option>
-                        <option value="Valorant">Valorant (PC)</option>
-                        <option value="MLBB">Mobile Legends (Mobile)</option>
-                        <option value="HOK">Honor of Kings (Mobile)</option>
-                        <option value="CODM">Call of Duty: Mobile</option>
-                        <option value="LoL">League of Legends</option>
-                        <option value="Dota">Dota 2</option>
-                        <option value="Other">Other Esports</option>
-                    </select>
+                <!-- Tier 2: Game Quick Filter Pills (Big 3 Esports) -->
+                <div class="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar w-full">
+                    <button type="button" onclick="window.setGamePillFilter('all')" id="game-pill-all"
+                        class="game-pill active px-4 py-2 rounded-xl font-heading text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer bg-[#22c55e] text-black shadow-md">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="6" stroke-width="2"></rect><path d="M6 12h4m-2-2v4m10-2h.01m-3 0h.01" stroke-width="2" stroke-linecap="round"></path></svg>
+                        <span>All Games</span>
+                    </button>
+                    <button type="button" onclick="window.setGamePillFilter('Valorant')" id="game-pill-Valorant"
+                        class="game-pill px-4 py-2 rounded-xl font-heading text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer bg-[#15151d] hover:bg-white/10 text-neutral-300 border border-white/10">
+                        <img src="pictures/logo_valorant.png" class="w-4 h-4 object-contain" alt="Valorant">
+                        <span>Valorant</span>
+                    </button>
+                    <button type="button" onclick="window.setGamePillFilter('MLBB')" id="game-pill-MLBB"
+                        class="game-pill px-4 py-2 rounded-xl font-heading text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer bg-[#15151d] hover:bg-white/10 text-neutral-300 border border-white/10">
+                        <img src="pictures/logo_mlbb.png" class="w-4 h-4 object-contain" alt="MLBB">
+                        <span>Mobile Legends</span>
+                    </button>
+                    <button type="button" onclick="window.setGamePillFilter('HOK')" id="game-pill-HOK"
+                        class="game-pill px-4 py-2 rounded-xl font-heading text-xs font-bold uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer bg-[#15151d] hover:bg-white/10 text-neutral-300 border border-white/10">
+                        <img src="pictures/logo_hok.png" class="w-4 h-4 object-contain" alt="HOK">
+                        <span>Honor of Kings</span>
+                    </button>
+                </div>
 
+                <!-- Tier 2A: Standard Team / LFT Filter Controls Grid -->
+                <div id="team-filter-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full">
                     <!-- Roster Availability Filter -->
                     <select id="filter-roster" onchange="window.setRosterFilter(this.value)"
                         class="dark-select rounded-xl text-xs font-semibold uppercase tracking-wider px-3.5 py-2.5 cursor-pointer w-full">
@@ -531,12 +555,12 @@
                         <option value="Controller">Controller / Smoker</option>
                         <option value="Sentinel">Sentinel / Anchor</option>
                         <option value="Jungler">Jungler / Assassin</option>
-                        <option value="Roamer">Roamer / Tank</option>
-                        <option value="Gold Lane">Gold Lane / Marksman</option>
-                        <option value="Exp Lane">Exp Lane / Offlane</option>
+                        <option value="Roamer">Roamer / Tank / Support</option>
+                        <option value="Gold Lane">Gold Lane / Farm Lane (Marksman)</option>
+                        <option value="Exp Lane">Exp Lane / Clash Lane (Offlane)</option>
                         <option value="Mid Lane">Mid Lane / Mage</option>
                         <option value="Support">Support / Healer</option>
-                        <option value="Flex">Flex (Any Role)</option>
+                        <option value="Flex">Flex (Any Position)</option>
                     </select>
 
                     <!-- Search Box -->
@@ -552,20 +576,7 @@
                 </div>
 
                 <!-- Tier 2B: Scrim Specific Filter Grid (Active in Scrims View) -->
-                <div id="scrim-filter-grid" class="hidden grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
-                    <!-- Game Filter -->
-                    <select id="scrim-filter-game" onchange="window.setScrimGameFilter(this.value)"
-                        class="dark-select rounded-xl text-xs font-semibold uppercase tracking-wider px-3.5 py-2.5 cursor-pointer w-full">
-                        <option value="all">All Games</option>
-                        <option value="Valorant">Valorant (PC)</option>
-                        <option value="MLBB">Mobile Legends (Mobile)</option>
-                        <option value="Honor of Kings">Honor of Kings (Mobile)</option>
-                        <option value="CODM">Call of Duty: Mobile</option>
-                        <option value="League of Legends">League of Legends</option>
-                        <option value="Dota 2">Dota 2</option>
-                        <option value="Other">Other Titles</option>
-                    </select>
-
+                <div id="scrim-filter-grid" class="hidden grid-cols-1 sm:grid-cols-3 gap-3 w-full">
                     <!-- Format Filter -->
                     <select id="scrim-filter-format" onchange="window.setScrimFormatFilter(this.value)"
                         class="dark-select rounded-xl text-xs font-semibold uppercase tracking-wider px-3.5 py-2.5 cursor-pointer w-full">
@@ -660,9 +671,9 @@
                 </div>
             </div>
 
-            <!-- RECRUITMENT GRID / LIST CONTAINER -->
+            <!-- RECRUITMENT GRID / LIST CONTAINER (Landscape Grid) -->
             <div id="recruitment-board"
-                class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 auto-rows-fr min-h-[360px]">
+                class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-start">
                 <div
                     class="col-span-full py-20 text-center flex flex-col items-center justify-center text-neutral-500 font-mono-tag text-xs tracking-wider">
                     <div class="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[#FFD700] mb-4"></div>
@@ -720,13 +731,9 @@
                                 <select id="create-game" required
                                     class="dark-select w-full p-3 rounded-xl text-xs cursor-pointer font-medium">
                                     <option value="" disabled selected>-- Select Game Title --</option>
-                                    <option value="valId">Valorant (PC)</option>
-                                    <option value="mlbbId">Mobile Legends: Bang Bang (Mobile)</option>
-                                    <option value="hokId">Honor of Kings (Mobile)</option>
-                                    <option value="codmId">Call of Duty: Mobile (Mobile)</option>
-                                    <option value="lolId">League of Legends (PC)</option>
-                                    <option value="dotaId">Dota 2 (PC)</option>
-                                    <option value="otherId">Other Competitive Title</option>
+                                    <option value="valId">Valorant</option>
+                                    <option value="mlbbId">Mobile Legends: Bang Bang</option>
+                                    <option value="hokId">Honor of Kings</option>
                                 </select>
                             </div>
 
@@ -962,6 +969,71 @@
             <div class="p-4 bg-[#111116] border-t border-white/10 flex items-center justify-between gap-3"
                 id="td-footer-actions">
                 <!-- Dynamically populated actions -->
+            </div>
+        </div>
+    </div>
+
+    <!-- PLAYER DETAILS & STATS MODAL -->
+    <div id="playerDetailsModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4" role="dialog"
+        aria-modal="true">
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-md transition-opacity duration-300"
+            onclick="window.closePlayerDetailsModal()"></div>
+        <div
+            class="relative bg-[#0A0A0E] border border-white/10 rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+
+            <!-- Header Banner -->
+            <div class="relative p-6 bg-gradient-to-r from-[#111116] via-[#161622] to-[#111116] border-b border-white/10 flex items-start gap-4">
+                <img id="pd-image" src="pictures/cz_logo.png"
+                    class="w-16 h-16 rounded-xl border-2 border-[#FFD700]/60 object-cover shadow-xl shrink-0 bg-black/50"
+                    alt="Player Avatar">
+                <div class="flex-1 min-w-0">
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                        <span id="pd-game"
+                            class="font-mono-tag text-[9px] bg-[#FFD700]/15 text-[#FFD700] border border-[#FFD700]/30 font-bold px-2 py-0.5 rounded uppercase tracking-wider">GAME</span>
+                        <span class="font-mono-tag text-[9px] bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 font-bold px-2 py-0.5 rounded uppercase">FREE AGENT</span>
+                        <span id="pd-verified"
+                            class="hidden font-mono-tag text-[9px] bg-[#FFD700] text-black font-bold px-1.5 py-0.5 rounded uppercase">PRO</span>
+                    </div>
+                    <h2 id="pd-name" class="font-heading font-bold text-xl text-white uppercase truncate">
+                        Player IGN</h2>
+                    <p class="text-xs text-neutral-400 font-mono-tag mt-0.5">Role: <span id="pd-role"
+                            class="text-white font-bold">--</span></p>
+                </div>
+                <button onclick="window.closePlayerDetailsModal()"
+                    class="w-8 h-8 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white flex items-center justify-center transition-colors text-base cursor-pointer">&times;</button>
+            </div>
+
+            <!-- Modal Content -->
+            <div class="p-6 overflow-y-auto space-y-4 custom-scrollbar text-xs">
+                <!-- Tactical Stats HUD -->
+                <div class="grid grid-cols-2 gap-3 bg-white/5 p-4 rounded-xl border border-white/5">
+                    <div>
+                        <span class="text-[10px] text-neutral-400 uppercase font-mono-tag font-bold">Competitive Rank</span>
+                        <p id="pd-rank" class="text-base text-[#FFD700] font-heading font-bold mt-0.5">--</p>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-neutral-400 uppercase font-mono-tag font-bold">Member Since</span>
+                        <p id="pd-joined" class="text-xs text-neutral-300 font-mono-tag mt-1">--</p>
+                    </div>
+                </div>
+
+                <!-- Bio & Playstyle -->
+                <div>
+                    <h3 class="font-heading font-bold text-xs uppercase tracking-wider text-neutral-300 mb-2">Playstyle &amp; Bio</h3>
+                    <div id="pd-bio" class="bg-black/40 p-4 rounded-xl border border-white/5 text-neutral-300 leading-relaxed font-sans text-xs whitespace-pre-line">
+                        No bio provided by player.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modal Footer Action Bar -->
+            <div class="p-4 bg-[#111116] border-t border-white/10 flex items-center justify-between gap-3"
+                id="pd-footer-actions">
+                <button onclick="window.closePlayerDetailsModal()"
+                    class="py-2.5 px-4 bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors border border-white/10 cursor-pointer">
+                    Close
+                </button>
+                <div id="pd-action-container"></div>
             </div>
         </div>
     </div>
@@ -1246,13 +1318,9 @@
                             <label for="scrim-post-game" class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Game Title <span class="text-red-500">*</span></label>
                             <select id="scrim-post-game" required class="dark-select w-full p-3 rounded-xl text-xs cursor-pointer font-medium" onchange="window.handleScrimPostGameChange(this.value)">
                                 <option value="" disabled selected>-- Select Esports Title --</option>
-                                <option value="Valorant">Valorant (PC)</option>
-                                <option value="MLBB">Mobile Legends: Bang Bang (Mobile)</option>
-                                <option value="Honor of Kings">Honor of Kings (Mobile)</option>
-                                <option value="Call of Duty: Mobile">Call of Duty: Mobile (CODM)</option>
-                                <option value="League of Legends">League of Legends (PC)</option>
-                                <option value="Dota 2">Dota 2 (PC)</option>
-                                <option value="Other">Other Esports Title</option>
+                                <option value="Valorant">Valorant</option>
+                                <option value="MLBB">Mobile Legends: Bang Bang</option>
+                                <option value="Honor of Kings">Honor of Kings</option>
                             </select>
                         </div>
 

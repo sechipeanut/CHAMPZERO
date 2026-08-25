@@ -1,6 +1,6 @@
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-import { doc, getDoc, updateDoc, addDoc, collection, getDocs, query, orderBy, limit, where, onSnapshot, deleteDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { doc, getDoc, updateDoc, addDoc, collection, getDocs, query, orderBy, limit, where, onSnapshot, deleteDoc, setDoc, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 let activeUserUid = null;
 let activeUserData = {};
@@ -25,19 +25,39 @@ function formatDate(dateString) {
     return date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 }
 
-// Immediate optimistic player render from auth state
+// Immediate optimistic player render from auth state & cached profile data
 function renderOptimisticHeader(user) {
     if (!user) return;
-    const immediateName = user.displayName || (user.email ? user.email.split('@')[0] : 'Champion');
+    const immediateName = user.displayName || user.ign || (user.email ? user.email.split('@')[0] : 'Champion');
     if (qs('#display-name-header')) qs('#display-name-header').textContent = immediateName;
     if (qs('#email-display')) qs('#email-display').textContent = user.email || '';
     if (qs('#account-email-display')) qs('#account-email-display').textContent = user.email || '--';
     if (qs('#ign-display')) qs('#ign-display').textContent = immediateName;
-    if (user.photoURL && qs('#profile-avatar')) {
-        qs('#profile-avatar').src = user.photoURL;
-    } else if (qs('#profile-avatar')) {
-        qs('#profile-avatar').src = 'https://ui-avatars.com/api/?name=' + encodeURIComponent(immediateName) + '&background=111116&color=FFD700';
-    }
+    
+    const avatarUrl = user.avatar || user.photoURL || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(immediateName) + '&background=111116&color=FFD700');
+    if (qs('#profile-avatar')) qs('#profile-avatar').src = avatarUrl;
+
+    // Load any saved profile cache for instant 0ms HUD rendering
+    try {
+        const rawCache = localStorage.getItem('cz_profile_cache');
+        if (rawCache) {
+            const cache = JSON.parse(rawCache);
+            if (cache && (cache.uid === user.uid || !cache.uid)) {
+                if (qs('#tournaments-count') && cache.playedCount !== undefined) qs('#tournaments-count').textContent = cache.playedCount;
+                if (qs('#prizes-earned') && cache.prizesEarned) qs('#prizes-earned').textContent = cache.prizesEarned;
+                if (qs('#podium-count') && cache.podiumCount !== undefined) qs('#podium-count').textContent = cache.podiumCount;
+                if (qs('#win-rate') && cache.winRate !== undefined) qs('#win-rate').textContent = cache.winRate;
+                if (qs('#friends-count') && cache.friendCount !== undefined) qs('#friends-count').textContent = cache.friendCount;
+                if (qs('#friends-tab-count') && cache.friendCount !== undefined) qs('#friends-tab-count').textContent = cache.friendCount;
+                if (qs('#rank-display') && cache.rank) qs('#rank-display').textContent = cache.rank;
+                if (qs('#bio-display') && cache.bio) qs('#bio-display').textContent = cache.bio;
+                if (qs('#val-id-display') && cache.valId) qs('#val-id-display').textContent = cache.valId;
+                if (qs('#mlbb-id-display') && cache.mlbbId) qs('#mlbb-id-display').textContent = cache.mlbbId;
+                if (qs('#hok-id-display') && cache.hokId) qs('#hok-id-display').textContent = cache.hokId;
+                if (qs('#escrow-balance-display') && cache.escrowBalance) qs('#escrow-balance-display').textContent = cache.escrowBalance;
+            }
+        }
+    } catch (e) {}
 }
 
 // 1. AUTH PROTECTION & INITIAL LOAD
@@ -101,6 +121,12 @@ async function initProfileForUser(user) {
             });
 
             if (!isAlreadyCredited) {
+                // Update organizer user document escrowBalance in Firestore
+                const userRef = doc(db, "users", user.uid);
+                await updateDoc(userRef, {
+                    escrowBalance: increment(amountVal || 1000)
+                });
+
                 if (existingDocId) {
                     await updateDoc(doc(db, "cashins", existingDocId), {
                         status: 'Approved',
@@ -122,7 +148,7 @@ async function initProfileForUser(user) {
                 }
 
                 if (window.showSuccessToast) {
-                    window.showSuccessToast('Prize Pool Funded', `Payment verified! ₱${amountVal ? amountVal.toLocaleString() : ''} has been credited to your organizer balance via PayRex.`);
+                    window.showSuccessToast('Prize Pool Funded', `Payment verified! ₱${amountVal ? amountVal.toLocaleString('en-US', { minimumFractionDigits: 2 }) : '1,000.00'} has been credited to your organizer balance via PayRex.`);
                 }
 
                 // Reload profile data with new balance
@@ -150,9 +176,9 @@ onAuthStateChanged(auth, (user) => {
 });
 
 // ==========================================
-// 1. TAB NAVIGATION: PLAYER / FRIENDS / MESSAGES / ORGANIZER
+// 1. TAB NAVIGATION: PLAYER / FRIENDS / REWARDS / ORGANIZER
 // ==========================================
-const TAB_IDS = ['player', 'friends', 'messages', 'organizer'];
+const TAB_IDS = ['player', 'friends', 'rewards', 'organizer'];
 const ACTIVE_BTN = 'px-5 py-2.5 rounded-lg bg-[#FFD700] text-black font-black transition-all cursor-pointer shadow-md flex items-center gap-2';
 const INACTIVE_BTN = 'px-5 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 transition-all cursor-pointer flex items-center gap-2';
 
@@ -166,19 +192,26 @@ window.switchProfileTab = function (tab) {
             else pane.classList.add('hidden');
         }
     });
-    // Lazy-load friends or messages data when tab is first opened
+    // Lazy-load sub-data when tab is opened
     if (tab === 'friends' && activeUserUid) loadFriendsList(activeUserUid);
-    if (tab === 'messages' && activeUserUid) loadDMConversations(activeUserUid);
+    if (tab === 'rewards' && activeUserUid) loadRewardsData(activeUserData);
 };
 
 // 2. FETCH & DISPLAY PROFILE DATA WITH TOURNAMENT TROPHIES & EARNINGS
 async function loadUserProfile(uid, email) {
     try {
         const docRef = doc(db, "users", uid);
-        const docSnap = await getDoc(docRef);
+        const tourneyQuery = collection(db, "tournaments");
+
+        // Fetch user data, tournaments, and friend count in parallel
+        const [docSnap, tourneySnap, friendCount] = await Promise.all([
+            getDoc(docRef),
+            getDocs(tourneyQuery).catch(() => ({ forEach: () => {} })),
+            countFriends(uid).catch(() => 0)
+        ]);
 
         let userData = {};
-        if (docSnap.exists()) {
+        if (docSnap.exists && docSnap.exists()) {
             userData = docSnap.data() || {};
         }
 
@@ -214,9 +247,21 @@ async function loadUserProfile(uid, email) {
             }
         }
 
-        // Supporter Status & Badge Logic
-        const isSupporter = Boolean(userData.isSupporter || userData.supporterTier || userData.supporterBadge);
+        // Supporter Status & Badge Logic (With 30-day Active Duration Verification)
+        const now = Date.now();
+        const hasSupporterFlag = Boolean(userData.isSupporter || userData.supporterTier || userData.supporterBadge);
+        const isExpired = Boolean(hasSupporterFlag && userData.supporterExpiresAt && userData.supporterExpiresAt <= now);
+        const isSupporter = Boolean(hasSupporterFlag && (!userData.supporterExpiresAt || userData.supporterExpiresAt > now));
         const supporterTier = String(userData.supporterTier || 'bronze').toLowerCase();
+        
+        let daysLeftStr = '';
+        if (isSupporter && userData.supporterExpiresAt) {
+            const days = Math.ceil((userData.supporterExpiresAt - now) / (1000 * 60 * 60 * 24));
+            if (days > 0) {
+                daysLeftStr = ` • ${days}d left`;
+            }
+        }
+
         const supporterBadgeEl = qs('#supporter-badge');
         const supporterBadgeIcon = qs('#supporter-badge-icon');
         const supporterBadgeText = qs('#supporter-badge-text');
@@ -246,6 +291,9 @@ async function loadUserProfile(uid, email) {
                 }
             } else {
                 supporterBadgeEl.classList.add('hidden');
+                if (avatarImg) {
+                    avatarImg.classList.remove('border-2', 'border-[#FFD700]', 'border-slate-300', 'shadow-[0_0_20px_rgba(255,215,0,0.3)]', 'shadow-[0_0_15px_rgba(255,255,255,0.2)]');
+                }
             }
         }
 
@@ -256,20 +304,48 @@ async function loadUserProfile(uid, email) {
         const supporterCtaText = qs('#supporter-hub-cta-text');
 
         if (isSupporter) {
-            if (supporterCardTitle) {
-                supporterCardTitle.textContent = supporterTier === 'gold' 
-                    ? 'Grand Champion Gold Patron' 
-                    : (supporterTier === 'silver' ? 'Arena Elite Supporter' : 'Champion Bronze Scout');
+            if (supporterTier === 'gold') {
+                if (supporterCardTitle) supporterCardTitle.textContent = 'Grand Champion Gold Patron';
+                if (supporterCardStatus) {
+                    supporterCardStatus.textContent = `Active Patron (Max Tier)${daysLeftStr}`;
+                    supporterCardStatus.className = 'font-mono-tag text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/40';
+                }
+                if (supporterCardDesc) {
+                    const dateStr = userData.supporterSince ? new Date(userData.supporterSince).toLocaleDateString([], { month: 'short', year: 'numeric' }) : '2026';
+                    supporterCardDesc.textContent = `Highest Tier Patron since ${dateStr}. Thank you for powering our grassroots tournaments and livestream broadcast labs!`;
+                }
+                if (supporterCtaText) supporterCtaText.textContent = 'Renew / Extend ↗';
+            } else if (supporterTier === 'silver') {
+                if (supporterCardTitle) supporterCardTitle.textContent = 'Arena Elite Supporter';
+                if (supporterCardStatus) {
+                    supporterCardStatus.textContent = `Active Backer${daysLeftStr}`;
+                    supporterCardStatus.className = 'font-mono-tag text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-slate-400/20 text-slate-200 border border-slate-300/40';
+                }
+                if (supporterCardDesc) {
+                    supporterCardDesc.textContent = 'Active Silver Elite supporter. Upgrade your badge to Gold Patron to unlock full gold radiance and top Wall of Fame VIP billing!';
+                }
+                if (supporterCtaText) supporterCtaText.textContent = 'Upgrade to Gold ↗';
+            } else {
+                if (supporterCardTitle) supporterCardTitle.textContent = 'Champion Bronze Scout';
+                if (supporterCardStatus) {
+                    supporterCardStatus.textContent = `Active Backer${daysLeftStr}`;
+                    supporterCardStatus.className = 'font-mono-tag text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-amber-700/20 text-amber-400 border border-amber-600/40';
+                }
+                if (supporterCardDesc) {
+                    supporterCardDesc.textContent = 'Active Bronze Scout backer. Upgrade your badge to Silver Elite or Gold Patron to unlock glowing golden profile cards and animated VIP chat flairs!';
+                }
+                if (supporterCtaText) supporterCtaText.textContent = 'Upgrade Badge ↗';
             }
+        } else if (isExpired) {
+            if (supporterCardTitle) supporterCardTitle.textContent = 'Supporter Badge Expired';
             if (supporterCardStatus) {
-                supporterCardStatus.textContent = 'Active Backer';
-                supporterCardStatus.className = 'font-mono-tag text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/40';
+                supporterCardStatus.textContent = 'Expired';
+                supporterCardStatus.className = 'font-mono-tag text-[9px] font-bold uppercase px-2 py-0.5 rounded bg-red-500/20 text-red-400 border border-red-500/40';
             }
             if (supporterCardDesc) {
-                const dateStr = userData.supporterSince ? new Date(userData.supporterSince).toLocaleDateString([], { month: 'short', year: 'numeric' }) : '2026';
-                supporterCardDesc.textContent = `Active backer of ChampZero since ${dateStr}. Thank you for powering our grassroots tournaments and livestream broadcast labs!`;
+                supporterCardDesc.textContent = 'Your supporter membership duration has ended. Re-activate or upgrade your badge to restore your VIP chat flair, golden border, and live Wall of Fame listing.';
             }
-            if (supporterCtaText) supporterCtaText.textContent = 'Supporter Active';
+            if (supporterCtaText) supporterCtaText.textContent = 'Renew Badge ↗';
         } else {
             if (supporterCardTitle) supporterCardTitle.textContent = 'Join the Supporter Club';
             if (supporterCardStatus) {
@@ -279,7 +355,7 @@ async function loadUserProfile(uid, email) {
             if (supporterCardDesc) {
                 supporterCardDesc.textContent = 'Support grassroots tournament prize pools, broadcast production, and unlock verified supporter badges, golden profile borders, and VIP chat flairs.';
             }
-            if (supporterCtaText) supporterCtaText.textContent = 'Support ChampZero';
+            if (supporterCtaText) supporterCtaText.textContent = 'Support Club ↗';
         }
 
         // Rank Display
@@ -325,38 +401,40 @@ async function loadUserProfile(uid, email) {
             console.warn("Error rendering withdrawal preview:", e);
         }
 
-        // 4. QUERY TOURNAMENTS
-        let allTourneys = [];
-        try {
-            const tourneysSnap = await getDocs(collection(db, "tournaments"));
-            tourneysSnap.forEach(docSnap => allTourneys.push({ id: docSnap.id, ...docSnap.data() }));
-        } catch (tourneyErr) {
-            console.warn("Could not query tournaments collection:", tourneyErr);
+        // 4. CALCULATE TOURNAMENTS & TROPHIES (Using already-fetched tournaments snap)
+        const allTourneys = [];
+        if (tourneySnap && typeof tourneySnap.forEach === 'function') {
+            tourneySnap.forEach(d => allTourneys.push({ id: d.id, ...d.data() }));
         }
+        await calculateTournamentStats(uid, userIgn, allTourneys, friendCount);
 
-        try {
-            await calculateTournamentStats(uid, userIgn, allTourneys);
-        } catch (statsErr) {
-            console.warn("Error calculating tournament stats:", statsErr);
-        }
-
-        // 5. IF ORGANIZER OR ADMIN: ENABLE ORGANIZER TAB & CALCULATE FINANCIALS
-        const isOrganizerOrAdmin = (isOrganizer || isAdmin);
-
+        // 5. CALCULATE ORGANIZER STATS (IF ORGANIZER OR ADMIN)
+        const isOrganizerOrAdmin = isAdmin || isOrganizer;
         const tabOrganizerBtn = qs('#tab-btn-organizer');
-        const tabOrganizerTitle = qs('#tab-organizer-title');
-
         if (isOrganizerOrAdmin) {
-            if (tabOrganizerBtn) tabOrganizerBtn.classList.remove('hidden');
-            if (tabOrganizerTitle) tabOrganizerTitle.textContent = isAdmin ? 'Admin Command' : 'Organizer Command';
-            try {
-                await calculateOrganizerStats(uid, email, allTourneys, isAdmin);
-            } catch (orgErr) {
-                console.warn("Error calculating organizer stats:", orgErr);
+            if (tabOrganizerBtn) {
+                tabOrganizerBtn.classList.remove('hidden');
+                const titleSpan = qs('#tab-organizer-title');
+                if (titleSpan) titleSpan.textContent = isAdmin ? 'Admin Command' : 'Organizer Command';
             }
+            await calculateOrganizerStats(uid, userEmail, allTourneys, isAdmin);
         } else {
             if (tabOrganizerBtn) tabOrganizerBtn.classList.add('hidden');
+        }
+
+        // 6. INITIALIZE REWARDS DATA
+        try {
+            await loadRewardsData(userData);
+        } catch (rewardErr) {
+            console.warn("Error initializing rewards data:", rewardErr);
+        }
+
+        // 7. TAB ROUTING
+        const initialTab = new URLSearchParams(window.location.search).get('tab') || 'player';
+        if (initialTab === 'organizer' && !isOrganizerOrAdmin) {
             window.switchProfileTab('player');
+        } else if (TAB_IDS.includes(initialTab)) {
+            window.switchProfileTab(initialTab);
         }
 
     } catch (error) {
@@ -367,7 +445,7 @@ async function loadUserProfile(uid, email) {
     }
 }
 
-async function calculateTournamentStats(uid, userIgn, allTourneys) {
+async function calculateTournamentStats(uid, userIgn, allTourneys, friendCountVal = 0) {
     try {
         let playedCount = 0;
         let totalEarnings = 0;
@@ -467,25 +545,42 @@ async function calculateTournamentStats(uid, userIgn, allTourneys) {
             });
         });
 
+        const prizesEarnedStr = `₱${totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+        const podiumCount = (champCount + secondCount + thirdCount);
+        const winRate = matchesTotal > 0 ? Math.round((matchesWon / matchesTotal) * 100) : null;
+        const winRateStr = winRate !== null ? `${winRate}%` : '--';
+
         // Update DOM Stats
         if (qs('#tournaments-count')) qs('#tournaments-count').textContent = playedCount;
-        if (qs('#prizes-earned')) qs('#prizes-earned').textContent = `₱${totalEarnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-        if (qs('#podium-count')) qs('#podium-count').textContent = (champCount + secondCount + thirdCount);
-        
-        const winRate = matchesTotal > 0 ? Math.round((matchesWon / matchesTotal) * 100) : null;
-        if (qs('#win-rate')) qs('#win-rate').textContent = winRate !== null ? `${winRate}%` : '--';
+        if (qs('#prizes-earned')) qs('#prizes-earned').textContent = prizesEarnedStr;
+        if (qs('#podium-count')) qs('#podium-count').textContent = podiumCount;
+        if (qs('#win-rate')) qs('#win-rate').textContent = winRateStr;
 
         // Update Trophy Cabinet Counters
         if (qs('#championships-count')) qs('#championships-count').textContent = champCount;
         if (qs('#second-place-count')) qs('#second-place-count').textContent = secondCount;
         if (qs('#third-place-count')) qs('#third-place-count').textContent = thirdCount;
 
-        // Load Friend Count
+        // Friend Count
+        const finalFriendCount = typeof friendCountVal === 'number' ? friendCountVal : 0;
+        if (qs('#friends-count')) qs('#friends-count').textContent = finalFriendCount;
+        if (qs('#friends-tab-count')) qs('#friends-tab-count').textContent = finalFriendCount;
+
+        // Cache the calculated stats for instant future visits
         try {
-            const friendCount = await countFriends(uid);
-            if (qs('#friends-count')) qs('#friends-count').textContent = friendCount;
-            if (qs('#friends-tab-count')) qs('#friends-tab-count').textContent = friendCount;
-        } catch (e) { console.warn('Friend count error:', e); }
+            const existingCache = JSON.parse(localStorage.getItem('cz_profile_cache') || '{}');
+            const updatedCache = {
+                ...existingCache,
+                uid,
+                playedCount,
+                prizesEarned: prizesEarnedStr,
+                podiumCount,
+                winRate: winRateStr,
+                friendCount: finalFriendCount,
+                cachedAt: Date.now()
+            };
+            localStorage.setItem('cz_profile_cache', JSON.stringify(updatedCache));
+        } catch (e) {}
 
         // Render Tournament History List
         const historyListEl = qs('#tournament-history-list');
@@ -1722,7 +1817,7 @@ async function getOrCreateDM(uid1, uid2) {
     return newDm.id;
 }
 
-// Start a DM from the friends list
+// Start a DM from the friends list -> opens floating Community Chat DM drawer
 window.startDMWith = async function (friendUid, friendName) {
     if (!activeUserUid) return;
     if (friendUid === activeUserUid) {
@@ -1730,15 +1825,10 @@ window.startDMWith = async function (friendUid, friendName) {
         return;
     }
 
-    // Switch to messages tab
-    window.switchProfileTab('messages');
-
-    try {
-        const dmId = await getOrCreateDM(activeUserUid, friendUid);
-        openDMChat(dmId, friendName, friendUid);
-    } catch (err) {
-        console.error("Error starting DM:", err);
-        if (window.showErrorToast) window.showErrorToast('Error', 'Could not start conversation.');
+    if (typeof window.czOpenDMWith === 'function') {
+        window.czOpenDMWith(friendUid, friendName);
+    } else {
+        if (window.showWarningToast) window.showWarningToast('Chat', 'Open the Community Hub at the bottom right to message.');
     }
 };
 
@@ -1893,4 +1983,631 @@ function cleanupProfileListeners() {
 
 window.addEventListener('beforeunload', cleanupProfileListeners);
 window.addEventListener('pagehide', cleanupProfileListeners);
+
+// ==========================================
+// 8. REWARDS, STREAKS, REFERRALS & VAULT REDEEM
+// ==========================================
+
+// --- PHILIPPINE TIME (PHT / UTC+8) DATE HELPERS ---
+function getPHTDate(date = new Date()) {
+    return new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Manila',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+    }).format(date);
+}
+
+function getPHTYesterday() {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    return getPHTDate(yesterday);
+}
+
+let phtResetInterval = null;
+
+function startPHTResetTimer() {
+    const timerEl = qs('#streak-reset-timer');
+    if (!timerEl) return;
+
+    if (phtResetInterval) clearInterval(phtResetInterval);
+
+    function update() {
+        const now = new Date();
+        const phtFormatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'Asia/Manila',
+            year: 'numeric',
+            month: 'numeric',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: false
+        });
+        const parts = phtFormatter.formatToParts(now);
+        const map = {};
+        parts.forEach(p => map[p.type] = p.value);
+        
+        const hour = parseInt(map.hour, 10) % 24;
+        const min = parseInt(map.minute, 10);
+        const sec = parseInt(map.second, 10);
+
+        const currentSecs = hour * 3600 + min * 60 + sec;
+        const totalDaySecs = 86400; // 24 * 3600
+        const remSecs = totalDaySecs - currentSecs;
+
+        const remH = Math.floor(remSecs / 3600);
+        const remM = Math.floor((remSecs % 3600) / 60);
+        const remS = remSecs % 60;
+
+        const pad = (n) => String(n).padStart(2, '0');
+        timerEl.textContent = `${pad(remH)}h ${pad(remM)}m ${pad(remS)}s`;
+    }
+
+    update();
+    phtResetInterval = setInterval(update, 1000);
+}
+
+async function loadRewardsData(userData) {
+    if (!userData) userData = activeUserData || {};
+    const czPoints = typeof userData.czPoints === 'number' ? userData.czPoints : 0;
+    const lifetimePoints = typeof userData.lifetimePoints === 'number' ? userData.lifetimePoints : czPoints;
+    const dailyStreak = typeof userData.dailyStreak === 'number' ? userData.dailyStreak : 1;
+    const lastCheckIn = userData.lastCheckInDate || '';
+    const referralCount = typeof userData.referralCount === 'number' ? userData.referralCount : 0;
+    const referralCode = userData.referralCode || ('CZ-' + (activeUserUid ? activeUserUid.substring(0, 6).toUpperCase() : 'MEMBER'));
+
+    // Start live PHT reset countdown
+    startPHTResetTimer();
+
+    // 1. Vault Balance & Lifetime Points
+    if (qs('#reward-points-balance')) qs('#reward-points-balance').textContent = czPoints.toLocaleString();
+    if (qs('#reward-lifetime-points')) qs('#reward-lifetime-points').textContent = `${lifetimePoints.toLocaleString()} CZ`;
+    if (qs('#rewards-tab-points')) qs('#rewards-tab-points').textContent = `${czPoints.toLocaleString()} CZ`;
+
+    // Tier badge
+    const tierBadge = qs('#reward-tier-badge');
+    if (tierBadge) {
+        if (lifetimePoints >= 1000) {
+            tierBadge.textContent = 'Master Tier';
+            tierBadge.className = 'font-mono-tag text-[9px] uppercase font-bold px-2 py-0.5 rounded bg-purple-500/20 text-purple-300 border border-purple-500/40 shadow-sm';
+        } else if (lifetimePoints >= 500) {
+            tierBadge.textContent = 'Elite Tier';
+            tierBadge.className = 'font-mono-tag text-[9px] uppercase font-bold px-2 py-0.5 rounded bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/40 shadow-sm';
+        } else {
+            tierBadge.textContent = 'Scout Tier';
+            tierBadge.className = 'font-mono-tag text-[9px] uppercase font-bold px-2 py-0.5 rounded bg-white/10 text-white border border-white/15';
+        }
+    }
+
+    // 2. Streak Counter & 7-Day Pills
+    const streakPill = qs('#streak-counter-pill');
+    if (streakPill) {
+        streakPill.textContent = `🔥 Day ${dailyStreak} of 7`;
+    }
+
+    const todayStr = getPHTDate();
+    let isCheckedInToday = (lastCheckIn === todayStr);
+    if (isCheckedInToday && (!userData.czPoints || userData.czPoints === 0) && (!userData.lifetimePoints || userData.lifetimePoints === 0)) {
+        isCheckedInToday = false;
+    }
+
+    const checkinBtn = qs('#daily-checkin-btn');
+    if (checkinBtn) {
+        if (isCheckedInToday) {
+            checkinBtn.disabled = true;
+            checkinBtn.innerHTML = '<span>Checked In Today ✓</span>';
+            checkinBtn.className = 'px-5 py-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-heading font-bold text-xs uppercase tracking-wider shrink-0 cursor-not-allowed';
+        } else {
+            checkinBtn.disabled = false;
+            const pts = dailyStreak === 7 ? 50 : 15;
+            checkinBtn.innerHTML = `<span>Claim Check-In (+${pts} CZ)</span>`;
+            checkinBtn.className = 'px-5 py-2.5 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-md shrink-0 cursor-pointer';
+        }
+    }
+
+    const streakContainer = qs('#streak-days-container');
+    if (streakContainer) {
+        let pillsHtml = '';
+        for (let day = 1; day <= 7; day++) {
+            const isMystery = (day === 7);
+            const pts = isMystery ? '+50' : '+15';
+            const isCompleted = (day < dailyStreak) || (day === dailyStreak && isCheckedInToday);
+            const isCurrent = (day === dailyStreak && !isCheckedInToday);
+
+            let bgBorder = 'bg-white/5 border-white/10 text-neutral-500';
+            let iconOrBonus = `<span class="text-[9px] font-mono font-bold">${pts}</span>`;
+
+            if (isCompleted) {
+                bgBorder = 'bg-emerald-500/10 border-emerald-500/40 text-emerald-400 shadow-[0_0_10px_rgba(16,185,129,0.1)]';
+                iconOrBonus = '<span class="text-xs font-bold text-emerald-400">✓</span>';
+            } else if (isCurrent) {
+                bgBorder = 'bg-[#FFD700]/15 border-[#FFD700] text-[#FFD700] ring-2 ring-[#FFD700]/30 animate-pulse';
+                iconOrBonus = `<span class="text-[9px] font-mono font-black text-[#FFD700]">${pts}</span>`;
+            } else if (isMystery) {
+                bgBorder = 'bg-gradient-to-br from-amber-500/10 to-purple-500/10 border-[#FFD700]/30 text-[#FFD700]';
+                iconOrBonus = '<span class="text-xs">🎁</span>';
+            }
+
+            pillsHtml += `
+                <div class="flex flex-col items-center justify-between p-2 sm:p-2.5 rounded-xl border ${bgBorder} text-center transition-all">
+                    <span class="text-[9px] font-mono-tag uppercase font-bold">D${day}</span>
+                    <div class="my-1">${iconOrBonus}</div>
+                    <span class="text-[8px] font-mono-tag ${isCompleted ? 'text-emerald-400 font-bold' : (isCurrent ? 'text-[#FFD700] font-bold' : 'text-neutral-500')}">${isCompleted ? 'DONE' : (isCurrent ? 'ACTIVE' : 'LOCK')}</span>
+                </div>
+            `;
+        }
+        streakContainer.innerHTML = pillsHtml;
+    }
+
+    // 3. Referral Engine
+    const referralLinkInput = qs('#user-referral-link-input');
+    const referralCodeDisplay = qs('#user-referral-code-display');
+    const referralsCountDisplay = qs('#referrals-count-display');
+    const referralsPointsDisplay = qs('#referrals-points-display');
+
+    const origin = window.location.origin || (window.location.protocol + '//' + window.location.host);
+    const fullInviteLink = `${origin}/signup?ref=${encodeURIComponent(referralCode)}`;
+
+    if (referralLinkInput) referralLinkInput.value = fullInviteLink;
+    if (referralCodeDisplay) referralCodeDisplay.textContent = referralCode;
+    if (referralsCountDisplay) referralsCountDisplay.textContent = referralCount;
+    if (referralsPointsDisplay) referralsPointsDisplay.textContent = `+${referralCount * 100}`;
+
+    // 4. Dynamic Rewards Catalog Pricing
+    await loadRewardsCatalog();
+
+    // 5. Redemption Receipts History
+    await loadRedemptionHistory();
+}
+
+async function loadRewardsCatalog() {
+    const container = qs('#rewards-catalog-cards');
+    if (!container) return;
+
+    try {
+        const docRef = doc(db, "site_config", "rewards_catalog");
+        const docSnap = await getDoc(docRef);
+
+        if (docSnap.exists() && Array.isArray(docSnap.data().items) && docSnap.data().items.length > 0) {
+            const items = docSnap.data().items.filter(it => it.active !== false);
+            if (items.length === 0) return;
+
+            container.innerHTML = '';
+            items.forEach(item => {
+                const cost = Number(item.cost) || 100;
+                const badgeClass = item.badgeClass || 'bg-[#FFD700]/15 text-[#FFD700] border-[#FFD700]/30';
+                const gameType = item.gameType || 'platform';
+                const safeTitle = escapeHtml(item.title);
+                const safeBadge = escapeHtml(item.badgeText || (gameType === 'platform' ? 'Instant Unlock' : gameType.toUpperCase()));
+                const safeDesc = escapeHtml(item.description);
+
+                const isSpecial = Boolean(item.isSpecialDrop);
+                const stockLimit = Number(item.stockLimit) || 0;
+                const claimedCount = Number(item.claimedCount) || 0;
+                const isLimited = stockLimit > 0;
+                const remaining = isLimited ? Math.max(0, stockLimit - claimedCount) : null;
+                const isSoldOut = isLimited && remaining <= 0;
+
+                let borderBgClass = 'bg-[#111116] border border-white/10 hover:border-[#FFD700]/40';
+                if (isSpecial) {
+                    borderBgClass = 'bg-gradient-to-b from-[#FFD700]/15 via-[#13131A] to-[#0A0A0E] border-2 border-[#FFD700] ring-1 ring-[#FFD700]/50 shadow-[0_0_30px_rgba(255,215,0,0.22)]';
+                }
+
+                let stockBadge = '';
+                if (isLimited) {
+                    if (isSoldOut) {
+                        stockBadge = '<span class="px-2 py-0.5 rounded text-[8px] font-mono-tag font-bold uppercase bg-red-500/20 text-red-400 border border-red-500/30">🚫 Sold Out</span>';
+                    } else if (remaining <= 3) {
+                        stockBadge = `<span class="px-2 py-0.5 rounded text-[8px] font-mono-tag font-bold uppercase bg-red-500/15 text-red-400 border border-red-500/30 animate-pulse">🔥 Only ${remaining} Left!</span>`;
+                    } else {
+                        stockBadge = `<span class="px-2 py-0.5 rounded text-[8px] font-mono-tag font-bold uppercase bg-white/10 text-neutral-300 border border-white/15">📦 ${remaining} Left</span>`;
+                    }
+                }
+
+                const specialRibbon = isSpecial
+                    ? `<div class="absolute top-0 right-0 bg-gradient-to-l from-[#FFD700] to-amber-400 text-black font-heading font-black text-[9px] uppercase tracking-wider px-3 py-1 rounded-bl-xl shadow-md flex items-center gap-1">
+                        <span>✨ SPECIAL DROP</span>
+                       </div>`
+                    : '';
+
+                const buttonAction = isSoldOut
+                    ? `<button type="button" disabled class="w-full py-2.5 rounded-xl bg-white/5 text-neutral-500 font-heading font-bold text-xs uppercase tracking-wider border border-white/10 cursor-not-allowed">
+                        Sold Out (${stockLimit} Claimed)
+                       </button>`
+                    : `<button type="button" onclick="window.openRedeemModal('${escapeHtml(item.id)}', '${safeTitle.replace(/'/g, "\\'")}', ${cost}, '${escapeHtml(gameType)}')"
+                        class="w-full py-2.5 rounded-xl ${isSpecial ? 'bg-[#FFD700] hover:bg-[#FFF099] text-black shadow-[0_0_15px_rgba(255,215,0,0.35)]' : 'bg-white/5 hover:bg-[#FFD700] text-neutral-200 hover:text-black border border-white/10 hover:border-[#FFD700]'} font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-pointer">
+                        ${gameType === 'platform' ? `Redeem (${cost.toLocaleString()} CZ)` : `Claim (${cost.toLocaleString()} CZ)`}
+                       </button>`;
+
+                const card = document.createElement('div');
+                card.className = `${borderBgClass} rounded-2xl p-5 sm:p-6 flex flex-col justify-between gap-4 transition-all relative overflow-hidden`;
+                card.innerHTML = `
+                    ${specialRibbon}
+                    <div>
+                        <div class="flex items-center justify-between mb-3 ${isSpecial ? 'pt-2' : ''}">
+                            <div class="flex items-center gap-1.5 flex-wrap">
+                                <span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase ${badgeClass} border">${safeBadge}</span>
+                                ${stockBadge}
+                            </div>
+                            <div class="font-heading font-extrabold text-base text-[#FFD700]">${cost.toLocaleString()} CZ</div>
+                        </div>
+                        <h3 class="font-heading font-bold text-base text-white uppercase tracking-tight">${safeTitle}</h3>
+                        <p class="text-xs text-neutral-400 mt-1 leading-relaxed">
+                            ${safeDesc}
+                        </p>
+                    </div>
+                    ${buttonAction}
+                `;
+                container.appendChild(card);
+            });
+        }
+    } catch (err) {
+        console.warn("Could not load rewards catalog config, using defaults:", err);
+    }
+}
+
+async function loadRedemptionHistory() {
+    const container = qs('#redemption-history-container');
+    if (!container || !activeUserUid) return;
+
+    try {
+        const q = query(
+            collection(db, "rewards_redemptions"),
+            where("userId", "==", activeUserUid),
+            limit(15)
+        );
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-neutral-500 font-mono-tag text-xs">
+                    No reward redemptions yet. Complete daily quests, invite friends, and claim perks above!
+                </div>
+            `;
+            return;
+        }
+
+        const items = [];
+        snap.forEach(d => items.push({ id: d.id, ...d.data() }));
+        items.sort((a, b) => {
+            const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : new Date(a.createdAt || 0).getTime();
+            const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : new Date(b.createdAt || 0).getTime();
+            return timeB - timeA;
+        });
+
+        container.innerHTML = items.map(item => {
+            const dateStr = item.createdAt?.toDate 
+                ? item.createdAt.toDate().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                : formatDate(item.createdAt);
+            const isCompleted = (item.status === 'completed');
+            const statusBadge = isCompleted
+                ? '<span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">Active / Fulfilled</span>'
+                : '<span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30 animate-pulse">Processing Delivery</span>';
+
+            return `
+                <div class="p-3.5 rounded-xl bg-white/5 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-3 font-mono-tag text-xs">
+                    <div class="flex items-center gap-3">
+                        <div class="w-8 h-8 rounded-lg bg-[#FFD700]/10 border border-[#FFD700]/30 flex items-center justify-center text-[#FFD700] font-bold shrink-0">
+                            🪙
+                        </div>
+                        <div>
+                            <div class="font-heading font-bold text-white uppercase text-sm">${escapeHtml(item.rewardTitle || 'Reward')}</div>
+                            <div class="text-[10px] text-neutral-400 mt-0.5 flex items-center gap-2">
+                                <span>${dateStr}</span>
+                                ${item.gameDetails?.gameId ? `<span>• ID: <strong class="text-neutral-200">${escapeHtml(item.gameDetails.gameId)}</strong></span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="flex items-center justify-between sm:justify-end gap-3 shrink-0">
+                        <span class="text-[#FFD700] font-bold text-sm">-${item.costPoints || 0} CZ</span>
+                        ${statusBadge}
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+    } catch (err) {
+        console.warn("Could not load redemption receipts:", err);
+    }
+}
+
+window.claimDailyCheckin = async function () {
+    if (!activeUserUid) {
+        if (window.showWarningToast) window.showWarningToast("Sign In Required", "Please log in to claim daily check-in rewards.");
+        return;
+    }
+
+    const todayStr = getPHTDate();
+    const lastCheckIn = activeUserData.lastCheckInDate || '';
+
+    let isAlreadyClaimed = (lastCheckIn === todayStr);
+    if (isAlreadyClaimed && (!activeUserData.czPoints || activeUserData.czPoints === 0) && (!activeUserData.lifetimePoints || activeUserData.lifetimePoints === 0)) {
+        isAlreadyClaimed = false;
+    }
+
+    if (isAlreadyClaimed) {
+        if (window.showWarningToast) window.showWarningToast("Already Claimed", "You have already claimed your daily check-in today! Next reset is at 12:00 AM PHT (midnight).");
+        return;
+    }
+
+    const yesterdayStr = getPHTYesterday();
+
+    const currentStreak = typeof activeUserData.dailyStreak === 'number' ? activeUserData.dailyStreak : 1;
+    let newStreak = 1;
+
+    if (lastCheckIn === yesterdayStr) {
+        newStreak = (currentStreak % 7) + 1;
+    } else if (!lastCheckIn) {
+        newStreak = 1;
+    } else {
+        newStreak = 1; // Streak reset to day 1 after a missed day
+    }
+
+    const pointsToAward = (newStreak === 7) ? 50 : 15;
+    const btn = qs('#daily-checkin-btn');
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>Claiming...</span>';
+    }
+
+    try {
+        const userRef = doc(db, "users", activeUserUid);
+        await updateDoc(userRef, {
+            czPoints: increment(pointsToAward),
+            lifetimePoints: increment(pointsToAward),
+            dailyStreak: newStreak,
+            lastCheckInDate: todayStr
+        });
+
+        activeUserData.czPoints = (activeUserData.czPoints || 0) + pointsToAward;
+        activeUserData.lifetimePoints = (activeUserData.lifetimePoints || 0) + pointsToAward;
+        activeUserData.dailyStreak = newStreak;
+        activeUserData.lastCheckInDate = todayStr;
+
+        await loadRewardsData(activeUserData);
+
+        if (window.showSuccessToast) {
+            window.showSuccessToast(
+                `Check-In Claimed! +${pointsToAward} CZ`,
+                newStreak === 7 ? "Day 7 Mystery Drop unlocked! +50 CZ added to your vault." : `Day ${newStreak} of 7 streak active! Next reset at 12:00 AM PHT.`
+            );
+        }
+
+    } catch (err) {
+        console.error("Error claiming checkin:", err);
+        if (window.showErrorToast) window.showErrorToast("Claim Failed", err.message || "Failed to claim check-in.");
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>Claim Check-In</span>';
+        }
+    }
+};
+
+window.copyReferralLink = function () {
+    const input = qs('#user-referral-link-input');
+    if (!input || !input.value) return;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(input.value).then(() => {
+            if (window.showSuccessToast) {
+                window.showSuccessToast("Invite Link Copied!", "Share with friends: You get +100 CZ per registered player, and they get +50 CZ.");
+            }
+        }).catch(() => {
+            input.select();
+            document.execCommand('copy');
+            if (window.showSuccessToast) window.showSuccessToast("Invite Link Copied!", "Copied to clipboard.");
+        });
+    } else {
+        input.select();
+        document.execCommand('copy');
+        if (window.showSuccessToast) window.showSuccessToast("Invite Link Copied!", "Copied to clipboard.");
+    }
+};
+
+window.copyReferralCodeOnly = function () {
+    const codeEl = qs('#user-referral-code-display');
+    const code = codeEl ? codeEl.textContent.trim() : '';
+    if (!code) return;
+
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(code).then(() => {
+            if (window.showSuccessToast) window.showSuccessToast("Referral Code Copied!", `Code "${code}" copied.`);
+        });
+    } else {
+        if (window.showSuccessToast) window.showSuccessToast("Referral Code", `Code: ${code}`);
+    }
+};
+
+window.openRedeemModal = function (rewardId, title, cost, gameType) {
+    if (!activeUserUid) {
+        if (window.showWarningToast) window.showWarningToast("Sign In Required", "Please log in to redeem rewards.");
+        return;
+    }
+
+    const currentPoints = typeof activeUserData.czPoints === 'number' ? activeUserData.czPoints : 0;
+    if (currentPoints < cost) {
+        if (window.showWarningToast) {
+            window.showWarningToast(
+                "Insufficient CZ Points",
+                `You need ${cost} CZ Points for this item. Your balance is ${currentPoints} CZ.`
+            );
+        }
+        return;
+    }
+
+    if (qs('#modal-redeem-id')) qs('#modal-redeem-id').value = rewardId;
+    if (qs('#modal-redeem-title')) qs('#modal-redeem-title').textContent = title;
+    if (qs('#modal-redeem-cost')) qs('#modal-redeem-cost').textContent = `${cost} CZ Points`;
+    if (qs('#modal-redeem-cost-val')) qs('#modal-redeem-cost-val').value = cost;
+    if (qs('#modal-redeem-game-type')) qs('#modal-redeem-game-type').value = gameType || '';
+    if (qs('#modal-redeem-balance-after')) qs('#modal-redeem-balance-after').textContent = `${(currentPoints - cost).toLocaleString()} CZ`;
+
+    const gameInputsDiv = qs('#modal-game-info-inputs');
+    const zoneWrapper = qs('#modal-zone-id-wrapper');
+    const idLabel = qs('#modal-game-id-label');
+    const idInput = qs('#modal-game-id-input');
+    const zoneInput = qs('#modal-zone-id-input');
+
+    if (idInput) idInput.value = '';
+    if (zoneInput) zoneInput.value = '';
+
+    if (gameType === 'mlbb') {
+        if (gameInputsDiv) gameInputsDiv.classList.remove('hidden');
+        if (zoneWrapper) zoneWrapper.classList.remove('hidden');
+        if (idLabel) idLabel.textContent = 'MLBB User ID';
+        if (idInput) {
+            idInput.placeholder = 'e.g. 123456789';
+            if (activeUserData.mlbbId) idInput.value = activeUserData.mlbbId;
+        }
+    } else if (gameType === 'valorant') {
+        if (gameInputsDiv) gameInputsDiv.classList.remove('hidden');
+        if (zoneWrapper) zoneWrapper.classList.add('hidden');
+        if (idLabel) idLabel.textContent = 'Riot ID (e.g. Player#PH1)';
+        if (idInput) {
+            idInput.placeholder = 'e.g. JettMain#PH1';
+            if (activeUserData.valId) idInput.value = activeUserData.valId;
+        }
+    } else if (gameType === 'hok') {
+        if (gameInputsDiv) gameInputsDiv.classList.remove('hidden');
+        if (zoneWrapper) zoneWrapper.classList.add('hidden');
+        if (idLabel) idLabel.textContent = 'Honor of Kings UID';
+        if (idInput) {
+            idInput.placeholder = 'e.g. 987654321';
+            if (activeUserData.hokId) idInput.value = activeUserData.hokId;
+        }
+    } else {
+        if (gameInputsDiv) gameInputsDiv.classList.add('hidden');
+    }
+
+    const modal = qs('#rewardRedeemModal');
+    if (modal) modal.classList.remove('hidden');
+};
+
+window.closeRedeemModal = function () {
+    const modal = qs('#rewardRedeemModal');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.submitRewardRedeem = async function (e) {
+    if (e && e.preventDefault) e.preventDefault();
+    if (!activeUserUid) return;
+
+    const rewardId = qs('#modal-redeem-id')?.value;
+    const title = qs('#modal-redeem-title')?.textContent || 'Reward';
+    const cost = parseInt(qs('#modal-redeem-cost-val')?.value, 10) || 0;
+    const gameType = qs('#modal-redeem-game-type')?.value;
+    const gameId = qs('#modal-game-id-input')?.value?.trim();
+    const zoneId = qs('#modal-zone-id-input')?.value?.trim();
+
+    if (gameType && !gameId) {
+        if (window.showWarningToast) window.showWarningToast("Player ID Required", "Please provide your in-game player ID/IGN to receive your currency.");
+        return;
+    }
+
+    const currentPoints = typeof activeUserData.czPoints === 'number' ? activeUserData.czPoints : 0;
+    if (currentPoints < cost) {
+        if (window.showWarningToast) window.showWarningToast("Insufficient Points", "You do not have enough CZ Points.");
+        return;
+    }
+
+    const submitBtn = qs('#modal-redeem-submit-btn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Processing...';
+    }
+
+    try {
+        // Verify stock limit from site_config/rewards_catalog if applicable
+        try {
+            const configRef = doc(db, "site_config", "rewards_catalog");
+            const configSnap = await getDoc(configRef);
+            if (configSnap.exists()) {
+                const catalogItems = configSnap.data().items || [];
+                const itemIndex = catalogItems.findIndex(it => it.id === rewardId);
+                if (itemIndex !== -1) {
+                    const it = catalogItems[itemIndex];
+                    if (it.stockLimit > 0 && (it.claimedCount || 0) >= it.stockLimit) {
+                        if (window.showWarningToast) window.showWarningToast("Reward Sold Out", "All available claims for this reward have been redeemed.");
+                        if (submitBtn) {
+                            submitBtn.disabled = false;
+                            submitBtn.textContent = 'Confirm Claim';
+                        }
+                        await loadRewardsCatalog();
+                        return;
+                    }
+                    it.claimedCount = (it.claimedCount || 0) + 1;
+                    await setDoc(configRef, { items: catalogItems, updatedAt: serverTimestamp() }, { merge: true });
+                }
+            }
+        } catch (stockErr) {
+            console.warn("Could not check/update stock limit:", stockErr);
+        }
+
+        const userRef = doc(db, "users", activeUserUid);
+        const updates = {
+            czPoints: increment(-cost)
+        };
+
+        const isInstantPro = (rewardId === 'pro_badge');
+        if (isInstantPro) {
+            const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+            updates.isSupporter = true;
+            updates.supporterTier = 'gold';
+            updates.supporterBadge = 'PRO';
+            updates.supporterSince = new Date().toISOString();
+            updates.supporterExpiresAt = Date.now() + thirtyDaysMs;
+        }
+
+        await updateDoc(userRef, updates);
+
+        await addDoc(collection(db, "rewards_redemptions"), {
+            userId: activeUserUid,
+            userEmail: auth.currentUser?.email || '',
+            userName: activeUserData.displayName || activeUserData.ign || 'Champion',
+            rewardId: rewardId,
+            rewardTitle: title,
+            costPoints: cost,
+            gameType: gameType || null,
+            gameDetails: {
+                gameId: gameId || null,
+                zoneId: zoneId || null
+            },
+            status: isInstantPro || rewardId === 'spotlight_48h' || rewardId === 'tournament_pass' ? 'completed' : 'pending_delivery',
+            createdAt: serverTimestamp()
+        });
+
+        activeUserData.czPoints = currentPoints - cost;
+        if (isInstantPro) {
+            activeUserData.isSupporter = true;
+            activeUserData.supporterTier = 'gold';
+            activeUserData.supporterBadge = 'PRO';
+            activeUserData.supporterExpiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+        }
+
+        window.closeRedeemModal();
+
+        if (window.showSuccessToast) {
+            window.showSuccessToast(
+                "Reward Claimed! 🪙",
+                isInstantPro 
+                    ? "PRO Supporter status has been activated for 30 days on your profile!"
+                    : `Redemption receipt created for ${title}. Points deducted: ${cost} CZ.`
+            );
+        }
+
+        await loadUserProfile(activeUserUid, auth.currentUser?.email);
+        await loadRewardsData(activeUserData);
+
+    } catch (err) {
+        console.error("Error submitting redemption:", err);
+        if (window.showErrorToast) window.showErrorToast("Redemption Error", err.message || "Failed to redeem reward.");
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Confirm Claim';
+        }
+    }
+};
+
 

@@ -14,13 +14,18 @@ export function escapeHtml(str) {
     return String(str).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); 
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+export function initEvents() {
     fetchEvents();
     checkAdminStatus();
-    
-    // 3. Start the live match engine
     initLiveScores();
-});
+}
+window.initEvents = initEvents;
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initEvents);
+} else {
+    initEvents();
+}
 
 function parseFirestoreValue(val) {
     if (!val) return null;

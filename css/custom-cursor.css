@@ -17,30 +17,50 @@
 header#main-header,
 header.sticky {
     view-transition-name: main-header;
-    transition: background-color 0.2s ease, border-color 0.2s ease !important;
     position: sticky !important;
     top: 0 !important;
-    z-index: 1000 !important;
+    z-index: 2000 !important;
+    overflow: visible !important;
+}
+
+header#main-header > div,
+#auth-controls-wrapper,
+#auth-controls,
+.profile-dropdown-container,
+#user-notifications {
+    overflow: visible !important;
+    position: relative !important;
+}
+
+::view-transition-group(main-header) {
+    animation: none !important;
+    z-index: 2000 !important;
+}
+
+::view-transition-old(main-header),
+::view-transition-new(main-header) {
+    animation: none !important;
 }
 
 #auth-controls-wrapper,
 #auth-controls {
     position: relative;
-    z-index: 1001;
+    z-index: 2001 !important;
 }
 
 .profile-dropdown-container,
 #user-notifications {
     position: relative !important;
-    z-index: 1002 !important;
+    z-index: 2002 !important;
 }
 
 #profile-dropdown-menu {
-    z-index: 1005 !important;
+    z-index: 2050 !important;
+    position: absolute !important;
 }
 
 #notif-dropdown {
-    z-index: 1005 !important;
+    z-index: 2050 !important;
 }
 
 html {
@@ -48,11 +68,145 @@ html {
     overflow-y: scroll;
     background-color: #060608 !important;
     color-scheme: dark;
+    scroll-behavior: smooth;
 }
 
 body {
     background-color: #060608 !important;
     min-height: 100vh;
+}
+
+/* ==========================================================================
+   CHAMPZERO SILKY SMOOTH MOTION & DYNAMICS ENGINE
+   ========================================================================== */
+
+/* 1. Global Interactive Element Smoothing (Buttons, Links, Inputs, Tabs) */
+button,
+a,
+.btn,
+.tab-btn,
+.nav-link,
+.view-tab-btn,
+.role-tab,
+input[type="button"],
+input[type="submit"] {
+    transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                background-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                color 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+/* 2. Tactile Button Click Spring Feedback */
+button:active,
+.btn:active,
+.tab-btn:active,
+.view-tab-btn:active {
+    transform: scale(0.96) !important;
+}
+
+/* 3. Silky Smooth Global Cards & Hover Elevation */
+.tier-card,
+.tier-gold-card,
+.tournament-card,
+.team-card,
+.scrim-card,
+.talent-card,
+.event-card,
+.partner-card,
+.sponsor-card,
+.cz-interactive-card,
+.card-hover {
+    transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
+                border-color 0.28s cubic-bezier(0.16, 1, 0.3, 1), 
+                box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1),
+                background-color 0.28s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    will-change: transform, box-shadow;
+}
+
+.tier-card:hover,
+.tier-gold-card:hover,
+.tournament-card:hover,
+.team-card:hover,
+.scrim-card:hover,
+.talent-card:hover,
+.event-card:hover,
+.partner-card:hover,
+.sponsor-card:hover,
+.cz-interactive-card:hover,
+.card-hover:hover {
+    transform: translateY(-5px) scale(1.012) !important;
+    border-color: rgba(255, 215, 0, 0.5) !important;
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.8), 0 0 28px rgba(255, 215, 0, 0.15) !important;
+}
+
+/* 4. Buttery-Smooth Modal & Dropdown Slide-In Animation for ALL Dropdowns & Popovers */
+#profile-dropdown-menu,
+#notif-dropdown,
+.dropdown-menu,
+.cz-dropdown,
+.filter-dropdown,
+.select-dropdown,
+.custom-select-menu,
+[data-dropdown-menu],
+.action-dropdown,
+.options-menu,
+.cz-modal-box,
+.custom-modal-box,
+dialog[open],
+.popover-box {
+    animation: czDropdownSmooth 0.22s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+    transform-origin: top right;
+}
+
+@keyframes czDropdownSmooth {
+    from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+/* 5. Smooth Sliding Drawers & Community Chat Windows */
+#cz-dm-window,
+#cz-chat-window,
+.chat-drawer,
+.sliding-drawer {
+    transition: opacity 0.26s cubic-bezier(0.16, 1, 0.3, 1), 
+                transform 0.26s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    will-change: transform, opacity;
+}
+
+/* 6. Smooth Tab & Content Cross-Fade Morphing */
+.tab-content,
+[data-tab-pane],
+.tab-pane,
+.view-panel {
+    animation: czTabFadeIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes czTabFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 7. Fluid Inertial Swiping & Scrollbars */
+.overflow-x-auto,
+.overflow-y-auto,
+.horizontal-scroll,
+.scrims-feed-scroll {
+    scroll-behavior: smooth !important;
+    -webkit-overflow-scrolling: touch;
 }
 
 @media (hover: hover) and (pointer: fine) {

@@ -158,7 +158,12 @@ function initCheckoutForm() {
             if (currentSelectedTier === 'gold') supporterBadge = 'patron';
             else if (currentSelectedTier === 'silver') supporterBadge = 'elite';
 
-            // 1. Record donation in Firestore
+            const durationDays = 30;
+            const durationMs = durationDays * 24 * 60 * 60 * 1000;
+            const now = Date.now();
+            const expiresAt = now + durationMs;
+
+            // 1. Record donation in Firestore with 30-day expiration
             await addDoc(collection(db, "donations"), {
                 userId: donorUid,
                 userName: donorName,
@@ -168,30 +173,55 @@ function initCheckoutForm() {
                 amount: currentAmount,
                 message: message || "Fueling the future of global grassroots esports!",
                 channel: channel,
-                timestamp: Date.now(),
+                timestamp: now,
+                expiresAt: expiresAt,
+                durationDays: durationDays,
                 createdAt: serverTimestamp()
             });
 
-            // 2. If logged in, update User profile with Supporter Badge & Perks
+            // 2. If logged in, update User profile with Supporter Badge & Expiration
             if (currentUser) {
+                let existingExpires = now;
+                try {
+                    const uSnap = await getDoc(doc(db, "users", currentUser.uid));
+                    if (uSnap.exists()) {
+                        const ud = uSnap.data();
+                        if (ud.supporterExpiresAt && ud.supporterExpiresAt > now) {
+                            existingExpires = ud.supporterExpiresAt;
+                        }
+                    }
+                } catch(e) {}
+
                 const userRef = doc(db, "users", currentUser.uid);
                 await setDoc(userRef, {
                     isSupporter: true,
                     supporterTier: currentSelectedTier,
                     supporterBadge: supporterBadge,
-                    supporterSince: Date.now(),
+                    supporterSince: now,
+                    supporterExpiresAt: existingExpires + durationMs,
                     totalDonated: increment(currentAmount),
                     supporterMessage: message || "",
                     showOnWallOfFame: true
                 }, { merge: true });
+
+                // Synchronize instant local auth cache so header & profile update immediately
+                try {
+                    const authCache = JSON.parse(localStorage.getItem('cz_auth_cache') || '{}');
+                    authCache.isSupporter = true;
+                    authCache.supporterTier = currentSelectedTier;
+                    authCache.supporterBadge = supporterBadge;
+                    localStorage.setItem('cz_auth_cache', JSON.stringify(authCache));
+                } catch (e) {}
             }
 
             window.closeDonationModal();
 
-            if (window.toast) {
-                window.toast.success(`Thank you, ${donorName}! Your ${currentTierTitle} perks and badges are now active.`);
+            if (typeof window.showSuccessToast === 'function') {
+                window.showSuccessToast("Thank You!", `Your ${currentTierTitle} perks and badges are now active for 30 days!`);
+            } else if (window.toast) {
+                window.toast.success(`Thank you, ${donorName}! Your ${currentTierTitle} perks are active for 30 days.`);
             } else {
-                alert(`Thank you, ${donorName}! Your supporter perks are active.`);
+                alert(`Thank you, ${donorName}! Your supporter perks are active for 30 days.`);
             }
 
             // Reset form
@@ -199,7 +229,9 @@ function initCheckoutForm() {
 
         } catch (error) {
             console.error("Donation submission error:", error);
-            if (window.toast) {
+            if (typeof window.showErrorToast === 'function') {
+                window.showErrorToast("Error", "An error occurred while processing your contribution.");
+            } else if (window.toast) {
                 window.toast.error("An error occurred while processing your donation. Please try again.");
             } else {
                 alert("An error occurred. Please try again.");
@@ -213,21 +245,50 @@ function initCheckoutForm() {
     });
 }
 
-// 5. LIVE WALL OF FAME STREAM
+// 5. LIVE WALL OF FAME STREAM (Only active, non-expired backers)
+let isAdminUser = false;
+
 function initWallOfFameListener() {
     const grid = document.getElementById('wall-of-fame-grid');
     if (!grid) return;
 
+    // Check admin status
+    onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            try {
+                const uDoc = await getDoc(doc(db, "users", user.uid));
+                if (uDoc.exists()) {
+                    isAdminUser = uDoc.data().role === 'admin';
+                }
+            } catch(e) {}
+        } else {
+            isAdminUser = false;
+        }
+    });
+
     try {
-        const q = query(collection(db, "donations"), orderBy("timestamp", "desc"), limit(12));
+        const q = query(collection(db, "donations"), orderBy("timestamp", "desc"), limit(24));
         onSnapshot(q, (snapshot) => {
             if (snapshot.empty) {
                 renderEmptyWallOfFame(grid);
                 return;
             }
 
+            const now = Date.now();
             const donations = [];
-            snapshot.forEach(doc => donations.push({ id: doc.id, ...doc.data() }));
+            snapshot.forEach(doc => {
+                const data = doc.data();
+                // Filter: Show only if not expired (or no expiresAt set)
+                if (!data.expiresAt || data.expiresAt > now) {
+                    donations.push({ id: doc.id, ...data });
+                }
+            });
+
+            if (donations.length === 0) {
+                renderEmptyWallOfFame(grid);
+                return;
+            }
+
             renderWallOfFameItems(grid, donations);
         }, (err) => {
             console.warn("Live donations feed status:", err);
@@ -240,6 +301,8 @@ function initWallOfFameListener() {
 }
 
 function renderWallOfFameItems(container, items) {
+    const now = Date.now();
+
     container.innerHTML = items.map(d => {
         const tier = d.tier || 'bronze';
         let badgeTag = 'SCOUT';
@@ -257,25 +320,38 @@ function renderWallOfFameItems(container, items) {
         }
 
         const dateStr = d.timestamp ? new Date(d.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Recent';
+        
+        let daysLeftStr = '';
+        if (d.expiresAt && d.expiresAt > now) {
+            const days = Math.ceil((d.expiresAt - now) / (1000 * 60 * 60 * 24));
+            daysLeftStr = `<span class="text-emerald-400">• ${days}d left</span>`;
+        }
 
         return `
-            <div class="clean-card p-5 rounded-2xl flex items-start gap-3.5 ${cardBorder}">
+            <div class="clean-card p-5 rounded-2xl flex items-start gap-3.5 relative group ${cardBorder}">
                 <div class="w-11 h-11 rounded-xl bg-black/60 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center p-0.5">
                     <img src="${escapeHtml(d.userAvatar || 'pictures/cz_logo.png')}" alt="Avatar" class="w-full h-full object-cover rounded-lg">
                 </div>
-                <div class="overflow-hidden flex-1">
+                <div class="overflow-hidden flex-1 min-w-0">
                     <div class="flex items-center justify-between gap-1 mb-1">
                         <span class="font-heading font-bold text-sm text-white truncate">${escapeHtml(d.userName || 'Champion Backer')}</span>
-                        <span class="font-mono-tag text-[9px] uppercase px-1.5 py-0.2 rounded border ${badgeClasses} shrink-0">
-                            ${badgeTag}
-                        </span>
+                        <div class="flex items-center gap-1.5 shrink-0">
+                            <span class="font-mono-tag text-[9px] uppercase px-1.5 py-0.2 rounded border ${badgeClasses}">
+                                ${badgeTag}
+                            </span>
+                            ${isAdminUser ? `
+                                <button onclick="window.deleteSupporterFromWall('${d.id}')" title="Delete from Wall of Fame (Admin)" class="p-1 rounded-md bg-red-950/60 hover:bg-red-900 text-red-400 border border-red-500/40 text-[10px] transition-all cursor-pointer">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                </button>
+                            ` : ''}
+                        </div>
                     </div>
                     <p class="text-xs text-neutral-300 italic line-clamp-2 leading-relaxed">
                         "${escapeHtml(d.message || 'For the next generation of champions!')}"
                     </p>
                     <div class="mt-2 flex items-center justify-between text-[10px] font-mono-tag text-neutral-500">
                         <span>₱${Number(d.amount || 0).toLocaleString()} Backed</span>
-                        <span>${dateStr}</span>
+                        <span class="flex items-center gap-1">${dateStr} ${daysLeftStr}</span>
                     </div>
                 </div>
             </div>
@@ -283,11 +359,40 @@ function renderWallOfFameItems(container, items) {
     }).join('');
 }
 
+// 6. ADMIN DELETE SUPPORTER FROM WALL OF FAME
+window.deleteSupporterFromWall = async (donationId) => {
+    if (!donationId) return;
+
+    const confirmed = await (window.showCustomConfirm 
+        ? window.showCustomConfirm("Delete Supporter Listing?", "This will permanently remove this supporter contribution from the Wall of Fame.")
+        : confirm("Remove this supporter listing from the Wall of Fame?"));
+    
+    if (!confirmed) return;
+
+    try {
+        const { deleteDoc, doc: fDoc } = await import("https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js");
+        await deleteDoc(fDoc(db, "donations", donationId));
+
+        if (typeof window.showSuccessToast === 'function') {
+            window.showSuccessToast("Removed", "Supporter entry deleted from the Wall of Fame.");
+        } else {
+            alert("Supporter entry deleted.");
+        }
+    } catch (err) {
+        console.error("Error deleting donation:", err);
+        if (typeof window.showErrorToast === 'function') {
+            window.showErrorToast("Error", "Failed to delete supporter entry: " + err.message);
+        } else {
+            alert("Failed to delete entry: " + err.message);
+        }
+    }
+};
+
 function renderEmptyWallOfFame(container) {
     container.innerHTML = `
         <div class="col-span-full clean-card p-8 rounded-2xl text-center">
-            <p class="font-heading font-bold text-sm text-neutral-300 uppercase tracking-wide">Be the First Supporter</p>
-            <p class="text-xs text-neutral-500 mt-1">Back ChampZero and your badge and dedication will be spotlighted on this Wall of Fame.</p>
+            <p class="font-heading font-bold text-sm text-neutral-300 uppercase tracking-wide">Be the First Active Supporter</p>
+            <p class="text-xs text-neutral-500 mt-1">Back ChampZero and your badge and dedication will be spotlighted on this Wall of Fame during your active support period.</p>
         </div>
     `;
 }

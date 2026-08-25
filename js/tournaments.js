@@ -1,5 +1,5 @@
 import { auth, db, storage } from './firebase-config.js';
-import { collection, getDocs, doc, getDoc, updateDoc, addDoc, deleteDoc, arrayUnion, arrayRemove, serverTimestamp, query, where, writeBatch, onSnapshot } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { collection, getDocs, doc, getDoc, updateDoc, addDoc, deleteDoc, arrayUnion, arrayRemove, serverTimestamp, query, where, writeBatch, onSnapshot, increment } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-storage.js";
 import { calculateStatus, escapeCssUrl } from './utils.js';
@@ -1294,20 +1294,22 @@ function renderTournaments() {
                 <div class="pointer-events-none absolute bottom-2.5 left-2.5 w-3 h-3 border-b-2 border-l-2 ${isHost ? 'border-[#FFD700]' : 'border-white/20'} group-hover:border-[#FFD700] transition-colors duration-300 z-20"></div>
                 <div class="pointer-events-none absolute bottom-2.5 right-2.5 w-3 h-3 border-b-2 border-r-2 ${isHost ? 'border-[#FFD700]' : 'border-white/20'} group-hover:border-[#FFD700] transition-colors duration-300 z-20"></div>
 
-                <!-- TOP HEADER: Game Badge, Format Pill, Role Badge, and Live Radar Status -->
+                <!-- TOP HEADER: Game & Format Badges with Role Badge Underneath | Status on Right -->
                 <div class="relative z-10 p-4 flex justify-between items-start gap-2">
-                    <div class="flex items-center gap-1.5 flex-wrap">
-                        <span class="bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] font-mono-tag font-bold text-white uppercase tracking-wider border border-white/15 flex items-center gap-1.5 shadow-md">
-                            <span class="w-1.5 h-1.5 rounded-full bg-[#FFD700] shadow-[0_0_6px_#FFD700]"></span>
-                            ${escapeHtml(t.game || 'Esports')}
-                        </span>
-                        <span class="bg-white/10 backdrop-blur-md px-2 py-1 rounded-md text-[9px] font-mono-tag font-bold text-neutral-300 uppercase tracking-wider border border-white/10">
-                            ${escapeHtml(modePill)}
-                        </span>
-                        ${roleBadgeHtml}
+                    <div class="flex flex-col items-start gap-1.5 min-w-0">
+                        <div class="flex items-center gap-1.5 flex-wrap">
+                            <span class="bg-black/80 backdrop-blur-md px-2.5 py-1 rounded-md text-[10px] font-mono-tag font-bold text-white uppercase tracking-wider border border-white/15 flex items-center gap-1.5 shadow-md">
+                                <span class="w-1.5 h-1.5 rounded-full bg-[#FFD700] shadow-[0_0_6px_#FFD700]"></span>
+                                ${escapeHtml(t.game || 'Esports')}
+                            </span>
+                            <span class="bg-white/10 backdrop-blur-md px-2 py-1 rounded-md text-[9px] font-mono-tag font-bold text-neutral-300 uppercase tracking-wider border border-white/10">
+                                ${escapeHtml(modePill)}
+                            </span>
+                        </div>
+                        ${roleBadgeHtml ? `<div>${roleBadgeHtml}</div>` : ''}
                     </div>
 
-                    <div>
+                    <div class="shrink-0">
                         ${statusBadgeHtml}
                     </div>
                 </div>
@@ -2073,11 +2075,23 @@ function renderTournamentRankings(participants, prizePool, matches, prizeSplit, 
     if (isCancelled) {
         tbody.innerHTML = `
             <tr>
-                <td colspan="6" class="py-10 text-center text-red-400 font-mono-tag text-xs italic bg-red-500/5">
-                    Tournament was cancelled. Rankings and prize payouts are unavailable.
+                <td colspan="6" class="py-3 px-4 text-center text-red-400 font-mono-tag text-xs font-bold bg-red-500/10 border-b border-red-500/20">
+                    ⚠️ Tournament Cancelled &bull; Registered Rosters Preserved
                 </td>
             </tr>
-        `;
+        ` + participants.map((p) => {
+            const name = typeof p === 'object' ? (p.name || 'Unnamed') : p;
+            return `
+                <tr class="hover:bg-white/5 transition-colors text-xs font-mono-tag">
+                    <td class="py-3 px-4 text-center text-red-400/80 font-bold">-</td>
+                    <td class="py-3 px-4 text-neutral-200 font-bold uppercase tracking-wide truncate max-w-[180px] sm:max-w-xs">${escapeHtml(name)}</td>
+                    <td class="py-3 px-4 text-center text-neutral-500">-</td>
+                    <td class="py-3 px-4 text-center text-neutral-500">-</td>
+                    <td class="py-3 px-4 text-center text-neutral-500">-</td>
+                    <td class="py-3 px-4 text-right text-red-400 font-mono-tag text-[10px] font-bold">CANCELLED</td>
+                </tr>
+            `;
+        }).join('');
         return;
     }
 
@@ -3907,6 +3921,20 @@ function updateOrganizerPermissions(t) {
         editBtn.onclick = () => openEditTournamentModal(t);
     }
 
+    const editPrizeBtn = document.getElementById('btn-edit-prize-pool');
+    if (editPrizeBtn) {
+        editPrizeBtn.classList.toggle('hidden', !isStaff);
+        editPrizeBtn.classList.toggle('inline-flex', isStaff);
+        editPrizeBtn.onclick = () => window.openEditPrizeModal(t.id);
+    }
+
+    const editPrizeSplitBtn = document.getElementById('btn-edit-prize-split');
+    if (editPrizeSplitBtn) {
+        editPrizeSplitBtn.classList.toggle('hidden', !isStaff);
+        editPrizeSplitBtn.classList.toggle('inline-flex', isStaff);
+        editPrizeSplitBtn.onclick = () => window.openEditPrizeModal(t.id);
+    }
+
     const isArchived = (t.archived === true || t.isArchived === true || t.status === 'Archived');
 
     const archiveBtn = document.getElementById('archiveTournamentBtn');
@@ -4850,7 +4878,19 @@ async function submitJoinRequest() {
             }
 
             document.getElementById('joinModal').classList.add('hidden');
-            if (window.showSuccessToast) window.showSuccessToast('Registration Successful', isSoloOrDuel ? 'You have registered for the tournament.' : 'You have been added to the Solo Free Agent queue.');
+
+            // Award Tournament Action Points (+50 CZ)
+            try {
+                const userRef = doc(db, "users", user.uid);
+                await updateDoc(userRef, {
+                    czPoints: increment(50),
+                    lifetimePoints: increment(50)
+                });
+            } catch (ptsErr) {
+                console.warn("Could not award tournament registration points:", ptsErr);
+            }
+
+            if (window.showSuccessToast) window.showSuccessToast('Registration Successful! 🪙', (isSoloOrDuel ? 'You have registered for the tournament.' : 'You have been added to the Solo Free Agent queue.') + ' (+50 CZ Points earned)');
         } catch (error) {
             console.error("Error joining solo queue:", error);
             if (window.showErrorToast) window.showErrorToast('Error', 'Failed to complete registration: ' + error.message);
@@ -4995,7 +5035,23 @@ async function submitJoinRequest() {
         }
 
         const msg = isEdit ? 'Update request sent!' : 'Application submitted!';
-        if (window.showSuccessToast) window.showSuccessToast('Success', msg);
+        if (window.showSuccessToast) {
+            window.showSuccessToast('Success! 🪙', isEdit ? msg : `${msg} (+50 CZ Points earned)`);
+        }
+
+        if (!isEdit) {
+            // Award Tournament Action Points (+50 CZ)
+            try {
+                const userRef = doc(db, "users", user.uid);
+                await updateDoc(userRef, {
+                    czPoints: increment(50),
+                    lifetimePoints: increment(50)
+                });
+            } catch (ptsErr) {
+                console.warn("Could not award tournament registration points:", ptsErr);
+            }
+        }
+
         document.getElementById('joinModal').classList.add('hidden');
     } catch (e) {
         console.error(e);
@@ -8378,6 +8434,216 @@ window.handlePrizeSplitInput = function() {
     if (c3) c3.textContent = `₱${Math.round(pool * (s3 / 100)).toLocaleString()}`;
 };
 
+// --- TOURNAMENT PRIZE POOL & PODIUM SPLIT EDITING ---
+window.openEditPrizeModal = function (tId) {
+    let t = null;
+    if (tId && typeof tId === 'string') {
+        t = (allTournaments && allTournaments.find(item => item.id === tId)) || currentEditingTournament;
+    } else {
+        t = currentEditingTournament || window.currentEditingTournament || (allTournaments && allTournaments.find(item => item.id === window._currentTournamentId));
+    }
+    if (!t) return;
+
+    const idInput = document.getElementById('edit-prize-tourney-id');
+    const totalInput = document.getElementById('edit-prize-total-input');
+    const currSelect = document.getElementById('edit-prize-currency-select');
+    const in1 = document.getElementById('edit-prize-1st-input');
+    const in2 = document.getElementById('edit-prize-2nd-input');
+    const in3 = document.getElementById('edit-prize-3rd-input');
+
+    if (idInput) idInput.value = t.id;
+    if (totalInput) totalInput.value = t.prize || 0;
+    if (currSelect) currSelect.value = t.entryCurrency || 'PHP';
+
+    const split = t.prizeSplit || { first: 100, second: 0, third: 0 };
+    const s1 = split.first !== undefined ? Number(split.first) : 100;
+    const s2 = split.second !== undefined ? Number(split.second) : 0;
+    const s3 = split.third !== undefined ? Number(split.third) : 0;
+
+    if (in1) in1.value = s1;
+    if (in2) in2.value = s2;
+    if (in3) in3.value = s3;
+
+    if (s1 === 100 && s2 === 0 && s3 === 0) {
+        window.setEditPrizePresetStyle('winner_takes_all');
+    } else if (s1 === 70 && s2 === 30 && s3 === 0) {
+        window.setEditPrizePresetStyle('top_2');
+    } else if (s1 === 60 && s2 === 30 && s3 === 10) {
+        window.setEditPrizePresetStyle('top_3');
+    } else {
+        window.setEditPrizePresetStyle('custom');
+    }
+
+    window.handleEditPrizeSplitInput();
+    window.openModal('editPrizeModal');
+};
+
+window.setEditPrizePresetStyle = function (preset) {
+    const pWinner = document.getElementById('edit-preset-winner');
+    const pTop2 = document.getElementById('edit-preset-top2');
+    const pTop3 = document.getElementById('edit-preset-top3');
+    const pCustom = document.getElementById('edit-preset-custom');
+
+    const resetStyle = (el) => {
+        if (!el) return;
+        el.className = 'p-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 font-bold uppercase transition-all border border-white/10 cursor-pointer text-center';
+    };
+    const activeStyle = (el) => {
+        if (!el) return;
+        el.className = 'p-2 rounded-lg bg-[#FFD700] text-black font-bold uppercase transition-all cursor-pointer text-center shadow-sm';
+    };
+
+    [pWinner, pTop2, pTop3, pCustom].forEach(resetStyle);
+
+    if (preset === 'winner_takes_all') activeStyle(pWinner);
+    else if (preset === 'top_2') activeStyle(pTop2);
+    else if (preset === 'top_3') activeStyle(pTop3);
+    else activeStyle(pCustom);
+};
+
+window.setEditPrizePreset = function (preset) {
+    const in1 = document.getElementById('edit-prize-1st-input');
+    const in2 = document.getElementById('edit-prize-2nd-input');
+    const in3 = document.getElementById('edit-prize-3rd-input');
+
+    if (preset === 'winner_takes_all') {
+        if (in1) in1.value = 100;
+        if (in2) in2.value = 0;
+        if (in3) in3.value = 0;
+    } else if (preset === 'top_2') {
+        if (in1) in1.value = 70;
+        if (in2) in2.value = 30;
+        if (in3) in3.value = 0;
+    } else if (preset === 'top_3') {
+        if (in1) in1.value = 60;
+        if (in2) in2.value = 30;
+        if (in3) in3.value = 10;
+    }
+
+    window.setEditPrizePresetStyle(preset);
+    window.handleEditPrizeSplitInput();
+};
+
+window.handleEditPrizeSplitInput = function () {
+    const pool = Number(document.getElementById('edit-prize-total-input')?.value) || 0;
+    const currency = document.getElementById('edit-prize-currency-select')?.value || 'PHP';
+    const sym = currency === 'USD' ? '$' : '₱';
+
+    const in1 = document.getElementById('edit-prize-1st-input');
+    const in2 = document.getElementById('edit-prize-2nd-input');
+    const in3 = document.getElementById('edit-prize-3rd-input');
+
+    const s1 = Number(in1?.value) || 0;
+    const s2 = Number(in2?.value) || 0;
+    const s3 = Number(in3?.value) || 0;
+
+    const sum = s1 + s2 + s3;
+    const sumDisplay = document.getElementById('edit-prize-split-sum');
+    if (sumDisplay) {
+        if (sum === 100) {
+            sumDisplay.textContent = 'Total: 100%';
+            sumDisplay.className = 'text-[10px] font-mono-tag text-emerald-400 font-bold';
+        } else {
+            sumDisplay.textContent = `Total: ${sum}% (Must equal 100%)`;
+            sumDisplay.className = 'text-[10px] font-mono-tag text-amber-400 font-bold animate-pulse';
+        }
+    }
+
+    const c1 = document.getElementById('edit-prize-calc-1st');
+    const c2 = document.getElementById('edit-prize-calc-2nd');
+    const c3 = document.getElementById('edit-prize-calc-3rd');
+
+    if (c1) c1.textContent = `${sym}${Math.round(pool * (s1 / 100)).toLocaleString()}`;
+    if (c2) c2.textContent = `${sym}${Math.round(pool * (s2 / 100)).toLocaleString()}`;
+    if (c3) c3.textContent = `${sym}${Math.round(pool * (s3 / 100)).toLocaleString()}`;
+};
+
+window.saveTournamentPrize = async function (event) {
+    if (event && event.preventDefault) event.preventDefault();
+
+    const tId = document.getElementById('edit-prize-tourney-id')?.value;
+    const newPrize = Number(document.getElementById('edit-prize-total-input')?.value) || 0;
+    const currency = document.getElementById('edit-prize-currency-select')?.value || 'PHP';
+
+    const s1 = Number(document.getElementById('edit-prize-1st-input')?.value) || 0;
+    const s2 = Number(document.getElementById('edit-prize-2nd-input')?.value) || 0;
+    const s3 = Number(document.getElementById('edit-prize-3rd-input')?.value) || 0;
+
+    if (!tId) {
+        if (window.showErrorToast) window.showErrorToast("Error", "No tournament selected.");
+        return;
+    }
+
+    const sum = s1 + s2 + s3;
+    if (sum !== 100) {
+        if (window.showWarningToast) window.showWarningToast("Invalid Split", `Prize percentages sum to ${sum}%. They must equal exactly 100%.`);
+        return;
+    }
+
+    const submitBtn = document.getElementById('edit-prize-submit-btn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Saving...';
+    }
+
+    try {
+        const tRef = doc(db, "tournaments", tId);
+        const updateData = {
+            prize: newPrize,
+            entryCurrency: currency,
+            prizeSplit: {
+                first: s1,
+                second: s2,
+                third: s3
+            },
+            updatedAt: new Date().toISOString()
+        };
+
+        await updateDoc(tRef, updateData);
+
+        // Update local object
+        if (currentEditingTournament && currentEditingTournament.id === tId) {
+            currentEditingTournament.prize = newPrize;
+            currentEditingTournament.entryCurrency = currency;
+            currentEditingTournament.prizeSplit = updateData.prizeSplit;
+        }
+
+        if (allTournaments) {
+            const idx = allTournaments.findIndex(item => item.id === tId);
+            if (idx !== -1) {
+                allTournaments[idx].prize = newPrize;
+                allTournaments[idx].entryCurrency = currency;
+                allTournaments[idx].prizeSplit = updateData.prizeSplit;
+            }
+        }
+
+        window.closeModal('editPrizeModal');
+
+        // Re-render prize displays
+        renderPrizeBreakdown(currentEditingTournament || { prize: newPrize, prizeSplit: updateData.prizeSplit });
+        const detailPrizeEl = document.getElementById('detailPrize');
+        if (detailPrizeEl) {
+            detailPrizeEl.textContent = `₱${newPrize.toLocaleString()}`;
+        }
+        const orgPayoutPrizeEl = document.getElementById('orgPayoutPrize');
+        if (orgPayoutPrizeEl) {
+            orgPayoutPrizeEl.textContent = `₱${newPrize.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+        }
+
+        if (window.showSuccessToast) {
+            window.showSuccessToast("Prize Updated! 💰", `Total prize pool set to ₱${newPrize.toLocaleString()}`);
+        }
+    } catch (err) {
+        console.error("Error saving tournament prize:", err);
+        if (window.showErrorToast) window.showErrorToast("Save Failed", err.message || "Failed to update prize pool.");
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Save Prize Pool';
+        }
+    }
+};
+
 // --- TOURNAMENT RULES MANAGEMENT & PRESETS ---
 const RULES_PRESETS = {
     standard: `1. Match Check-In: All teams and players must check in at least 15 minutes before their scheduled match time. Failure to check in will result in an automatic match forfeit.
@@ -8560,3 +8826,7 @@ window.renderPayoutsTab = renderPayoutsTab;
 window.renderTournamentRankings = renderTournamentRankings;
 window.renderPodiumShowcase = renderPodiumShowcase;
 window.isUserWinnerOrStaff = isUserWinnerOrStaff;
+window.openEditPrizeModal = window.openEditPrizeModal;
+window.saveTournamentPrize = window.saveTournamentPrize;
+window.setEditPrizePreset = window.setEditPrizePreset;
+window.handleEditPrizeSplitInput = window.handleEditPrizeSplitInput;

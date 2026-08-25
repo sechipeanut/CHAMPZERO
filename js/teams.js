@@ -145,53 +145,66 @@ window.showCustomConfirm = (title, message) => {
 window.customConfirm = window.showCustomConfirm;
 
 // --- UPDATED INITIALIZATION WITH REAL-TIME SCRIM FEED ---
-document.addEventListener('DOMContentLoaded', async () => {
-    console.log("DOM Loaded: Initializing Teams, Recruitment & Scrim Board...");
+export function initTeams() {
+    console.log("Initializing Teams, Recruitment & Scrim Board...");
 
     // Start real-time Scrims feed immediately
     subscribeToScrims();
 
     const scrimSearchInput = document.getElementById('scrim-search');
-    if (scrimSearchInput) {
+    if (scrimSearchInput && !scrimSearchInput._hasListener) {
+        scrimSearchInput._hasListener = true;
         scrimSearchInput.addEventListener('input', (e) => {
             scrimSearchQuery = (e.target.value || '').trim().toLowerCase();
             if (activeView === 'scrims') renderScrimsBoard();
         });
     }
 
-    auth.onAuthStateChanged(async (user) => {
-        if (user) {
-            console.log(`Auth State: User ${user.uid} is logged in.`);
-            try {
-                const snap = await getDoc(doc(db, "users", user.uid));
-                if (snap.exists()) currentUserRole = snap.data().role;
-                startKickListener(user.uid);
+    if (!window._teamsAuthListenerInit) {
+        window._teamsAuthListenerInit = true;
+        auth.onAuthStateChanged(async (user) => {
+            if (user) {
+                console.log(`Auth State: User ${user.uid} is logged in.`);
+                try {
+                    const snap = await getDoc(doc(db, "users", user.uid));
+                    if (snap.exists()) currentUserRole = snap.data().role;
+                    startKickListener(user.uid);
 
-                // --- SESSION RESTORATION LOGIC ---
-                const savedTeamId = sessionStorage.getItem('active_chat_teamId');
-                const savedLftId = sessionStorage.getItem('active_chat_lftId');
+                    // --- SESSION RESTORATION LOGIC ---
+                    const savedTeamId = sessionStorage.getItem('active_chat_teamId');
+                    const savedLftId = sessionStorage.getItem('active_chat_lftId');
 
-                if (savedTeamId) {
-                    console.log(`Session Found: Attempting to reopen ID ${savedTeamId}`);
-                    if (savedLftId) {
-                        activeLftChatId = savedLftId;
-                        window.startLftChat(savedTeamId, "User");
-                    } else {
-                        window.openManageModal(savedTeamId);
+                    if (savedTeamId) {
+                        console.log(`Session Found: Attempting to reopen ID ${savedTeamId}`);
+                        if (savedLftId) {
+                            activeLftChatId = savedLftId;
+                            window.startLftChat(savedTeamId, "User");
+                        } else {
+                            window.openManageModal(savedTeamId);
+                        }
                     }
+                } catch (e) {
+                    console.error("Error fetching role or session:", e);
                 }
-            } catch (e) {
-                console.error("Error fetching role or session:", e);
+            } else {
+                console.log("Auth State: No user logged in.");
+                if (kickUnsubscribe) kickUnsubscribe();
+                currentUserRole = null;
             }
-        } else {
-            console.log("Auth State: No user logged in.");
-            if (kickUnsubscribe) kickUnsubscribe();
-            currentUserRole = null;
-        }
+            renderTeams();
+        });
+    } else {
         renderTeams();
-    });
+    }
     setupForms();
-});
+}
+window.initTeams = initTeams;
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTeams);
+} else {
+    initTeams();
+}
 
 const TAB_ACTIVE_CLASS = "px-3.5 py-1.5 rounded-lg bg-[#FFD700] text-black font-extrabold shadow-sm transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap";
 const TAB_INACTIVE_CLASS = "px-3.5 py-1.5 rounded-lg text-neutral-400 hover:text-white font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap";
@@ -361,21 +374,44 @@ window.changeTeamsPage = (page) => {
     }
 };
 
-window.setGameFilter = (game) => { activeGameFilter = game; teamsCurrentPage = 1; renderTeams(); }
-window.setRosterFilter = (roster) => { activeRosterFilter = roster; teamsCurrentPage = 1; renderTeams(); }
-window.setRoleFilter = (role) => { activeRoleFilter = role; teamsCurrentPage = 1; renderTeams(); }
+window.setGameFilter = (game) => { 
+    activeGameFilter = game; 
+    scrimGameFilter = game;
+    teamsCurrentPage = 1; 
+    syncGamePillActive(game);
+    renderTeams(); 
+};
+
+window.setGamePillFilter = (game) => {
+    window.setGameFilter(game);
+};
+
+function syncGamePillActive(game) {
+    document.querySelectorAll('.game-pill').forEach(btn => {
+        btn.classList.remove('bg-[#22c55e]', 'text-black', 'active', 'shadow-md');
+        btn.classList.add('bg-[#15151d]', 'text-neutral-300', 'border', 'border-white/10');
+    });
+    const activeBtn = document.getElementById(`game-pill-${game}`);
+    if (activeBtn) {
+        activeBtn.classList.remove('bg-[#15151d]', 'text-neutral-300', 'border', 'border-white/10');
+        activeBtn.classList.add('bg-[#22c55e]', 'text-black', 'active', 'shadow-md');
+    }
+}
+
+window.setRosterFilter = (roster) => { activeRosterFilter = roster; teamsCurrentPage = 1; renderTeams(); };
+window.setRoleFilter = (role) => { activeRoleFilter = role; teamsCurrentPage = 1; renderTeams(); };
 
 window.resetFilters = () => {
     activeGameFilter = 'all';
+    scrimGameFilter = 'all';
     activeRosterFilter = 'all';
     activeRoleFilter = 'all';
     searchTerm = '';
     teamsCurrentPage = 1;
-    const gameSelect = document.getElementById('filter-game');
+    syncGamePillActive('all');
     const rosterSelect = document.getElementById('filter-roster');
     const roleSelect = document.getElementById('filter-role');
     const searchInput = document.getElementById('team-search');
-    if (gameSelect) gameSelect.value = 'all';
     if (rosterSelect) rosterSelect.value = 'all';
     if (roleSelect) roleSelect.value = 'all';
     if (searchInput) searchInput.value = '';
@@ -461,7 +497,13 @@ async function renderTeams() {
                     <div class="flex flex-col gap-1">
                         <div class="text-white font-bold text-sm">${escapeHtml(inv.teamName || 'Unknown Team')}</div>
                         <div class="text-gray-400 text-xs">Invited by <span class="text-[var(--gold)]">${escapeHtml(inv.invitedByName || 'Team Captain')}</span></div>
-                        <div class="text-gray-600 text-[10px] mt-0.5 uppercase tracking-wide font-bold">${isPending ? '⏳ Pending' : inv.status === 'accepted' ? '✅ Accepted' : '❌ Declined'}</div>
+                        <div class="text-xs mt-0.5 uppercase tracking-wide font-bold flex items-center gap-1.5">
+                            ${isPending 
+                                ? '<span class="text-amber-400 flex items-center gap-1"><svg class="w-3 h-3 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> Pending</span>' 
+                                : inv.status === 'accepted' 
+                                    ? '<span class="text-emerald-400 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg> Accepted</span>' 
+                                    : '<span class="text-red-400 flex items-center gap-1"><svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg> Declined</span>'}
+                        </div>
                     </div>
                     ${isPending ? `
                     <div class="flex gap-2 w-full sm:w-auto sm:shrink-0">
@@ -668,7 +710,7 @@ async function renderTeams() {
         board.innerHTML = '';
 
         if (teamsViewMode === 'list') {
-            board.className = "flex flex-col gap-2 min-h-[300px]";
+            board.className = "flex flex-col gap-2.5";
             displayedPosts.forEach(post => {
                 const isAuthor = myUid === post.authorId;
                 const myMemberData = post.members ? post.members.find(m => m.uid === myUid) : null;
@@ -678,7 +720,7 @@ async function renderTeams() {
                     : renderPlayerRow(post, isAuthor);
             });
         } else {
-            board.className = "grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3.5 auto-rows-fr min-h-[300px]";
+            board.className = "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 items-start";
             displayedPosts.forEach(post => {
                 const isAuthor = myUid === post.authorId;
                 const myMemberData = post.members ? post.members.find(m => m.uid === myUid) : null;
@@ -699,9 +741,9 @@ async function renderTeams() {
 
         if (countTextEl) {
             if (activeView === 'teams') {
-                countTextEl.textContent = `Showing ${count} Squad${count === 1 ? '' : 's'} (${openCount} with open recruitment spots)`;
+                countTextEl.textContent = `${totalCount} team${totalCount === 1 ? '' : 's'} found`;
             } else {
-                countTextEl.textContent = `Showing ${count} Player LFT Listing${count === 1 ? '' : 's'}`;
+                countTextEl.textContent = `${totalCount} free agent${totalCount === 1 ? '' : 's'} found`;
             }
         }
         if (resetBtnEl) {
@@ -826,163 +868,203 @@ function updateBlimpUI(teamId, color, show) {
     }
 }
 
+function formatJoinedDate(rawDate) {
+    if (!rawDate) return 'Joined Aug 2026';
+    try {
+        let d = null;
+        if (typeof rawDate.toDate === 'function') {
+            d = rawDate.toDate();
+        } else if (rawDate.seconds !== undefined) {
+            d = new Date(rawDate.seconds * 1000);
+        } else if (typeof rawDate === 'number') {
+            d = new Date(rawDate);
+        } else if (typeof rawDate === 'string' && rawDate.trim()) {
+            const parsed = Date.parse(rawDate);
+            if (!isNaN(parsed)) d = new Date(parsed);
+        }
+        if (d && !isNaN(d.getTime())) {
+            const month = d.toLocaleDateString('en-US', { month: 'short' });
+            const year = d.getFullYear();
+            return `Joined ${month} ${year}`;
+        }
+    } catch (e) {}
+    return 'Joined Aug 2026';
+}
+
 function renderTeamCard(post, isAuthor, isMember) {
     const memberCount = post.members ? post.members.length : (post.currentMembers || 1);
     const maxMembers = post.maxMembers || 5;
     const isFull = memberCount >= maxMembers;
-    const spotsLeft = Math.max(0, maxMembers - memberCount);
     const captain = post.members?.find(m => m.role === 'Captain') || { name: post.authorName || 'Captain' };
-    const borderClass = "border-white/10 hover:border-[#FFD700] hover:shadow-[0_0_20px_rgba(255,215,0,0.15)]";
-    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[8px] font-mono-tag font-bold px-1 py-0.2 rounded uppercase">PRO</span>` : '';
+    const borderClass = "border-white/10 hover:border-[#FFD700]/50 hover:shadow-[0_0_20px_rgba(255,215,0,0.1)]";
+    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase shrink-0">PRO</span>` : '';
     
-    const rolesHtml = post.roles && post.roles.length > 0 
-        ? post.roles.slice(0, 2).map(r => `<span class="bg-black/60 text-indigo-200 border border-indigo-500/30 text-[8px] font-mono-tag font-bold px-1.5 py-0.2 rounded uppercase tracking-wider">${escapeHtml(r.trim())}</span>`).join(' ') + (post.roles.length > 2 ? `<span class="text-[8px] text-neutral-400 font-mono-tag pl-0.5">+${post.roles.length - 2}</span>` : '')
-        : `<span class="text-[8px] text-neutral-500 font-mono-tag">Any Role</span>`;
+    let gameDisplayName = 'Valorant';
+    let gameLogoSrc = 'pictures/logo_valorant.png';
+
+    const gLower = (post.game || post.gameId || '').toLowerCase();
+    if (gLower.includes('mlbb') || gLower.includes('mobile legends')) {
+        gameDisplayName = 'Mobile Legends';
+        gameLogoSrc = 'pictures/logo_mlbb.png';
+    } else if (gLower.includes('hok') || gLower.includes('honor of kings')) {
+        gameDisplayName = 'Honor of Kings';
+        gameLogoSrc = 'pictures/logo_hok.png';
+    } else {
+        gameDisplayName = 'Valorant';
+        gameLogoSrc = 'pictures/logo_valorant.png';
+    }
+
+    const joinedDateStr = formatJoinedDate(post.createdAt || post.timestamp || post.created_at || post.date);
 
     let actionBtn = '';
     if (isAuthor || isMember) {
-        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="flex-1 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer text-center flex items-center justify-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg><span>Team Chat</span></button>`;
+        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-sm whitespace-nowrap"><span>Team Chat</span></button>`;
     } else if (isFull) {
-        actionBtn = `<button disabled class="flex-1 py-1.5 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider cursor-not-allowed text-center">Full</button>`;
+        actionBtn = `<button disabled class="px-5 py-2 bg-neutral-900/90 text-neutral-500 border border-neutral-800 rounded-xl text-xs font-heading font-bold uppercase tracking-wider cursor-not-allowed whitespace-nowrap">Full</button>`;
     } else if (post.applicationsOpen === false) {
-        actionBtn = `<button disabled class="flex-1 py-1.5 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider cursor-not-allowed text-center">Closed</button>`;
+        actionBtn = `<button disabled class="px-5 py-2 bg-neutral-900/90 text-neutral-500 border border-neutral-800 rounded-xl text-xs font-heading font-bold uppercase tracking-wider cursor-not-allowed whitespace-nowrap">Closed</button>`;
     } else {
-        actionBtn = `<button onclick="window.openApplicationModal('${post.id}', '${escapeHtml(post.name)}')" class="flex-1 py-1.5 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1 cursor-pointer font-semibold"><span>Apply</span> &rarr;</button>`;
+        actionBtn = `<button onclick="window.openApplicationModal('${post.id}', '${escapeHtml(post.name)}')" class="px-5 py-2 bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1 font-semibold whitespace-nowrap"><span>Apply</span> &rarr;</button>`;
     }
 
-    const statusBadge = isFull 
-        ? `<span class="bg-red-500/20 text-red-400 border border-red-500/40 text-[8px] font-mono-tag font-bold px-1.5 py-0.2 rounded-full uppercase">Full</span>`
-        : `<span class="bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[8px] font-mono-tag font-bold px-1.5 py-0.2 rounded-full uppercase">${spotsLeft} Open</span>`;
-
     return `
-        <article data-id="${post.id}" class="bg-[#0D0D12] border rounded-xl overflow-hidden transition-all duration-200 group flex flex-col justify-between relative ${borderClass}">
-            <!-- Card Top Header Banner -->
-            <div class="relative h-20 w-full bg-cover bg-center overflow-hidden" style="background-image: url('${escapeHtml(post.image || 'pictures/cz_logo.png')}');">
-                <div class="absolute inset-0 bg-gradient-to-t from-[#0D0D12] via-[#0D0D12]/60 to-black/50"></div>
-                
-                <div class="absolute top-2 left-2 right-2 flex items-center justify-between z-10">
-                    <div class="flex items-center gap-1 min-w-0">
-                        <span class="bg-black/80 backdrop-blur-md text-[#FFD700] border border-[#FFD700]/30 font-mono-tag font-bold text-[8px] px-1.5 py-0.2 rounded uppercase tracking-wider truncate">${escapeHtml(formatGameBadge(post.game || post.gameId))}</span>
-                        <div class="blimp-container"></div>
-                    </div>
-                    ${statusBadge}
-                </div>
-            </div>
-
-            <!-- Card Body Details -->
-            <div class="px-3 pb-3 pt-1 flex-1 flex flex-col justify-between relative z-10 -mt-4">
-                <div>
-                    <div class="flex items-center justify-between gap-1.5 mb-1">
-                        <h3 class="text-sm font-heading font-bold text-white truncate group-hover:text-[#FFD700] transition-colors flex items-center gap-1">
-                            ${escapeHtml(post.name)} ${verifiedBadge}
-                        </h3>
-                    </div>
-                    
-                    <p class="text-[9px] text-neutral-400 font-mono-tag truncate mb-1.5">
-                        Capt: <span class="text-neutral-200 font-semibold">${escapeHtml(captain.name)}</span>
-                    </p>
-
-                    <div class="flex flex-wrap items-center gap-1 mb-2">
-                        ${rolesHtml}
-                    </div>
-                </div>
-
-                <div>
-                    <div class="mb-2">
-                        <div class="flex justify-between text-[8px] font-mono-tag text-neutral-400 mb-0.5 font-bold uppercase">
-                            <span>Roster</span>
-                            <span class="${isFull ? 'text-red-400' : 'text-[#FFD700]'}">${memberCount} / ${maxMembers}</span>
+        <article data-id="${post.id}" class="bg-[#111116] border ${borderClass} rounded-2xl p-4 sm:p-5 flex flex-col justify-between gap-3.5 transition-all duration-200 group relative shadow-lg">
+            <div>
+                <!-- Top Row: Team Logo + Team Name & Member Count + Game Icon -->
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                        <div class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-black/60 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center p-0.5 shadow-sm">
+                            <img src="${escapeHtml(post.image || 'pictures/cz_logo.png')}" alt="Team Logo" class="w-full h-full object-cover rounded-lg" onerror="this.src='pictures/cz_logo.png'">
                         </div>
-                        <div class="w-full bg-black/60 h-1 rounded-full overflow-hidden border border-white/5">
-                            <div class="bg-gradient-to-r from-amber-500 to-[#FFD700] h-full transition-all duration-500" style="width: ${Math.min(100, (memberCount / maxMembers) * 100)}%"></div>
+                        <div class="min-w-0 flex-1">
+                            <h3 class="font-heading font-bold text-base text-white truncate group-hover:text-[#FFD700] transition-colors flex items-center gap-1.5 leading-tight">
+                                <span class="truncate">${escapeHtml(post.name)}</span>
+                                ${verifiedBadge}
+                            </h3>
+                            <p class="text-xs font-mono-tag text-neutral-400 mt-1 flex items-center gap-1.5">
+                                <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                                <span class="text-neutral-300 font-medium">${memberCount} member${memberCount !== 1 ? 's' : ''}</span>
+                            </p>
                         </div>
                     </div>
 
-                    <!-- Action Button Row -->
-                    <div class="flex items-center gap-1.5 pt-1.5 border-t border-white/5">
-                        <button onclick="window.openTeamDetailsModal('${post.id}')" class="px-2.5 py-1.5 bg-white/5 hover:bg-white/15 text-neutral-200 border border-white/10 hover:border-white/30 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer text-center">
-                            Roster
-                        </button>
-                        ${actionBtn}
+                    <!-- Game Logo Badge -->
+                    <div class="w-9 h-9 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center p-2 shrink-0 shadow-inner" title="${gameDisplayName}">
+                        <img src="${gameLogoSrc}" alt="${gameDisplayName}" class="w-full h-full object-contain">
                     </div>
                 </div>
+
+                <!-- Middle Sub-line (Game & Joined Date) -->
+                <div class="flex items-center justify-between gap-2 text-xs font-mono-tag text-neutral-400 pt-3 mt-3 border-t border-white/5">
+                    <span class="text-neutral-300 font-medium flex items-center gap-1.5 shrink-0">
+                        <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="6" stroke-width="2"></rect><path d="M6 12h4m-2-2v4m10-2h.01m-3 0h.01" stroke-width="2" stroke-linecap="round"></path></svg>
+                        <span>${gameDisplayName}</span>
+                    </span>
+                    <span class="text-neutral-400 shrink-0">${joinedDateStr}</span>
+                </div>
             </div>
-        </article>`;
+
+            <!-- Bottom Action Row: Captain Info + "i" (Info) Button + Apply Button -->
+            <div class="flex items-center justify-between gap-3 pt-3 border-t border-white/5">
+                <div class="text-xs font-mono-tag text-neutral-400 truncate max-w-[150px] sm:max-w-[200px]">
+                    Capt: <strong class="text-neutral-200 font-semibold">${escapeHtml(captain.name)}</strong>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0">
+                    <!-- "i" Info / Roster Button -->
+                    <button onclick="window.openTeamDetailsModal('${post.id}')" 
+                        title="View Team Info & Roster" 
+                        class="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 hover:border-white/30 flex items-center justify-center text-xs font-mono font-bold transition-all cursor-pointer shadow-sm active:scale-95">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </button>
+
+                    <!-- Apply / Action Button -->
+                    ${actionBtn}
+                </div>
+            </div>
+        </article>
+    `;
 }
 
 function renderTeamRow(post, isAuthor, isMember) {
     const memberCount = post.members ? post.members.length : (post.currentMembers || 1);
     const maxMembers = post.maxMembers || 5;
     const isFull = memberCount >= maxMembers;
-    const spotsLeft = Math.max(0, maxMembers - memberCount);
     const captain = post.members?.find(m => m.role === 'Captain') || { name: post.authorName || 'Captain' };
-    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[8px] font-mono-tag font-bold px-1 py-0.2 rounded uppercase">PRO</span>` : '';
+    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase shrink-0">PRO</span>` : '';
     
-    const rolesHtml = post.roles && post.roles.length > 0 
-        ? post.roles.slice(0, 2).map(r => `<span class="bg-black/60 text-indigo-200 border border-indigo-500/30 text-[8px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase tracking-tight">${escapeHtml(r.trim())}</span>`).join(' ') + (post.roles.length > 2 ? `<span class="text-[8px] text-neutral-400 font-mono-tag">+${post.roles.length - 2}</span>` : '')
-        : `<span class="text-[8px] text-neutral-500 font-mono-tag">Any Role</span>`;
+    let gameDisplayName = 'Valorant';
+    let gameLogoSrc = 'pictures/logo_valorant.png';
+
+    const gLower = (post.game || post.gameId || '').toLowerCase();
+    if (gLower.includes('mlbb') || gLower.includes('mobile legends')) {
+        gameDisplayName = 'Mobile Legends';
+        gameLogoSrc = 'pictures/logo_mlbb.png';
+    } else if (gLower.includes('hok') || gLower.includes('honor of kings')) {
+        gameDisplayName = 'Honor of Kings';
+        gameLogoSrc = 'pictures/logo_hok.png';
+    } else {
+        gameDisplayName = 'Valorant';
+        gameLogoSrc = 'pictures/logo_valorant.png';
+    }
+
+    const joinedDateStr = formatJoinedDate(post.createdAt || post.timestamp || post.created_at || post.date);
 
     let actionBtn = '';
     if (isAuthor || isMember) {
-        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg><span>Team Chat</span></button>`;
+        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-sm whitespace-nowrap"><span>Team Chat</span></button>`;
     } else if (isFull) {
-        actionBtn = `<button disabled class="px-3 py-1.5 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider cursor-not-allowed">Full</button>`;
+        actionBtn = `<button disabled class="px-5 py-2 bg-neutral-900/90 text-neutral-500 border border-neutral-800 rounded-xl text-xs font-heading font-bold uppercase tracking-wider cursor-not-allowed whitespace-nowrap">Full</button>`;
     } else if (post.applicationsOpen === false) {
-        actionBtn = `<button disabled class="px-3 py-1.5 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider cursor-not-allowed">Closed</button>`;
+        actionBtn = `<button disabled class="px-5 py-2 bg-neutral-900/90 text-neutral-500 border border-neutral-800 rounded-xl text-xs font-heading font-bold uppercase tracking-wider cursor-not-allowed whitespace-nowrap">Closed</button>`;
     } else {
-        actionBtn = `<button onclick="window.openApplicationModal('${post.id}', '${escapeHtml(post.name)}')" class="px-3 py-1.5 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 flex items-center gap-1 cursor-pointer font-semibold"><span>Apply</span> &rarr;</button>`;
+        actionBtn = `<button onclick="window.openApplicationModal('${post.id}', '${escapeHtml(post.name)}')" class="px-5 py-2 bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1 font-semibold whitespace-nowrap"><span>Apply</span> &rarr;</button>`;
     }
 
-    const statusBadge = isFull 
-        ? `<span class="bg-red-500/15 text-red-400 border border-red-500/30 text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded-full uppercase">Full</span>`
-        : `<span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded-full uppercase">${spotsLeft} Open</span>`;
-
     return `
-        <div data-id="${post.id}" class="bg-[#0D0D12] hover:bg-[#12121A] border border-white/10 hover:border-[#FFD700]/50 rounded-xl p-3 sm:px-4 sm:py-2.5 transition-all duration-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 group">
+        <div data-id="${post.id}" class="bg-[#111116] hover:bg-[#15151c] border border-white/10 hover:border-[#FFD700]/50 rounded-2xl p-4 sm:px-5 sm:py-3.5 transition-all duration-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 group shadow-lg">
             <!-- Left Identity -->
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-                <img src="${escapeHtml(post.image || 'pictures/cz_logo.png')}" class="w-9 h-9 rounded-lg object-cover border border-white/10 shrink-0 group-hover:border-[#FFD700]/50 transition-colors" alt="Team Logo">
+            <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                <div class="w-11 h-11 rounded-xl bg-black/60 border border-white/10 overflow-hidden shrink-0 flex items-center justify-center p-0.5">
+                    <img src="${escapeHtml(post.image || 'pictures/cz_logo.png')}" class="w-full h-full object-cover rounded-lg" alt="Team Logo" onerror="this.src='pictures/cz_logo.png'">
+                </div>
                 <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-1.5">
-                        <span class="font-heading font-bold text-white text-sm truncate group-hover:text-[#FFD700] transition-colors">${escapeHtml(post.name)}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="font-heading font-bold text-white text-base truncate group-hover:text-[#FFD700] transition-colors">${escapeHtml(post.name)}</span>
                         ${verifiedBadge}
-                        <div class="blimp-container"></div>
                     </div>
-                    <div class="flex items-center gap-2 text-[10px] text-neutral-400 font-mono-tag">
-                        <span>Capt: <strong class="text-neutral-300 font-medium">${escapeHtml(captain.name)}</strong></span>
-                        <span class="text-neutral-600">•</span>
-                        <span class="text-[#FFD700] font-bold">${escapeHtml(formatGameBadge(post.game || post.gameId))}</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Center: Roles -->
-            <div class="hidden lg:flex items-center gap-2 shrink-0">
-                ${rolesHtml}
-            </div>
-
-            <!-- Mid-Right: Capacity Progress Bar -->
-            <div class="flex items-center gap-3 shrink-0">
-                <div class="hidden sm:block w-28 text-right">
-                    <div class="flex justify-between text-[9px] font-mono-tag text-neutral-400 mb-1 font-bold uppercase">
-                        <span>Roster</span>
-                        <span class="${isFull ? 'text-red-400' : 'text-[#FFD700]'}">${memberCount}/${maxMembers}</span>
-                    </div>
-                    <div class="w-full bg-black/60 h-1 rounded-full overflow-hidden border border-white/5">
-                        <div class="bg-gradient-to-r from-amber-500 to-[#FFD700] h-full" style="width: ${Math.min(100, (memberCount / maxMembers) * 100)}%"></div>
+                    <div class="flex items-center gap-2 text-xs text-neutral-400 font-mono-tag mt-0.5">
+                        <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="6" stroke-width="2"></rect><path d="M6 12h4m-2-2v4m10-2h.01m-3 0h.01" stroke-width="2" stroke-linecap="round"></path></svg> ${gameDisplayName}</span>
+                        <span>•</span>
+                        <span class="flex items-center gap-1"><svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg> ${memberCount} member${memberCount !== 1 ? 's' : ''}</span>
+                        <span class="hidden sm:inline">•</span>
+                        <span class="hidden sm:inline text-neutral-400">${joinedDateStr}</span>
                     </div>
                 </div>
-                ${statusBadge}
             </div>
 
-            <!-- Right Action Buttons -->
-            <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
-                <button onclick="window.openTeamDetailsModal('${post.id}')" class="px-2.5 py-1.5 bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer">
-                    Roster
+            <!-- Right Actions -->
+            <div class="flex items-center gap-2 shrink-0 self-end md:self-auto">
+                <div class="w-9 h-9 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center p-2 shrink-0" title="${gameDisplayName}">
+                    <img src="${gameLogoSrc}" alt="${gameDisplayName}" class="w-full h-full object-contain">
+                </div>
+
+                <!-- "i" Info Button -->
+                <button onclick="window.openTeamDetailsModal('${post.id}')" 
+                    title="View Team Info & Roster" 
+                    class="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 hover:border-white/30 flex items-center justify-center text-xs font-mono font-bold transition-all cursor-pointer shadow-sm active:scale-95">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
                 </button>
+
+                <!-- Apply / Action Button -->
                 ${actionBtn}
             </div>
-        </div>`;
+        </div>
+    `;
 }
 
 // --- TEAM DETAILS & ROSTER MODAL LOGIC ---
@@ -1140,103 +1222,220 @@ window.closeTeamDetailsModal = () => {
     if (modal) modal.classList.add('hidden');
 };
 
-function renderPlayerCard(post, isAuthor) {
-    const borderClass = "border-white/10 hover:border-[#FFD700] hover:shadow-[0_0_20px_rgba(255,215,0,0.15)]";
-    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[8px] font-mono-tag font-bold px-1 py-0.2 rounded uppercase">PRO</span>` : '';
-    const avatarUrl = post.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.ign || 'Player')}&background=111116&color=FFD700`;
-    const gameBadge = formatGameBadge(post.game || post.gameId);
+window.openPlayerDetailsModal = async (listingId) => {
+    let post = cachedRecruitmentPosts.find(p => p.id === listingId);
+    if (!post) {
+        try {
+            const snap = await getDoc(doc(db, "recruitment", listingId));
+            if (snap.exists()) post = { id: snap.id, ...snap.data() };
+        } catch (e) { console.error(e); }
+    }
+    if (!post) return;
 
-    let actionBtn = '';
-    if (isAuthor) {
-        actionBtn = `
-            <button onclick="window.openLftManageModal('${post.id}')" class="flex-1 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer text-center">
-                Manage
-            </button>`;
-    } else {
-        actionBtn = `
-            <button onclick="window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" class="flex-1 py-1.5 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 flex items-center justify-center gap-1 cursor-pointer font-semibold">
-                <span>Message</span>
-            </button>`;
+    const modal = document.getElementById('playerDetailsModal');
+    if (!modal) return;
+
+    let gameDisplayName = 'Valorant';
+    const gLower = (post.game || post.gameId || '').toLowerCase();
+    if (gLower.includes('mlbb') || gLower.includes('mobile legends')) {
+        gameDisplayName = 'Mobile Legends: Bang Bang';
+    } else if (gLower.includes('hok') || gLower.includes('honor of kings')) {
+        gameDisplayName = 'Honor of Kings';
     }
 
+    const avatarUrl = post.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.ign || 'Player')}&background=111116&color=FFD700`;
+
+    const imgEl = document.getElementById('pd-image');
+    if (imgEl) imgEl.src = avatarUrl;
+
+    const nameEl = document.getElementById('pd-name');
+    if (nameEl) nameEl.textContent = post.ign || 'Player';
+
+    const gameEl = document.getElementById('pd-game');
+    if (gameEl) gameEl.textContent = gameDisplayName;
+
+    const roleEl = document.getElementById('pd-role');
+    if (roleEl) roleEl.textContent = post.role || 'Flex';
+
+    const rankEl = document.getElementById('pd-rank');
+    if (rankEl) rankEl.textContent = post.rank || 'Unranked';
+
+    const joinedEl = document.getElementById('pd-joined');
+    if (joinedEl) joinedEl.textContent = formatJoinedDate(post.createdAt || post.timestamp || post.created_at || post.date);
+
+    const bioEl = document.getElementById('pd-bio');
+    if (bioEl) bioEl.textContent = post.bio || post.about || 'No custom bio provided by player.';
+
+    const verifiedEl = document.getElementById('pd-verified');
+    if (verifiedEl) {
+        if (post.isPremium) verifiedEl.classList.remove('hidden');
+        else verifiedEl.classList.add('hidden');
+    }
+
+    const actionContainer = document.getElementById('pd-action-container');
+    if (actionContainer) {
+        const isAuthor = auth.currentUser && (auth.currentUser.uid === post.authorId || auth.currentUser.uid === post.userId);
+        if (isAuthor) {
+            actionContainer.innerHTML = `<button onclick="window.closePlayerDetailsModal(); window.openLftManageModal('${post.id}')" class="px-5 py-2.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer">Manage Listing</button>`;
+        } else {
+            actionContainer.innerHTML = `<button onclick="window.closePlayerDetailsModal(); window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" class="px-5 py-2.5 bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-bold text-xs uppercase tracking-wider rounded-xl transition-all shadow-sm active:scale-95 cursor-pointer flex items-center gap-1.5 font-semibold"><span>Message Free Agent</span> &rarr;</button>`;
+        }
+    }
+
+    modal.classList.remove('hidden');
+};
+
+window.closePlayerDetailsModal = () => {
+    const modal = document.getElementById('playerDetailsModal');
+    if (modal) modal.classList.add('hidden');
+};
+
+function renderPlayerCard(post, isAuthor) {
+    const borderClass = "border-white/10 hover:border-[#FFD700]/50 hover:shadow-[0_0_20px_rgba(255,215,0,0.1)]";
+    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase shrink-0">PRO</span>` : '';
+    const avatarUrl = post.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.ign || 'Player')}&background=111116&color=FFD700`;
+    
+    let gameDisplayName = 'Valorant';
+    let gameLogoSrc = 'pictures/logo_valorant.png';
+
+    const gLower = (post.game || post.gameId || '').toLowerCase();
+    if (gLower.includes('mlbb') || gLower.includes('mobile legends')) {
+        gameDisplayName = 'Mobile Legends';
+        gameLogoSrc = 'pictures/logo_mlbb.png';
+    } else if (gLower.includes('hok') || gLower.includes('honor of kings')) {
+        gameDisplayName = 'Honor of Kings';
+        gameLogoSrc = 'pictures/logo_hok.png';
+    } else {
+        gameDisplayName = 'Valorant';
+        gameLogoSrc = 'pictures/logo_valorant.png';
+    }
+
+    const joinedDateStr = formatJoinedDate(post.createdAt || post.timestamp || post.created_at || post.date);
+
+    let actionBtn = isAuthor
+        ? `<button onclick="window.openLftManageModal('${post.id}')" class="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap">Manage</button>`
+        : `<button onclick="window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" class="px-5 py-2 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-xl text-xs font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-sm active:scale-95 flex items-center gap-1 cursor-pointer font-semibold whitespace-nowrap"><span>Message</span> &rarr;</button>`;
+
     return `
-        <article data-id="${post.id}" class="bg-[#0D0D12] border rounded-xl p-3 transition-all duration-200 group flex flex-col justify-between relative ${borderClass}">
-            <div class="blimp-container static mb-1.5"></div>
-
+        <article data-id="${post.id}" class="bg-[#111116] border ${borderClass} rounded-2xl p-4 sm:p-5 flex flex-col justify-between gap-3.5 transition-all duration-200 group relative shadow-lg">
             <div>
-                <!-- Top Header: Game Badge & LFT Status -->
-                <div class="flex items-center justify-between gap-1.5 mb-2">
-                    <span class="bg-black/80 text-[#FFD700] border border-[#FFD700]/30 font-mono-tag font-bold text-[8px] px-1.5 py-0.2 rounded uppercase tracking-wider truncate">
-                        ${escapeHtml(gameBadge)}
-                    </span>
-                    <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[8px] font-mono-tag font-bold px-1.5 py-0.2 rounded-full uppercase tracking-wider shrink-0">
-                        FREE AGENT
-                    </span>
+                <!-- Top Row: Player Avatar + IGN & Role + Game Icon -->
+                <div class="flex items-start justify-between gap-3">
+                    <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                        <img src="${escapeHtml(avatarUrl)}" class="w-11 h-11 sm:w-12 sm:h-12 rounded-xl border border-white/10 object-cover shadow-sm shrink-0 bg-black/50" alt="Avatar" onerror="this.src='https://ui-avatars.com/api/?name=Player&background=111116&color=FFD700'">
+                        <div class="min-w-0 flex-1">
+                            <h3 class="font-heading font-bold text-base sm:text-lg text-white truncate group-hover:text-[#FFD700] transition-colors flex items-center gap-1.5 leading-tight">
+                                <span class="truncate">${escapeHtml(post.ign || 'Player')}</span>
+                                ${verifiedBadge}
+                            </h3>
+                            <p class="text-xs font-mono-tag text-neutral-400 mt-1 flex items-center gap-1.5 truncate">
+                                <span>Role:</span>
+                                <strong class="text-neutral-200 font-semibold">${escapeHtml(post.role || 'Flex')}</strong>
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Game Logo Badge -->
+                    <div class="w-9 h-9 rounded-xl bg-black/60 border border-white/10 flex items-center justify-center p-2 shrink-0 shadow-inner" title="${gameDisplayName}">
+                        <img src="${gameLogoSrc}" alt="${gameDisplayName}" class="w-full h-full object-contain">
+                    </div>
                 </div>
 
-                <!-- Player Identity -->
-                <div class="flex items-center gap-2.5 mb-2">
-                    <img src="${escapeHtml(avatarUrl)}" class="w-9 h-9 rounded-lg border border-white/10 object-cover shadow-sm shrink-0 group-hover:border-[#FFD700]/50 transition-colors" alt="Avatar">
-                    <div class="min-w-0 flex-1">
-                        <h3 class="text-sm font-heading font-bold text-white truncate group-hover:text-[#FFD700] transition-colors flex items-center gap-1">
-                            ${escapeHtml(post.ign || 'Player')} ${verifiedBadge}
-                        </h3>
-                        <p class="text-[9px] text-neutral-400 font-mono-tag truncate">
-                            Role: <span class="text-neutral-200 font-semibold">${escapeHtml(post.role || 'Flex')}</span>
-                        </p>
+                <!-- Middle Sub-line (Game & Rank & Joined Date) -->
+                <div class="flex items-center justify-between gap-2 text-xs font-mono-tag text-neutral-400 pt-3 mt-3 border-t border-white/5">
+                    <div class="flex items-center gap-2 min-w-0">
+                        <span class="flex items-center gap-1 text-neutral-300 font-medium shrink-0">
+                            <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="6" stroke-width="2"></rect><path d="M6 12h4m-2-2v4m10-2h.01m-3 0h.01" stroke-width="2" stroke-linecap="round"></path></svg>
+                            <span>${gameDisplayName}</span>
+                        </span>
+                        <span class="text-neutral-600">•</span>
+                        <span class="text-[#FFD700] font-bold truncate">Rank: ${escapeHtml(post.rank || 'Unranked')}</span>
                     </div>
-                </div>
-
-                <!-- Tactical Stats HUD -->
-                <div class="grid grid-cols-2 gap-1.5 mb-2 bg-black/40 p-2 rounded-lg border border-white/5">
-                    <div class="min-w-0">
-                        <p class="text-[7px] text-neutral-500 uppercase font-mono-tag font-bold tracking-tight">Rank</p>
-                        <p class="text-[11px] text-[#FFD700] font-heading font-bold truncate mt-0.2">${escapeHtml(post.rank || 'Unranked')}</p>
-                    </div>
-                    <div class="min-w-0">
-                        <p class="text-[7px] text-neutral-500 uppercase font-mono-tag font-bold tracking-tight">Status</p>
-                        <p class="text-[11px] text-emerald-400 font-heading font-bold truncate mt-0.2">Available</p>
-                    </div>
+                    <span class="text-neutral-400 shrink-0">${joinedDateStr}</span>
                 </div>
             </div>
 
-            <div class="pt-1.5 border-t border-white/5 flex items-center gap-1.5">
-                ${actionBtn}
+            <!-- Bottom Action Row: Free Agent Tag + "i" (Info) Button + Message CTA -->
+            <div class="flex items-center justify-between gap-3 pt-3 border-t border-white/5">
+                <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono-tag font-bold px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    Free Agent
+                </span>
+
+                <div class="flex items-center gap-2 shrink-0">
+                    <!-- "i" Info Button -->
+                    <button onclick="window.openPlayerDetailsModal('${post.id}')" 
+                        title="View Player Profile & Details" 
+                        class="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 hover:border-white/30 flex items-center justify-center text-xs font-mono font-bold transition-all cursor-pointer shadow-sm active:scale-95">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </button>
+
+                    ${actionBtn}
+                </div>
             </div>
-        </article>`;
+        </article>
+    `;
 }
 
 function renderPlayerRow(post, isAuthor) {
-    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[8px] font-mono-tag font-bold px-1 py-0.2 rounded uppercase">PRO</span>` : '';
+    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase shrink-0">PRO</span>` : '';
     const avatarUrl = post.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.ign || 'Player')}&background=111116&color=FFD700`;
-    const gameBadge = formatGameBadge(post.game || post.gameId);
+    
+    let gameDisplayName = 'Valorant';
+    let gameLogoSrc = 'pictures/logo_valorant.png';
+
+    const gLower = (post.game || post.gameId || '').toLowerCase();
+    if (gLower.includes('mlbb') || gLower.includes('mobile legends')) {
+        gameDisplayName = 'Mobile Legends';
+        gameLogoSrc = 'pictures/logo_mlbb.png';
+    } else if (gLower.includes('hok') || gLower.includes('honor of kings')) {
+        gameDisplayName = 'Honor of Kings';
+        gameLogoSrc = 'pictures/logo_hok.png';
+    } else {
+        gameDisplayName = 'Valorant';
+        gameLogoSrc = 'pictures/logo_valorant.png';
+    }
+
+    const joinedDateStr = formatJoinedDate(post.createdAt || post.timestamp || post.created_at || post.date);
 
     let actionBtn = isAuthor
-        ? `<button onclick="window.openLftManageModal('${post.id}')" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer">Manage</button>`
-        : `<button onclick="window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" class="px-3 py-1.5 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 flex items-center gap-1 cursor-pointer font-semibold">Message</button>`;
+        ? `<button onclick="window.openLftManageModal('${post.id}')" class="px-4 py-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-xl text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap">Manage</button>`
+        : `<button onclick="window.startLftChat('${post.id}', '${escapeHtml(post.ign)}')" class="px-5 py-2 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-xl text-xs font-heading font-bold uppercase tracking-wider transition-all shadow-sm active:scale-95 flex items-center gap-1 cursor-pointer font-semibold whitespace-nowrap">Message &rarr;</button>`;
 
     return `
-        <div data-id="${post.id}" class="bg-[#0D0D12] hover:bg-[#12121A] border border-white/10 hover:border-[#FFD700]/50 rounded-xl p-3 sm:px-4 sm:py-2.5 transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 group">
-            <div class="flex items-center gap-3 min-w-0 flex-1">
-                <img src="${escapeHtml(avatarUrl)}" class="w-9 h-9 rounded-lg object-cover border border-white/10 shrink-0 group-hover:border-[#FFD700]/50 transition-colors" alt="Avatar">
+        <div data-id="${post.id}" class="bg-[#111116] hover:bg-[#15151c] border border-white/10 hover:border-[#FFD700]/50 rounded-2xl p-4 sm:px-5 sm:py-3.5 transition-all duration-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 group shadow-lg">
+            <div class="flex items-center gap-3.5 min-w-0 flex-1">
+                <img src="${escapeHtml(avatarUrl)}" class="w-11 h-11 rounded-xl object-cover border border-white/10 shrink-0" alt="Avatar" onerror="this.src='https://ui-avatars.com/api/?name=Player&background=111116&color=FFD700'">
                 <div class="min-w-0 flex-1">
-                    <div class="flex items-center gap-1.5">
-                        <span class="font-heading font-bold text-white text-sm truncate group-hover:text-[#FFD700] transition-colors">${escapeHtml(post.ign || 'Player')}</span>
+                    <div class="flex items-center gap-2">
+                        <span class="font-heading font-bold text-white text-base truncate group-hover:text-[#FFD700] transition-colors">${escapeHtml(post.ign || 'Player')}</span>
                         ${verifiedBadge}
-                        <div class="blimp-container"></div>
                     </div>
-                    <div class="flex items-center gap-2 text-[10px] text-neutral-400 font-mono-tag">
-                        <span class="text-[#FFD700] font-bold">${escapeHtml(gameBadge)}</span>
+                    <div class="flex items-center gap-2 text-xs text-neutral-400 font-mono-tag mt-0.5">
+                        <span class="text-[#FFD700] font-bold">${escapeHtml(gameDisplayName)}</span>
                         <span class="text-neutral-600">•</span>
                         <span>Rank: <strong class="text-neutral-300 font-medium">${escapeHtml(post.rank || 'Unranked')}</strong></span>
                         <span class="text-neutral-600">•</span>
                         <span>Role: <strong class="text-neutral-300 font-medium">${escapeHtml(post.role || 'Flex')}</strong></span>
+                        <span class="hidden sm:inline">•</span>
+                        <span class="hidden sm:inline text-neutral-400">${joinedDateStr}</span>
                     </div>
                 </div>
             </div>
 
-            <div class="flex items-center gap-2 shrink-0 w-full sm:w-auto justify-end">
-                <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded-full uppercase shrink-0">Free Agent</span>
+            <div class="flex items-center gap-2 shrink-0 self-end md:self-auto">
+                <span class="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[10px] font-mono-tag font-bold px-2.5 py-1 rounded-full uppercase shrink-0">Free Agent</span>
+                
+                <!-- "i" Info Button -->
+                <button onclick="window.openPlayerDetailsModal('${post.id}')" 
+                    title="View Player Profile & Details" 
+                    class="w-9 h-9 rounded-xl bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 hover:border-white/30 flex items-center justify-center text-xs font-mono font-bold transition-all cursor-pointer shadow-sm active:scale-95">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </button>
+
                 ${actionBtn}
             </div>
         </div>`;
@@ -2210,8 +2409,24 @@ function setupForms() {
                 }
 
                 await addDoc(collection(db, "recruitment"), baseData);
+
+                // Award Gamification Points (+20 CZ for Recruitment Action)
+                try {
+                    const userRef = doc(db, "users", auth.currentUser.uid);
+                    await updateDoc(userRef, {
+                        czPoints: increment(20),
+                        lifetimePoints: increment(20)
+                    });
+                } catch (ptsErr) {
+                    console.warn("Could not award recruitment points:", ptsErr);
+                }
+
                 window.closeCreateModal();
-                await window.showCustomAlert("Success", "Listing created successfully.");
+                if (window.showSuccessToast) {
+                    window.showSuccessToast("Reward Earned! 🪙", "+20 CZ Points added to your Vault for posting a recruitment listing!");
+                } else {
+                    await window.showCustomAlert("Success", "Listing created successfully.");
+                }
                 renderTeams();
             } catch (e) { console.error(e); await window.showCustomAlert("Error", e.message); }
             finally { btn.textContent = "Post Listing"; btn.disabled = false; }
@@ -2972,6 +3187,7 @@ window.handleScrimPostGameChange = async (gameTitle) => {
                 if (g.includes('val')) userRank = uData.valRank || '';
                 else if (g.includes('mlbb') || g.includes('mobile legends')) userRank = uData.mlbbRank || '';
                 else if (g.includes('hok') || g.includes('honor of kings')) userRank = uData.hokRank || '';
+                else userRank = uData.rank || '';
             }
         } catch(e) {}
     }
@@ -2988,30 +3204,30 @@ window.handleScrimPostGameChange = async (gameTitle) => {
     } else if (g.includes('mlbb') || g.includes('mobile legends')) {
         rankSelect.innerHTML = `
             <option value="Open / Any" ${!userRank ? 'selected' : ''}>Open / Any Rank (All Skill Tiers)</option>
-            <option value="Mythical Immortal / Glory" ${userRank.includes('Immortal') || userRank.includes('Glory') ? 'selected' : ''}>Mythical Immortal / Glory (Tier 1)</option>
-            <option value="Mythic / Legend" ${userRank.includes('Mythic') || userRank.includes('Legend') ? 'selected' : ''}>Mythic / Legend (Competitive)</option>
-            <option value="Epic / Grandmaster" ${userRank.includes('Epic') || userRank.includes('Grandmaster') ? 'selected' : ''}>Epic / Grandmaster (Intermediate)</option>
-            <option value="Master / Elite / Warrior" ${userRank.includes('Master') || userRank.includes('Elite') || userRank.includes('Warrior') ? 'selected' : ''}>Master / Elite / Warrior (Beginner)</option>
+            <option value="Mythical Immortal / Glory" ${userRank.includes('Immortal') || userRank.includes('Glory') ? 'selected' : ''}>Mythical Immortal / Glory (Tier 1 Pro)</option>
+            <option value="Mythic Honor / Mythic" ${userRank.includes('Mythic') ? 'selected' : ''}>Mythic Honor / Mythic (High Comp)</option>
+            <option value="Legend / Epic" ${userRank.includes('Legend') || userRank.includes('Epic') ? 'selected' : ''}>Legend / Epic (Intermediate)</option>
+            <option value="Grandmaster / Master / Elite" ${userRank.includes('Grandmaster') || userRank.includes('Master') || userRank.includes('Elite') ? 'selected' : ''}>Grandmaster / Master / Elite (Beginner)</option>
             <option value="Tournament Ready">Tournament Ready (Custom Scrim)</option>
         `;
     } else if (g.includes('hok') || g.includes('honor of kings')) {
         rankSelect.innerHTML = `
             <option value="Open / Any" ${!userRank ? 'selected' : ''}>Open / Any Rank (All Skill Tiers)</option>
-            <option value="Supreme / Grandmaster" ${userRank.includes('Supreme') || userRank.includes('Grandmaster') ? 'selected' : ''}>Supreme / Grandmaster (High Elo)</option>
-            <option value="Master / Epic" ${userRank.includes('Master') || userRank.includes('Epic') ? 'selected' : ''}>Master / Epic (Competitive)</option>
+            <option value="Legend King / Epic King" ${userRank.includes('Legend') || userRank.includes('Epic') ? 'selected' : ''}>Legend King / Epic King (Tier 1 Pro / 50+★)</option>
+            <option value="Mythic / Supreme King" ${userRank.includes('Mythic') || userRank.includes('Supreme') ? 'selected' : ''}>Mythic / Supreme King (High Comp / 25+★)</option>
+            <option value="Grandmaster / Master" ${userRank.includes('Grandmaster') || userRank.includes('Master') ? 'selected' : ''}>Grandmaster / Master (Competitive)</option>
             <option value="Diamond / Platinum" ${userRank.includes('Diamond') || userRank.includes('Platinum') ? 'selected' : ''}>Diamond / Platinum (Intermediate)</option>
             <option value="Gold / Silver / Bronze" ${userRank.includes('Gold') || userRank.includes('Silver') || userRank.includes('Bronze') ? 'selected' : ''}>Gold / Silver / Bronze (Beginner)</option>
             <option value="Tournament Ready">Tournament Ready (Custom Scrim)</option>
         `;
     } else {
         rankSelect.innerHTML = `
-            <option value="Open / Any" selected>Open / Any Rank (All Levels)</option>
-            <option value="Radiant / Immortal / Mythical Immortal">Radiant / Immortal / Mythical Immortal (Tier 1 Pro / High Elo)</option>
-            <option value="Ascendant / Mythical Glory">Ascendant / Mythical Glory (Semi-Pro / High Comp)</option>
-            <option value="Diamond / Mythic / Grandmaster">Diamond / Mythic / Grandmaster (Competitive)</option>
-            <option value="Platinum / Legend / Master">Platinum / Legend / Master (Intermediate)</option>
-            <option value="Gold / Epic">Gold / Epic (Casual Competitive)</option>
-            <option value="Silver & Below / Elite">Silver & Below / Elite (Beginner / Learning)</option>
+            <option value="Open / Any" ${!userRank ? 'selected' : ''}>Open / Any Rank (All Skill Tiers)</option>
+            <option value="Legend King / Epic King" ${userRank.includes('Legend') || userRank.includes('Epic') ? 'selected' : ''}>Legend King / Epic King (Tier 1 Pro / 50+★)</option>
+            <option value="Mythic / Supreme King" ${userRank.includes('Mythic') || userRank.includes('Supreme') ? 'selected' : ''}>Mythic / Supreme King (High Comp / 25+★)</option>
+            <option value="Grandmaster / Master" ${userRank.includes('Grandmaster') || userRank.includes('Master') ? 'selected' : ''}>Grandmaster / Master (Competitive)</option>
+            <option value="Diamond / Platinum" ${userRank.includes('Diamond') || userRank.includes('Platinum') ? 'selected' : ''}>Diamond / Platinum (Intermediate)</option>
+            <option value="Gold / Silver / Bronze" ${userRank.includes('Gold') || userRank.includes('Silver') || userRank.includes('Bronze') ? 'selected' : ''}>Gold / Silver / Bronze (Beginner)</option>
             <option value="Tournament Ready">Tournament Ready (Custom Scrim)</option>
         `;
     }
@@ -3203,7 +3419,7 @@ window.handlePostScrimSubmit = async (e) => {
     try {
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<span class="animate-spin inline-block mr-1">⏳</span> Broadcasting...';
+            btn.innerHTML = '<span class="inline-flex items-center gap-1.5"><svg class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Broadcasting...</span>';
         }
 
         const expiresDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h expiration
@@ -3228,8 +3444,19 @@ window.handlePostScrimSubmit = async (e) => {
             expiresAt: Timestamp.fromDate(expiresDate)
         });
 
+        // Award Scrim Action Points (+30 CZ)
+        try {
+            const userRef = doc(db, "users", user.uid);
+            await updateDoc(userRef, {
+                czPoints: increment(30),
+                lifetimePoints: increment(30)
+            });
+        } catch (ptsErr) {
+            console.warn("Could not award scrim post points:", ptsErr);
+        }
+
         if (typeof window.showSuccessToast === 'function') {
-            window.showSuccessToast("Scrim Broadcasted!", `Your ${game} scrim for ${matchTime} is now live.`);
+            window.showSuccessToast("Scrim Broadcasted! 🪙", `Your ${game} scrim for ${matchTime} is live. (+30 CZ Points earned)`);
         }
 
         // Reset form
@@ -3359,7 +3586,7 @@ window.handleAcceptScrimSubmit = async (e) => {
     try {
         if (btn) {
             btn.disabled = true;
-            btn.innerHTML = '<span class="animate-spin inline-block mr-1">⏳</span> Confirming...';
+            btn.innerHTML = '<span class="inline-flex items-center gap-1.5"><svg class="animate-spin h-3.5 w-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg> Confirming...</span>';
         }
 
         const scrimRef = doc(db, "scrims", scrimId);
@@ -3389,8 +3616,19 @@ window.handleAcceptScrimSubmit = async (e) => {
             });
         });
 
+        // Award Scrim Action Points (+30 CZ)
+        try {
+            const userRef = doc(db, "users", user.uid);
+            await updateDoc(userRef, {
+                czPoints: increment(30),
+                lifetimePoints: increment(30)
+            });
+        } catch (ptsErr) {
+            console.warn("Could not award scrim accept points:", ptsErr);
+        }
+
         if (typeof window.showSuccessToast === 'function') {
-            window.showSuccessToast("Scrim Challenge Accepted!", "Match confirmed! Opening direct lobby coordination...");
+            window.showSuccessToast("Scrim Challenge Accepted! 🪙", "Match confirmed! (+30 CZ Points earned) Opening direct lobby coordination...");
         }
 
         window.closeAcceptScrimModal();
