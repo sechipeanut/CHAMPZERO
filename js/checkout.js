@@ -188,7 +188,7 @@ async function handlePaymentReturn(piClientSecret, tournamentId, appId) {
 
             // Redirect to tournaments page after a short delay
             setTimeout(() => {
-                window.location.href = `/tournaments.html?payment=success&t=${tournamentId}`;
+                window.location.href = `/tournaments?payment=success&t=${tournamentId}`;
             }, 2000);
 
         } else if (paymentIntent.status === "processing") {

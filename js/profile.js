@@ -1,6 +1,6 @@
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-import { doc, getDoc, updateDoc, addDoc, collection, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { doc, getDoc, updateDoc, addDoc, collection, getDocs, query, orderBy, limit, where, onSnapshot, deleteDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 let activeUserUid = null;
 let activeUserData = {};
@@ -131,31 +131,25 @@ if (auth.currentUser) {
 }
 
 // ==========================================
-// 1. TAB NAVIGATION: PLAYER VS ORGANIZER
+// 1. TAB NAVIGATION: PLAYER / FRIENDS / MESSAGES / ORGANIZER
 // ==========================================
+const TAB_IDS = ['player', 'friends', 'messages', 'organizer'];
+const ACTIVE_BTN = 'px-5 py-2.5 rounded-lg bg-[#FFD700] text-black font-black transition-all cursor-pointer shadow-md flex items-center gap-2';
+const INACTIVE_BTN = 'px-5 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 transition-all cursor-pointer flex items-center gap-2';
+
 window.switchProfileTab = function (tab) {
-    const playerTabBtn = qs('#tab-btn-player');
-    const organizerTabBtn = qs('#tab-btn-organizer');
-    const playerPane = qs('#tab-pane-player');
-    const organizerPane = qs('#tab-pane-organizer');
-    if (tab === 'organizer') {
-        if (playerTabBtn) {
-            playerTabBtn.className = 'px-5 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 transition-all cursor-pointer flex items-center gap-2';
+    TAB_IDS.forEach(t => {
+        const btn = qs(`#tab-btn-${t}`);
+        const pane = qs(`#tab-pane-${t}`);
+        if (btn) btn.className = (t === tab) ? ACTIVE_BTN : INACTIVE_BTN;
+        if (pane) {
+            if (t === tab) pane.classList.remove('hidden');
+            else pane.classList.add('hidden');
         }
-        if (organizerTabBtn) {
-            organizerTabBtn.className = 'px-5 py-2.5 rounded-lg bg-[#FFD700] text-black font-black transition-all cursor-pointer shadow-md flex items-center gap-2';
-        }
-        if (playerPane) playerPane.classList.add('hidden');
-        if (organizerPane) organizerPane.classList.remove('hidden');
-    } else {
-        if (playerTabBtn) {
-            playerTabBtn.className = 'px-5 py-2.5 rounded-lg bg-[#FFD700] text-black font-black transition-all cursor-pointer shadow-md flex items-center gap-2';
-        }
-        if (organizerTabBtn) {
-            organizerTabBtn.className = 'px-5 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 transition-all cursor-pointer flex items-center gap-2';
-        }
-        if (playerPane) playerPane.classList.remove('hidden');
-    }
+    });
+    // Lazy-load friends or messages data when tab is first opened
+    if (tab === 'friends' && activeUserUid) loadFriendsList(activeUserUid);
+    if (tab === 'messages' && activeUserUid) loadDMConversations(activeUserUid);
 };
 
 // 2. FETCH & DISPLAY PROFILE DATA WITH TOURNAMENT TROPHIES & EARNINGS
@@ -466,6 +460,13 @@ async function calculateTournamentStats(uid, userIgn, allTourneys) {
         if (qs('#championships-count')) qs('#championships-count').textContent = champCount;
         if (qs('#second-place-count')) qs('#second-place-count').textContent = secondCount;
         if (qs('#third-place-count')) qs('#third-place-count').textContent = thirdCount;
+
+        // Load Friend Count
+        try {
+            const friendCount = await countFriends(uid);
+            if (qs('#friends-count')) qs('#friends-count').textContent = friendCount;
+            if (qs('#friends-tab-count')) qs('#friends-tab-count').textContent = friendCount;
+        } catch (e) { console.warn('Friend count error:', e); }
 
         // Render Tournament History List
         const historyListEl = qs('#tournament-history-list');
@@ -1557,5 +1558,304 @@ window.rejectWithdrawalRequest = async function (reqId, orgName) {
     } catch (err) {
         console.error("Error rejecting request:", err);
         if (window.showErrorToast) window.showErrorToast('Reject Error', err.message);
+    }
+};
+
+// ============================================================
+// FRIENDS MODULE — Count, List, Remove
+// ============================================================
+
+async function getAcceptedFriendDocs(uid) {
+    const friendsRef = collection(db, "friend_requests");
+    const results = [];
+
+    // Query 1: where user sent the request
+    const q1 = query(friendsRef, where("fromUid", "==", uid), where("status", "==", "accepted"));
+    const snap1 = await getDocs(q1);
+    snap1.forEach(d => results.push({ id: d.id, ...d.data(), friendUid: d.data().toUid }));
+
+    // Query 2: where user received the request
+    const q2 = query(friendsRef, where("toUid", "==", uid), where("status", "==", "accepted"));
+    const snap2 = await getDocs(q2);
+    snap2.forEach(d => results.push({ id: d.id, ...d.data(), friendUid: d.data().fromUid }));
+
+    // Deduplicate by friendUid
+    const seen = new Set();
+    return results.filter(r => {
+        if (seen.has(r.friendUid)) return false;
+        seen.add(r.friendUid);
+        return true;
+    });
+}
+
+async function countFriends(uid) {
+    const friends = await getAcceptedFriendDocs(uid);
+    return friends.length;
+}
+
+async function loadFriendsList(uid) {
+    const listEl = qs('#friends-list');
+    if (!listEl) return;
+
+    listEl.innerHTML = '<div class="text-center py-6 text-neutral-500 text-xs"><svg class="animate-spin h-5 w-5 mx-auto mb-2 text-[#FFD700]" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg>Loading...</div>';
+
+    try {
+        const friends = await getAcceptedFriendDocs(uid);
+
+        if (qs('#friends-list-count')) qs('#friends-list-count').textContent = `(${friends.length})`;
+        if (qs('#friends-count')) qs('#friends-count').textContent = friends.length;
+        if (qs('#friends-tab-count')) qs('#friends-tab-count').textContent = friends.length;
+
+        if (friends.length === 0) {
+            listEl.innerHTML = '<div class="text-center py-10 text-neutral-500 text-xs italic">No friends yet. Send friend requests from team pages or player profiles!</div>';
+            return;
+        }
+
+        // Fetch friend profile data
+        const friendCards = await Promise.all(friends.map(async (f) => {
+            let friendData = {};
+            try {
+                const fDoc = await getDoc(doc(db, "users", f.friendUid));
+                if (fDoc.exists()) friendData = fDoc.data();
+            } catch (e) {}
+
+            const name = friendData.ign || friendData.displayName || friendData.username || 'Unknown Player';
+            const avatar = friendData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=111116&color=FFD700`;
+
+            return `
+                <div class="flex items-center gap-4 p-4 bg-white/5 hover:bg-white/8 border border-white/10 rounded-xl transition-all group">
+                    <img src="${escapeHtml(avatar)}" class="w-10 h-10 rounded-full border border-white/20 object-cover bg-black" alt="${escapeHtml(name)}">
+                    <div class="flex-1 min-w-0">
+                        <p class="font-heading font-bold text-sm text-white uppercase tracking-tight truncate">${escapeHtml(name)}</p>
+                        <p class="text-[10px] text-neutral-500 font-mono">${escapeHtml(friendData.email || '')}</p>
+                    </div>
+                    <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button onclick="window.startDMWith('${f.friendUid}', '${escapeHtml(name)}')" class="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-[10px] font-heading font-bold uppercase rounded-lg border border-blue-500/30 transition-all cursor-pointer">
+                            Message
+                        </button>
+                        <button onclick="window.removeFriend('${f.id}', '${escapeHtml(name)}')" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-heading font-bold uppercase rounded-lg border border-red-500/20 transition-all cursor-pointer">
+                            Remove
+                        </button>
+                    </div>
+                </div>
+            `;
+        }));
+
+        listEl.innerHTML = friendCards.join('');
+
+    } catch (err) {
+        console.error("Error loading friends:", err);
+        listEl.innerHTML = '<div class="text-center py-10 text-red-400 text-xs">Failed to load friends list.</div>';
+    }
+}
+
+window.removeFriend = async function (requestId, friendName) {
+    if (!confirm(`Remove ${friendName} from your friends?`)) return;
+    try {
+        await deleteDoc(doc(db, "friend_requests", requestId));
+        if (window.showSuccessToast) window.showSuccessToast('Friend Removed', `${friendName} has been removed from your friends.`);
+        if (activeUserUid) {
+            loadFriendsList(activeUserUid);
+            // Update count
+            const count = await countFriends(activeUserUid);
+            if (qs('#friends-count')) qs('#friends-count').textContent = count;
+            if (qs('#friends-tab-count')) qs('#friends-tab-count').textContent = count;
+        }
+    } catch (err) {
+        console.error("Error removing friend:", err);
+        if (window.showErrorToast) window.showErrorToast('Error', 'Could not remove friend.');
+    }
+};
+
+// ============================================================
+// DIRECT MESSAGES MODULE
+// ============================================================
+
+let activeDmId = null;
+let dmUnsubscribe = null;
+
+// Get or create a DM conversation between two users
+async function getOrCreateDM(uid1, uid2) {
+    const dmRef = collection(db, "direct_messages");
+
+    // Check if conversation already exists
+    const q1 = query(dmRef, where("participants", "array-contains", uid1));
+    const snap = await getDocs(q1);
+
+    let existingDmId = null;
+    snap.forEach(d => {
+        const data = d.data();
+        if (data.participants && data.participants.includes(uid2)) {
+            existingDmId = d.id;
+        }
+    });
+
+    if (existingDmId) return existingDmId;
+
+    // Create new conversation
+    const newDm = await addDoc(dmRef, {
+        participants: [uid1, uid2],
+        createdAt: new Date().toISOString(),
+        lastMessage: '',
+        lastMessageAt: new Date().toISOString()
+    });
+
+    return newDm.id;
+}
+
+// Start a DM from the friends list
+window.startDMWith = async function (friendUid, friendName) {
+    if (!activeUserUid) return;
+
+    // Switch to messages tab
+    window.switchProfileTab('messages');
+
+    try {
+        const dmId = await getOrCreateDM(activeUserUid, friendUid);
+        openDMChat(dmId, friendName, friendUid);
+    } catch (err) {
+        console.error("Error starting DM:", err);
+        if (window.showErrorToast) window.showErrorToast('Error', 'Could not start conversation.');
+    }
+};
+
+// Load all DM conversations
+async function loadDMConversations(uid) {
+    const listEl = qs('#dm-conversations-list');
+    if (!listEl) return;
+
+    try {
+        const dmRef = collection(db, "direct_messages");
+        const q = query(dmRef, where("participants", "array-contains", uid));
+        const snap = await getDocs(q);
+
+        if (snap.empty) {
+            listEl.innerHTML = '<div class="text-center py-10 text-neutral-500 text-xs italic">No conversations yet. Message a friend to start!</div>';
+            return;
+        }
+
+        const convos = [];
+        snap.forEach(d => {
+            const data = d.data();
+            const friendUid = data.participants.find(p => p !== uid);
+            convos.push({ id: d.id, friendUid, ...data });
+        });
+
+        // Sort by last message time
+        convos.sort((a, b) => (b.lastMessageAt || '').localeCompare(a.lastMessageAt || ''));
+
+        // Fetch friend names
+        const cards = await Promise.all(convos.map(async (c) => {
+            let friendData = {};
+            try {
+                const fDoc = await getDoc(doc(db, "users", c.friendUid));
+                if (fDoc.exists()) friendData = fDoc.data();
+            } catch (e) {}
+
+            const name = friendData.ign || friendData.displayName || 'Unknown';
+            const avatar = friendData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=111116&color=FFD700&size=32`;
+            const preview = c.lastMessage ? (c.lastMessage.length > 40 ? c.lastMessage.substring(0, 40) + '...' : c.lastMessage) : 'No messages yet';
+            const isActive = c.id === activeDmId;
+
+            return `
+                <button onclick="window.openDMChatById('${c.id}', '${escapeHtml(name)}', '${c.friendUid}')"
+                    class="w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all cursor-pointer ${isActive ? 'bg-[#FFD700]/10 border border-[#FFD700]/30' : 'hover:bg-white/5 border border-transparent'}">
+                    <img src="${escapeHtml(avatar)}" class="w-8 h-8 rounded-full border border-white/20 object-cover bg-black shrink-0" alt="">
+                    <div class="min-w-0 flex-1">
+                        <p class="font-heading font-bold text-xs text-white uppercase truncate">${escapeHtml(name)}</p>
+                        <p class="text-[10px] text-neutral-500 truncate">${escapeHtml(preview)}</p>
+                    </div>
+                </button>
+            `;
+        }));
+
+        listEl.innerHTML = cards.join('');
+
+    } catch (err) {
+        console.error("Error loading conversations:", err);
+        listEl.innerHTML = '<div class="text-center py-10 text-red-400 text-xs">Failed to load conversations.</div>';
+    }
+}
+
+window.openDMChatById = function (dmId, friendName, friendUid) {
+    openDMChat(dmId, friendName, friendUid);
+};
+
+function openDMChat(dmId, friendName, friendUid) {
+    activeDmId = dmId;
+
+    // Update header
+    if (qs('#dm-chat-name')) qs('#dm-chat-name').textContent = friendName;
+    if (qs('#dm-input-area')) qs('#dm-input-area').classList.remove('hidden');
+
+    // Highlight active conversation in list
+    if (activeUserUid) loadDMConversations(activeUserUid);
+
+    // Unsubscribe from previous listener
+    if (dmUnsubscribe) dmUnsubscribe();
+
+    // Listen for messages in real-time
+    const msgsRef = collection(db, "direct_messages", dmId, "messages");
+    const msgsQuery = query(msgsRef, orderBy("createdAt", "asc"));
+
+    dmUnsubscribe = onSnapshot(msgsQuery, (snapshot) => {
+        const container = qs('#dm-messages-container');
+        if (!container) return;
+
+        if (snapshot.empty) {
+            container.innerHTML = '<div class="flex items-center justify-center h-full text-neutral-500 text-xs italic">No messages yet. Say hello!</div>';
+            return;
+        }
+
+        const messages = [];
+        snapshot.forEach(d => messages.push({ id: d.id, ...d.data() }));
+
+        container.innerHTML = messages.map(msg => {
+            const isMine = msg.senderUid === activeUserUid;
+            const time = msg.createdAt ? new Date(msg.createdAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }) : '';
+
+            return `
+                <div class="flex ${isMine ? 'justify-end' : 'justify-start'}">
+                    <div class="max-w-[70%] ${isMine ? 'bg-[#FFD700]/15 border-[#FFD700]/30' : 'bg-white/5 border-white/10'} border rounded-2xl px-4 py-2.5 ${isMine ? 'rounded-br-sm' : 'rounded-bl-sm'}">
+                        <p class="text-sm text-white break-words">${escapeHtml(msg.text || '')}</p>
+                        <p class="text-[9px] ${isMine ? 'text-[#FFD700]/60' : 'text-neutral-500'} mt-1 text-right">${time}</p>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        // Auto-scroll to bottom
+        container.scrollTop = container.scrollHeight;
+    });
+}
+
+window.sendDM = async function (e) {
+    e.preventDefault();
+    if (!activeDmId || !activeUserUid) return;
+
+    const input = qs('#dm-input');
+    const text = input?.value?.trim();
+    if (!text) return;
+
+    input.value = '';
+
+    try {
+        // Add message
+        const msgsRef = collection(db, "direct_messages", activeDmId, "messages");
+        await addDoc(msgsRef, {
+            senderUid: activeUserUid,
+            text: text,
+            createdAt: new Date().toISOString()
+        });
+
+        // Update conversation's lastMessage
+        const dmDocRef = doc(db, "direct_messages", activeDmId);
+        await updateDoc(dmDocRef, {
+            lastMessage: text,
+            lastMessageAt: new Date().toISOString()
+        });
+    } catch (err) {
+        console.error("Error sending DM:", err);
+        if (window.showErrorToast) window.showErrorToast('Send Failed', 'Could not send message.');
     }
 };

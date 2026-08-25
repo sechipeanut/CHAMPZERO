@@ -611,14 +611,20 @@ function listenToUsersPresence() {
     unsubscribeOnline = onSnapshot(usersQuery, (snapshot) => {
         const list = [];
         allRegisteredUsers = [];
-        const threshold = Date.now() - (5 * 60 * 1000); // Online if active within last 5 minutes
+        // A user is truly online only if their lastSeen is within the last 2 minutes.
+        // This is tighter than the 60s heartbeat, preventing stale sessions from
+        // appearing online after tabs are closed without a clean beforeunload.
+        const threshold = Date.now() - (2 * 60 * 1000);
 
         snapshot.forEach(d => {
             const data = { id: d.id, ...d.data() };
             allRegisteredUsers.push(data);
 
             const lastSeenTime = data.lastSeen ? new Date(data.lastSeen).getTime() : 0;
-            const isReallyOnline = data.isOnline === true || lastSeenTime > threshold;
+            // Require BOTH the isOnline flag AND a recent lastSeen timestamp.
+            // isOnline alone is not sufficient — it can be stale if beforeunload
+            // didn't fire (e.g. mobile tab killed by OS, browser crash, force-close).
+            const isReallyOnline = data.isOnline === true && lastSeenTime > threshold;
 
             if (isReallyOnline) {
                 list.push(data);
@@ -626,7 +632,7 @@ function listenToUsersPresence() {
         });
 
         onlineUsersList = list;
-        const onlineCount = list.length || 1;
+        const onlineCount = list.length; // No artificial minimum — show the real count
 
         const pillCount = document.getElementById('cz-online-pill-count');
         const headerCount = document.getElementById('cz-online-header-count');
@@ -1305,12 +1311,24 @@ function injectAndStart() {
     listenToGlobalChat();
     listenToUsersPresence();
 
-    // Heartbeat presence listener
+    // Heartbeat presence: update every 90s while tab is visible.
+    // 90s is safely within the 2-minute online threshold used by the listener.
     setInterval(() => {
         if (currentUser && document.visibilityState === 'visible') {
             updateMyPresence(true);
         }
-    }, 60000);
+    }, 90000);
+
+    // Visibility change: set offline when user backgrounds the tab (mobile-friendly),
+    // set online again when they return. This is more reliable than beforeunload on mobile.
+    document.addEventListener('visibilitychange', () => {
+        if (!currentUser) return;
+        if (document.visibilityState === 'hidden') {
+            updateMyPresence(false);
+        } else {
+            updateMyPresence(true);
+        }
+    });
 
     window.addEventListener('beforeunload', () => {
         if (currentUser) updateMyPresence(false);

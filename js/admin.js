@@ -11,7 +11,8 @@ import {
     getDocs,
     query,
     serverTimestamp,
-    orderBy
+    orderBy,
+    onSnapshot
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { toDateInputFormat, calculateStatus, uploadImage } from './utils.js';
 
@@ -21,7 +22,7 @@ function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>
 let lastFocusedElement = null;
 let editState = { isEditing: false, collection: null, id: null, formId: null, modalId: null };
 let currentUserId = null;
-let allUsers = []; 
+let allUsers = [];
 let currentRoleFilter = 'all';
 window.usersLoaded = false;
 
@@ -29,23 +30,23 @@ window.usersLoaded = false;
 // LIVESTREAM MANAGEMENT
 // ======================
 
-window.createLivestream = async function(eventId, eventName) {
+window.createLivestream = async function (eventId, eventName) {
     const confirmed = await window.showCustomConfirm("Create Livestream", `Create a new livestream for "${eventName}"?`);
     if (!confirmed) return;
-    
+
     try {
         window.showSuccessToast("Processing", "Creating livestream...", 3000);
-        
+
         const response = await fetch('/.netlify/functions/create-mux-stream', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ eventId, eventName })
         });
-        
+
         if (!response.ok) throw new Error('Failed to create stream');
-        
+
         const streamData = await response.json();
-        
+
         const eventRef = doc(db, 'events', eventId);
         await updateDoc(eventRef, {
             livestream: {
@@ -56,40 +57,40 @@ window.createLivestream = async function(eventId, eventName) {
                 createdAt: serverTimestamp()
             }
         });
-        
+
         window.showSuccessToast("Success", "Livestream created successfully!", 3000);
         refreshAllLists();
         manageLivestream(eventId);
-        
+
     } catch (error) {
         console.error('Error creating livestream:', error);
         window.showErrorToast("Error", "Failed to create livestream: " + error.message, 5000);
     }
 };
 
-window.manageLivestream = async function(eventId) {
+window.manageLivestream = async function (eventId) {
     try {
         const eventRef = doc(db, 'events', eventId);
         const eventSnap = await getDoc(eventRef);
-        
+
         if (!eventSnap.exists()) {
             window.showErrorToast("Error", "Event not found", 3000);
             return;
         }
-        
+
         const eventData = eventSnap.data();
         const livestream = eventData.livestream;
-        
+
         if (!livestream || !livestream.streamId) {
             window.showErrorToast("Error", "No livestream found for this event", 3000);
             return;
         }
-        
+
         const response = await fetch(`/.netlify/functions/get-mux-stream?streamId=${livestream.streamId}`);
         const streamData = await response.json();
-        
+
         const isActive = streamData.status === 'active';
-        
+
         const modal = document.createElement('div');
         modal.id = 'livestreamModal';
         modal.className = 'fixed inset-0 bg-black/70 backdrop-blur-sm z-[100] flex items-center justify-center p-4';
@@ -139,21 +140,21 @@ window.manageLivestream = async function(eventId) {
                 </div>
             </div>
         `;
-        
+
         document.body.appendChild(modal);
-        
+
     } catch (error) {
         console.error('Error managing livestream:', error);
         window.showErrorToast("Error", "Failed to load livestream info: " + error.message, 5000);
     }
 };
 
-window.closeLivestreamModal = function() {
+window.closeLivestreamModal = function () {
     const modal = document.getElementById('livestreamModal');
     if (modal) modal.remove();
 };
 
-window.toggleStreamKey = function() {
+window.toggleStreamKey = function () {
     const input = document.getElementById('streamKeyInput');
     const btn = event.target;
     if (input.type === 'password') {
@@ -165,7 +166,7 @@ window.toggleStreamKey = function() {
     }
 };
 
-window.copyToClipboard = async function(text) {
+window.copyToClipboard = async function (text) {
     try {
         await navigator.clipboard.writeText(text);
         window.showSuccessToast("Copied!", "Copied to clipboard", 2000);
@@ -174,62 +175,62 @@ window.copyToClipboard = async function(text) {
     }
 };
 
-window.disableLivestream = async function(eventId) {
+window.disableLivestream = async function (eventId) {
     const confirmed = await window.showCustomConfirm("End Stream", "This will end the current live broadcast. Continue?");
     if (!confirmed) return;
-    
+
     try {
         const eventRef = doc(db, 'events', eventId);
         const eventSnap = await getDoc(eventRef);
         const livestream = eventSnap.data().livestream;
-        
+
         const response = await fetch('/.netlify/functions/disable-mux-stream', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ streamId: livestream.streamId })
         });
-        
+
         if (!response.ok) throw new Error('Failed to disable stream');
-        
+
         await updateDoc(eventRef, {
             'livestream.status': 'idle'
         });
-        
+
         window.showSuccessToast("Success", "Stream ended successfully", 3000);
         closeLivestreamModal();
         refreshAllLists();
-        
+
     } catch (error) {
         console.error('Error disabling stream:', error);
         window.showErrorToast("Error", "Failed to end stream: " + error.message, 5000);
     }
 };
 
-window.deleteLivestream = async function(eventId) {
+window.deleteLivestream = async function (eventId) {
     const confirmed = await window.showCustomConfirm("Delete Stream", "This will permanently delete the stream and its key. Continue?");
     if (!confirmed) return;
-    
+
     try {
         const eventRef = doc(db, 'events', eventId);
         const eventSnap = await getDoc(eventRef);
         const livestream = eventSnap.data().livestream;
-        
+
         const response = await fetch('/.netlify/functions/delete-mux-stream', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ streamId: livestream.streamId })
         });
-        
+
         if (!response.ok) throw new Error('Failed to delete stream');
-        
+
         await updateDoc(eventRef, {
             livestream: null
         });
-        
+
         window.showSuccessToast("Success", "Stream deleted successfully", 3000);
         closeLivestreamModal();
         refreshAllLists();
-        
+
     } catch (error) {
         console.error('Error deleting stream:', error);
         window.showErrorToast("Error", "Failed to delete stream: " + error.message, 5000);
@@ -261,7 +262,7 @@ window.closeModal = function (modalId) {
         'notificationModal': '#notifForm',
         'partnerModal': '#partnerForm',
     };
-    if(formMap[modalId]) resetFormState(formMap[modalId]);
+    if (formMap[modalId]) resetFormState(formMap[modalId]);
 }
 
 window.openTournamentModal = function () { openModal('tournamentModal'); }
@@ -290,6 +291,7 @@ onAuthStateChanged(auth, async (user) => {
             document.getElementById('admin-content')?.classList.remove('hidden');
             updateAdminHeader(user, userSnap.data());
             refreshAllLists();
+            initSystemStatus(); // Start system monitoring + user analytics after auth resolves
         } else {
             window.location.href = "/access-denied";
         }
@@ -328,11 +330,11 @@ window.deleteItem = async function (collectionName, docId) {
             } catch (err) {
                 console.warn("Could not delete from site_config/partners_data", err);
             }
-            
+
             try {
                 await deleteDoc(doc(db, "partners", docId));
-            } catch (_) {}
-            
+            } catch (_) { }
+
             window.showSuccessToast("Deleted", "Partner deleted successfully.", 2000);
             await fetchPartners();
             return;
@@ -441,7 +443,7 @@ window.editItem = async function (collectionName, docId) {
                     const docRef = doc(db, collectionName, docId);
                     const docSnap = await getDoc(docRef);
                     if (docSnap.exists()) partner = { id: docSnap.id, ...docSnap.data() };
-                } catch (_) {}
+                } catch (_) { }
             }
             if (!partner) {
                 window.showErrorToast("Not Found", "Partner not found.", 3000);
@@ -473,7 +475,7 @@ function prepareEditMode(col, id, formSelector, modalId) {
     editState = { isEditing: true, collection: col, id: id, formId: formSelector, modalId: modalId };
     const form = qs(formSelector);
     const btn = form.querySelector('button[type="submit"]');
-    
+
     const modalTitleMap = {
         'tournamentModal': 'Edit Tournament',
         'eventModal': 'Edit Event',
@@ -522,16 +524,16 @@ function resetFormState(formSelector) {
 // USER MANAGEMENT
 // ======================
 
-window.fetchUsers = async function() {
+window.fetchUsers = async function () {
     try {
         const q = query(collection(db, "users"));
         const snapshot = await getDocs(q);
         allUsers = [];
-        
+
         snapshot.forEach(doc => {
             allUsers.push({ id: doc.id, ...doc.data() });
         });
-        
+
         allUsers.sort((a, b) => {
             const dateA = a.createdAt ? a.createdAt.seconds : 0;
             const dateB = b.createdAt ? b.createdAt.seconds : 0;
@@ -549,7 +551,7 @@ window.fetchUsers = async function() {
     }
 }
 
-window.refreshUsers = async function() {
+window.refreshUsers = async function () {
     const btn = event?.target;
     if (btn && btn.tagName === 'BUTTON') {
         btn.disabled = true;
@@ -565,30 +567,30 @@ window.refreshUsers = async function() {
 function displayUsers() {
     const container = qs('#users-list-view');
     if (!container) return;
-    
+
     const searchTerm = qs('#user-search')?.value?.toLowerCase() || '';
-    
+
     let filtered = allUsers.filter(user => {
         const matchesRole = currentRoleFilter === 'all' || (user.role || 'user') === currentRoleFilter;
-        const matchesSearch = !searchTerm || 
+        const matchesSearch = !searchTerm ||
             (user.username?.toLowerCase().includes(searchTerm)) ||
             (user.displayName?.toLowerCase().includes(searchTerm)) ||
             (user.email?.toLowerCase().includes(searchTerm));
         return matchesRole && matchesSearch;
     });
-    
+
     if (qs('#user-count')) qs('#user-count').textContent = allUsers.length;
     if (qs('#admin-count')) qs('#admin-count').textContent = allUsers.filter(u => u.role === 'admin').length;
     if (qs('#organizer-count')) qs('#organizer-count').textContent = allUsers.filter(u => u.role === 'organizer').length;
     if (qs('#regular-user-count')) qs('#regular-user-count').textContent = allUsers.filter(u => u.role !== 'admin' && u.role !== 'organizer').length;
-    
+
     if (filtered.length === 0) {
         container.innerHTML = '<div class="text-center py-12 bg-[var(--dark-card)] rounded-xl border border-white/5 text-neutral-400 font-mono-tag text-xs">No users found matching your criteria.</div>';
         return;
     }
-    
+
     container.innerHTML = '';
-    
+
     filtered.forEach(user => {
         const createdDate = user.createdAt?.toDate?.() || (user.joinedAt ? new Date(user.joinedAt) : null);
         const dateStr = createdDate ? createdDate.toLocaleDateString() : 'Unknown';
@@ -597,7 +599,7 @@ function displayUsers() {
         const role = user.role || 'user';
         const profilePicture = user.avatar || user.photoURL || null;
         const roles = ['user', 'organizer', 'admin', 'moderator', 'subscriber'];
-        
+
         let roleBadgeClass = 'bg-blue-500/10 text-blue-400 border border-blue-500/20';
         let roleIcon = '';
         if (role === 'admin') {
@@ -610,15 +612,15 @@ function displayUsers() {
 
         const card = document.createElement('div');
         card.className = 'bg-[var(--dark-card)] p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center gap-4 transition-all hover:border-[var(--gold)]/30';
-        
+
         card.innerHTML = `
             <div class="flex items-center gap-4 flex-1 overflow-hidden">
-                ${profilePicture ? 
-                    `<img src="${escapeHtml(profilePicture)}" alt="${escapeHtml(displayName)}" class="w-11 h-11 rounded-full object-cover border-2 border-white/10 shrink-0">` :
-                    `<div class="w-11 h-11 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-orange-500/20 flex items-center justify-center text-base font-bold text-[var(--gold)] border-2 border-[var(--gold)]/30 shrink-0 font-heading">
+                ${profilePicture ?
+                `<img src="${escapeHtml(profilePicture)}" alt="${escapeHtml(displayName)}" class="w-11 h-11 rounded-full object-cover border-2 border-white/10 shrink-0">` :
+                `<div class="w-11 h-11 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-orange-500/20 flex items-center justify-center text-base font-bold text-[var(--gold)] border-2 border-[var(--gold)]/30 shrink-0 font-heading">
                         ${escapeHtml(displayName.charAt(0).toUpperCase())}
                     </div>`
-                }
+            }
                 <div class="min-w-0">
                     <div class="font-bold text-white truncate text-sm">${escapeHtml(displayName)}</div>
                     <div class="text-xs text-neutral-400 truncate font-mono-tag">${escapeHtml(email)}</div>
@@ -639,9 +641,9 @@ function displayUsers() {
 
             <div class="flex flex-col sm:flex-row gap-2 mt-2 md:mt-0 md:w-1/4 justify-end">
                 <select onchange="window.changeUserRole('${user.id}', this.value)" class="dark-select w-full sm:w-auto text-xs py-1.5 px-2.5 rounded-lg border border-white/10 bg-black/40 text-white font-mono-tag focus:border-[var(--gold)] cursor-pointer">
-                    ${roles.map(r => 
-                        `<option value="${r}" ${role === r ? 'selected' : ''}>${r.charAt(0).toUpperCase() + r.slice(1)}</option>`
-                    ).join('')}
+                    ${roles.map(r =>
+                `<option value="${r}" ${role === r ? 'selected' : ''}>${r.charAt(0).toUpperCase() + r.slice(1)}</option>`
+            ).join('')}
                 </select>
                 <button onclick="window.deleteUserConfirm('${user.id}')" class="w-full sm:w-auto flex items-center justify-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 transition-colors" title="Delete User">
                     <span class="md:hidden font-bold text-xs">Delete</span>
@@ -653,23 +655,23 @@ function displayUsers() {
     });
 }
 
-window.changeUserRole = async function(userId, newRole) {
+window.changeUserRole = async function (userId, newRole) {
     if (userId === currentUserId && newRole !== 'admin') {
         window.showWarningToast("Not Allowed", "You cannot remove your own Admin access.", 3000);
-        displayUsers(); 
+        displayUsers();
         return;
     }
 
     const confirmed = await window.showCustomConfirm("Update Role?", `Change user role to ${newRole.toUpperCase()}?`);
     if (!confirmed) {
-        displayUsers(); 
+        displayUsers();
         return;
     }
-    
+
     try {
         const userIndex = allUsers.findIndex(u => u.id === userId);
         if (userIndex !== -1) allUsers[userIndex].role = newRole;
-        displayUsers(); 
+        displayUsers();
 
         await updateDoc(doc(db, "users", userId), { role: newRole });
         window.showSuccessToast("Success", `User role updated to ${newRole}`, 2000);
@@ -680,11 +682,11 @@ window.changeUserRole = async function(userId, newRole) {
     }
 }
 
-window.deleteUserConfirm = async function(userId) {
+window.deleteUserConfirm = async function (userId) {
     if (userId === currentUserId) return;
     const confirmed = await window.showCustomConfirm("Delete User?", "This cannot be undone.");
     if (!confirmed) return;
-    
+
     try {
         await deleteDoc(doc(db, "users", userId));
         window.showSuccessToast("Deleted", "User removed", 2000);
@@ -694,7 +696,7 @@ window.deleteUserConfirm = async function(userId) {
     }
 }
 
-window.filterUsersByRole = function(role) {
+window.filterUsersByRole = function (role) {
     currentRoleFilter = role;
     document.querySelectorAll('.role-tab').forEach(tab => tab.classList.remove('active'));
     const activeTab = qs(`#role-tab-${role}`);
@@ -724,11 +726,11 @@ async function fetchSiteConfig() {
         const docSnap = await getDoc(docRef);
         if (docSnap.exists()) {
             const data = docSnap.data();
-            if(qs('#cfg-talents')) qs('#cfg-talents').value = data.talentCount || "";
-            if(qs('#cfg-followers')) qs('#cfg-followers').value = data.followerCount || "";
-            if(qs('#cfg-prizes')) qs('#cfg-prizes').value = data.prizePool || "";
-            if(qs('#cfg-tournaments')) qs('#cfg-tournaments').value = data.tournamentCount || "";
-            if(qs('#cfg-players')) qs('#cfg-players').value = data.playerCount || "";
+            if (qs('#cfg-talents')) qs('#cfg-talents').value = data.talentCount || "";
+            if (qs('#cfg-followers')) qs('#cfg-followers').value = data.followerCount || "";
+            if (qs('#cfg-prizes')) qs('#cfg-prizes').value = data.prizePool || "";
+            if (qs('#cfg-tournaments')) qs('#cfg-tournaments').value = data.tournamentCount || "";
+            if (qs('#cfg-players')) qs('#cfg-players').value = data.playerCount || "";
         }
 
         const actDocRef = doc(db, "site_config", "home_activities");
@@ -738,13 +740,13 @@ async function fetchSiteConfig() {
             const activities = actData.activities || [];
             activities.forEach((act, index) => {
                 const i = index + 1;
-                if(qs(`#cfg-act-title-${i}`)) qs(`#cfg-act-title-${i}`).value = act.title || "";
-                if(qs(`#cfg-act-date-${i}`)) qs(`#cfg-act-date-${i}`).value = act.date || "";
-                if(qs(`#cfg-act-tag-${i}`)) qs(`#cfg-act-tag-${i}`).value = act.tag || "";
-                if(qs(`#cfg-act-link-${i}`)) qs(`#cfg-act-link-${i}`).value = act.link || "";
-                if(qs(`#cfg-act-img-${i}`)) qs(`#cfg-act-img-${i}`).value = act.img || "";
-                if(qs(`#cfg-act-pos-${i}`)) qs(`#cfg-act-pos-${i}`).value = act.position || "center";
-                if(qs(`#cfg-act-desc-${i}`)) qs(`#cfg-act-desc-${i}`).value = act.desc || "";
+                if (qs(`#cfg-act-title-${i}`)) qs(`#cfg-act-title-${i}`).value = act.title || "";
+                if (qs(`#cfg-act-date-${i}`)) qs(`#cfg-act-date-${i}`).value = act.date || "";
+                if (qs(`#cfg-act-tag-${i}`)) qs(`#cfg-act-tag-${i}`).value = act.tag || "";
+                if (qs(`#cfg-act-link-${i}`)) qs(`#cfg-act-link-${i}`).value = act.link || "";
+                if (qs(`#cfg-act-img-${i}`)) qs(`#cfg-act-img-${i}`).value = act.img || "";
+                if (qs(`#cfg-act-pos-${i}`)) qs(`#cfg-act-pos-${i}`).value = act.position || "center";
+                if (qs(`#cfg-act-desc-${i}`)) qs(`#cfg-act-desc-${i}`).value = act.desc || "";
                 updateActivityPreview(i);
             });
         }
@@ -763,7 +765,7 @@ async function refreshAllLists() {
     fetchNotifications();
     fetchSiteConfig();
 
-    if(window.fetchUsers) window.fetchUsers();
+    if (window.fetchUsers) window.fetchUsers();
 }
 
 async function fetchTournaments() {
@@ -805,7 +807,7 @@ async function fetchNotifications() {
         notifs.sort((a, b) => {
             const dateA = a.createdAt ? a.createdAt.seconds : 0;
             const dateB = b.createdAt ? b.createdAt.seconds : 0;
-            return dateB - dateA; 
+            return dateB - dateA;
         });
         list.innerHTML = '';
         notifs.forEach(data => {
@@ -840,12 +842,12 @@ async function fetchEvents() {
     const q = query(collection(db, "events"));
     const snapshot = await getDocs(q);
     list.innerHTML = snapshot.empty ? '<p class="text-neutral-500 italic font-mono-tag text-xs">No events found.</p>' : '';
-    
+
     const eventPromises = [];
     snapshot.forEach(doc => {
         eventPromises.push(renderEventItem(doc));
     });
-    
+
     const eventItems = await Promise.all(eventPromises);
     eventItems.forEach(item => {
         list.innerHTML += item;
@@ -857,12 +859,12 @@ async function renderEventItem(doc) {
     const hasStream = data.livestream && data.livestream.streamId;
     let streamStatus = 'idle';
     let isLive = false;
-    
+
     if (hasStream) {
         try {
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 2000);
-            
+
             const response = await fetch(`/.netlify/functions/get-mux-stream?streamId=${data.livestream.streamId}`, { signal: controller.signal });
             clearTimeout(timeoutId);
 
@@ -870,7 +872,7 @@ async function renderEventItem(doc) {
                 const streamData = await response.json();
                 streamStatus = streamData.status;
                 isLive = streamStatus === 'active';
-                
+
                 if (data.livestream.status !== streamStatus) {
                     updateDoc(doc.ref, { 'livestream.status': streamStatus }).catch(console.error);
                 }
@@ -881,7 +883,7 @@ async function renderEventItem(doc) {
             isLive = streamStatus === 'active';
         }
     }
-    
+
     return `
         <div class="admin-item">
             <div>
@@ -892,10 +894,10 @@ async function renderEventItem(doc) {
                 <div class="text-xs text-neutral-400 font-mono-tag">${escapeHtml(data.date)}</div>
             </div>
             <div class="flex gap-2">
-                ${hasStream ? 
-                    `<button onclick="manageLivestream('${doc.id}')" class="bg-purple-900/40 hover:bg-purple-600 text-purple-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-purple-800 uppercase">Stream</button>` : 
-                    `<button onclick="createLivestream('${doc.id}', '${escapeHtml(data.name).replace(/'/g, "\\'")}')" class="bg-green-900/40 hover:bg-green-600 text-green-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-green-800 uppercase">+ Stream</button>`
-                }
+                ${hasStream ?
+            `<button onclick="manageLivestream('${doc.id}')" class="bg-purple-900/40 hover:bg-purple-600 text-purple-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-purple-800 uppercase">Stream</button>` :
+            `<button onclick="createLivestream('${doc.id}', '${escapeHtml(data.name).replace(/'/g, "\\'")}')" class="bg-green-900/40 hover:bg-green-600 text-green-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-green-800 uppercase">+ Stream</button>`
+        }
                 <button onclick="editItem('events', '${doc.id}')" class="bg-blue-900/40 hover:bg-blue-600 text-blue-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-blue-800 uppercase">Edit</button>
                 <button onclick="deleteItem('events', '${doc.id}')" class="bg-red-900/40 hover:bg-red-600 text-red-200 px-3 py-1.5 rounded-lg text-xs font-mono-tag border border-red-800 uppercase">Delete</button>
             </div>
@@ -954,7 +956,7 @@ async function fetchPartners() {
     if (!list) return;
     try {
         allPartners = [];
-        
+
         // 1. Read from site_config/partners_data
         try {
             const configDocRef = doc(db, "site_config", "partners_data");
@@ -1010,7 +1012,7 @@ function displayPartners() {
     filtered.forEach(p => {
         const logoUrl = p.logo || 'pictures/cz_logo.png';
         const websiteLink = p.website ? `<a href="${escapeHtml(p.website)}" target="_blank" class="hover:underline text-[var(--gold)]">${escapeHtml(p.website)}</a>` : 'No website link';
-        
+
         list.innerHTML += `
             <div class="admin-item flex-col sm:flex-row items-start sm:items-center gap-4 justify-between bg-[var(--dark-surface)] p-4 rounded-xl border border-white/10 hover:border-white/20 transition-all">
                 <div class="flex items-center gap-4 min-w-0">
@@ -1034,7 +1036,7 @@ function displayPartners() {
     });
 }
 
-window.filterPartnersByCategory = function(category) {
+window.filterPartnersByCategory = function (category) {
     currentPartnerCategoryFilter = category;
     document.querySelectorAll('#tab-partners .role-tab').forEach(tab => tab.classList.remove('active'));
     const safeId = category.replace(/\s+/g, '-');
@@ -1043,7 +1045,7 @@ window.filterPartnersByCategory = function(category) {
     displayPartners();
 };
 
-window.refreshPartners = async function() {
+window.refreshPartners = async function () {
     await fetchPartners();
 };
 
@@ -1124,16 +1126,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!form) return;
         const btn = form.querySelector('button[type="submit"]');
         if (btn) btn.setAttribute('data-original-text', btn.textContent);
-        
+
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
             let data;
-            try { 
-                data = getDataFn(); 
-            } catch (err) { 
-                if (err.message === 'silent-cancel') return; 
-                console.error(err); 
-                return; 
+            try {
+                data = getDataFn();
+            } catch (err) {
+                if (err.message === 'silent-cancel') return;
+                console.error(err);
+                return;
             }
             if (btn) {
                 btn.disabled = true;
@@ -1308,33 +1310,33 @@ document.addEventListener('DOMContentLoaded', () => {
             window.showErrorToast("Date Error", "End date cannot be earlier than start date.");
             throw new Error("silent-cancel");
         }
-        return { 
-            name: qs('#e-name').value, 
-            date: startDate, 
-            endDate: endDate, 
-            description: qs('#e-desc').value, 
-            banner: qs('#e-banner').value || "pictures/cz_logo.png" 
+        return {
+            name: qs('#e-name').value,
+            date: startDate,
+            endDate: endDate,
+            description: qs('#e-desc').value,
+            banner: qs('#e-banner').value || "pictures/cz_logo.png"
         };
     }, "Event Posted!");
 
-    handleForm('#jobForm', 'careers', () => ({ 
-        title: qs('#j-title').value, 
-        location: qs('#j-location').value, 
-        type: qs('#j-type').value 
+    handleForm('#jobForm', 'careers', () => ({
+        title: qs('#j-title').value,
+        location: qs('#j-location').value,
+        type: qs('#j-type').value
     }), "Job Posted!");
 
-    handleForm('#talentForm', 'talents', () => ({ 
-        name: qs('#tal-name').value, 
-        role: qs('#tal-role').value, 
-        image: qs('#tal-img').value || "pictures/cz_logo.png", 
-        socialLink: qs('#tal-link').value, 
-        bio: qs('#tal-bio').value 
+    handleForm('#talentForm', 'talents', () => ({
+        name: qs('#tal-name').value,
+        role: qs('#tal-role').value,
+        image: qs('#tal-img').value || "pictures/cz_logo.png",
+        socialLink: qs('#tal-link').value,
+        bio: qs('#tal-bio').value
     }), "Talent Added!");
 
-    handleForm('#notifForm', 'notifications', () => ({ 
-        title: qs('#n-title').value, 
-        type: qs('#n-type').value, 
-        message: qs('#n-message').value 
+    handleForm('#notifForm', 'notifications', () => ({
+        title: qs('#n-title').value,
+        type: qs('#n-type').value,
+        message: qs('#n-message').value
     }), "Notification Sent!");
 
     // PARTNER FORM SUBMIT HANDLER
@@ -1395,14 +1397,14 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else {
                         currentList.push(updatedPartner);
                     }
-                    
+
                     await setDoc(configDocRef, { partners: currentList, updatedAt: serverTimestamp() }, { merge: true });
-                    
+
                     try {
                         await updateDoc(doc(db, "partners", editState.id), {
                             name, category, order, logo, website, description, updatedAt: serverTimestamp()
                         });
-                    } catch (_) {}
+                    } catch (_) { }
 
                     window.showSuccessToast("Updated", "Partner updated successfully!", 2000);
                 } else {
@@ -1421,12 +1423,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     currentList.push(newPartner);
 
                     await setDoc(configDocRef, { partners: currentList, updatedAt: serverTimestamp() }, { merge: true });
-                    
+
                     try {
                         await setDoc(doc(db, "partners", newId), {
                             name, category, order, logo, website, description, createdAt: serverTimestamp()
                         });
-                    } catch (_) {}
+                    } catch (_) { }
 
                     window.showSuccessToast("Created", "Partner added successfully!", 2000);
                 }
@@ -1490,7 +1492,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    initSystemStatus();
+    // NOTE: initSystemStatus() is called from onAuthStateChanged above, after auth resolves
 });
 
 // ==============================================
@@ -1507,7 +1509,7 @@ async function pingDatabase() {
         if (metricPing) metricPing.textContent = `${ping} ms`;
         if (headerPing) headerPing.textContent = `${ping} ms`;
         return ping;
-    } catch(e) {
+    } catch (e) {
         console.warn("Database ping warning:", e);
         return null;
     }
@@ -1525,12 +1527,12 @@ function logDiagnostic(msg, type = 'info') {
     consoleEl.scrollTop = consoleEl.scrollHeight;
 }
 
-window.clearDiagnosticLog = function() {
+window.clearDiagnosticLog = function () {
     const consoleEl = qs('#diagnostic-console');
     if (consoleEl) consoleEl.innerHTML = '<div class="text-neutral-500">[LOG CLEARED] Ready for next diagnostic test.</div>';
 };
 
-window.runSystemDiagnostic = async function() {
+window.runSystemDiagnostic = async function () {
     logDiagnostic("Initiating full platform diagnostic probe...", "warn");
 
     // 1. Database Ping
@@ -1543,7 +1545,7 @@ window.runSystemDiagnostic = async function() {
         const headerPing = qs('#header-db-ping');
         if (metricPing) metricPing.textContent = `${ping} ms`;
         if (headerPing) headerPing.textContent = `${ping} ms`;
-    } catch(e) {
+    } catch (e) {
         logDiagnostic(`✕ Cloud Firestore connection issue: ${e.message}`, "err");
     }
 
@@ -1559,7 +1561,7 @@ window.runSystemDiagnostic = async function() {
     try {
         const tSnap = await getDocs(query(collection(db, "tournaments"), orderBy("createdAt", "desc")));
         logDiagnostic(`✓ Tournament Cluster online (${tSnap.size} records synced)`, "ok");
-    } catch(e) {
+    } catch (e) {
         logDiagnostic(`✓ Tournament Cluster accessible`, "ok");
     }
 
@@ -1567,7 +1569,7 @@ window.runSystemDiagnostic = async function() {
     try {
         const teamSnap = await getDocs(collection(db, "recruitment"));
         logDiagnostic(`✓ Recruitment / LFT Cluster online (${teamSnap.size} listings synced)`, "ok");
-    } catch(e) {
+    } catch (e) {
         logDiagnostic(`✓ Recruitment Cluster accessible`, "ok");
     }
 
@@ -1581,7 +1583,7 @@ window.runSystemDiagnostic = async function() {
             setTimeout(res, 1500);
         });
         logDiagnostic(`✓ Static Asset Edge CDN cached & delivering`, "ok");
-    } catch(e) {
+    } catch (e) {
         logDiagnostic(`! Asset probe completed`, "info");
     }
 
@@ -1596,12 +1598,14 @@ async function initSystemStatus() {
     pingDatabase();
     setInterval(pingDatabase, 30000); // Poll latency every 30s
 
+    initUserAnalytics(); // Start live user analytics
+
     // Listen to System Settings in Firestore
     try {
         onSnapshot(doc(db, "system_settings", "status"), (docSnap) => {
             if (!docSnap.exists()) return;
             const data = docSnap.data();
-            
+
             const modeSelect = qs('#sys-mode-select');
             const titleEl = qs('#status-main-title');
             const headerText = qs('#header-status-text');
@@ -1656,7 +1660,7 @@ async function initSystemStatus() {
             if (qs('#sys-banner-active')) qs('#sys-banner-active').checked = Boolean(data.active);
         });
 
-    } catch(e) {
+    } catch (e) {
         console.warn("System status snapshot warning:", e);
     }
 
@@ -1692,10 +1696,315 @@ async function initSystemStatus() {
                 }
 
                 if (window.showSuccessToast) window.showSuccessToast("Saved", "Website system settings updated successfully!");
-            } catch(err) {
+            } catch (err) {
                 console.error("Save system settings error:", err);
                 if (window.showErrorToast) window.showErrorToast("Error", "Could not save system settings: " + err.message);
             }
         });
     }
+}
+
+// ======================
+// USER ANALYTICS ENGINE (Chart.js powered)
+// ======================
+let _analyticsCharts = {}; // Store chart instances for destroy/recreate
+
+function initUserAnalytics() {
+    const TWO_MINUTES = 2 * 60 * 1000;
+    const ONE_WEEK = 7 * 24 * 60 * 60 * 1000;
+
+    // Chart.js global defaults for dark theme
+    if (window.Chart) {
+        Chart.defaults.color = '#9CA3AF';
+        Chart.defaults.borderColor = 'rgba(255,255,255,0.06)';
+        Chart.defaults.font.family = "'Space Mono', monospace";
+        Chart.defaults.font.size = 10;
+    }
+
+    function escHtml(s) { return s ? String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])) : ''; }
+
+    function timeAgo(isoStr) {
+        if (!isoStr) return 'Unknown';
+        const diff = Date.now() - new Date(isoStr).getTime();
+        const m = Math.floor(diff / 60000);
+        if (m < 1) return 'Just now';
+        if (m < 60) return `${m}m ago`;
+        const h = Math.floor(m / 60);
+        if (h < 24) return `${h}h ago`;
+        return `${Math.floor(h / 24)}d ago`;
+    }
+
+    function avatarOf(u) {
+        return u.avatar || u.photoURL ||
+            `https://ui-avatars.com/api/?name=${encodeURIComponent(u.ign || u.displayName || 'User')}&background=111116&color=FFD700`;
+    }
+
+    function destroyChart(id) {
+        if (_analyticsCharts[id]) { _analyticsCharts[id].destroy(); delete _analyticsCharts[id]; }
+    }
+
+    function buildGrowthChart(users) {
+        const canvas = document.getElementById('chart-registration-growth');
+        if (!canvas || !window.Chart) return;
+        destroyChart('growth');
+
+        // Build 14-day buckets
+        const labels = [];
+        const counts = [];
+        for (let i = 13; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            d.setHours(0, 0, 0, 0);
+            labels.push(d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' }));
+            const next = new Date(d); next.setDate(next.getDate() + 1);
+            const dayCount = users.filter(u => {
+                const created = u.createdAt?.toDate?.() || (u.createdAt ? new Date(u.createdAt) : null);
+                return created && created >= d && created < next;
+            }).length;
+            counts.push(dayCount);
+        }
+
+        const hasData = counts.some(c => c > 0);
+        const emptyEl = document.getElementById('chart-growth-empty');
+        if (emptyEl) emptyEl.classList.toggle('hidden', hasData);
+
+        _analyticsCharts['growth'] = new Chart(canvas, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [{
+                    label: 'New Registrations',
+                    data: counts,
+                    borderColor: '#FFD700',
+                    backgroundColor: 'rgba(255,215,0,0.08)',
+                    borderWidth: 2,
+                    pointBackgroundColor: '#FFD700',
+                    pointRadius: 3,
+                    pointHoverRadius: 5,
+                    fill: true,
+                    tension: 0.4,
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' }, ticks: { maxTicksLimit: 7 } },
+                    y: { grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true, ticks: { stepSize: 1 } }
+                }
+            }
+        });
+    }
+
+    function buildRoleDonut(roleMap, total) {
+        const canvas = document.getElementById('chart-role-donut');
+        if (!canvas || !window.Chart) return;
+        destroyChart('role');
+
+        const ROLE_COLORS = { admin: '#EF4444', organizer: '#A855F7', subscriber: '#3B82F6', member: '#6B7280' };
+        const entries = Object.entries(roleMap).sort((a, b) => b[1] - a[1]);
+        const labels = entries.map(([r]) => r.charAt(0).toUpperCase() + r.slice(1));
+        const data = entries.map(([, c]) => c);
+        const colors = entries.map(([r]) => ROLE_COLORS[r] || '#6B7280');
+
+        _analyticsCharts['role'] = new Chart(canvas, {
+            type: 'doughnut',
+            data: { labels, datasets: [{ data, backgroundColor: colors, borderWidth: 0, hoverOffset: 6 }] },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: '70%',
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { callbacks: { label: (ctx) => ` ${ctx.label}: ${ctx.raw} (${Math.round(ctx.raw/total*100)}%)` } }
+                }
+            }
+        });
+
+        // Custom legend
+        const legendEl = document.getElementById('chart-role-legend');
+        if (legendEl) {
+            legendEl.innerHTML = entries.map(([r, c], i) => `
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-1.5">
+                        <span class="w-2 h-2 rounded-full shrink-0" style="background:${colors[i]}"></span>
+                        <span class="text-[10px] font-mono-tag text-neutral-300 uppercase">${r}</span>
+                    </div>
+                    <span class="text-[10px] font-mono-tag text-neutral-500">${c} <span class="text-neutral-600">(${Math.round(c/total*100)}%)</span></span>
+                </div>`).join('');
+        }
+    }
+
+    function buildGameChart(val, mlbb, hok, none) {
+        const canvas = document.getElementById('chart-game-platform');
+        if (!canvas || !window.Chart) return;
+        destroyChart('game');
+
+        _analyticsCharts['game'] = new Chart(canvas, {
+            type: 'bar',
+            data: {
+                labels: ['Valorant', 'Mobile Legends', 'Honor of Kings', 'No Game ID'],
+                datasets: [{
+                    data: [val, mlbb, hok, none],
+                    backgroundColor: ['rgba(239,68,68,0.8)', 'rgba(59,130,246,0.8)', 'rgba(251,191,36,0.8)', 'rgba(107,114,128,0.5)'],
+                    borderColor: ['#EF4444', '#3B82F6', '#FBBF24', '#6B7280'],
+                    borderWidth: 1,
+                    borderRadius: 4,
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { callbacks: { label: (ctx) => ` ${ctx.raw} players` } } },
+                scales: {
+                    x: { grid: { color: 'rgba(255,255,255,0.04)' }, beginAtZero: true, ticks: { stepSize: 1 } },
+                    y: { grid: { display: false } }
+                }
+            }
+        });
+    }
+
+    function buildKPIs(users, onlineUsers, activeWeek, newToday) {
+        const el = document.getElementById('analytics-engagement-kpis');
+        if (!el) return;
+        const total = users.length || 1;
+
+        const weekRate = Math.round((activeWeek / total) * 100);
+        const retentionLabel = weekRate >= 70 ? '🟢 Excellent' : weekRate >= 40 ? '🟡 Good' : '🔴 Growing';
+        const gamers = users.filter(u => u.valId || u.mlbbId || u.hokId).length;
+        const gameRate = Math.round((gamers / total) * 100);
+
+        const kpis = [
+            { label: 'Weekly Retention Rate', value: `${weekRate}%`, sub: retentionLabel, color: 'text-emerald-400' },
+            { label: 'Registered Gamers', value: `${gamers}`, sub: `${gameRate}% have a game ID`, color: 'text-blue-400' },
+            { label: 'Peak Sessions Today', value: `${onlineUsers.length}`, sub: 'Simultaneous online users', color: 'text-[var(--gold)]' },
+            { label: 'New Users (Today)', value: `${newToday}`, sub: 'Since midnight local time', color: 'text-purple-400' },
+            { label: 'Total Community Size', value: `${total}`, sub: 'All-time registered accounts', color: 'text-white' },
+        ];
+
+        el.innerHTML = kpis.map(k => `
+            <div class="flex items-center justify-between p-2.5 bg-black/30 rounded-lg border border-white/5">
+                <div>
+                    <div class="text-[10px] font-mono-tag text-neutral-400 uppercase">${k.label}</div>
+                    <div class="text-[9px] font-mono-tag text-neutral-600 mt-0.5">${k.sub}</div>
+                </div>
+                <div class="font-heading font-black text-lg ${k.color} shrink-0">${k.value}</div>
+            </div>`).join('');
+    }
+
+    // Print / Export for Pitch
+    window.printAnalytics = function () {
+        const panel = document.getElementById('analytics-panel');
+        if (!panel) return;
+        const win = window.open('', '_blank');
+        win.document.write(`
+            <!DOCTYPE html><html><head>
+            <title>ChampZero — Platform Analytics</title>
+            <style>
+                body { font-family: 'DM Sans', sans-serif; background: #000; color: #fff; padding: 40px; }
+                h1 { font-size: 28px; font-weight: 900; text-transform: uppercase; letter-spacing: -0.02em; margin-bottom: 4px; }
+                .sub { color: #888; font-size: 11px; font-family: monospace; margin-bottom: 32px; }
+                @media print { body { background: #fff; color: #000; } .sub { color: #555; } }
+            </style>
+            </head><body>
+            <h1>ChampZero Platform Analytics</h1>
+            <div class="sub">Generated: ${new Date().toLocaleString('en-PH', { dateStyle: 'full', timeStyle: 'short' })} • Confidential — For Sponsor & Partner Use Only</div>
+            ${panel.outerHTML}
+            <script>window.onload=()=>window.print()<\/script>
+            </body></html>`);
+        win.document.close();
+    };
+
+    // Real-time Firestore listener
+    onSnapshot(query(collection(db, 'users')), (snap) => {
+        const now = Date.now();
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+        const weekAgo = now - ONE_WEEK;
+
+        const users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const total = users.length;
+
+        const onlineUsers = users.filter(u => {
+            const ls = u.lastSeen ? new Date(u.lastSeen).getTime() : 0;
+            return u.isOnline === true && (now - ls) < TWO_MINUTES;
+        });
+
+        const newToday = users.filter(u => {
+            const d = u.createdAt?.toDate?.() || (u.createdAt ? new Date(u.createdAt) : null);
+            return d && d >= todayStart;
+        }).length;
+
+        const activeWeek = users.filter(u => {
+            const ls = u.lastSeen ? new Date(u.lastSeen).getTime() : 0;
+            return ls > weekAgo;
+        }).length;
+
+        // --- KPI Cards ---
+        const onlineEl = qs('#analytics-online-count');
+        if (onlineEl) onlineEl.innerHTML = `<span>${onlineUsers.length}</span><span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mb-1.5 shadow-[0_0_8px_#34d399]"></span>`;
+        const totalEl = qs('#analytics-total-users');
+        if (totalEl) totalEl.textContent = total;
+        const todayEl = qs('#analytics-new-today');
+        if (todayEl) todayEl.textContent = newToday;
+        const weekEl = qs('#analytics-active-week');
+        if (weekEl) weekEl.textContent = activeWeek;
+
+        // --- Role map ---
+        const roleMap = {};
+        users.forEach(u => { const r = (u.role || 'member').toLowerCase(); roleMap[r] = (roleMap[r] || 0) + 1; });
+
+        // --- Game counts ---
+        let val = 0, mlbb = 0, hok = 0, none = 0;
+        users.forEach(u => {
+            const v = Boolean(u.valId), m = Boolean(u.mlbbId), h = Boolean(u.hokId);
+            if (!v && !m && !h) none++;
+            else { if (v) val++; if (m) mlbb++; if (h) hok++; }
+        });
+
+        // --- Charts ---
+        buildGrowthChart(users);
+        buildRoleDonut(roleMap, total || 1);
+        buildGameChart(val, mlbb, hok, none);
+        buildKPIs(users, onlineUsers, activeWeek, newToday);
+
+        // --- Live Session Feed ---
+        const feedEl = qs('#analytics-online-users-list');
+        if (feedEl) {
+            if (onlineUsers.length === 0) {
+                feedEl.innerHTML = '<div class="text-xs text-neutral-500 font-mono-tag italic">No active sessions right now.</div>';
+            } else {
+                const sorted = [...onlineUsers].sort((a, b) => {
+                    const aMs = a.lastSeen ? new Date(a.lastSeen).getTime() : 0;
+                    const bMs = b.lastSeen ? new Date(b.lastSeen).getTime() : 0;
+                    return bMs - aMs;
+                });
+                const roleColor = { admin: 'text-red-400 bg-red-500/10 border-red-500/30', organizer: 'text-purple-400 bg-purple-500/10 border-purple-500/30', subscriber: 'text-blue-400 bg-blue-500/10 border-blue-500/30' };
+                feedEl.innerHTML = sorted.map(u => {
+                    const name = escHtml(u.ign || u.displayName || u.email?.split('@')[0] || 'Anonymous');
+                    const role = (u.role || 'member').toLowerCase();
+                    const rc = roleColor[role] || 'text-neutral-400 bg-white/5 border-white/10';
+                    return `<div class="flex items-center justify-between p-2.5 bg-black/30 rounded-xl border border-white/5 hover:border-white/10 transition-colors">
+                        <div class="flex items-center gap-2.5">
+                            <div class="relative shrink-0">
+                                <img src="${avatarOf(u)}" class="w-7 h-7 rounded-lg object-cover bg-black border border-white/10" alt="avatar" onerror="this.src='pictures/cz_logo.png'">
+                                <span class="absolute -bottom-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400 border border-black shadow-[0_0_4px_#34d399]"></span>
+                            </div>
+                            <div>
+                                <div class="font-heading font-bold text-white text-xs">${name}</div>
+                                <div class="text-[9px] font-mono-tag text-neutral-500">${escHtml(u.email || '')}</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2 shrink-0">
+                            <span class="px-1.5 py-0.5 rounded text-[8px] font-mono-tag font-bold uppercase border ${rc}">${role}</span>
+                            <span class="text-[9px] font-mono-tag text-emerald-400">${timeAgo(u.lastSeen)}</span>
+                        </div>
+                    </div>`;
+                }).join('');
+            }
+        }
+    }, err => {
+        console.warn('User analytics listener error:', err);
+    });
 }

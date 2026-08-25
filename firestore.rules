@@ -278,11 +278,8 @@ service cloud.firestore {
       allow write: if isSignedIn();
     }
 
-    match /notifications/{notifId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-      allow create: if isSignedIn();
-      allow update, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
-    }
+
+
 
     // --- 7. FINANCIAL TRANSACTIONS (CASHINS & WITHDRAWALS) ---
 
@@ -338,6 +335,25 @@ service cloud.firestore {
       allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || isAdmin());
       allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if isAdmin();
+    }
+
+    // --- 11. DIRECT MESSAGES ---
+
+    match /direct_messages/{dmId} {
+      allow read: if isSignedIn() && (
+        request.auth.uid in resource.data.participants
+      );
+      allow create: if isSignedIn() && (
+        request.auth.uid in request.resource.data.participants
+      );
+      allow update: if isSignedIn() && (
+        request.auth.uid in resource.data.participants
+      );
+
+      match /messages/{msgId} {
+        allow read: if isSignedIn();
+        allow create: if isSignedIn();
+      }
     }
   }
 }

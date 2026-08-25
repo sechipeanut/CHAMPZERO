@@ -16,6 +16,7 @@
     <meta property="og:description" content="Esports operations and tournament administration.">
     <meta property="og:image" content="https://champzero.com/pictures/cz_logo.png">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -872,6 +873,129 @@
                     <span id="sys-settings-status" class="text-xs font-mono-tag text-emerald-400 hidden">✓ Settings saved successfully</span>
                 </div>
             </form>
+        </div>
+
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <!-- USER ANALYTICS & PITCH-READY STATS PANEL                  -->
+        <!-- ═══════════════════════════════════════════════════════════ -->
+        <div id="analytics-panel">
+
+            <!-- Section Header -->
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <div>
+                    <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[var(--gold)]">// USER ANALYTICS</span>
+                    <h3 class="font-heading font-bold text-xl text-white uppercase mt-0.5">Platform Growth & Live Status</h3>
+                </div>
+                <div class="flex items-center gap-2">
+                    <span class="flex items-center gap-1.5 text-[10px] font-mono-tag text-emerald-400">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>Real-time
+                    </span>
+                    <button onclick="window.printAnalytics()" class="px-3 py-1.5 bg-[var(--gold)] hover:bg-[#FFF099] text-black font-heading font-extrabold text-[10px] uppercase tracking-wider rounded-lg transition-all shadow cursor-pointer flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                        Export for Pitch
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Row -->
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+                <div class="bg-[var(--dark-surface)] border border-white/10 rounded-xl p-4 relative overflow-hidden hover:border-emerald-500/40 transition-all group">
+                    <div class="text-[9px] font-mono-tag uppercase text-neutral-500 font-bold mb-1">Currently Online</div>
+                    <div class="font-heading font-black text-3xl text-emerald-400 flex items-end gap-1.5" id="analytics-online-count">
+                        <span>—</span>
+                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse mb-1.5 shadow-[0_0_8px_#34d399]"></span>
+                    </div>
+                    <div class="text-[10px] text-neutral-500 font-mono-tag mt-1">Active within 2 min</div>
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-emerald-500/5 rounded-full blur-xl pointer-events-none"></div>
+                </div>
+
+                <div class="bg-[var(--dark-surface)] border border-white/10 rounded-xl p-4 relative overflow-hidden hover:border-blue-500/40 transition-all">
+                    <div class="text-[9px] font-mono-tag uppercase text-neutral-500 font-bold mb-1">Total Registered</div>
+                    <div class="font-heading font-black text-3xl text-white" id="analytics-total-users">—</div>
+                    <div class="text-[10px] text-neutral-500 font-mono-tag mt-1">All-time accounts</div>
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-blue-500/5 rounded-full blur-xl pointer-events-none"></div>
+                </div>
+
+                <div class="bg-[var(--dark-surface)] border border-white/10 rounded-xl p-4 relative overflow-hidden hover:border-[var(--gold)]/40 transition-all">
+                    <div class="text-[9px] font-mono-tag uppercase text-neutral-500 font-bold mb-1">New Today</div>
+                    <div class="font-heading font-black text-3xl text-[var(--gold)]" id="analytics-new-today">—</div>
+                    <div class="text-[10px] text-neutral-500 font-mono-tag mt-1">Signed up today</div>
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-yellow-500/5 rounded-full blur-xl pointer-events-none"></div>
+                </div>
+
+                <div class="bg-[var(--dark-surface)] border border-white/10 rounded-xl p-4 relative overflow-hidden hover:border-purple-500/40 transition-all">
+                    <div class="text-[9px] font-mono-tag uppercase text-neutral-500 font-bold mb-1">Active This Week</div>
+                    <div class="font-heading font-black text-3xl text-purple-400" id="analytics-active-week">—</div>
+                    <div class="text-[10px] text-neutral-500 font-mono-tag mt-1">Seen in last 7 days</div>
+                    <div class="absolute -right-4 -bottom-4 w-20 h-20 bg-purple-500/5 rounded-full blur-xl pointer-events-none"></div>
+                </div>
+            </div>
+
+            <!-- Charts Row 1: Registration Growth + Role Donut -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-4">
+                <!-- Line chart: Registrations over time -->
+                <div class="lg:col-span-2 bg-[var(--dark-surface)] border border-white/10 rounded-xl p-5">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <div class="text-[10px] font-mono-tag uppercase text-[var(--gold)] font-bold">User Registration Growth</div>
+                            <div class="text-[9px] font-mono-tag text-neutral-500 mt-0.5">New sign-ups per day — last 14 days</div>
+                        </div>
+                        <span class="text-[9px] font-mono-tag px-2 py-0.5 bg-white/5 border border-white/10 rounded text-neutral-400">14d</span>
+                    </div>
+                    <div class="relative h-48">
+                        <canvas id="chart-registration-growth"></canvas>
+                        <div id="chart-growth-empty" class="hidden absolute inset-0 flex items-center justify-center text-xs text-neutral-500 font-mono-tag">No registration data yet</div>
+                    </div>
+                </div>
+
+                <!-- Donut: Role distribution -->
+                <div class="bg-[var(--dark-surface)] border border-white/10 rounded-xl p-5">
+                    <div class="text-[10px] font-mono-tag uppercase text-[var(--gold)] font-bold mb-1">User Role Distribution</div>
+                    <div class="text-[9px] font-mono-tag text-neutral-500 mb-4">Breakdown of all accounts</div>
+                    <div class="relative h-36 mb-3">
+                        <canvas id="chart-role-donut"></canvas>
+                    </div>
+                    <div class="space-y-1.5" id="chart-role-legend"></div>
+                </div>
+            </div>
+
+            <!-- Charts Row 2: Game Distribution + Live Feed -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+                <!-- Horizontal bar: Game platform split -->
+                <div class="bg-[var(--dark-surface)] border border-white/10 rounded-xl p-5">
+                    <div class="text-[10px] font-mono-tag uppercase text-[var(--gold)] font-bold mb-1">Game Platform Distribution</div>
+                    <div class="text-[9px] font-mono-tag text-neutral-500 mb-4">Players with game IDs registered</div>
+                    <div class="relative h-44">
+                        <canvas id="chart-game-platform"></canvas>
+                    </div>
+                </div>
+
+                <!-- Engagement KPIs for pitch deck -->
+                <div class="bg-[var(--dark-surface)] border border-white/10 rounded-xl p-5">
+                    <div class="text-[10px] font-mono-tag uppercase text-[var(--gold)] font-bold mb-1">Engagement Snapshot</div>
+                    <div class="text-[9px] font-mono-tag text-neutral-500 mb-4">Key metrics for sponsors &amp; partners</div>
+                    <div class="space-y-3" id="analytics-engagement-kpis">
+                        <div class="text-xs text-neutral-500 font-mono-tag">Loading metrics...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Live Session Feed -->
+            <div class="bg-[var(--dark-surface)] border border-white/10 rounded-xl p-5">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <div class="text-[10px] font-mono-tag uppercase text-[var(--gold)] font-bold">Live Session Feed</div>
+                        <div class="text-[9px] font-mono-tag text-neutral-500 mt-0.5">Users active right now</div>
+                    </div>
+                    <div class="flex items-center gap-1.5 text-[10px] font-mono-tag text-emerald-400">
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                        <span>Real-time</span>
+                    </div>
+                </div>
+                <div id="analytics-online-users-list" class="space-y-2 max-h-64 overflow-y-auto">
+                    <div class="text-xs text-neutral-500 font-mono-tag italic">Fetching active sessions...</div>
+                </div>
+            </div>
         </div>
 
         <!-- Real-Time Diagnostic Terminal Log -->

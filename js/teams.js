@@ -734,7 +734,7 @@ function renderTeamCard(post, isAuthor, isMember) {
 
     let actionBtn = '';
     if (isAuthor || isMember) {
-        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="flex-1 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer text-center">Manage</button>`;
+        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="flex-1 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer text-center flex items-center justify-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg><span>Team Chat</span></button>`;
     } else if (isFull) {
         actionBtn = `<button disabled class="flex-1 py-1.5 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider cursor-not-allowed text-center">Full</button>`;
     } else if (post.applicationsOpen === false) {
@@ -817,7 +817,7 @@ function renderTeamRow(post, isAuthor, isMember) {
 
     let actionBtn = '';
     if (isAuthor || isMember) {
-        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer">Manage</button>`;
+        actionBtn = `<button onclick="window.openManageModal('${post.id}')" class="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5"><svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"></path></svg><span>Team Chat</span></button>`;
     } else if (isFull) {
         actionBtn = `<button disabled class="px-3 py-1.5 bg-neutral-900/80 text-neutral-500 border border-neutral-800 rounded-lg text-[11px] font-heading font-bold uppercase tracking-wider cursor-not-allowed">Full</button>`;
     } else if (post.applicationsOpen === false) {

@@ -6,10 +6,18 @@ import {
     updateProfile,
     GoogleAuthProvider,
     signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
     sendEmailVerification,
     onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+
+// Detect mobile/tablet to use redirect instead of popup (popup is blocked on mobile browsers)
+function isMobileDevice() {
+    return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) ||
+           (navigator.maxTouchPoints > 1 && /Macintosh/.test(navigator.userAgent)); // iPad detection
+}
 
 // Helper: Toast notification safe dispatcher
 function notifyToast(type, title, message, duration = 4000) {
@@ -119,7 +127,26 @@ onAuthStateChanged(auth, async (user) => {
     window.dispatchEvent(new CustomEvent('authRoleReady'));
 });
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+    // --- 0. HANDLE GOOGLE REDIRECT RESULT (Mobile sign-in returns here after redirect) ---
+    const googleProvider = new GoogleAuthProvider();
+    googleProvider.setCustomParameters({ prompt: 'select_account' });
+
+    try {
+        const redirectResult = await getRedirectResult(auth);
+        if (redirectResult && redirectResult.user) {
+            const user = redirectResult.user;
+            await ensureUserProfile(user);
+            notifyToast('success', "Welcome!", `Signed in as ${user.displayName || 'Champion'}`, 2500);
+            setTimeout(() => window.location.href = "/profile", 1000);
+        }
+    } catch (redirectError) {
+        console.error("Google redirect result error:", redirectError);
+        if (redirectError.code && redirectError.code !== 'auth/popup-closed-by-user') {
+            notifyToast('error', "Sign-In Error", getFriendlyErrorMessage(redirectError), 4000);
+        }
+    }
+
     // --- 1. LOGIN FORM ---
     const loginForm = document.getElementById('loginForm');
     if (loginForm) {
@@ -290,15 +317,36 @@ document.addEventListener('DOMContentLoaded', () => {
             const provider = new GoogleAuthProvider();
             provider.setCustomParameters({ prompt: 'select_account' });
             
-            try {
-                const result = await signInWithPopup(auth, provider);
-                await ensureUserProfile(result.user);
-                notifyToast('success', "Welcome!", `Signed in as ${result.user.displayName || 'Champion'}`, 2500);
-                setTimeout(() => window.location.href = "/profile", 1000);
-            } catch (error) {
-                console.error("Google sign-in error:", error);
-                if (error.code !== 'auth/popup-closed-by-user') {
+            // Disable button to prevent double-clicks
+            googleBtn.disabled = true;
+            const originalHTML = googleBtn.innerHTML;
+            googleBtn.innerHTML = '<span style="opacity:0.7">Connecting to Google...</span>';
+
+            if (isMobileDevice()) {
+                // Mobile: use redirect flow (popups are blocked on mobile browsers)
+                try {
+                    await signInWithRedirect(auth, provider);
+                    // Page will navigate away — no code after this runs
+                } catch (error) {
+                    console.error("Google redirect sign-in error:", error);
                     notifyToast('error', "Sign-In Error", getFriendlyErrorMessage(error), 4000);
+                    googleBtn.disabled = false;
+                    googleBtn.innerHTML = originalHTML;
+                }
+            } else {
+                // Desktop: use popup flow
+                try {
+                    const result = await signInWithPopup(auth, provider);
+                    await ensureUserProfile(result.user);
+                    notifyToast('success', "Welcome!", `Signed in as ${result.user.displayName || 'Champion'}`, 2500);
+                    setTimeout(() => window.location.href = "/profile", 1000);
+                } catch (error) {
+                    console.error("Google sign-in error:", error);
+                    googleBtn.disabled = false;
+                    googleBtn.innerHTML = originalHTML;
+                    if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
+                        notifyToast('error', "Sign-In Error", getFriendlyErrorMessage(error), 4000);
+                    }
                 }
             }
         });

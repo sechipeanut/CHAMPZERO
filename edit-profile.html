@@ -271,21 +271,21 @@
                             <label for="ign" class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">
                                 Display Name / IGN <span class="text-red-500">*</span>
                             </label>
-                            <input type="text" id="ign" required placeholder="e.g. TenZ or Faker"
+                            <input type="text" id="ign" required
                                 class="dark-input w-full p-3 rounded-lg text-sm text-white placeholder-neutral-500">
                         </div>
                         <div>
                             <label for="discord" class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">
                                 Discord Tag / Handle
                             </label>
-                            <input type="text" id="discord" placeholder="e.g. @player_zero or user#1234"
+                            <input type="text" id="discord"
                                 class="dark-input w-full p-3 rounded-lg text-sm text-white placeholder-neutral-500 font-mono-tag">
                         </div>
                         <div>
                             <label for="realName" class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">
                                 Real Name (Private)
                             </label>
-                            <input type="text" id="realName" placeholder="Full Legal Name"
+                            <input type="text" id="realName"
                                 class="dark-input w-full p-3 rounded-lg text-sm text-white placeholder-neutral-500">
                         </div>
                     </div>
@@ -318,7 +318,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                                 <div>
                                     <label class="block text-neutral-400 font-mono-tag text-[10px] uppercase mb-1">Valorant ID (Name#Tag)</label>
-                                    <input type="text" id="valId" placeholder="Viper#NA1"
+                                    <input type="text" id="valId"
                                         class="dark-input w-full p-2.5 rounded-lg text-sm text-white placeholder-neutral-500">
                                 </div>
                                 <div>
@@ -359,7 +359,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                                 <div>
                                     <label class="block text-neutral-400 font-mono-tag text-[10px] uppercase mb-1">MLBB ID (ID + Server)</label>
-                                    <input type="text" id="mlbbId" placeholder="123456 (3021)"
+                                    <input type="text" id="mlbbId"
                                         class="dark-input w-full p-2.5 rounded-lg text-sm text-white placeholder-neutral-500">
                                 </div>
                                 <div>
@@ -400,7 +400,7 @@
                             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-xs">
                                 <div>
                                     <label class="block text-neutral-400 font-mono-tag text-[10px] uppercase mb-1">HOK In-Game ID</label>
-                                    <input type="text" id="hokId" placeholder="HeroKing#1234"
+                                    <input type="text" id="hokId"
                                         class="dark-input w-full p-2.5 rounded-lg text-sm text-white placeholder-neutral-500">
                                 </div>
                                 <div>
@@ -431,7 +431,7 @@
                     <!-- BIO / ABOUT ME -->
                     <div class="text-xs">
                         <label for="bio" class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Bio / Playstyle Summary</label>
-                        <textarea id="bio" rows="3" placeholder="Tell recruiters and opponents about your playstyle, previous achievements, and preferred team dynamics..."
+                        <textarea id="bio" rows="3"
                             class="dark-input w-full p-3 rounded-lg text-sm text-white placeholder-neutral-500 leading-relaxed"></textarea>
                     </div>
 
@@ -472,6 +472,7 @@
                     <h4 class="text-xs font-bold uppercase tracking-widest text-neutral-300 mb-3">Quick Links</h4>
                     <ul class="text-xs text-neutral-400 space-y-2 font-medium">
                         <li><a href="/about" class="hover:text-white transition-colors">About Us</a></li>
+                        <li><a href="/support" class="hover:text-[#FFD700] text-[#FFD700] transition-colors">Support &amp; Donate</a></li>
                         <li><a href="/contact" class="hover:text-white transition-colors">Contact</a></li>
                         <li><a href="/terms" class="hover:text-white transition-colors">Terms &amp; Privacy</a></li>
                         <li><a href="/refund-policy" class="hover:text-white transition-colors">Refund Policy</a></li>
@@ -516,6 +517,8 @@
 
     <script src="js/toast.js"></script>
     <script type="module" src="js/main.js"></script>
+    <script type="module" src="js/auth.js"></script>
+    <script type="module" src="js/notifications.js"></script>
     <script type="module" src="js/edit-profile.js"></script>
 </body>
 

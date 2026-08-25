@@ -79,9 +79,21 @@ function updateActiveNavLink() {
         if (isActive) {
             link.classList.add('text-white', 'active');
             link.classList.remove('text-neutral-400');
+            // Add gold dot indicator for mobile menu links
+            if (link.closest('#mobile-menu') && !link.querySelector('.nav-active-dot')) {
+                const dot = document.createElement('span');
+                dot.className = 'nav-active-dot w-1.5 h-1.5 rounded-full bg-[#FFD700] ml-auto shrink-0';
+                link.style.display = 'flex';
+                link.style.justifyContent = 'space-between';
+                link.style.alignItems = 'center';
+                link.appendChild(dot);
+            }
         } else {
             link.classList.remove('text-white', 'active');
             link.classList.add('text-neutral-400');
+            // Remove any gold dot
+            const dot = link.querySelector('.nav-active-dot');
+            if (dot) dot.remove();
         }
     });
 }
@@ -355,7 +367,7 @@ onAuthStateChanged(auth, async (user) => {
                     displayName: profileData.ign || profileData.displayName || user.displayName || (user.email ? user.email.split('@')[0] : "Champion"),
                     ign: profileData.ign || '',
                     avatar: profileData.avatar || '',
-                    role: profileData.role || 'player',
+                    role: profileData.role || 'user',
                     isSupporter: Boolean(profileData.isSupporter || profileData.supporterTier || profileData.supporterBadge),
                     supporterTier: profileData.supporterTier || 'bronze',
                     ...profileData
@@ -367,7 +379,7 @@ onAuthStateChanged(auth, async (user) => {
                     uid: user.uid,
                     email: user.email,
                     displayName: user.displayName || (user.email ? user.email.split('@')[0] : "Champion"),
-                    role: 'player'
+                    role: 'user'
                 };
                 setCachedAuthUser(basicData);
                 renderAuthHeader(user, basicData);

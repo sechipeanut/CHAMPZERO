@@ -22,6 +22,7 @@
 /forgot-password    /forgot-password.html 200
 /reset-password     /reset-password.html  200
 /checkout           /checkout.html        200
+/access-denied      /access-denied.html   200
 
 # Catch-all for extensionless HTML files
 /*                  /:splat.html          200
