@@ -148,6 +148,8 @@ window.showCustomConfirm = function(title, message) {
     });
 };
 
+window.customConfirm = window.showCustomConfirm;
+
 // Override default alert() to use toasts (optional - can be commented out if needed)
 // window.alert = function(message) {
 //     showErrorToast('Alert', message, 4000);

@@ -16,12 +16,14 @@ service cloud.firestore {
 
     function isAdmin() { 
       let role = getUserRole();
-      return role == 'admin' || role == 'Admin'; 
+      return (request.auth.token != null && (request.auth.token.role == 'admin' || request.auth.token.admin == true)) ||
+             role == 'admin' || role == 'Admin'; 
     }
 
     function isSubscriber() { 
       let role = getUserRole();
-      return role == 'subscriber' || role == 'Subscriber'; 
+      return (request.auth.token != null && request.auth.token.role == 'subscriber') ||
+             role == 'subscriber' || role == 'Subscriber'; 
     }
 
     function canPostListing() { 
@@ -210,11 +212,45 @@ service cloud.firestore {
       }
     }
     
+    // --- 3.1 DAILY LFG & SCRIM MATCHMAKING BOARD ---
+    match /scrims/{scrimId} {
+      // Allow read on /scrims for all authenticated and unauthenticated users
+      allow read: if true;
+
+      // Allow create if user is logged in and is the captain
+      allow create: if isSignedIn() && request.resource.data.captainId == request.auth.uid;
+
+      // Allow update if:
+      // - Creator modifies or cancels their scrim (captainId == request.auth.uid)
+      // - Authenticated opponent accepts an open scrim (cannot be the host captain)
+      // - Admin override
+      allow update: if isSignedIn() && (
+        (resource.data.captainId == request.auth.uid) ||
+        (
+          resource.data.status == 'open' && 
+          request.resource.data.status == 'accepted' && 
+          request.resource.data.opponentCaptainId == request.auth.uid &&
+          resource.data.captainId != request.auth.uid
+        ) ||
+        (
+          resource.data.opponentCaptainId == request.auth.uid &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'opponentContact', 'opponentTeamName'])
+        ) ||
+        isAdmin()
+      );
+
+      // Allow delete if captain or admin
+      allow delete: if isSignedIn() && (resource.data.captainId == request.auth.uid || isAdmin());
+    }
+    
     // --- 4. USER DATA & PRESENCE ---
 
     match /users/{userId} {
       allow read: if true;
-      allow create: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() && request.auth.uid == userId && (
+        !request.resource.data.keys().hasAny(['role']) ||
+        request.resource.data.role == 'user'
+      );
       allow update: if isAdmin() || (
         isSignedIn() && request.auth.uid == userId && 
         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])
@@ -223,12 +259,13 @@ service cloud.firestore {
 
       match /invites/{teamId} {
         allow read: if isSignedIn();
-        allow create: if isSignedIn();
+        // Prevent self-invitation at the database level
+        allow create: if isSignedIn() && request.auth.uid != userId && request.resource.data.invitedBy == request.auth.uid;
         allow update, delete: if isSignedIn() && request.auth.uid == userId;
       }
 
       match /{allSubcollections=**} {
-        allow read, write: if isSignedIn();
+        allow read, write: if isSignedIn() && (request.auth.uid == userId || isAdmin());
       }
     }
 
@@ -236,7 +273,10 @@ service cloud.firestore {
 
     match /friend_requests/{requestId} {
       allow read: if isSignedIn();
-      allow create: if isSignedIn() && request.resource.data.fromUid == request.auth.uid;
+      // Prevent sending friend requests to oneself
+      allow create: if isSignedIn() && 
+                    request.resource.data.fromUid == request.auth.uid && 
+                    request.resource.data.toUid != request.auth.uid;
       allow update: if isSignedIn() && (
         resource.data.toUid == request.auth.uid || 
         resource.data.fromUid == request.auth.uid || 
@@ -265,21 +305,30 @@ service cloud.firestore {
 
     match /registrations/{regId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.registeredBy == request.auth.uid;
+      allow update, delete: if isSignedIn() && (resource.data.registeredBy == request.auth.uid || isAdmin());
     }
 
     match /tournament_registrations/{regId} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create: if isSignedIn() && request.resource.data.registeredBy == request.auth.uid;
+      allow update, delete: if isSignedIn() && (resource.data.registeredBy == request.auth.uid || isAdmin());
     }
 
     match /payout_claims/{claimId} {
-      allow read: if isSignedIn();
-      allow write: if isSignedIn();
+      allow read: if isSignedIn() && (
+        resource.data.claimedBy == request.auth.uid ||
+        resource.data.organizerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && request.resource.data.claimedBy == request.auth.uid;
+      allow update: if isSignedIn() && (
+        (resource.data.claimedBy == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['notes', 'contact', 'accountNumber', 'accountName', 'channel'])) ||
+        (resource.data.organizerId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'disbursedAt', 'disburseRefNumber', 'disbursedBy', 'disburseNotes'])) ||
+        isAdmin()
+      );
+      allow delete: if isAdmin();
     }
-
-
-
 
     // --- 7. FINANCIAL TRANSACTIONS (CASHINS & WITHDRAWALS) ---
 
@@ -321,7 +370,8 @@ service cloud.firestore {
 
     match /donations/{document=**} {
       allow read: if true;
-      allow write: if isSignedIn();
+      allow create: if true;
+      allow update, delete: if isAdmin();
     }
 
     // --- 10. SHOP SYSTEM ---

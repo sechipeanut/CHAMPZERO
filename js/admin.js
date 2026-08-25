@@ -37,13 +37,20 @@ window.createLivestream = async function (eventId, eventName) {
     try {
         window.showSuccessToast("Processing", "Creating livestream...", 3000);
 
+        const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
         const response = await fetch('/.netlify/functions/create-mux-stream', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({ eventId, eventName })
         });
 
-        if (!response.ok) throw new Error('Failed to create stream');
+        if (!response.ok) {
+            const errJson = await response.json().catch(() => ({}));
+            throw new Error(errJson.error || 'Failed to create stream');
+        }
 
         const streamData = await response.json();
 
@@ -184,13 +191,20 @@ window.disableLivestream = async function (eventId) {
         const eventSnap = await getDoc(eventRef);
         const livestream = eventSnap.data().livestream;
 
+        const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
         const response = await fetch('/.netlify/functions/disable-mux-stream', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({ streamId: livestream.streamId })
         });
 
-        if (!response.ok) throw new Error('Failed to disable stream');
+        if (!response.ok) {
+            const errJson = await response.json().catch(() => ({}));
+            throw new Error(errJson.error || 'Failed to disable stream');
+        }
 
         await updateDoc(eventRef, {
             'livestream.status': 'idle'
@@ -215,13 +229,20 @@ window.deleteLivestream = async function (eventId) {
         const eventSnap = await getDoc(eventRef);
         const livestream = eventSnap.data().livestream;
 
+        const token = auth.currentUser ? await auth.currentUser.getIdToken() : '';
         const response = await fetch('/.netlify/functions/delete-mux-stream', {
             method: 'DELETE',
-            headers: { 'Content-Type': 'application/json' },
+            headers: { 
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${token}`
+            },
             body: JSON.stringify({ streamId: livestream.streamId })
         });
 
-        if (!response.ok) throw new Error('Failed to delete stream');
+        if (!response.ok) {
+            const errJson = await response.json().catch(() => ({}));
+            throw new Error(errJson.error || 'Failed to delete stream');
+        }
 
         await updateDoc(eventRef, {
             livestream: null
@@ -383,7 +404,9 @@ window.editItem = async function (collectionName, docId) {
             qs('#t-entry-fee').value = data.entryFee || '';
             qs('#t-entry-currency').value = data.entryCurrency || 'PHP';
             qs('#t-date').value = toDateInputFormat(data.date);
+            if (qs('#t-time')) qs('#t-time').value = data.startTime || data.time || '19:00';
             qs('#t-end-date').value = toDateInputFormat(data.endDate);
+            if (qs('#t-end-time')) qs('#t-end-time').value = data.endTime || '';
             qs('#t-desc').value = data.description || '';
             if (qs('#t-rules')) qs('#t-rules').value = data.rules || '';
             qs('#t-banner').value = data.banner || '';
@@ -401,7 +424,9 @@ window.editItem = async function (collectionName, docId) {
         else if (collectionName === 'events') {
             qs('#e-name').value = data.name || '';
             qs('#e-date').value = toDateInputFormat(data.date);
+            if (qs('#e-time')) qs('#e-time').value = data.startTime || data.time || '18:00';
             qs('#e-end-date').value = toDateInputFormat(data.endDate);
+            if (qs('#e-end-time')) qs('#e-end-time').value = data.endTime || '';
             qs('#e-desc').value = data.description || '';
             qs('#e-banner').value = data.banner || '';
             if (qs('#e-banner-status')) {
@@ -1255,7 +1280,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // TOURNAMENT FORM HANDLER
     handleForm('#tournamentForm', 'tournaments', () => {
         const startDate = qs('#t-date').value;
+        const startTime = qs('#t-time')?.value || '19:00';
         const endDate = qs('#t-end-date').value || startDate;
+        const endTime = qs('#t-end-time')?.value || '';
         if (new Date(endDate) < new Date(startDate)) {
             window.showErrorToast("Date Error", "End date cannot be earlier than start date.");
             throw new Error("silent-cancel");
@@ -1293,7 +1320,10 @@ document.addEventListener('DOMContentLoaded', () => {
             entryFee: entryFee,
             entryCurrency: entryCurrency,
             date: startDate,
+            time: startTime,
+            startTime: startTime,
             endDate: endDate,
+            endTime: endTime,
             status: calculateStatus(startDate, endDate),
             description: qs('#t-desc').value || '',
             rules: qs('#t-rules')?.value?.trim() || '',
@@ -1305,7 +1335,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     handleForm('#eventForm', 'events', () => {
         const startDate = qs('#e-date').value;
+        const startTime = qs('#e-time')?.value || '18:00';
         const endDate = qs('#e-end-date').value || startDate;
+        const endTime = qs('#e-end-time')?.value || '';
         if (new Date(endDate) < new Date(startDate)) {
             window.showErrorToast("Date Error", "End date cannot be earlier than start date.");
             throw new Error("silent-cancel");
@@ -1313,7 +1345,10 @@ document.addEventListener('DOMContentLoaded', () => {
         return {
             name: qs('#e-name').value,
             date: startDate,
+            time: startTime,
+            startTime: startTime,
             endDate: endDate,
+            endTime: endTime,
             description: qs('#e-desc').value,
             banner: qs('#e-banner').value || "pictures/cz_logo.png"
         };

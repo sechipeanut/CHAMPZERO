@@ -2,6 +2,27 @@
 // PayRex Checkout Session Creator for Organizer Cash-In & Tournament Payments
 
 const https = require('https');
+const admin = require('firebase-admin');
+
+if (!admin.apps.length) {
+  try {
+    const privateKey = process.env.FIREBASE_PRIVATE_KEY 
+      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+      : undefined;
+
+    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && privateKey) {
+      admin.initializeApp({
+        credential: admin.credential.cert({
+          projectId: process.env.FIREBASE_PROJECT_ID,
+          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+          privateKey: privateKey
+        })
+      });
+    }
+  } catch (initError) {
+    console.error('Firebase initialization error in payrex-checkout:', initError);
+  }
+}
 
 exports.handler = async (event, context) => {
     // Handle CORS preflight
@@ -27,7 +48,7 @@ exports.handler = async (event, context) => {
 
     try {
         const body = JSON.parse(event.body || '{}');
-        const {
+        let {
             amount,
             organizerId,
             organizerEmail,
@@ -40,7 +61,27 @@ exports.handler = async (event, context) => {
             cancelUrl
         } = body;
 
-        const numAmount = parseFloat(amount);
+        let numAmount = parseFloat(amount);
+
+        // Server-Side Verification for Tournament Entry Payments
+        if (type === 'tournament_entry' && tournamentId && admin.apps.length) {
+            try {
+                const tourneyDoc = await admin.firestore().collection('tournaments').doc(tournamentId).get();
+                if (tourneyDoc.exists) {
+                    const tourneyData = tourneyDoc.data();
+                    const officialFee = parseFloat(tourneyData.entryFee);
+                    if (!isNaN(officialFee) && officialFee > 0) {
+                        numAmount = officialFee;
+                    }
+                    if (!tournamentName && tourneyData.name) {
+                        tournamentName = tourneyData.name;
+                    }
+                }
+            } catch (dbErr) {
+                console.warn('Could not verify tournament price from Firestore in payrex-checkout:', dbErr);
+            }
+        }
+
         if (!numAmount || numAmount <= 0) {
             return {
                 statusCode: 400,

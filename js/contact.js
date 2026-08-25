@@ -1,8 +1,28 @@
-import { db } from './firebase-config.js';
-import { collection, addDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { auth, db } from './firebase-config.js';
+import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
+import { collection, addDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 document.addEventListener('DOMContentLoaded', () => {
     const contactForm = document.getElementById('contactForm');
+    const nameInput = document.getElementById('name');
+    const emailInput = document.getElementById('email');
+
+    // Auto-fill logged in user info
+    onAuthStateChanged(auth, async (user) => {
+        if (!user) return;
+        if (emailInput && !emailInput.value) {
+            emailInput.value = user.email || '';
+        }
+        if (nameInput && !nameInput.value) {
+            try {
+                const snap = await getDoc(doc(db, "users", user.uid));
+                const data = snap.exists() ? snap.data() : {};
+                nameInput.value = data.realName || data.ign || data.displayName || user.displayName || (user.email ? user.email.split('@')[0] : '');
+            } catch (err) {
+                nameInput.value = user.displayName || (user.email ? user.email.split('@')[0] : '');
+            }
+        }
+    });
     
     if (contactForm) {
         contactForm.addEventListener('submit', async function(e) {

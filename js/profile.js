@@ -41,14 +41,38 @@ function renderOptimisticHeader(user) {
 }
 
 // 1. AUTH PROTECTION & INITIAL LOAD
+let isProfileInitialized = false;
+
 async function initProfileForUser(user) {
     if (!user) {
-        window.location.href = "/login";
+        if (typeof window.showWarningToast === 'function') {
+            window.showWarningToast("Session Required", "Please log in to access your player dashboard.", 3000);
+        }
+        setTimeout(() => {
+            window.location.href = "/login";
+        }, 500);
         return;
     }
 
+    if (isProfileInitialized && activeUserUid === user.uid) {
+        return;
+    }
+    isProfileInitialized = true;
+    activeUserUid = user.uid;
+
     // Immediately paint optimistic user details
     renderOptimisticHeader(user);
+
+    // Email verification check
+    const isGoogleUser = user.providerData && user.providerData.some(p => p.providerId === 'google.com');
+    if (!user.emailVerified && !isGoogleUser) {
+        const verifyBanner = document.getElementById('email-verification-alert');
+        if (verifyBanner) {
+            verifyBanner.classList.remove('hidden');
+        } else if (typeof window.showWarningToast === 'function') {
+            window.showWarningToast("Verification Pending", "Please verify your email address to unlock full competitive tournament access.", 5000);
+        }
+    }
     
     // Load Profile Data from Firestore
     await loadUserProfile(user.uid, user.email);
@@ -124,11 +148,6 @@ async function initProfileForUser(user) {
 onAuthStateChanged(auth, (user) => {
     initProfileForUser(user);
 });
-
-// Immediate check if currentUser already loaded
-if (auth.currentUser) {
-    initProfileForUser(auth.currentUser);
-}
 
 // ==========================================
 // 1. TAB NAVIGATION: PLAYER / FRIENDS / MESSAGES / ORGANIZER
@@ -1706,6 +1725,10 @@ async function getOrCreateDM(uid1, uid2) {
 // Start a DM from the friends list
 window.startDMWith = async function (friendUid, friendName) {
     if (!activeUserUid) return;
+    if (friendUid === activeUserUid) {
+        if (window.showWarningToast) window.showWarningToast('Notice', 'You cannot message yourself.');
+        return;
+    }
 
     // Switch to messages tab
     window.switchProfileTab('messages');
@@ -1859,3 +1882,15 @@ window.sendDM = async function (e) {
         if (window.showErrorToast) window.showErrorToast('Send Failed', 'Could not send message.');
     }
 };
+
+// Centralized Profile Realtime Listener Teardown
+function cleanupProfileListeners() {
+    if (typeof dmUnsubscribe === 'function') {
+        dmUnsubscribe();
+        dmUnsubscribe = null;
+    }
+}
+
+window.addEventListener('beforeunload', cleanupProfileListeners);
+window.addEventListener('pagehide', cleanupProfileListeners);
+

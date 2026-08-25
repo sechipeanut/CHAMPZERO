@@ -1313,7 +1313,7 @@ function injectAndStart() {
 
     // Heartbeat presence: update every 90s while tab is visible.
     // 90s is safely within the 2-minute online threshold used by the listener.
-    setInterval(() => {
+    const heartbeatInterval = setInterval(() => {
         if (currentUser && document.visibilityState === 'visible') {
             updateMyPresence(true);
         }
@@ -1330,9 +1330,16 @@ function injectAndStart() {
         }
     });
 
-    window.addEventListener('beforeunload', () => {
+    function cleanupCommunityChat() {
         if (currentUser) updateMyPresence(false);
-    });
+        if (heartbeatInterval) clearInterval(heartbeatInterval);
+        if (typeof unsubscribeChat === 'function') { unsubscribeChat(); unsubscribeChat = null; }
+        if (typeof unsubscribeOnline === 'function') { unsubscribeOnline(); unsubscribeOnline = null; }
+        if (typeof unsubscribeRequests === 'function') { unsubscribeRequests(); unsubscribeRequests = null; }
+    }
+
+    window.addEventListener('beforeunload', cleanupCommunityChat);
+    window.addEventListener('pagehide', cleanupCommunityChat);
 
     onAuthStateChanged(auth, async (user) => {
         currentUser = user;

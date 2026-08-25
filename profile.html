@@ -133,6 +133,57 @@
             background: var(--cz-gold);
         }
 
+        .dark-input {
+            background-color: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--cz-border);
+            color: #fff;
+            transition: all 0.2s ease;
+        }
+
+        .dark-input:focus {
+            outline: none;
+            border-color: var(--cz-border-gold);
+            box-shadow: 0 0 15px var(--cz-gold-glow);
+        }
+
+        .dark-select {
+            background-color: #111116;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #FFFFFF;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23FFD700'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 14px 14px;
+            padding-right: 38px !important;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .dark-select:hover {
+            border-color: rgba(255, 215, 0, 0.4);
+            background-color: #15151b;
+        }
+
+        .dark-select:focus {
+            outline: none;
+            border-color: #FFD700;
+            box-shadow: 0 0 16px rgba(255, 215, 0, 0.25);
+            background-color: #15151b;
+        }
+
+        .dark-select option {
+            background-color: #0A0A0E;
+            color: #F3F4F6;
+            padding: 10px 14px;
+        }
+
+        .dark-select option:disabled {
+            color: #6B7280;
+        }
+
         :focus-visible {
             outline: 2px solid var(--cz-gold);
             outline-offset: 4px;
@@ -782,7 +833,7 @@
                         </div>
                         <div id="dm-input-area" class="hidden p-3 border-t border-white/10">
                             <form id="dm-send-form" class="flex gap-2" onsubmit="window.sendDM(event)">
-                                <input type="text" id="dm-input" class="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white placeholder-neutral-500 focus:outline-none focus:border-[#FFD700]/50" placeholder="Type a message..." autocomplete="off">
+                                <input type="text" id="dm-input" class="flex-1 bg-white/5 border border-white/10 rounded-lg px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#FFD700]/50" autocomplete="off">
                                 <button type="submit" class="px-4 py-2.5 bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-bold text-xs uppercase tracking-wider rounded-lg transition-all">
                                     Send
                                 </button>
@@ -1077,7 +1128,7 @@
                     <label class="block text-[10px] text-neutral-300 font-bold uppercase mb-1.5">Payout Provider /
                         Channel *</label>
                     <select id="w-channel" onchange="window.handleWithdrawalChannelChange()" required
-                        class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-xs outline-none focus:border-[#FFD700] cursor-pointer">
+                        class="dark-select w-full rounded-xl p-3 text-white text-xs cursor-pointer">
                         <option value="GCash">GCash</option>
                         <option value="Maya">Maya (PayMaya)</option>
                         <option value="Bank Transfer">Bank Transfer (BDO, BPI, UnionBank, etc.)</option>
@@ -1090,7 +1141,7 @@
                         *</label>
                     <select id="w-bank-select"
                         onchange="if(this.value === 'custom') { document.getElementById('w-bank-custom').classList.remove('hidden'); } else { document.getElementById('w-bank-custom').classList.add('hidden'); }"
-                        class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-xs outline-none focus:border-[#FFD700] cursor-pointer mb-2">
+                        class="dark-select w-full rounded-xl p-3 text-white text-xs cursor-pointer mb-2">
                         <option value="BDO Unibank">BDO Unibank</option>
                         <option value="BPI (Bank of the Philippine Islands)">BPI (Bank of the Philippine Islands)
                         </option>
@@ -1103,29 +1154,29 @@
                         <option value="PNB">PNB</option>
                         <option value="custom">Other Institution (Type Below)</option>
                     </select>
-                    <input type="text" id="w-bank-custom" placeholder="Specify Bank / Wallet Name"
-                        class="hidden w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-xs outline-none focus:border-[#FFD700]">
+                    <input type="text" id="w-bank-custom"
+                        class="hidden dark-input w-full rounded-xl p-3 text-white text-xs">
                 </div>
 
                 <div>
                     <label class="block text-[10px] text-neutral-300 font-bold uppercase mb-1.5">Account / Card Holder
                         Full Name *</label>
-                    <input type="text" id="w-account-name" placeholder="e.g. Juan Dela Cruz" required
-                        class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-xs outline-none focus:border-[#FFD700]">
+                    <input type="text" id="w-account-name" required
+                        class="dark-input w-full rounded-xl p-3 text-white text-xs">
                 </div>
 
                 <div>
                     <label class="block text-[10px] text-neutral-300 font-bold uppercase mb-1.5">Account Number / Mobile
                         Number *</label>
-                    <input type="text" id="w-account-number" placeholder="e.g. 09171234567 or 1092384756" required
-                        class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-xs outline-none focus:border-[#FFD700]">
+                    <input type="text" id="w-account-number" required
+                        class="dark-input w-full rounded-xl p-3 text-white text-xs">
                 </div>
 
                 <div>
                     <label class="block text-[10px] text-neutral-300 font-bold uppercase mb-1.5">Special Instructions /
                         Notes (Optional)</label>
-                    <input type="text" id="w-notes" placeholder="e.g. Preferred transfer time, QR on file, etc."
-                        class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-xs outline-none focus:border-[#FFD700]">
+                    <input type="text" id="w-notes"
+                        class="dark-input w-full rounded-xl p-3 text-white text-xs">
                 </div>
 
                 <div class="pt-3 flex gap-3">
@@ -1220,7 +1271,7 @@
                             <button type="button" onclick="window.setPayRexAmount(10000)"
                                 class="px-2.5 py-1 rounded bg-white/5 hover:bg-white/10 text-neutral-300 text-[10px] border border-white/10 cursor-pointer">₱10,000</button>
                         </div>
-                        <input type="number" id="payrex-amount" min="1" step="0.01" placeholder="0.00" required
+                        <input type="number" id="payrex-amount" min="1" step="0.01" required
                             class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-base font-bold outline-none focus:border-[#FFD700]">
                     </div>
 
@@ -1228,7 +1279,6 @@
                         <label class="block text-[10px] text-neutral-300 font-bold uppercase mb-1">Tournament / Deposit
                             Reference (Optional)</label>
                         <input type="text" id="payrex-notes"
-                            placeholder="e.g. Prize pool top-up for Summer Invitational"
                             class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-xs outline-none focus:border-[#FFD700]">
                     </div>
 
@@ -1291,7 +1341,7 @@
                     <div>
                         <label class="block text-[10px] text-neutral-300 font-bold uppercase mb-1">Cash-In Amount (₱)
                             *</label>
-                        <input type="number" id="cashin-amount" min="1" step="0.01" placeholder="0.00" required
+                        <input type="number" id="cashin-amount" min="1" step="0.01" required
                             class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-base font-bold outline-none focus:border-[#FFD700]">
                     </div>
 
@@ -1312,14 +1362,14 @@
                     <div>
                         <label class="block text-[10px] text-neutral-300 font-bold uppercase mb-1">Transaction Reference
                             Number / GCash Ref *</label>
-                        <input type="text" id="cashin-ref" placeholder="e.g. 1029384756 or Instapay-998822" required
+                        <input type="text" id="cashin-ref" required
                             class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-xs outline-none focus:border-[#FFD700]">
                     </div>
 
                     <div>
                         <label class="block text-[10px] text-neutral-300 font-bold uppercase mb-1">Tournament Reference
                             / Notes (Optional)</label>
-                        <input type="text" id="cashin-notes" placeholder="e.g. For Valorant Championship Prize Pool"
+                        <input type="text" id="cashin-notes"
                             class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-xs outline-none focus:border-[#FFD700]">
                     </div>
 
@@ -1386,14 +1436,14 @@
                             class="text-[10px] text-[#FFD700] font-bold uppercase hover:underline cursor-pointer">Max
                             Balance</button>
                     </div>
-                    <input type="number" id="req-amount" min="1" step="0.01" placeholder="0.00" required
+                    <input type="number" id="req-amount" min="1" step="0.01" required
                         class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-base font-bold outline-none focus:border-[#FFD700]">
                 </div>
 
                 <div>
                     <label class="block text-[10px] text-neutral-300 font-bold uppercase mb-1">Message / Note to Admin
                         (Optional)</label>
-                    <input type="text" id="req-notes" placeholder="e.g. Tournament batch 1 surplus"
+                    <input type="text" id="req-notes"
                         class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-xs outline-none focus:border-[#FFD700]">
                 </div>
 
@@ -1452,14 +1502,14 @@
                 <div>
                     <label class="block text-[10px] text-neutral-300 font-bold uppercase mb-1">Transfer Reference # /
                         GCash Ref *</label>
-                    <input type="text" id="admin-disburse-ref" placeholder="e.g. 1029384756 or Instapay-998822" required
+                    <input type="text" id="admin-disburse-ref" required
                         class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-xs outline-none focus:border-emerald-400">
                 </div>
 
                 <div>
                     <label class="block text-[10px] text-neutral-300 font-bold uppercase mb-1">Admin Notes
                         (Optional)</label>
-                    <input type="text" id="admin-disburse-notes" placeholder="e.g. Transferred via BDO Online / GCash"
+                    <input type="text" id="admin-disburse-notes"
                         class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-xs outline-none focus:border-emerald-400">
                 </div>
 
@@ -1520,7 +1570,7 @@
                 <div>
                     <label class="block text-[10px] text-neutral-300 font-bold uppercase mb-1">Admin Verification Notes
                         (Optional)</label>
-                    <input type="text" id="admin-cashin-notes" placeholder="e.g. Bank statement verified"
+                    <input type="text" id="admin-cashin-notes"
                         class="w-full bg-[#111116] border border-white/20 rounded-lg p-3 text-white text-xs outline-none focus:border-amber-400">
                 </div>
 

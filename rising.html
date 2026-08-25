@@ -115,24 +115,55 @@
         }
 
         /* Form Inputs */
-        .dark-input,
-        .dark-select {
+        .dark-input {
             background-color: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--cz-border);
             color: #fff;
             transition: all 0.2s ease;
         }
 
-        .dark-input:focus,
-        .dark-select:focus {
+        .dark-input:focus {
             outline: none;
             border-color: var(--cz-border-gold);
             box-shadow: 0 0 15px var(--cz-gold-glow);
         }
 
+        .dark-select {
+            background-color: #111116;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #FFFFFF;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23FFD700'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 14px 14px;
+            padding-right: 38px !important;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .dark-select:hover {
+            border-color: rgba(255, 215, 0, 0.4);
+            background-color: #15151b;
+        }
+
+        .dark-select:focus {
+            outline: none;
+            border-color: #FFD700;
+            box-shadow: 0 0 16px rgba(255, 215, 0, 0.25);
+            background-color: #15151b;
+        }
+
         .dark-select option {
-            background-color: var(--cz-surface);
-            color: white;
+            background-color: #0A0A0E;
+            color: #F3F4F6;
+            padding: 10px 14px;
+        }
+
+        .dark-select option:disabled {
+            color: #6B7280;
         }
 
         /* Focus Accessibility */

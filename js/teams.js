@@ -1,7 +1,8 @@
 import { db, auth } from './firebase-config.js';
 import {
     collection, getDocs, doc, addDoc, updateDoc, deleteDoc,
-    serverTimestamp, arrayUnion, arrayRemove, getDoc, onSnapshot, query, orderBy, collectionGroup, where, setDoc, increment 
+    serverTimestamp, arrayUnion, arrayRemove, getDoc, onSnapshot, query, orderBy, collectionGroup, where, setDoc, increment,
+    runTransaction, limit, Timestamp
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { uploadImage } from './utils.js';
 
@@ -60,6 +61,14 @@ let activeRoleFilter = 'all';
 let activeView = 'teams';
 let searchTerm = '';
 let cachedRecruitmentPosts = [];
+
+// SCRIM MATCHMAKING BOARD STATE
+let scrimsUnsubscribe = null;
+let activeScrimsList = [];
+let scrimGameFilter = 'all';
+let scrimFormatFilter = 'all';
+let scrimRankFilter = 'all';
+let scrimSearchQuery = '';
 
 // STORE CARD LISTENERS TO CLEAN UP LATER
 let cardListeners = [];
@@ -133,10 +142,22 @@ window.showCustomConfirm = (title, message) => {
         animateGenericOpen('customAlertModal', 'alertBackdrop', 'alertBox');
     });
 };
+window.customConfirm = window.showCustomConfirm;
 
-// --- UPDATED INITIALIZATION WITH DEBUG LOGS ---
+// --- UPDATED INITIALIZATION WITH REAL-TIME SCRIM FEED ---
 document.addEventListener('DOMContentLoaded', async () => {
-    console.log("DOM Loaded: Initializing Teams & Recruitment...");
+    console.log("DOM Loaded: Initializing Teams, Recruitment & Scrim Board...");
+
+    // Start real-time Scrims feed immediately
+    subscribeToScrims();
+
+    const scrimSearchInput = document.getElementById('scrim-search');
+    if (scrimSearchInput) {
+        scrimSearchInput.addEventListener('input', (e) => {
+            scrimSearchQuery = (e.target.value || '').trim().toLowerCase();
+            if (activeView === 'scrims') renderScrimsBoard();
+        });
+    }
 
     auth.onAuthStateChanged(async (user) => {
         if (user) {
@@ -172,23 +193,90 @@ document.addEventListener('DOMContentLoaded', async () => {
     setupForms();
 });
 
-const TAB_ACTIVE_CLASS = "px-4 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-[#FFD700] text-black shadow-md cursor-pointer whitespace-nowrap border border-[#FFD700]";
-const TAB_INACTIVE_CLASS = "px-3.5 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-transparent text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent cursor-pointer whitespace-nowrap";
+const TAB_ACTIVE_CLASS = "px-3.5 py-1.5 rounded-lg bg-[#FFD700] text-black font-extrabold shadow-sm transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap";
+const TAB_INACTIVE_CLASS = "px-3.5 py-1.5 rounded-lg text-neutral-400 hover:text-white font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap";
+
+async function updateTeamTabCounts() {
+    const user = auth.currentUser;
+    const allTeams = (cachedRecruitmentPosts || []).filter(p => p.type === 'team' || !p.type);
+    const allPlayers = (cachedRecruitmentPosts || []).filter(p => p.type === 'lft');
+    
+    const countFindTeams = document.getElementById('count-find-teams');
+    const countFindPlayers = document.getElementById('count-find-players');
+    const countScrims = document.getElementById('count-scrims');
+    const countMyTeams = document.getElementById('count-my-teams');
+    const countMyLft = document.getElementById('count-my-lft');
+    const countInvites = document.getElementById('count-invites');
+
+    if (countFindTeams) countFindTeams.textContent = allTeams.length;
+    if (countFindPlayers) countFindPlayers.textContent = allPlayers.length;
+    if (countScrims) countScrims.textContent = (activeScrimsList || []).filter(s => s.status === 'open').length;
+
+    if (user) {
+        const myTeams = allTeams.filter(p => p.authorId === user.uid || (Array.isArray(p.members) && p.members.some(m => (typeof m === 'object' ? m.uid : m) === user.uid)));
+        const myLft = allPlayers.filter(p => p.authorId === user.uid || p.userId === user.uid);
+        if (countMyTeams) countMyTeams.textContent = myTeams.length;
+        if (countMyLft) countMyLft.textContent = myLft.length;
+
+        try {
+            const invitesSnap = await getDocs(collection(db, "users", user.uid, "invites"));
+            const pendingCount = invitesSnap.docs.filter(d => d.data().status === 'pending' && d.data().invitedBy !== user.uid).length;
+            if (countInvites) countInvites.textContent = pendingCount;
+        } catch(e) {}
+    } else {
+        if (countMyTeams) countMyTeams.textContent = '0';
+        if (countMyLft) countMyLft.textContent = '0';
+        if (countInvites) countInvites.textContent = '0';
+    }
+}
+window.updateTeamTabCounts = updateTeamTabCounts;
+
 window.setTab = (tabName) => {
     if (tabName === 'find-teams') { activeView = 'teams'; activeTeamFilter = 'available'; }
     else if (tabName === 'find-players') { activeView = 'players'; activeTeamFilter = 'available'; }
+    else if (tabName === 'scrims') { activeView = 'scrims'; activeTeamFilter = 'all'; }
     else if (tabName === 'my-teams') { activeView = 'teams'; activeTeamFilter = 'mine'; }
     else if (tabName === 'my-lft') { activeView = 'players'; activeTeamFilter = 'mine'; }
-    else if (tabName === 'invites') { activeView = 'invites'; activeTeamFilter = 'none'; } // Handles the invites state
+    else if (tabName === 'invites') { activeView = 'invites'; activeTeamFilter = 'none'; }
 
-    // Updated list to include your invites tab button
-    const tabs = ['find-teams', 'find-players', 'my-teams', 'my-lft', 'invites'];
+    // Updated list to include scrims and invites tab buttons
+    const tabs = ['find-teams', 'find-players', 'scrims', 'my-teams', 'my-lft', 'invites'];
     tabs.forEach(t => {
         const btn = document.getElementById(`tab-${t}`);
+        const countBadge = document.getElementById(`count-${t}`);
         if (btn) {
             btn.className = (t === tabName) ? TAB_ACTIVE_CLASS : TAB_INACTIVE_CLASS;
         }
+        if (countBadge) {
+            countBadge.className = (t === tabName)
+                ? "text-[10px] bg-black/20 text-black px-1.5 py-0.2 rounded-full font-mono-tag font-bold"
+                : "text-[10px] bg-white/10 text-neutral-300 px-1.5 py-0.2 rounded-full font-mono-tag font-bold";
+        }
     });
+
+    // Toggle filter grids and UI elements based on Scrim vs Standard view
+    const teamFilterGrid = document.getElementById('team-filter-grid');
+    const scrimFilterGrid = document.getElementById('scrim-filter-grid');
+    const paginationContainer = document.getElementById('teams-pagination-container');
+
+    if (tabName === 'scrims') {
+        if (teamFilterGrid) teamFilterGrid.classList.add('hidden');
+        if (scrimFilterGrid) {
+            scrimFilterGrid.classList.remove('hidden');
+            scrimFilterGrid.classList.add('grid');
+        }
+        if (paginationContainer) paginationContainer.classList.add('hidden');
+    } else {
+        if (teamFilterGrid) teamFilterGrid.classList.remove('hidden');
+        if (scrimFilterGrid) {
+            scrimFilterGrid.classList.add('hidden');
+            scrimFilterGrid.classList.remove('grid');
+        }
+        if (paginationContainer && tabName !== 'invites') paginationContainer.classList.remove('hidden');
+    }
+
+    // Update tab counts
+    updateTeamTabCounts();
 
     // --- HANDLE COPIABLE USER UID CARD DISPLAY ---
     const uidContainer = document.getElementById('user-uid-container');
@@ -298,6 +386,15 @@ async function renderTeams() {
     const board = qs('#recruitment-board');
     if (!board) return;
 
+    // 0. EARLY HANDLE FOR SCRIMS VIEW
+    if (activeView === 'scrims') {
+        // Clear card real-time blimp listeners
+        cardListeners.forEach(unsub => unsub());
+        cardListeners = [];
+        renderScrimsBoard();
+        return;
+    }
+
     // 1. EARLY HANDLE FOR THE INVITES VIEW
     if (activeView === 'invites') {
         // Clear existing real-time listeners for cards
@@ -328,7 +425,18 @@ async function renderTeams() {
         try {
             const invitesSnap = await getDocs(collection(db, "users", user.uid, "invites"));
 
-            if (invitesSnap.empty) {
+            const validInvites = [];
+            for (const d of invitesSnap.docs) {
+                const inv = d.data();
+                // Filter out and auto-clean any self-invitations
+                if (inv.invitedBy === user.uid) {
+                    try { deleteDoc(d.ref); } catch(err){}
+                    continue;
+                }
+                validInvites.push({ id: d.id, ...inv });
+            }
+
+            if (validInvites.length === 0) {
                 board.innerHTML = `
                     <div class="col-span-full py-20 text-center flex flex-col items-center justify-center border border-dashed border-white/5 rounded-2xl bg-zinc-900/10">
                         <svg class="w-10 h-10 text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -340,12 +448,11 @@ async function renderTeams() {
                 return;
             }
 
-            board.innerHTML = '<div class="col-span-full space-y-3">';
+            board.innerHTML = '';
             const container = document.createElement('div');
             container.className = 'col-span-full space-y-3';
 
-            invitesSnap.forEach(d => {
-                const inv = d.data();
+            validInvites.forEach(inv => {
                 const isPending = inv.status === 'pending';
 
                 const card = document.createElement('div');
@@ -358,12 +465,12 @@ async function renderTeams() {
                     </div>
                     ${isPending ? `
                     <div class="flex gap-2 w-full sm:w-auto sm:shrink-0">
-                        <button data-action="accept-invite" data-invite-id="${d.id}" data-team-id="${escapeHtml(inv.teamId)}" data-team-name="${escapeHtml(inv.teamName)}"
-                            class="bg-green-600/20 text-green-400 border border-green-600/30 text-xs px-4 py-2 rounded-lg font-bold hover:bg-green-600/30 transition flex-1 sm:flex-none">
+                        <button data-action="accept-invite" data-invite-id="${inv.id}" data-team-id="${escapeHtml(inv.teamId)}" data-team-name="${escapeHtml(inv.teamName)}"
+                            class="bg-green-600/20 text-green-400 border border-green-600/30 text-xs px-4 py-2 rounded-lg font-bold hover:bg-green-600/30 transition flex-1 sm:flex-none cursor-pointer">
                             Accept
                         </button>
-                        <button data-action="decline-invite" data-invite-id="${d.id}"
-                            class="bg-red-600/20 text-red-400 border border-red-600/30 text-xs px-4 py-2 rounded-lg font-bold hover:bg-red-600/30 transition">
+                        <button data-action="decline-invite" data-invite-id="${inv.id}"
+                            class="bg-red-600/20 text-red-400 border border-red-600/30 text-xs px-4 py-2 rounded-lg font-bold hover:bg-red-600/30 transition cursor-pointer">
                             Decline
                         </button>
                     </div>` : ''}
@@ -371,7 +478,6 @@ async function renderTeams() {
                 container.appendChild(card);
             });
 
-            board.innerHTML = '';
             board.appendChild(container);
 
         } catch (e) {
@@ -452,6 +558,7 @@ async function renderTeams() {
         }
 
         cachedRecruitmentPosts = posts;
+        updateTeamTabCounts();
 
         const targetType = activeView === 'teams' ? 'team' : 'lft';
         posts = posts.filter(p => (p.type === targetType) || (!p.type && activeView === 'teams'));
@@ -1139,10 +1246,23 @@ let activeLftChatId = null; // Stores the UID of the person the creator is chatt
 
 // 1. For a user to start a chat with the lister
 window.startLftChat = async (listingId, ign) => {
-    if (!auth.currentUser) return window.showCustomAlert("Login Required", "Please log in to message players.");
+    const user = auth.currentUser;
+    if (!user) return window.showCustomAlert("Login Required", "Please log in to message players.");
+
+    // Check if listing belongs to the user
+    let post = cachedRecruitmentPosts.find(p => p.id === listingId);
+    if (!post) {
+        try {
+            const d = await getDoc(doc(db, "recruitment", listingId));
+            if (d.exists()) post = { id: d.id, ...d.data() };
+        } catch(e){}
+    }
+    if (post && (post.authorId === user.uid || post.userId === user.uid)) {
+        return window.openLftManageModal(listingId);
+    }
 
     currentManageId = listingId;
-    activeLftChatId = auth.currentUser.uid;
+    activeLftChatId = user.uid;
 
     // CHANGE: Open the LFT Modal, not the Manage Team Modal
     const lftModal = document.getElementById('manageLftModal');
@@ -1699,6 +1819,12 @@ window.invitePlayer = async (uid, playerName) => {
         return;
     }
 
+    // 1. SELF-INVITE GUARD: Cannot invite yourself
+    if (uid === user.uid) {
+        window.showCustomAlert("Invalid Action", "You cannot invite yourself to your own team.");
+        return;
+    }
+
     if (!currentManageId) {
         window.showCustomAlert("Error", "No team context found. Please re-open the team dashboard.");
         return;
@@ -1712,6 +1838,18 @@ window.invitePlayer = async (uid, playerName) => {
             return;
         }
         const teamData = teamSnap.data();
+
+        // 2. EXISTING ROSTER GUARD: Cannot invite existing members or captain
+        const isCaptain = teamData.captainId === uid || teamData.userId === uid || teamData.createdBy === uid || teamData.leaderId === uid || teamData.authorId === uid;
+        const isAlreadyMember = Array.isArray(teamData.members) && teamData.members.some(m => {
+            const mUid = typeof m === 'object' ? (m.uid || m.userId) : m;
+            return mUid === uid;
+        });
+
+        if (isCaptain || isAlreadyMember) {
+            window.showCustomAlert("Already on Roster", `${playerName || 'This player'} is already a member of this team.`);
+            return;
+        }
 
         // Check if an invite already exists for this user
         const existingInviteSnap = await getDoc(doc(db, "users", uid, "invites", currentManageId));
@@ -1760,6 +1898,12 @@ window.inviteByUid = async () => {
         return;
     }
 
+    // Direct self-invite check
+    if (auth.currentUser && uid === auth.currentUser.uid) {
+        window.showCustomAlert("Invalid Action", "You cannot invite yourself to your own team.");
+        return;
+    }
+
     try {
         // Attempt to pull user profile data if it exists
         const userSnap = await getDoc(doc(db, "users", uid));
@@ -1782,32 +1926,6 @@ window.inviteByUid = async () => {
     } catch (e) {
         console.error("Invite processing error:", e);
         window.showCustomAlert("Error", "Failed to process invitation. Please check the ID string.");
-    }
-};
-
-window.acceptInvite = async (inviteDocId, teamId, teamName) => {
-    const user = auth.currentUser;
-    if (!user) return;
-
-    const confirmed = await window.showCustomConfirm("Accept Invite", `Join <strong>${teamName}</strong>?`);
-    if (!confirmed) return;
-
-    try {
-        // Add the user to the team's members array
-        await updateDoc(doc(db, "recruitment", teamId), {
-            members: arrayUnion({ uid: user.uid, name: user.displayName || "Player", ign: playerIgn, role: "Member" }),
-            currentMembers: increment(1)
-        });
-
-        // Mark invite as accepted
-        await deleteDoc(doc(db, "users", user.uid, "invites", inviteDocId));
-
-        await window.showCustomAlert("Joined!", `You are now a member of ${teamName}.`);
-        renderTeams(); // Refresh the invites view
-
-    } catch (e) {
-        console.error("Accept invite error:", e);
-        window.showCustomAlert("Error", "Failed to accept invite.");
     }
 };
 
@@ -1838,12 +1956,73 @@ window.disbandTeam = async () => {
     }
 }
 
-window.openApplicationModal = (teamId, teamName) => {
-    if (!auth.currentUser) { window.showCustomAlert("Login Required", "Please log in to apply."); return; }
+window.openApplicationModal = async (teamId, teamName) => {
+    const user = auth.currentUser;
+    if (!user) { window.showCustomAlert("Login Required", "Please log in to apply."); return; }
+
+    let team = cachedRecruitmentPosts.find(p => p.id === teamId);
+    if (!team) {
+        try {
+            const docSnap = await getDoc(doc(db, "recruitment", teamId));
+            if (docSnap.exists()) team = { id: docSnap.id, ...docSnap.data() };
+        } catch (e) { console.error(e); }
+    }
+
+    // Self-application guard: Cannot apply to own team or if already a member
+    if (team) {
+        const isCaptain = team.captainId === user.uid || team.userId === user.uid || team.createdBy === user.uid || team.leaderId === user.uid || team.authorId === user.uid;
+        const isMember = Array.isArray(team.members) && team.members.some(m => {
+            const mUid = typeof m === 'object' ? (m.uid || m.userId) : m;
+            return mUid === user.uid;
+        });
+        if (isCaptain) {
+            window.showCustomAlert("Cannot Apply", "You are the captain of this team.");
+            return;
+        }
+        if (isMember) {
+            window.showCustomAlert("Already on Roster", "You are already a member of this team.");
+            return;
+        }
+    }
+
     document.getElementById('app-team-id').value = teamId;
     document.getElementById('app-team-name').textContent = teamName;
+
+    // Auto-fill applicant rank and role based on user profile and team's game
+    try {
+        const userSnap = await getDoc(doc(db, "users", user.uid));
+        if (userSnap.exists()) {
+            const uData = userSnap.data() || {};
+            const teamGame = String(team?.game || team?.gameId || '').toLowerCase();
+            let rankVal = '';
+            let roleVal = '';
+
+            if (teamGame.includes('val')) {
+                rankVal = uData.valRank || uData.rank || '';
+                roleVal = uData.valRole || uData.role || '';
+            } else if (teamGame.includes('mlbb') || teamGame.includes('mobile legends')) {
+                rankVal = uData.mlbbRank || uData.rank || '';
+                roleVal = uData.mlbbRole || uData.role || '';
+            } else if (teamGame.includes('hok') || teamGame.includes('honor of kings')) {
+                rankVal = uData.hokRank || uData.rank || '';
+                roleVal = uData.hokRole || uData.role || '';
+            } else {
+                rankVal = uData.rank || uData.valRank || uData.mlbbRank || uData.hokRank || '';
+                roleVal = uData.role || uData.valRole || uData.mlbbRole || uData.hokRole || '';
+            }
+
+            const appRank = document.getElementById('app-rank');
+            const appRole = document.getElementById('app-role');
+            const appNote = document.getElementById('app-note');
+
+            if (appRank && !appRank.value) appRank.value = rankVal;
+            if (appRole && !appRole.value) appRole.value = roleVal;
+            if (appNote && !appNote.value && uData.bio) appNote.value = uData.bio;
+        }
+    } catch(err) { console.warn("Failed to auto-fill application fields:", err); }
+
     document.getElementById('applicationModal').classList.remove('hidden');
-}
+};
 
 window.promoteMember = async (uid) => {
     if (myTeamRole !== 'Captain') return;
@@ -2504,3 +2683,839 @@ async function sendSystemMessage(teamId, text) {
         console.error("Failed to send system message:", err);
     }
 }
+
+// ==========================================
+// DAILY LFG & SCRIM MATCHMAKING BOARD ENGINE
+// ==========================================
+
+function formatScrimGameBadge(game) {
+    if (!game) return { title: 'ESPORTS', cssClass: 'scrim-badge-val' };
+    const g = String(game).toLowerCase();
+    if (g.includes('val') || g === 'valorant') {
+        return { title: 'VALORANT', cssClass: 'scrim-badge-val' };
+    }
+    if (g.includes('mlbb') || g.includes('mobile legends') || g.includes('bang bang')) {
+        return { title: 'MLBB', cssClass: 'scrim-badge-mlbb' };
+    }
+    if (g.includes('hok') || g.includes('honor of kings')) {
+        return { title: 'HONOR OF KINGS', cssClass: 'scrim-badge-hok' };
+    }
+    return { title: String(game).toUpperCase(), cssClass: 'scrim-badge-val' };
+}
+
+// 1. REAL-TIME SUBSCRIPTION TO SCRIMS FEED
+function subscribeToScrims() {
+    if (typeof scrimsUnsubscribe === 'function') {
+        scrimsUnsubscribe();
+        scrimsUnsubscribe = null;
+    }
+
+    try {
+        const scrimsCol = collection(db, "scrims");
+        const q = query(scrimsCol, orderBy("createdAt", "desc"), limit(100));
+
+        scrimsUnsubscribe = onSnapshot(q, (snapshot) => {
+            const now = Date.now();
+            const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
+            const list = [];
+
+            snapshot.forEach((docSnap) => {
+                const data = docSnap.data();
+                const id = docSnap.id;
+
+                let createdAtMs = now;
+                if (data.createdAt && typeof data.createdAt.toMillis === 'function') {
+                    createdAtMs = data.createdAt.toMillis();
+                } else if (data.createdAt && data.createdAt.seconds) {
+                    createdAtMs = data.createdAt.seconds * 1000;
+                } else if (data.createdAt) {
+                    createdAtMs = new Date(data.createdAt).getTime() || now;
+                }
+
+                const isStale = (now - createdAtMs) > TWELVE_HOURS_MS;
+
+                list.push({
+                    id,
+                    scrimId: id,
+                    ...data,
+                    createdAtMs,
+                    isStale: isStale || data.status === 'expired'
+                });
+            });
+
+            activeScrimsList = list;
+            updateTeamTabCounts();
+            if (activeView === 'scrims') {
+                renderScrimsBoard();
+            }
+        }, (error) => {
+            console.warn("Scrims ordered subscription notice:", error.message || error);
+            try {
+                scrimsUnsubscribe = onSnapshot(collection(db, "scrims"), (snap) => {
+                    const list = [];
+                    snap.forEach(d => list.push({ id: d.id, scrimId: d.id, ...d.data() }));
+                    list.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
+                    activeScrimsList = list;
+                    updateTeamTabCounts();
+                    if (activeView === 'scrims') renderScrimsBoard();
+                }, (fallbackErr) => {
+                    console.warn("Scrims Firestore access notice (requires security rules in Firebase Console):", fallbackErr.message || fallbackErr);
+                });
+            } catch (e) {
+                console.warn("Scrims listener fallback handled:", e);
+            }
+        });
+    } catch (err) {
+        console.error("Failed to initialize Scrims real-time feed:", err);
+    }
+}
+
+// 2. SCRIM FILTERS
+window.setScrimGameFilter = (game) => {
+    scrimGameFilter = game;
+    if (activeView === 'scrims') renderScrimsBoard();
+};
+
+window.setScrimFormatFilter = (fmt) => {
+    scrimFormatFilter = fmt;
+    if (activeView === 'scrims') renderScrimsBoard();
+};
+
+window.setScrimRankFilter = (rank) => {
+    scrimRankFilter = rank;
+    if (activeView === 'scrims') renderScrimsBoard();
+};
+
+// 3. RENDER SCRIM BOARD
+async function renderScrimsBoard() {
+    const board = qs('#recruitment-board');
+    if (!board) return;
+
+    const user = auth.currentUser;
+    const countText = document.getElementById('filter-count-text');
+
+    // Filter listings
+    let filtered = activeScrimsList.filter(scrim => {
+        // Exclude cancelled listings
+        if (scrim.status === 'cancelled') return false;
+
+        // Auto-archive client side: exclude stale listings (>12h) unless current user is host or accepted opponent
+        if (scrim.isStale && (!user || (user.uid !== scrim.captainId && user.uid !== scrim.opponentCaptainId))) {
+            return false;
+        }
+
+        // Game filter
+        if (scrimGameFilter !== 'all') {
+            const sg = (scrim.game || '').toLowerCase();
+            const fg = scrimGameFilter.toLowerCase();
+            if (!sg.includes(fg) && !fg.includes(sg)) return false;
+        }
+
+        // Format filter
+        if (scrimFormatFilter !== 'all') {
+            if (scrim.format !== scrimFormatFilter) return false;
+        }
+
+        // Rank filter
+        if (scrimRankFilter !== 'all') {
+            const sr = (scrim.rankTier || '').toLowerCase();
+            const fr = scrimRankFilter.toLowerCase();
+            if (!sr.includes(fr) && !fr.includes(sr)) return false;
+        }
+
+        // Search query
+        if (scrimSearchQuery) {
+            const q = scrimSearchQuery;
+            const matchTime = (scrim.matchTime || '').toLowerCase();
+            const teamName = (scrim.teamName || '').toLowerCase();
+            const game = (scrim.game || '').toLowerCase();
+            const rank = (scrim.rankTier || '').toLowerCase();
+            if (!matchTime.includes(q) && !teamName.includes(q) && !game.includes(q) && !rank.includes(q)) {
+                return false;
+            }
+        }
+
+        return true;
+    });
+
+    if (countText) {
+        countText.textContent = `Showing ${filtered.length} Live Scrim Match${filtered.length === 1 ? '' : 'es'}`;
+    }
+
+    if (filtered.length === 0) {
+        board.className = "grid grid-cols-1 gap-4";
+        board.innerHTML = `
+            <div class="col-span-full py-16 text-center flex flex-col items-center justify-center border border-dashed border-white/10 rounded-2xl bg-zinc-950/40 p-8">
+                <div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-4 text-emerald-400">
+                    <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                </div>
+                <h3 class="text-lg font-heading font-bold text-white uppercase tracking-wider mb-2">No Active Scrims Found</h3>
+                <p class="text-neutral-400 text-xs max-w-md mx-auto mb-6 leading-relaxed">
+                    Be the first team to schedule a practice match today! Broadcast your squad's target time and format to match against competitive opponents.
+                </p>
+                <button onclick="window.openPostScrimModal()" class="px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-[#FFD700] hover:brightness-110 active:scale-95 text-black font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-lg flex items-center gap-2 cursor-pointer">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    <span>Broadcast a Scrim Request</span>
+                </button>
+            </div>`;
+        return;
+    }
+
+    board.className = "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 auto-rows-fr";
+    board.innerHTML = '';
+
+    for (const scrim of filtered) {
+        const card = document.createElement('article');
+        card.className = "scrim-card p-5 flex flex-col justify-between";
+        card.dataset.scrimId = scrim.id;
+
+        const gameBadge = formatScrimGameBadge(scrim.game);
+        const isOpen = scrim.status === 'open';
+        const isAccepted = scrim.status === 'accepted';
+        const isHost = user && user.uid === scrim.captainId;
+        const isOpponent = user && user.uid === scrim.opponentCaptainId;
+        const canViewLobby = isHost || isOpponent || currentUserRole === 'admin';
+
+        card.innerHTML = `
+            <div>
+                <!-- Header: Game + Status Badges -->
+                <div class="flex items-center justify-between gap-2 mb-3">
+                    <span class="font-mono-tag text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md ${gameBadge.cssClass}">
+                        ${escapeHtml(gameBadge.title)}
+                    </span>
+                    <span class="font-mono-tag text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md flex items-center gap-1.5 ${isOpen ? 'scrim-badge-open' : 'scrim-badge-accepted'}">
+                        <span class="w-1.5 h-1.5 rounded-full ${isOpen ? 'bg-emerald-400 animate-ping' : 'bg-yellow-400'}"></span>
+                        <span>${isOpen ? 'LOBBY OPEN' : 'CONFIRMED'}</span>
+                    </span>
+                </div>
+
+                <!-- Main Team / Squad Title -->
+                <div class="mb-3">
+                    <span class="text-[10px] font-mono-tag text-neutral-400 uppercase block">Host Squad</span>
+                    <h3 class="font-heading font-bold text-lg text-white group-hover:text-[#FFD700] transition-colors truncate">
+                        ${escapeHtml(scrim.teamName || 'Competitive Squad')}
+                    </h3>
+                </div>
+
+                <!-- Match Specs Grid -->
+                <div class="grid grid-cols-2 gap-2 mb-4">
+                    <div class="bg-black/40 border border-white/5 rounded-lg p-2">
+                        <span class="text-[9px] font-mono-tag text-neutral-500 uppercase block">Format</span>
+                        <span class="text-xs font-bold text-neutral-200">${escapeHtml(scrim.format || '5v5 BO3')}</span>
+                    </div>
+                    <div class="bg-black/40 border border-white/5 rounded-lg p-2">
+                        <span class="text-[9px] font-mono-tag text-neutral-500 uppercase block">Skill Tier</span>
+                        <span class="text-xs font-bold text-[#FFD700]">${escapeHtml(scrim.rankTier || 'Mythic')}</span>
+                    </div>
+                </div>
+
+                <!-- Match Time Callout -->
+                <div class="bg-white/5 border border-white/5 rounded-xl p-3 mb-4 flex items-center gap-2.5">
+                    <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    <div class="min-w-0">
+                        <span class="text-[9px] font-mono-tag text-neutral-400 uppercase block">Scheduled Time</span>
+                        <span class="text-xs font-bold text-white truncate block">${escapeHtml(scrim.matchTime || 'Tonight')}</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Action Controls -->
+            <div class="pt-3 border-t border-white/10 mt-auto">
+                ${isOpen ? `
+                    ${isHost ? `
+                        <div class="flex items-center gap-2">
+                            <span class="flex-1 text-center py-2 text-[10px] font-mono-tag text-neutral-400 bg-white/5 rounded-lg font-semibold">Your Scrim</span>
+                            <button onclick="window.cancelScrim('${scrim.id}')" class="px-3 py-2 rounded-lg bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-500/30 text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer">
+                                Cancel
+                            </button>
+                        </div>
+                    ` : user ? `
+                        <button onclick="window.openAcceptScrimModal('${scrim.id}')" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-[#FFD700] hover:brightness-110 active:scale-95 text-black font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer">
+                            <span>Accept Scrim</span>
+                        </button>
+                    ` : `
+                        <a href="/login" class="block w-full text-center py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-heading font-bold text-xs uppercase tracking-wider transition-all border border-white/10">
+                            Log In to Accept
+                        </a>
+                    `}
+                ` : isAccepted ? `
+                    ${canViewLobby ? `
+                        <button onclick="window.openScrimDetailsModal('${scrim.id}')" class="w-full py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            <span>Lobby Details</span>
+                        </button>
+                    ` : `
+                        <div class="text-center py-2 text-[10px] font-mono-tag text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg font-semibold">
+                            Match Scheduled
+                        </div>
+                    `}
+                ` : ''}
+            </div>
+        `;
+
+        board.appendChild(card);
+    }
+}
+
+// 4. POST SCRIM MODAL HANDLERS
+window.handleScrimPostGameChange = async (gameTitle) => {
+    const rankSelect = document.getElementById('scrim-post-rank');
+    if (!rankSelect) return;
+    const g = String(gameTitle || '').toLowerCase();
+    
+    let userRank = '';
+    if (auth.currentUser) {
+        try {
+            const userSnap = await getDoc(doc(db, "users", auth.currentUser.uid));
+            if (userSnap.exists()) {
+                const uData = userSnap.data() || {};
+                if (g.includes('val')) userRank = uData.valRank || '';
+                else if (g.includes('mlbb') || g.includes('mobile legends')) userRank = uData.mlbbRank || '';
+                else if (g.includes('hok') || g.includes('honor of kings')) userRank = uData.hokRank || '';
+            }
+        } catch(e) {}
+    }
+
+    if (g.includes('val')) {
+        rankSelect.innerHTML = `
+            <option value="Open / Any" ${!userRank ? 'selected' : ''}>Open / Any Rank (All Skill Tiers)</option>
+            <option value="Radiant / Immortal" ${userRank.includes('Radiant') || userRank.includes('Immortal') ? 'selected' : ''}>Radiant / Immortal (Tier 1 Pro)</option>
+            <option value="Ascendant / Diamond" ${userRank.includes('Ascendant') || userRank.includes('Diamond') ? 'selected' : ''}>Ascendant / Diamond (High Competitive)</option>
+            <option value="Platinum / Gold" ${userRank.includes('Platinum') || userRank.includes('Gold') ? 'selected' : ''}>Platinum / Gold (Intermediate)</option>
+            <option value="Silver / Bronze / Iron" ${userRank.includes('Silver') || userRank.includes('Bronze') || userRank.includes('Iron') ? 'selected' : ''}>Silver / Bronze / Iron (Beginner)</option>
+            <option value="Tournament Ready">Tournament Ready (Custom Scrim)</option>
+        `;
+    } else if (g.includes('mlbb') || g.includes('mobile legends')) {
+        rankSelect.innerHTML = `
+            <option value="Open / Any" ${!userRank ? 'selected' : ''}>Open / Any Rank (All Skill Tiers)</option>
+            <option value="Mythical Immortal / Glory" ${userRank.includes('Immortal') || userRank.includes('Glory') ? 'selected' : ''}>Mythical Immortal / Glory (Tier 1)</option>
+            <option value="Mythic / Legend" ${userRank.includes('Mythic') || userRank.includes('Legend') ? 'selected' : ''}>Mythic / Legend (Competitive)</option>
+            <option value="Epic / Grandmaster" ${userRank.includes('Epic') || userRank.includes('Grandmaster') ? 'selected' : ''}>Epic / Grandmaster (Intermediate)</option>
+            <option value="Master / Elite / Warrior" ${userRank.includes('Master') || userRank.includes('Elite') || userRank.includes('Warrior') ? 'selected' : ''}>Master / Elite / Warrior (Beginner)</option>
+            <option value="Tournament Ready">Tournament Ready (Custom Scrim)</option>
+        `;
+    } else if (g.includes('hok') || g.includes('honor of kings')) {
+        rankSelect.innerHTML = `
+            <option value="Open / Any" ${!userRank ? 'selected' : ''}>Open / Any Rank (All Skill Tiers)</option>
+            <option value="Supreme / Grandmaster" ${userRank.includes('Supreme') || userRank.includes('Grandmaster') ? 'selected' : ''}>Supreme / Grandmaster (High Elo)</option>
+            <option value="Master / Epic" ${userRank.includes('Master') || userRank.includes('Epic') ? 'selected' : ''}>Master / Epic (Competitive)</option>
+            <option value="Diamond / Platinum" ${userRank.includes('Diamond') || userRank.includes('Platinum') ? 'selected' : ''}>Diamond / Platinum (Intermediate)</option>
+            <option value="Gold / Silver / Bronze" ${userRank.includes('Gold') || userRank.includes('Silver') || userRank.includes('Bronze') ? 'selected' : ''}>Gold / Silver / Bronze (Beginner)</option>
+            <option value="Tournament Ready">Tournament Ready (Custom Scrim)</option>
+        `;
+    } else {
+        rankSelect.innerHTML = `
+            <option value="Open / Any" selected>Open / Any Rank (All Levels)</option>
+            <option value="Radiant / Immortal / Mythical Immortal">Radiant / Immortal / Mythical Immortal (Tier 1 Pro / High Elo)</option>
+            <option value="Ascendant / Mythical Glory">Ascendant / Mythical Glory (Semi-Pro / High Comp)</option>
+            <option value="Diamond / Mythic / Grandmaster">Diamond / Mythic / Grandmaster (Competitive)</option>
+            <option value="Platinum / Legend / Master">Platinum / Legend / Master (Intermediate)</option>
+            <option value="Gold / Epic">Gold / Epic (Casual Competitive)</option>
+            <option value="Silver & Below / Elite">Silver & Below / Elite (Beginner / Learning)</option>
+            <option value="Tournament Ready">Tournament Ready (Custom Scrim)</option>
+        `;
+    }
+};
+
+window.openPostScrimModal = async () => {
+    const user = auth.currentUser;
+    if (!user) {
+        if (typeof window.showWarningToast === 'function') {
+            window.showWarningToast("Sign In Required", "Please log in to broadcast a daily scrim request.");
+        }
+        setTimeout(() => { window.location.href = '/login'; }, 1200);
+        return;
+    }
+
+    const teamInput = document.getElementById('scrim-post-team');
+    const contactInput = document.getElementById('scrim-post-contact');
+    const gameSelect = document.getElementById('scrim-post-game');
+
+    // Auto-fill from user profile & teams
+    try {
+        const userSnap = await getDoc(doc(db, "users", user.uid));
+        const uData = userSnap.exists() ? (userSnap.data() || {}) : {};
+
+        if (contactInput && !contactInput.value) {
+            contactInput.value = uData.discord || uData.discordTag || user.email || '';
+        }
+
+        if (teamInput && !teamInput.value) {
+            let primaryTeamName = '';
+            const userTeam = cachedRecruitmentPosts.find(p => p.type !== 'lft' && (p.authorId === user.uid || (Array.isArray(p.members) && p.members.some(m => (m.uid || m) === user.uid))));
+            if (userTeam) primaryTeamName = userTeam.name;
+            teamInput.value = primaryTeamName || uData.ign || uData.displayName || user.displayName || '';
+        }
+
+        // Auto-select primary game if not selected
+        if (gameSelect && !gameSelect.value) {
+            if (uData.valId) { gameSelect.value = 'Valorant'; }
+            else if (uData.mlbbId) { gameSelect.value = 'MLBB'; }
+            else if (uData.hokId) { gameSelect.value = 'Honor of Kings'; }
+            if (gameSelect.value) {
+                window.handleScrimPostGameChange(gameSelect.value);
+            }
+        }
+    } catch(err) { console.warn("Failed to auto-fill scrim profile:", err); }
+
+    // Initialize Date & Time Inputs
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+    const dateInput = document.getElementById('scrim-post-date');
+    const timeInput = document.getElementById('scrim-post-time');
+
+    if (dateInput) {
+        dateInput.min = todayStr;
+        if (!dateInput.value) dateInput.value = todayStr;
+    }
+
+    if (timeInput && !timeInput.value) {
+        // Default to upcoming top of the hour or 8:00 PM
+        const nextHour = (now.getHours() + 1) % 24;
+        const pad = (n) => String(n).padStart(2, '0');
+        timeInput.value = `${pad(nextHour)}:00`;
+    }
+
+    // Detect timezone
+    const tzLabel = document.getElementById('scrim-timezone-label');
+    if (tzLabel) {
+        try {
+            const tzName = Intl.DateTimeFormat().resolvedOptions().timeZone || 'Local';
+            const offsetHours = -now.getTimezoneOffset() / 60;
+            const sign = offsetHours >= 0 ? '+' : '';
+            tzLabel.textContent = `${tzName} (GMT${sign}${offsetHours})`;
+        } catch (e) {
+            tzLabel.textContent = 'Local Time';
+        }
+    }
+
+    updateScrimPreviewFormatted();
+
+    // Attach real-time preview listeners
+    if (dateInput && !dateInput._hasPreviewListener) {
+        dateInput.addEventListener('input', updateScrimPreviewFormatted);
+        dateInput._hasPreviewListener = true;
+    }
+    if (timeInput && !timeInput._hasPreviewListener) {
+        timeInput.addEventListener('input', updateScrimPreviewFormatted);
+        timeInput._hasPreviewListener = true;
+    }
+
+    animateGenericOpen('postScrimModal', 'postScrimBackdrop', 'postScrimPanel');
+};
+
+function formatScrimDateTime(dateStr, timeStr) {
+    if (!dateStr || !timeStr) return '';
+    try {
+        const [year, month, day] = dateStr.split('-').map(Number);
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const targetDate = new Date(year, month - 1, day, hours, minutes);
+        
+        const now = new Date();
+        const isToday = now.getFullYear() === targetDate.getFullYear() &&
+                        now.getMonth() === targetDate.getMonth() &&
+                        now.getDate() === targetDate.getDate();
+
+        const tomorrow = new Date(now);
+        tomorrow.setDate(now.getDate() + 1);
+        const isTomorrow = tomorrow.getFullYear() === targetDate.getFullYear() &&
+                           tomorrow.getMonth() === targetDate.getMonth() &&
+                           tomorrow.getDate() === targetDate.getDate();
+
+        const timeFormatted = targetDate.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+        
+        if (isToday) {
+            return `Today • ${timeFormatted}`;
+        } else if (isTomorrow) {
+            return `Tomorrow • ${timeFormatted}`;
+        } else {
+            const dateFormatted = targetDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            return `${dateFormatted} • ${timeFormatted}`;
+        }
+    } catch (e) {
+        return `${dateStr} ${timeStr}`;
+    }
+}
+
+function updateScrimPreviewFormatted() {
+    const dateVal = document.getElementById('scrim-post-date')?.value;
+    const timeVal = document.getElementById('scrim-post-time')?.value;
+    const previewEl = document.getElementById('scrim-formatted-preview');
+    if (previewEl) {
+        previewEl.textContent = formatScrimDateTime(dateVal, timeVal);
+    }
+}
+
+window.setScrimTimePreset = (preset) => {
+    const timeInput = document.getElementById('scrim-post-time');
+    const dateInput = document.getElementById('scrim-post-date');
+    if (!timeInput) return;
+
+    const now = new Date();
+    const todayStr = now.toISOString().split('T')[0];
+
+    if (preset === 'now') {
+        if (dateInput) dateInput.value = todayStr;
+        const pad = (n) => String(n).padStart(2, '0');
+        // Round to next 5 minutes
+        const mins = Math.ceil(now.getMinutes() / 5) * 5;
+        const d = new Date(now);
+        d.setMinutes(mins);
+        timeInput.value = `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    } else {
+        timeInput.value = preset;
+    }
+    updateScrimPreviewFormatted();
+};
+
+window.closePostScrimModal = () => {
+    animateGenericClose('postScrimModal', 'postScrimBackdrop', 'postScrimPanel');
+};
+
+window.handlePostScrimSubmit = async (e) => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) {
+        if (typeof window.showErrorToast === 'function') {
+            window.showErrorToast("Error", "You must be signed in to post a scrim.");
+        }
+        return;
+    }
+
+    const game = document.getElementById('scrim-post-game')?.value?.trim();
+    const teamName = document.getElementById('scrim-post-team')?.value?.trim();
+    const format = document.getElementById('scrim-post-format')?.value?.trim() || '5v5 BO3';
+    const rankTier = document.getElementById('scrim-post-rank')?.value?.trim() || 'Open / Any';
+    const dateVal = document.getElementById('scrim-post-date')?.value;
+    const timeVal = document.getElementById('scrim-post-time')?.value;
+    const captainContact = document.getElementById('scrim-post-contact')?.value?.trim();
+    const btn = document.getElementById('btn-submit-scrim');
+
+    if (!game || !teamName || !dateVal || !timeVal || !captainContact) {
+        if (typeof window.showWarningToast === 'function') {
+            window.showWarningToast("Missing Fields", "Please specify your squad name, match date, time, and contact tag.");
+        }
+        return;
+    }
+
+    const matchTime = formatScrimDateTime(dateVal, timeVal);
+
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="animate-spin inline-block mr-1">⏳</span> Broadcasting...';
+        }
+
+        const expiresDate = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24h expiration
+
+        await addDoc(collection(db, "scrims"), {
+            game,
+            teamName,
+            captainId: user.uid,
+            captainEmail: user.email || '',
+            captainName: user.displayName || teamName,
+            captainContact,
+            rankTier,
+            matchDate: dateVal,
+            matchTimeRaw: timeVal,
+            matchTime,
+            format,
+            status: "open",
+            opponentTeamName: null,
+            opponentCaptainId: null,
+            opponentContact: null,
+            createdAt: serverTimestamp(),
+            expiresAt: Timestamp.fromDate(expiresDate)
+        });
+
+        if (typeof window.showSuccessToast === 'function') {
+            window.showSuccessToast("Scrim Broadcasted!", `Your ${game} scrim for ${matchTime} is now live.`);
+        }
+
+        // Reset form
+        document.getElementById('postScrimForm')?.reset();
+        window.closePostScrimModal();
+
+        // Switch to scrims tab if not already on it
+        if (activeView !== 'scrims') {
+            window.setTab('scrims');
+        } else {
+            renderScrimsBoard();
+        }
+
+    } catch (err) {
+        console.error("Error posting scrim:", err);
+        const errMsg = String(err?.message || err || '');
+        const isPermission = errMsg.toLowerCase().includes('permission') || err?.code === 'permission-denied';
+
+        if (isPermission) {
+            console.warn("FIRESTORE SECURITY RULES NOTICE: To allow scrim postings, publish the updated security rules for '/scrims' in Firebase Console > Firestore Database > Rules.");
+            if (typeof window.showErrorToast === 'function') {
+                window.showErrorToast("Security Rule Update Required", "Firestore security rules in Firebase Console need to allow the '/scrims' collection. See console or firestore.rules for deployment details.", 6000);
+            }
+        } else {
+            if (typeof window.showErrorToast === 'function') {
+                window.showErrorToast("Broadcast Failed", errMsg || "Failed to broadcast scrim.");
+            }
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>Broadcast Scrim</span>';
+        }
+    }
+};
+
+// 5. ACCEPT SCRIM MODAL & TRANSACTION
+window.openAcceptScrimModal = async (scrimId) => {
+    const user = auth.currentUser;
+    if (!user) {
+        if (typeof window.showWarningToast === 'function') {
+            window.showWarningToast("Sign In Required", "Please log in to accept a scrim challenge.");
+        }
+        setTimeout(() => { window.location.href = '/login'; }, 1200);
+        return;
+    }
+
+    const scrim = activeScrimsList.find(s => s.id === scrimId);
+    if (!scrim) {
+        if (typeof window.showErrorToast === 'function') {
+            window.showErrorToast("Not Found", "This scrim listing is no longer available.");
+        }
+        return;
+    }
+
+    if (scrim.captainId === user.uid) {
+        if (typeof window.showWarningToast === 'function') {
+            window.showWarningToast("Self Match", "You cannot accept your own scrim posting.");
+        }
+        return;
+    }
+
+    // Populate preview card
+    const hiddenId = document.getElementById('accept-scrim-id');
+    const previewGame = document.getElementById('accept-preview-game');
+    const previewTime = document.getElementById('accept-preview-time');
+    const previewHost = document.getElementById('accept-preview-host');
+    const previewFormat = document.getElementById('accept-preview-format');
+    const previewRank = document.getElementById('accept-preview-rank');
+
+    if (hiddenId) hiddenId.value = scrimId;
+    if (previewGame) previewGame.textContent = scrim.game || 'ESPORTS';
+    if (previewTime) previewTime.textContent = scrim.matchTime || 'Scheduled Time';
+    if (previewHost) previewHost.textContent = scrim.teamName || 'Host Team';
+    if (previewFormat) previewFormat.textContent = scrim.format || '5v5 BO3';
+    if (previewRank) previewRank.textContent = scrim.rankTier || 'Any Rank';
+
+    const oppTeamInput = document.getElementById('accept-opponent-team');
+    const oppContactInput = document.getElementById('accept-opponent-contact');
+
+    // Auto-fill from user profile & teams
+    try {
+        const userSnap = await getDoc(doc(db, "users", user.uid));
+        const uData = userSnap.exists() ? (userSnap.data() || {}) : {};
+
+        if (oppContactInput && !oppContactInput.value) {
+            oppContactInput.value = uData.discord || uData.discordTag || user.email || '';
+        }
+
+        if (oppTeamInput && !oppTeamInput.value) {
+            let primaryTeamName = '';
+            const userTeam = cachedRecruitmentPosts.find(p => p.type !== 'lft' && (p.authorId === user.uid || (Array.isArray(p.members) && p.members.some(m => (m.uid || m) === user.uid))));
+            if (userTeam) primaryTeamName = userTeam.name;
+            oppTeamInput.value = primaryTeamName || uData.ign || uData.displayName || user.displayName || '';
+        }
+    } catch(err) { console.warn("Failed to auto-fill opponent details:", err); }
+
+    animateGenericOpen('acceptScrimModal', 'acceptScrimBackdrop', 'acceptScrimPanel');
+};
+
+window.closeAcceptScrimModal = () => {
+    animateGenericClose('acceptScrimModal', 'acceptScrimBackdrop', 'acceptScrimPanel');
+};
+
+window.handleAcceptScrimSubmit = async (e) => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) {
+        if (typeof window.showErrorToast === 'function') {
+            window.showErrorToast("Error", "You must be signed in to accept a scrim.");
+        }
+        return;
+    }
+
+    const scrimId = document.getElementById('accept-scrim-id')?.value;
+    const opponentTeamName = document.getElementById('accept-opponent-team')?.value?.trim();
+    const opponentContact = document.getElementById('accept-opponent-contact')?.value?.trim();
+    const btn = document.getElementById('btn-confirm-accept-scrim');
+
+    if (!scrimId || !opponentTeamName || !opponentContact) {
+        if (typeof window.showWarningToast === 'function') {
+            window.showWarningToast("Missing Fields", "Please complete all fields to accept the challenge.");
+        }
+        return;
+    }
+
+    try {
+        if (btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<span class="animate-spin inline-block mr-1">⏳</span> Confirming...';
+        }
+
+        const scrimRef = doc(db, "scrims", scrimId);
+
+        // Atomic Transaction: Guarantee race-condition safety
+        await runTransaction(db, async (transaction) => {
+            const scrimDoc = await transaction.get(scrimRef);
+            if (!scrimDoc.exists()) {
+                throw new Error("This scrim listing no longer exists.");
+            }
+
+            const data = scrimDoc.data();
+            if (data.status !== 'open') {
+                throw new Error("This scrim has already been accepted or is no longer open.");
+            }
+
+            if (data.captainId === user.uid) {
+                throw new Error("You cannot accept your own scrim request.");
+            }
+
+            transaction.update(scrimRef, {
+                status: 'accepted',
+                opponentCaptainId: user.uid,
+                opponentTeamName: opponentTeamName,
+                opponentContact: opponentContact,
+                acceptedAt: serverTimestamp()
+            });
+        });
+
+        if (typeof window.showSuccessToast === 'function') {
+            window.showSuccessToast("Scrim Challenge Accepted!", "Match confirmed! Opening direct lobby coordination...");
+        }
+
+        window.closeAcceptScrimModal();
+        document.getElementById('acceptScrimForm')?.reset();
+
+        // Reveal lobby details modal
+        setTimeout(() => {
+            window.openScrimDetailsModal(scrimId);
+        }, 300);
+
+    } catch (err) {
+        console.error("Accept Scrim Transaction Error:", err);
+        if (typeof window.showErrorToast === 'function') {
+            window.showErrorToast("Could Not Accept", err.message || "Failed to accept scrim challenge.");
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = '<span>Confirm &amp; Accept</span>';
+        }
+    }
+};
+
+// 6. SCRIM MATCH LOBBY DETAILS MODAL
+window.openScrimDetailsModal = async (scrimId) => {
+    let scrim = activeScrimsList.find(s => s.id === scrimId);
+    if (!scrim) {
+        try {
+            const snap = await getDoc(doc(db, "scrims", scrimId));
+            if (snap.exists()) {
+                scrim = { id: snap.id, ...snap.data() };
+            }
+        } catch (e) {
+            console.error("Error fetching scrim details:", e);
+        }
+    }
+
+    if (!scrim) {
+        if (typeof window.showErrorToast === 'function') {
+            window.showErrorToast("Error", "Could not load match lobby details.");
+        }
+        return;
+    }
+
+    const hostNameEl = document.getElementById('details-host-name');
+    const oppNameEl = document.getElementById('details-opponent-name');
+    const gameEl = document.getElementById('details-game');
+    const formatEl = document.getElementById('details-format');
+    const timeEl = document.getElementById('details-time');
+    const hostContactEl = document.getElementById('details-host-contact');
+    const oppContactEl = document.getElementById('details-opponent-contact');
+
+    if (hostNameEl) hostNameEl.textContent = scrim.teamName || 'Host Team';
+    if (oppNameEl) oppNameEl.textContent = scrim.opponentTeamName || 'Challenger Team';
+    if (gameEl) gameEl.textContent = scrim.game || 'Esports';
+    if (formatEl) formatEl.textContent = scrim.format || '5v5 BO3';
+    if (timeEl) timeEl.textContent = scrim.matchTime || 'Scheduled';
+    if (hostContactEl) hostContactEl.textContent = scrim.captainContact || 'Not provided';
+    if (oppContactEl) oppContactEl.textContent = scrim.opponentContact || 'Not provided';
+
+    animateGenericOpen('scrimDetailsModal', 'scrimDetailsBackdrop', 'scrimDetailsPanel');
+};
+
+window.closeScrimDetailsModal = () => {
+    animateGenericClose('scrimDetailsModal', 'scrimDetailsBackdrop', 'scrimDetailsPanel');
+};
+
+// 7. CANCEL SCRIM
+window.cancelScrim = async (scrimId) => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    const confirmed = await (window.showCustomConfirm
+        ? window.showCustomConfirm("Cancel Scrim Request", "Are you sure you want to remove your scrim listing from the matchmaking board?")
+        : confirm("Are you sure you want to remove your scrim listing from the matchmaking board?"));
+    if (!confirmed) return;
+
+    try {
+        await updateDoc(doc(db, "scrims", scrimId), {
+            status: "cancelled",
+            cancelledAt: serverTimestamp()
+        });
+
+        if (typeof window.showSuccessToast === 'function') {
+            window.showSuccessToast("Scrim Cancelled", "Your listing has been removed.");
+        }
+    } catch (err) {
+        console.error("Error cancelling scrim:", err);
+        if (typeof window.showErrorToast === 'function') {
+            window.showErrorToast("Error", "Failed to cancel scrim listing.");
+        }
+    }
+};
+
+// 8. CLIPBOARD COPY HELPER
+window.copyToClipboardText = (text, btnElement) => {
+    if (!text || text === '--') return;
+    navigator.clipboard.writeText(text).then(() => {
+        if (btnElement) {
+            const originalText = btnElement.textContent;
+            btnElement.textContent = "Copied!";
+            btnElement.classList.add('bg-emerald-500', 'text-black');
+            setTimeout(() => {
+                btnElement.textContent = originalText;
+                btnElement.classList.remove('bg-emerald-500', 'text-black');
+            }, 2000);
+        }
+        if (typeof window.showSuccessToast === 'function') {
+            window.showSuccessToast("Copied", `"${text}" copied to clipboard!`, 2000);
+        }
+    }).catch(err => {
+        console.error("Clipboard copy error:", err);
+    });
+};
+
+// 9. CENTRALIZED TEARDOWN CLEANUP
+function cleanupAllTeamsListeners() {
+    if (typeof chatUnsubscribe === 'function') { chatUnsubscribe(); chatUnsubscribe = null; }
+    if (typeof kickUnsubscribe === 'function') { kickUnsubscribe(); kickUnsubscribe = null; }
+    if (typeof scrimsUnsubscribe === 'function') { scrimsUnsubscribe(); scrimsUnsubscribe = null; }
+    if (Array.isArray(cardListeners)) {
+        cardListeners.forEach(u => { if (typeof u === 'function') u(); });
+        cardListeners = [];
+    }
+}
+
+window.addEventListener('beforeunload', cleanupAllTeamsListeners);
+window.addEventListener('pagehide', cleanupAllTeamsListeners);

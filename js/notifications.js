@@ -509,6 +509,9 @@ function initRealTimeListeners(user) {
 // 5. Global API: Send Notification to Player
 window.sendPlayerNotification = async function(targetUserId, notifData) {
     if (!targetUserId || !notifData) return;
+    // Don't send notifications to oneself
+    if (auth.currentUser && targetUserId === auth.currentUser.uid) return;
+
     try {
         await addDoc(collection(db, "users", targetUserId, "notifications"), {
             title: notifData.title || "Tournament Update",
@@ -657,3 +660,14 @@ function renderUnifiedFeed() {
         }
     }
 }
+
+// Teardown notifications listeners on page unload
+function cleanupNotificationsListeners() {
+    personalUnsubscribes.forEach(unsub => {
+        try { if (typeof unsub === 'function') unsub(); } catch(e) {}
+    });
+    personalUnsubscribes = [];
+}
+
+window.addEventListener('beforeunload', cleanupNotificationsListeners);
+window.addEventListener('pagehide', cleanupNotificationsListeners);

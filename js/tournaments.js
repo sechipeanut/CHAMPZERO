@@ -61,6 +61,7 @@ window.showCustomConfirm = (title, message) => {
         animateGenericOpen('customAlertModal', 'alertBackdrop', 'alertBox');
     });
 };
+window.customConfirm = window.showCustomConfirm;
 
 // --- TOURNAMENT STAFF & PERMISSIONS HELPER ---
 export function isTournamentStaff(t, user) {
@@ -624,7 +625,9 @@ async function handleCreateTournament() {
         };
 
         const startDate = qs('#c-date').value;
-        const endDate = qs('#c-end-date').value;
+        const startTime = qs('#c-time')?.value || '19:00';
+        const endDate = qs('#c-end-date')?.value || '';
+        const endTime = qs('#c-end-time')?.value || '';
         const desc = qs('#c-desc').value || "";
         const rules = qs('#c-rules')?.value?.trim() || "";
         
@@ -674,7 +677,10 @@ async function handleCreateTournament() {
             prize: prize,
             prizeSplit: prizeSplit,
             date: startDate,
+            time: startTime,
+            startTime: startTime,
             endDate: endDate,
+            endTime: endTime,
             description: desc,
             rules: rules,
             banner: bannerURL,
@@ -852,7 +858,9 @@ function openEditTournamentModal(t) {
     }
 
     if (qs('#c-date')) qs('#c-date').value = t.date ? (t.date.toDate ? t.date.toDate().toISOString().split('T')[0] : t.date) : '';
+    if (qs('#c-time')) qs('#c-time').value = t.startTime || t.time || '19:00';
     if (qs('#c-end-date')) qs('#c-end-date').value = t.endDate ? (t.endDate.toDate ? t.endDate.toDate().toISOString().split('T')[0] : t.endDate) : '';
+    if (qs('#c-end-time')) qs('#c-end-time').value = t.endTime || '';
     if (qs('#c-desc')) qs('#c-desc').value = t.description || '';
     if (qs('#c-rules')) qs('#c-rules').value = t.rules || '';
     if (qs('#c-banner')) qs('#c-banner').value = t.banner || '';
@@ -1654,7 +1662,41 @@ function openEditScheduleModal() {
     modal.classList.add('flex');
 }
 
-function addScheduleStageRow(item = { title: '', subtitle: '', color: 'gold', tag: '' }) {
+function formatStageScheduleSubtitle(dateVal, startVal, endVal, customNote) {
+    const parts = [];
+    if (dateVal) {
+        try {
+            const [y, m, d] = dateVal.split('-').map(Number);
+            const dt = new Date(y, m - 1, d);
+            parts.push(dt.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }));
+        } catch (e) {
+            parts.push(dateVal);
+        }
+    }
+    if (startVal) {
+        try {
+            const [h, min] = startVal.split(':').map(Number);
+            const dt = new Date(2000, 0, 1, h, min);
+            const startFormatted = dt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+            if (endVal) {
+                const [eh, emin] = endVal.split(':').map(Number);
+                const edt = new Date(2000, 0, 1, eh, emin);
+                const endFormatted = edt.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true });
+                parts.push(`${startFormatted} - ${endFormatted}`);
+            } else {
+                parts.push(startFormatted);
+            }
+        } catch (e) {
+            parts.push(startVal);
+        }
+    }
+    if (customNote) {
+        parts.push(customNote);
+    }
+    return parts.join(' • ');
+}
+
+function addScheduleStageRow(item = { title: '', subtitle: '', date: '', startTime: '', endTime: '', color: 'gold', tag: '' }) {
     const list = document.getElementById('scheduleEditorList');
     if (!list) return;
 
@@ -1696,7 +1738,7 @@ function addScheduleStageRow(item = { title: '', subtitle: '', color: 'gold', ta
                             ${tagPresets.map(tag => `<option value="${tag}" ${tag === initialTag ? 'selected' : ''}>${tag}</option>`).join('')}
                             ${!tagPresets.includes(initialTag) ? `<option value="${escapeHtml(initialTag)}" selected>${escapeHtml(initialTag)}</option>` : ''}
                         </select>
-                        <input type="text" class="schedule-stage-tag dark-input w-24 sm:w-28 p-1.5 rounded-lg text-xs font-mono-tag uppercase font-bold text-center" placeholder="Tag Text" value="${escapeHtml(initialTag)}">
+                        <input type="text" class="schedule-stage-tag dark-input w-24 sm:w-28 p-1.5 rounded-lg text-xs font-mono-tag uppercase font-bold text-center" value="${escapeHtml(initialTag)}">
                     </div>
                 </div>
 
@@ -1711,13 +1753,31 @@ function addScheduleStageRow(item = { title: '', subtitle: '', color: 'gold', ta
         </div>
 
         <div>
-            <label class="block text-[9px] font-mono-tag text-neutral-400 font-bold uppercase mb-1">Stage Title</label>
-            <input type="text" class="schedule-stage-title dark-input w-full p-2.5 rounded-lg text-xs font-mono-tag text-white" placeholder="Stage Title (e.g. Stage 1: Group Stage, Stage 2: Grand Finals)" value="${escapeHtml(item.title || '')}" required>
+            <label class="block text-[9px] font-mono-tag text-neutral-400 font-bold uppercase mb-1">Stage Title <span class="text-red-500">*</span></label>
+            <input type="text" class="schedule-stage-title dark-input w-full p-2.5 rounded-lg text-xs font-mono-tag text-white" value="${escapeHtml(item.title || '')}" required>
         </div>
 
         <div>
-            <label class="block text-[9px] font-mono-tag text-neutral-400 font-bold uppercase mb-1">Timeline Dates &amp; Notes</label>
-            <input type="text" class="schedule-stage-subtitle dark-input w-full p-2 rounded-lg text-xs font-mono-tag text-neutral-300" placeholder="Subtitle / Dates / Schedule Info (e.g. Oct 12 • 2:00 PM - 6:00 PM)" value="${escapeHtml(item.subtitle || '')}">
+            <label class="block text-[9px] font-mono-tag text-neutral-400 font-bold uppercase mb-1">Stage Schedule (Adjustable Date &amp; Time)</label>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div>
+                    <label class="block text-[8px] font-mono-tag text-neutral-500 uppercase mb-0.5">Date</label>
+                    <input type="date" class="schedule-stage-date dark-input w-full p-2 rounded-lg text-xs font-mono-tag text-white" value="${escapeHtml(item.date || '')}">
+                </div>
+                <div>
+                    <label class="block text-[8px] font-mono-tag text-neutral-500 uppercase mb-0.5">Start Time</label>
+                    <input type="time" class="schedule-stage-start-time dark-input w-full p-2 rounded-lg text-xs font-mono-tag text-white" value="${escapeHtml(item.startTime || '')}">
+                </div>
+                <div>
+                    <label class="block text-[8px] font-mono-tag text-neutral-500 uppercase mb-0.5">End Time</label>
+                    <input type="time" class="schedule-stage-end-time dark-input w-full p-2 rounded-lg text-xs font-mono-tag text-white" value="${escapeHtml(item.endTime || '')}">
+                </div>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-[9px] font-mono-tag text-neutral-400 font-bold uppercase mb-1">Timeline Subtitle / Notes</label>
+            <input type="text" class="schedule-stage-subtitle dark-input w-full p-2 rounded-lg text-xs font-mono-tag text-neutral-300" value="${escapeHtml(item.subtitle || '')}">
         </div>
     `;
 
@@ -1725,6 +1785,10 @@ function addScheduleStageRow(item = { title: '', subtitle: '', color: 'gold', ta
     const presetEl = row.querySelector('.schedule-stage-tag-preset');
     const tagInputEl = row.querySelector('.schedule-stage-tag');
     const previewPill = row.querySelector('.schedule-stage-preview-pill');
+    const dateInput = row.querySelector('.schedule-stage-date');
+    const startTimeInput = row.querySelector('.schedule-stage-start-time');
+    const endTimeInput = row.querySelector('.schedule-stage-end-time');
+    const subtitleInput = row.querySelector('.schedule-stage-subtitle');
 
     function updatePill() {
         const theme = getStageTheme(colorEl.value);
@@ -1732,6 +1796,20 @@ function addScheduleStageRow(item = { title: '', subtitle: '', color: 'gold', ta
         previewPill.className = `schedule-stage-preview-pill text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded-full border ${theme.badge} uppercase tracking-wider`;
         previewPill.textContent = tagText;
     }
+
+    function syncScheduleSubtitle() {
+        const d = dateInput.value;
+        const st = startTimeInput.value;
+        const et = endTimeInput.value;
+        if (d || st) {
+            const formatted = formatStageScheduleSubtitle(d, st, et);
+            if (formatted) subtitleInput.value = formatted;
+        }
+    }
+
+    dateInput.addEventListener('input', syncScheduleSubtitle);
+    startTimeInput.addEventListener('input', syncScheduleSubtitle);
+    endTimeInput.addEventListener('input', syncScheduleSubtitle);
 
     colorEl.addEventListener('change', () => {
         const selectedOpt = colorEl.selectedOptions[0];
@@ -1768,12 +1846,19 @@ async function saveTournamentSchedule() {
 
     rows.forEach(row => {
         const title = row.querySelector('.schedule-stage-title')?.value?.trim();
-        const subtitle = row.querySelector('.schedule-stage-subtitle')?.value?.trim() || '';
+        const date = row.querySelector('.schedule-stage-date')?.value || '';
+        const startTime = row.querySelector('.schedule-stage-start-time')?.value || '';
+        const endTime = row.querySelector('.schedule-stage-end-time')?.value || '';
+        let subtitle = row.querySelector('.schedule-stage-subtitle')?.value?.trim() || '';
         const color = row.querySelector('.schedule-stage-color')?.value || 'gold';
         const tag = row.querySelector('.schedule-stage-tag')?.value?.trim() || getStageTheme(color).tag;
 
+        if (!subtitle && (date || startTime)) {
+            subtitle = formatStageScheduleSubtitle(date, startTime, endTime);
+        }
+
         if (title) {
-            items.push({ title, subtitle, color, tag });
+            items.push({ title, subtitle, date, startTime, endTime, color, tag });
         }
     });
 
@@ -4532,15 +4617,59 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
             }
         } catch (e) { console.error(e); }
     } else {
-        if (qs('#joinCaptain')) qs('#joinCaptain').value = user.displayName || ''; 
-        if (qs('#joinContact')) qs('#joinContact').value = user.email || '';
-        if (qs('#joinPhone')) qs('#joinPhone').value = '';
-        if (qs('#joinSoloIgn')) qs('#joinSoloIgn').value = user.displayName || '';
-        if (qs('#joinSoloContact')) qs('#joinSoloContact').value = user.email || '';
-        if (qs('#joinSoloPhone')) qs('#joinSoloPhone').value = '';
-        if (qs('#joinSoloNotes')) qs('#joinSoloNotes').value = '';
+        let userProfile = {};
+        try {
+            const userSnap = await getDoc(doc(db, "users", user.uid));
+            if (userSnap.exists()) userProfile = userSnap.data() || {};
+        } catch (e) { console.warn("Failed to fetch user profile for auto-fill:", e); }
+
+        const tGameStr = String(tournDoc?.game || tournDoc?.title || '').toLowerCase();
+        let matchedIgn = userProfile.ign || userProfile.displayName || user.displayName || (user.email ? user.email.split('@')[0] : '');
+        let matchedRank = '';
+        let matchedRole = '';
+
+        if (tGameStr.includes('val')) {
+            matchedIgn = userProfile.valId || matchedIgn;
+            matchedRank = userProfile.valRank || '';
+            matchedRole = userProfile.valRole || '';
+        } else if (tGameStr.includes('mlbb') || tGameStr.includes('mobile legends') || tGameStr.includes('bang bang')) {
+            matchedIgn = userProfile.mlbbId || matchedIgn;
+            matchedRank = userProfile.mlbbRank || '';
+            matchedRole = userProfile.mlbbRole || '';
+        } else if (tGameStr.includes('hok') || tGameStr.includes('honor of kings')) {
+            matchedIgn = userProfile.hokId || matchedIgn;
+            matchedRank = userProfile.hokRank || '';
+            matchedRole = userProfile.hokRole || '';
+        } else {
+            matchedRank = userProfile.rank || '';
+            matchedRole = userProfile.role || '';
+        }
+
+        const matchedContact = userProfile.discord || userProfile.discordTag || userProfile.email || user.email || '';
+        const matchedPhone = userProfile.phone || '';
+        const matchedBio = userProfile.bio || '';
+
+        if (qs('#joinCaptain')) qs('#joinCaptain').value = matchedIgn; 
+        if (qs('#joinContact')) qs('#joinContact').value = matchedContact;
+        if (qs('#joinPhone')) qs('#joinPhone').value = matchedPhone;
+        if (qs('#joinSoloIgn')) qs('#joinSoloIgn').value = matchedIgn;
+        if (qs('#joinSoloRank')) qs('#joinSoloRank').value = matchedRank;
+        if (qs('#joinSoloRole') && matchedRole) {
+            const roleSelect = qs('#joinSoloRole');
+            for (let i = 0; i < roleSelect.options.length; i++) {
+                if (roleSelect.options[i].value.toLowerCase().includes(matchedRole.toLowerCase()) || 
+                    matchedRole.toLowerCase().includes(roleSelect.options[i].value.toLowerCase().split(' ')[0])) {
+                    roleSelect.selectedIndex = i;
+                    break;
+                }
+            }
+        }
+        if (qs('#joinSoloContact')) qs('#joinSoloContact').value = matchedContact;
+        if (qs('#joinSoloPhone')) qs('#joinSoloPhone').value = matchedPhone;
+        if (qs('#joinSoloNotes')) qs('#joinSoloNotes').value = matchedBio;
+
         if (qs('#membersContainer')) {
-            qs('#membersContainer').innerHTML = `<div class="flex gap-2 w-full"><input type="text" name="memberIgn[]" placeholder="Member IGN" class="dark-input w-full p-2.5 rounded-lg text-xs font-mono-tag"></div>`;
+            qs('#membersContainer').innerHTML = `<div class="flex gap-2 w-full"><input type="text" name="memberIgn[]" class="dark-input w-full p-2.5 rounded-lg text-xs font-mono-tag"></div>`;
         }
         if (select && window.toggleTeamInput) window.toggleTeamInput(select);
     }
@@ -7452,20 +7581,19 @@ window.openPayoutClaimModal = function (preferredTeamName) {
         if (qs('#payoutContact')) qs('#payoutContact').value = '';
         if (qs('#payoutNotes')) qs('#payoutNotes').value = '';
 
-        // Pre-fill from user's saved withdrawal/payout method if available
+        // Pre-fill from user's profile and saved withdrawal/payout method
         const auth = getAuth();
         const user = auth.currentUser;
         if (user) {
             getDoc(doc(db, "users", user.uid)).then(snap => {
                 if (snap.exists()) {
                     const uData = snap.data();
-                    const pm = uData.payoutMethod;
-                    if (pm && pm.accountNumber) {
-                        if (qs('#payoutChannelSelect')) qs('#payoutChannelSelect').value = pm.channel || 'GCash';
-                        if (qs('#payoutAccountName')) qs('#payoutAccountName').value = pm.accountName || '';
-                        if (qs('#payoutAccountNumber')) qs('#payoutAccountNumber').value = pm.accountNumber || '';
-                        if (qs('#payoutNotes') && !qs('#payoutNotes').value) qs('#payoutNotes').value = pm.notes || (pm.bankName ? `Bank: ${pm.bankName}` : '');
-                    }
+                    const pm = uData.payoutMethod || {};
+                    if (qs('#payoutChannelSelect')) qs('#payoutChannelSelect').value = pm.channel || 'GCash';
+                    if (qs('#payoutAccountName')) qs('#payoutAccountName').value = pm.accountName || uData.realName || uData.ign || uData.displayName || user.displayName || '';
+                    if (qs('#payoutAccountNumber')) qs('#payoutAccountNumber').value = pm.accountNumber || '';
+                    if (qs('#payoutContact')) qs('#payoutContact').value = uData.discord || uData.discordTag || uData.email || user.email || '';
+                    if (qs('#payoutNotes') && !qs('#payoutNotes').value) qs('#payoutNotes').value = pm.notes || (pm.bankName ? `Bank: ${pm.bankName}` : '');
                 }
             }).catch(e => console.warn(e));
         }

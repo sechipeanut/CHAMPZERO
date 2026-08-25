@@ -2,10 +2,23 @@ import { escapeHtml } from './events.js';
 import { db } from './firebase-config.js';
 import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
+let liveScoresInterval = null;
+
 export async function initLiveScores() {
     updateLiveMatches();
-    setInterval(updateLiveMatches, 60000);
+    if (liveScoresInterval) clearInterval(liveScoresInterval);
+    liveScoresInterval = setInterval(updateLiveMatches, 60000);
 }
+
+function cleanupLiveScores() {
+    if (liveScoresInterval) {
+        clearInterval(liveScoresInterval);
+        liveScoresInterval = null;
+    }
+}
+
+window.addEventListener('beforeunload', cleanupLiveScores);
+window.addEventListener('pagehide', cleanupLiveScores);
 
 async function updateLiveMatches() {
     try {

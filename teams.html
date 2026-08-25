@@ -110,24 +110,55 @@
         }
 
         /* Inputs & Selects */
-        .dark-input,
-        .dark-select {
+        .dark-input {
             background-color: rgba(255, 255, 255, 0.03);
             border: 1px solid var(--cz-border);
             color: #fff;
             transition: all 0.2s ease;
         }
 
-        .dark-input:focus,
-        .dark-select:focus {
+        .dark-input:focus {
             outline: none;
             border-color: var(--cz-border-gold);
             box-shadow: 0 0 15px var(--cz-gold-glow);
         }
 
+        .dark-select {
+            background-color: #111116;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #FFFFFF;
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23FFD700'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 14px center;
+            background-size: 14px 14px;
+            padding-right: 38px !important;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .dark-select:hover {
+            border-color: rgba(255, 215, 0, 0.4);
+            background-color: #15151b;
+        }
+
+        .dark-select:focus {
+            outline: none;
+            border-color: #FFD700;
+            box-shadow: 0 0 16px rgba(255, 215, 0, 0.25);
+            background-color: #15151b;
+        }
+
         .dark-select option {
-            background-color: var(--cz-surface);
-            color: white;
+            background-color: #0A0A0E;
+            color: #F3F4F6;
+            padding: 10px 14px;
+        }
+
+        .dark-select option:disabled {
+            color: #6B7280;
         }
 
         /* Chat Bubbles */
@@ -220,6 +251,68 @@
             outline: 2px solid var(--cz-gold);
             outline-offset: 4px;
             border-radius: 4px;
+        }
+
+        /* Scrim Matchmaking Board Custom Styles */
+        .scrim-card {
+            background: linear-gradient(145deg, rgba(17, 17, 22, 0.95), rgba(10, 10, 14, 0.98));
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 1rem;
+            transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scrim-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(255, 215, 0, 0.4), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .scrim-card:hover {
+            border-color: rgba(255, 215, 0, 0.35);
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px -8px rgba(0, 0, 0, 0.8), 0 0 20px -5px rgba(255, 215, 0, 0.1);
+        }
+
+        .scrim-card:hover::before {
+            opacity: 1;
+        }
+
+        .scrim-badge-val {
+            background: rgba(255, 70, 85, 0.12);
+            color: #FF4655;
+            border: 1px solid rgba(255, 70, 85, 0.3);
+        }
+
+        .scrim-badge-mlbb {
+            background: rgba(59, 130, 246, 0.12);
+            color: #60A5FA;
+            border: 1px solid rgba(59, 130, 246, 0.3);
+        }
+
+        .scrim-badge-hok {
+            background: rgba(168, 85, 247, 0.12);
+            color: #C084FC;
+            border: 1px solid rgba(168, 85, 247, 0.3);
+        }
+
+        .scrim-badge-open {
+            background: rgba(16, 185, 129, 0.12);
+            color: #34D399;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+        }
+
+        .scrim-badge-accepted {
+            background: rgba(234, 179, 8, 0.12);
+            color: #FACC15;
+            border: 1px solid rgba(234, 179, 8, 0.3);
         }
     </style>
 </head>
@@ -350,58 +443,75 @@
         <section id="finder" class="max-w-6xl mx-auto px-6 py-10">
             <!-- FILTER & NAVIGATION DECK -->
             <div class="glass-panel rounded-2xl p-4 sm:p-6 mb-8 transition-all duration-300 space-y-4">
-                <!-- Tier 1: Main View Tabs + Create Listing CTA -->
-                <div class="flex flex-col lg:flex-row gap-4 justify-between items-stretch lg:items-center pb-4 border-b border-white/5">
-                    <!-- Left: Grouped Navigation Pills -->
-                    <div class="flex flex-wrap items-center gap-3 overflow-x-auto custom-scrollbar">
-                        <!-- Browse Public Directory -->
-                        <div class="flex items-center bg-black/50 p-1 rounded-xl border border-white/10">
-                            <button onclick="window.setTab('find-teams')" id="tab-find-teams"
-                                class="px-4 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-[#FFD700] text-black shadow-md cursor-pointer whitespace-nowrap border border-[#FFD700]">
-                                Browse Teams
-                            </button>
-                            <button onclick="window.setTab('find-players')" id="tab-find-players"
-                                class="px-4 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-transparent text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent cursor-pointer whitespace-nowrap">
-                                Free Agents (LFT)
-                            </button>
-                        </div>
-
-                        <!-- Visual Divider -->
-                        <div class="hidden sm:block h-6 w-px bg-white/10"></div>
-
-                        <!-- Personal Hub -->
-                        <div class="flex items-center bg-black/50 p-1 rounded-xl border border-white/10">
-                            <button onclick="window.setTab('my-teams')" id="tab-my-teams"
-                                class="px-3.5 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-transparent text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent cursor-pointer whitespace-nowrap">
-                                My Teams
-                            </button>
-                            <button onclick="window.setTab('my-lft')" id="tab-my-lft"
-                                class="px-3.5 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-transparent text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent cursor-pointer whitespace-nowrap">
-                                My Listings
-                            </button>
-                            <button onclick="window.setTab('invites')" id="tab-invites"
-                                class="px-3.5 py-2 rounded-lg font-heading font-bold text-xs uppercase tracking-wider transition-all bg-transparent text-neutral-400 hover:text-white hover:bg-white/5 border border-transparent cursor-pointer whitespace-nowrap">
-                                Invites
-                            </button>
-                        </div>
+                <!-- Tier 1: Main View Tabs + Actions (Spacious, Tournaments-matched styling) -->
+                <div class="flex flex-wrap lg:flex-nowrap items-center justify-between gap-3 pb-3 border-b border-white/5">
+                    <!-- Left: Primary Directory Tabs -->
+                    <div class="flex items-center gap-1 p-1 bg-black/50 border border-white/10 rounded-xl font-heading text-xs uppercase tracking-wider">
+                        <button type="button" onclick="window.setTab('find-teams')" id="tab-find-teams"
+                            class="px-3.5 py-1.5 rounded-lg bg-[#FFD700] text-black font-extrabold shadow-sm transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap">
+                            <span>Teams</span>
+                            <span id="count-find-teams" class="text-[10px] bg-black/20 text-black px-1.5 py-0.2 rounded-full font-mono-tag font-bold">0</span>
+                        </button>
+                        <button type="button" onclick="window.setTab('find-players')" id="tab-find-players"
+                            class="px-3.5 py-1.5 rounded-lg text-neutral-400 hover:text-white font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap">
+                            <span>Free Agents</span>
+                            <span id="count-find-players" class="text-[10px] bg-white/10 text-neutral-300 px-1.5 py-0.2 rounded-full font-mono-tag font-bold">0</span>
+                        </button>
+                        <button type="button" onclick="window.setTab('scrims')" id="tab-scrims"
+                            class="px-3.5 py-1.5 rounded-lg text-neutral-400 hover:text-white font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <span>Daily Scrims</span>
+                            <span id="count-scrims" class="text-[10px] bg-white/10 text-neutral-300 px-1.5 py-0.2 rounded-full font-mono-tag font-bold">0</span>
+                        </button>
                     </div>
 
-                    <!-- Single Primary Action -->
-                    <button onclick="window.openCreateModal()"
-                        class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-[#FFD700] hover:brightness-110 active:scale-95 text-black font-heading font-extrabold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer shrink-0">
-                        <span>+ Post Listing</span>
-                    </button>
+                    <!-- Middle: Personal Hub Tabs -->
+                    <div class="flex items-center gap-1 p-1 bg-black/50 border border-white/10 rounded-xl font-heading text-xs uppercase tracking-wider">
+                        <button type="button" onclick="window.setTab('my-teams')" id="tab-my-teams"
+                            class="px-3 py-1.5 rounded-lg text-neutral-400 hover:text-white font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap">
+                            <span>My Teams</span>
+                            <span id="count-my-teams" class="text-[10px] bg-white/10 text-neutral-300 px-1.5 py-0.2 rounded-full font-mono-tag font-bold">0</span>
+                        </button>
+                        <button type="button" onclick="window.setTab('my-lft')" id="tab-my-lft"
+                            class="px-3 py-1.5 rounded-lg text-neutral-400 hover:text-white font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap">
+                            <span>My LFT</span>
+                            <span id="count-my-lft" class="text-[10px] bg-white/10 text-neutral-300 px-1.5 py-0.2 rounded-full font-mono-tag font-bold">0</span>
+                        </button>
+                        <button type="button" onclick="window.setTab('invites')" id="tab-invites"
+                            class="px-3 py-1.5 rounded-lg text-neutral-400 hover:text-white font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap">
+                            <span>Invites</span>
+                            <span id="count-invites" class="text-[10px] bg-white/10 text-neutral-300 px-1.5 py-0.2 rounded-full font-mono-tag font-bold">0</span>
+                        </button>
+                    </div>
+
+                    <!-- Right: Action CTAs -->
+                    <div class="flex items-center gap-2 shrink-0">
+                        <button id="btn-post-scrim-cta" type="button" onclick="window.openPostScrimModal()"
+                            class="px-3.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-xl text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-sm">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                            <span>Post Scrim</span>
+                        </button>
+                        <button id="btn-post-listing-cta" type="button" onclick="window.openCreateModal()"
+                            class="px-3.5 py-1.5 bg-[#FFD700]/10 hover:bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/30 rounded-xl text-xs font-heading font-bold uppercase tracking-wider transition-all cursor-pointer flex items-center gap-1.5 shadow-sm">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/></svg>
+                            <span>Post Listing</span>
+                        </button>
+                    </div>
                 </div>
 
-                <!-- Tier 2: Filter Controls Grid (Full Width 4 Columns) -->
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+                <!-- Tier 2A: Standard Team / LFT Filter Controls Grid -->
+                <div id="team-filter-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
                     <!-- Game Filter -->
                     <select id="filter-game" onchange="window.setGameFilter(this.value)"
                         class="dark-select rounded-xl text-xs font-semibold uppercase tracking-wider px-3.5 py-2.5 cursor-pointer w-full">
                         <option value="all">All Games</option>
-                        <option value="Valorant">Valorant</option>
-                        <option value="MLBB">Mobile Legends</option>
-                        <option value="HOK">Honor of Kings</option>
+                        <option value="Valorant">Valorant (PC)</option>
+                        <option value="MLBB">Mobile Legends (Mobile)</option>
+                        <option value="HOK">Honor of Kings (Mobile)</option>
+                        <option value="CODM">Call of Duty: Mobile</option>
+                        <option value="LoL">League of Legends</option>
+                        <option value="Dota">Dota 2</option>
+                        <option value="Other">Other Esports</option>
                     </select>
 
                     <!-- Roster Availability Filter -->
@@ -416,22 +526,73 @@
                     <select id="filter-role" onchange="window.setRoleFilter(this.value)"
                         class="dark-select rounded-xl text-xs font-semibold uppercase tracking-wider px-3.5 py-2.5 cursor-pointer w-full">
                         <option value="all">Any Role</option>
-                        <option value="Duelist">Duelist</option>
-                        <option value="Initiator">Initiator</option>
-                        <option value="Controller">Controller</option>
-                        <option value="Sentinel">Sentinel</option>
-                        <option value="Jungler">Jungler</option>
-                        <option value="Roamer">Roamer</option>
-                        <option value="Gold Lane">Gold Lane</option>
-                        <option value="Exp Lane">Exp Lane</option>
-                        <option value="Mid Lane">Mid Lane</option>
-                        <option value="Support">Support</option>
-                        <option value="Flex">Flex</option>
+                        <option value="Duelist">Duelist / Hard Carry</option>
+                        <option value="Initiator">Initiator / Flanker</option>
+                        <option value="Controller">Controller / Smoker</option>
+                        <option value="Sentinel">Sentinel / Anchor</option>
+                        <option value="Jungler">Jungler / Assassin</option>
+                        <option value="Roamer">Roamer / Tank</option>
+                        <option value="Gold Lane">Gold Lane / Marksman</option>
+                        <option value="Exp Lane">Exp Lane / Offlane</option>
+                        <option value="Mid Lane">Mid Lane / Mage</option>
+                        <option value="Support">Support / Healer</option>
+                        <option value="Flex">Flex (Any Role)</option>
                     </select>
 
                     <!-- Search Box -->
                     <div class="relative">
                         <input type="text" id="team-search" placeholder="Search team, captain, or role..."
+                            class="dark-input w-full pl-3.5 pr-8 py-2.5 rounded-xl text-xs placeholder-neutral-500">
+                        <svg class="w-4 h-4 text-neutral-500 absolute right-3 top-3 pointer-events-none" fill="none"
+                            stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                        </svg>
+                    </div>
+                </div>
+
+                <!-- Tier 2B: Scrim Specific Filter Grid (Active in Scrims View) -->
+                <div id="scrim-filter-grid" class="hidden grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 w-full">
+                    <!-- Game Filter -->
+                    <select id="scrim-filter-game" onchange="window.setScrimGameFilter(this.value)"
+                        class="dark-select rounded-xl text-xs font-semibold uppercase tracking-wider px-3.5 py-2.5 cursor-pointer w-full">
+                        <option value="all">All Games</option>
+                        <option value="Valorant">Valorant (PC)</option>
+                        <option value="MLBB">Mobile Legends (Mobile)</option>
+                        <option value="Honor of Kings">Honor of Kings (Mobile)</option>
+                        <option value="CODM">Call of Duty: Mobile</option>
+                        <option value="League of Legends">League of Legends</option>
+                        <option value="Dota 2">Dota 2</option>
+                        <option value="Other">Other Titles</option>
+                    </select>
+
+                    <!-- Format Filter -->
+                    <select id="scrim-filter-format" onchange="window.setScrimFormatFilter(this.value)"
+                        class="dark-select rounded-xl text-xs font-semibold uppercase tracking-wider px-3.5 py-2.5 cursor-pointer w-full">
+                        <option value="all">All Formats</option>
+                        <option value="5v5 BO1">5v5 BO1</option>
+                        <option value="5v5 BO3">5v5 BO3</option>
+                        <option value="5v5 BO5">5v5 BO5</option>
+                        <option value="1v1 BO3">1v1 BO3</option>
+                        <option value="Custom Rules">Custom Scrim</option>
+                    </select>
+
+                    <!-- Rank Tier Filter -->
+                    <select id="scrim-filter-tier" onchange="window.setScrimRankFilter(this.value)"
+                        class="dark-select rounded-xl text-xs font-semibold uppercase tracking-wider px-3.5 py-2.5 cursor-pointer w-full">
+                        <option value="all">All Skill Tiers</option>
+                        <option value="Radiant">Radiant / Immortal / Mythical Immortal (Tier 1)</option>
+                        <option value="Glory">Ascendant / Mythical Glory (Semi-Pro)</option>
+                        <option value="Mythic">Diamond / Mythic / Grandmaster (Competitive)</option>
+                        <option value="Legend">Platinum / Legend / Master (Intermediate)</option>
+                        <option value="Epic">Gold / Epic (Casual Competitive)</option>
+                        <option value="Beginner">Silver &amp; Below / Elite (Beginner)</option>
+                        <option value="Open / Any">Open / Any Rank</option>
+                    </select>
+
+                    <!-- Scrim Match Time & Team Search -->
+                    <div class="relative">
+                        <input type="text" id="scrim-search" placeholder="Filter by time, team, rank..."
                             class="dark-input w-full pl-3.5 pr-8 py-2.5 rounded-xl text-xs placeholder-neutral-500">
                         <svg class="w-4 h-4 text-neutral-500 absolute right-3 top-3 pointer-events-none" fill="none"
                             stroke="currentColor" viewBox="0 0 24 24">
@@ -528,21 +689,23 @@
                     class="bg-[#0A0A0E] border border-white/10 rounded-2xl w-full max-w-2xl transform shadow-2xl transition-all duration-300 ease-out opacity-0 scale-95 p-0 overflow-hidden">
 
                     <div class="bg-[#111116] border-b border-white/10 px-6 py-4 flex justify-between items-center">
-                        <h3 class="font-heading font-bold text-lg uppercase tracking-wider text-white">Post Recruitment
-                            Listing</h3>
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#FFD700]"></span>
+                            <h3 class="font-heading font-bold text-lg uppercase tracking-wider text-white">Post Recruitment Listing</h3>
+                        </div>
                         <button onclick="window.closeCreateModal()"
                             class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white flex items-center justify-center transition-colors">&times;</button>
                     </div>
 
                     <div class="p-6">
                         <div
-                            class="grid grid-cols-2 gap-2 mb-6 bg-black/40 p-1.5 rounded-xl border border-white/5 font-heading text-xs uppercase font-bold tracking-wider">
+                            class="grid grid-cols-2 gap-1.5 mb-5 bg-black/50 p-1 rounded-xl border border-white/10 font-heading text-xs uppercase font-bold tracking-wider">
                             <button type="button" onclick="toggleFormType('team')" id="btn-type-team"
-                                class="py-2.5 rounded-lg bg-[#FFD700] text-black shadow-md transition-all cursor-pointer">
+                                class="py-2 rounded-lg bg-[#FFD700] text-black font-heading font-extrabold shadow-sm transition-all cursor-pointer">
                                 Recruit Team
                             </button>
                             <button type="button" onclick="toggleFormType('lft')" id="btn-type-lft"
-                                class="py-2.5 rounded-lg text-neutral-400 hover:text-white transition-all cursor-pointer">
+                                class="py-2 rounded-lg text-neutral-400 hover:text-white font-heading font-bold transition-all cursor-pointer">
                                 Player LFT
                             </button>
                         </div>
@@ -552,14 +715,18 @@
 
                             <div>
                                 <label for="create-game"
-                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Game
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Game
                                     Title <span class="text-red-500">*</span></label>
                                 <select id="create-game" required
-                                    class="dark-select w-full p-3 rounded-lg text-sm cursor-pointer">
-                                    <option value="" disabled selected>-- SELECT GAME --</option>
-                                    <option value="valId">Valorant</option>
-                                    <option value="mlbbId">Mobile Legends: Bang Bang</option>
-                                    <option value="hokId">Honor of Kings</option>
+                                    class="dark-select w-full p-3 rounded-xl text-xs cursor-pointer font-medium">
+                                    <option value="" disabled selected>-- Select Game Title --</option>
+                                    <option value="valId">Valorant (PC)</option>
+                                    <option value="mlbbId">Mobile Legends: Bang Bang (Mobile)</option>
+                                    <option value="hokId">Honor of Kings (Mobile)</option>
+                                    <option value="codmId">Call of Duty: Mobile (Mobile)</option>
+                                    <option value="lolId">League of Legends (PC)</option>
+                                    <option value="dotaId">Dota 2 (PC)</option>
+                                    <option value="otherId">Other Competitive Title</option>
                                 </select>
                             </div>
 
@@ -579,30 +746,30 @@
                                     </div>
 
                                     <div class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 text-xs font-mono-tag">
-                                        <div class="bg-black/50 p-2.5 rounded-lg border border-white/5">
+                                        <div class="bg-black/50 p-2.5 rounded-xl border border-white/5">
                                             <span class="block text-[8px] text-neutral-500 uppercase font-bold">Account
                                                 / IGN</span>
                                             <p id="lft-card-ign" class="font-bold text-white truncate mt-0.5">--</p>
                                         </div>
-                                        <div class="bg-black/50 p-2.5 rounded-lg border border-white/5">
+                                        <div class="bg-black/50 p-2.5 rounded-xl border border-white/5">
                                             <span class="block text-[8px] text-neutral-500 uppercase font-bold">Current
                                                 Rank</span>
                                             <p id="lft-card-rank" class="font-bold text-[#FFD700] truncate mt-0.5">--
                                             </p>
                                         </div>
-                                        <div class="bg-black/50 p-2.5 rounded-lg border border-white/5">
+                                        <div class="bg-black/50 p-2.5 rounded-xl border border-white/5">
                                             <span class="block text-[8px] text-neutral-500 uppercase font-bold">Main
                                                 Role</span>
                                             <p id="lft-card-role" class="font-bold text-indigo-300 truncate mt-0.5">--
                                             </p>
                                         </div>
-                                        <div class="bg-black/50 p-2.5 rounded-lg border border-white/5">
+                                        <div class="bg-black/50 p-2.5 rounded-xl border border-white/5">
                                             <span
                                                 class="block text-[8px] text-neutral-500 uppercase font-bold">Discord</span>
                                             <p id="lft-card-discord" class="font-bold text-sky-400 truncate mt-0.5">Not
                                                 set</p>
                                         </div>
-                                        <div class="bg-black/50 p-2.5 rounded-lg border border-white/5 sm:col-span-2">
+                                        <div class="bg-black/50 p-2.5 rounded-xl border border-white/5 sm:col-span-2">
                                             <span
                                                 class="block text-[8px] text-neutral-500 uppercase font-bold">Email</span>
                                             <p id="lft-card-email" class="font-bold text-neutral-300 truncate mt-0.5">--
@@ -611,7 +778,7 @@
                                     </div>
 
                                     <div id="lft-profile-warning"
-                                        class="hidden p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-lg text-[11px] text-amber-300 flex items-center justify-between">
+                                        class="hidden p-2.5 bg-amber-500/10 border border-amber-500/30 rounded-xl text-[11px] text-amber-300 flex items-center justify-between">
                                         <span>Missing game ID or rank in your profile.</span>
                                         <a href="/edit-profile" target="_blank"
                                             class="text-[#FFD700] underline font-bold">Set in Profile &rarr;</a>
@@ -630,36 +797,35 @@
                             <div id="team-fields" class="space-y-4">
                                 <div>
                                     <label for="create-name"
-                                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Team
+                                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Team
                                         Name <span class="text-red-500">*</span></label>
                                     <input id="create-name" type="text"
-                                        class="dark-input w-full p-3 rounded-lg text-sm text-white"
-                                        placeholder="e.g. Sentinels PH">
+                                        class="dark-input w-full p-3 rounded-xl text-xs text-white">
                                 </div>
-                                <div class="grid grid-cols-2 gap-4">
+                                <div class="grid grid-cols-2 gap-3">
                                     <div>
                                         <label for="create-max"
-                                            class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Max
+                                            class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Max
                                             Members</label>
                                         <input id="create-max" type="number" min="1" max="7" value="5"
                                             oninput="if(this.value>7)this.value=7;"
-                                            class="dark-input w-full p-3 rounded-lg text-sm text-white">
+                                            class="dark-input w-full p-3 rounded-xl text-xs text-white font-mono-tag">
                                     </div>
                                     <div>
                                         <label for="create-roles"
-                                            class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Roles
+                                            class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Roles
                                             Needed</label>
-                                        <input id="create-roles" type="text" placeholder="Duelist, Flex, Jungler"
-                                            class="dark-input w-full p-3 rounded-lg text-sm text-white">
+                                        <input id="create-roles" type="text"
+                                            class="dark-input w-full p-3 rounded-xl text-xs text-white">
                                     </div>
                                 </div>
                                 <div>
                                     <label for="create-img-upload"
-                                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Team
+                                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Team
                                         Logo Upload (Optional)</label>
                                     <div class="flex items-center gap-4">
                                         <input id="create-img-upload" type="file" accept="image/*"
-                                            class="dark-input w-full p-2 rounded-lg text-xs">
+                                            class="dark-input w-full p-2.5 rounded-xl text-xs file:bg-white/10 file:border-0 file:rounded-lg file:px-3 file:py-1.5 file:text-white file:text-xs file:font-semibold">
                                     </div>
                                     <span id="create-img-status"
                                         class="font-mono-tag text-[10px] text-neutral-500 mt-1 block"></span>
@@ -670,29 +836,28 @@
 
                             <div>
                                 <label for="create-link"
-                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Direct
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Direct
                                     Contact / Community Link (Optional)</label>
-                                <input id="create-link" type="url" placeholder="https://discord.gg/... or tracker link"
-                                    class="dark-input w-full p-3 rounded-lg text-sm text-white">
+                                <input id="create-link" type="url"
+                                    class="dark-input w-full p-3 rounded-xl text-xs text-white">
                             </div>
 
                             <div>
                                 <label for="create-desc"
-                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1"
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag"
                                     id="desc-label">LFT Summary &amp; Goals <span class="text-red-500">*</span></label>
                                 <textarea id="create-desc" rows="3" required
-                                    class="dark-input w-full p-3 rounded-lg text-sm text-white leading-relaxed"
-                                    placeholder="Tell potential teammates about your tournament goals, preferred schedule, and champion pool..."></textarea>
+                                    class="dark-input w-full p-3 rounded-xl text-xs text-white leading-relaxed"></textarea>
                             </div>
 
-                            <div class="pt-4 flex gap-3">
+                            <div class="pt-3 border-t border-white/10 flex items-center justify-end gap-3">
                                 <button type="button" onclick="window.closeCreateModal()"
-                                    class="flex-1 py-3 bg-white/5 hover:bg-white/10 rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors text-white cursor-pointer border border-white/10">
+                                    class="px-4 py-2.5 rounded-xl text-neutral-400 hover:text-white font-semibold text-xs transition-colors cursor-pointer">
                                     Cancel
                                 </button>
                                 <button type="submit"
-                                    class="flex-1 py-3 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg text-xs font-heading font-bold uppercase tracking-wider transition-colors shadow-lg cursor-pointer">
-                                    Post Listing
+                                    class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-[#FFD700] text-black font-heading font-bold text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-lg flex items-center gap-2 cursor-pointer">
+                                    <span>Post Listing</span>
                                 </button>
                             </div>
                         </form>
@@ -802,46 +967,58 @@
     </div>
 
     <!-- APPLICATION MODAL -->
-    <div id="applicationModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/90 backdrop-blur-md"
+    <div id="applicationModal" class="fixed inset-0 z-[100] hidden flex items-center justify-center p-4" aria-labelledby="app-modal-title" role="dialog" aria-modal="true">
+        <div class="absolute inset-0 bg-black/90 backdrop-blur-md transition-opacity duration-300"
             onclick="document.getElementById('applicationModal').classList.add('hidden')"></div>
-        <div class="relative bg-[#0A0A0E] border border-white/10 rounded-2xl w-full max-w-md p-6 shadow-2xl">
-            <h3 class="font-heading font-bold text-xl uppercase tracking-wider text-white mb-1">Apply to Join</h3>
-            <p class="text-xs text-neutral-400 mb-6">Requesting to join <span id="app-team-name"
-                    class="text-[#FFD700] font-bold">Team</span></p>
+        <div class="relative bg-[#0A0A0E] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl p-0 overflow-hidden">
+            <div class="bg-[#111116] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#FFD700]"></span>
+                    <h3 id="app-modal-title" class="font-heading font-bold text-lg uppercase tracking-wider text-white">Apply to Join</h3>
+                </div>
+                <button onclick="document.getElementById('applicationModal').classList.add('hidden')"
+                    class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white flex items-center justify-center transition-colors">&times;</button>
+            </div>
 
-            <form id="applicationForm" class="space-y-4 text-xs">
+            <form id="applicationForm" class="p-6 space-y-4 text-xs">
                 <input type="hidden" id="app-team-id">
-                <div class="grid grid-cols-2 gap-4">
+                
+                <!-- Target Team Card -->
+                <div class="p-3.5 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between">
+                    <span class="text-xs text-neutral-400 font-medium">Target Team:</span>
+                    <span id="app-team-name" class="font-heading font-bold text-sm text-[#FFD700]">Team</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label for="app-rank"
-                            class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Rank</label>
+                            class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Your Rank <span class="text-red-500">*</span></label>
                         <input id="app-rank" type="text" required
-                            class="dark-input w-full p-3 rounded-lg text-sm text-white">
+                            class="dark-input w-full p-3 rounded-xl text-xs text-white font-mono-tag">
                     </div>
                     <div>
                         <label for="app-role"
-                            class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Role</label>
+                            class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Main Role <span class="text-red-500">*</span></label>
                         <input id="app-role" type="text" required
-                            class="dark-input w-full p-3 rounded-lg text-sm text-white">
+                            class="dark-input w-full p-3 rounded-xl text-xs text-white">
                     </div>
                 </div>
+
                 <div>
                     <label for="app-note"
-                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Message</label>
+                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Application Message <span class="text-red-500">*</span></label>
                     <textarea id="app-note" rows="3" required
-                        class="dark-input w-full p-3 rounded-lg text-sm text-white"
-                        placeholder="Why should they pick you for the roster?"></textarea>
+                        class="dark-input w-full p-3 rounded-xl text-xs text-white leading-relaxed"></textarea>
                 </div>
 
-                <div class="flex gap-3 pt-2">
+                <div class="pt-3 border-t border-white/10 flex items-center justify-end gap-3">
                     <button type="button" onclick="document.getElementById('applicationModal').classList.add('hidden')"
-                        class="flex-1 py-2.5 bg-white/5 border border-white/10 rounded-lg font-heading font-bold text-xs uppercase tracking-wider text-white hover:bg-white/10 cursor-pointer">
+                        class="px-4 py-2.5 rounded-xl text-neutral-400 hover:text-white font-semibold text-xs transition-colors cursor-pointer">
                         Cancel
                     </button>
                     <button type="submit"
-                        class="flex-1 py-2.5 bg-[#FFD700] hover:bg-[#FFF099] text-black rounded-lg font-heading font-bold text-xs uppercase tracking-wider shadow-lg cursor-pointer">
-                        Send Request
+                        class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-[#FFD700] text-black font-heading font-bold text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-lg flex items-center gap-2 cursor-pointer">
+                        <span>Send Request</span>
                     </button>
                 </div>
             </form>
@@ -855,12 +1032,15 @@
             class="relative bg-[#0A0A0E] border border-white/10 rounded-2xl w-full md:w-3/4 lg:w-1/2 shadow-2xl h-[85vh] flex flex-col overflow-hidden">
 
             <div class="p-5 border-b border-white/10 flex justify-between items-center bg-[#111116]">
-                <div>
-                    <h3 class="font-heading font-bold text-lg text-white uppercase tracking-wider">Team Dashboard</h3>
-                    <p id="manage-team-name"
-                        class="text-[#FFD700] text-xs font-mono-tag uppercase tracking-wider mt-0.5">
-                        Loading...
-                    </p>
+                <div class="flex items-center gap-2">
+                    <span class="w-2.5 h-2.5 rounded-full bg-[#FFD700]"></span>
+                    <div>
+                        <h3 class="font-heading font-bold text-lg text-white uppercase tracking-wider">Team Dashboard</h3>
+                        <p id="manage-team-name"
+                            class="text-[#FFD700] text-xs font-mono-tag uppercase tracking-wider mt-0.5">
+                            Loading...
+                        </p>
+                    </div>
                 </div>
                 <button onclick="closeManageModal()"
                     class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white flex items-center justify-center transition-colors">&times;</button>
@@ -887,10 +1067,10 @@
                     <div id="chat-messages" class="flex-1 p-6 overflow-y-auto space-y-4 flex flex-col custom-scrollbar">
                     </div>
                     <form id="chatForm" class="p-4 border-t border-white/10 bg-[#111116] flex gap-3">
-                        <input type="text" id="chat-input" placeholder="Type a squad message..."
-                            class="flex-1 dark-input rounded-lg px-4 py-2.5 text-white text-xs">
+                        <input type="text" id="chat-input"
+                            class="flex-1 dark-input rounded-xl px-4 py-2.5 text-white text-xs">
                         <button type="submit"
-                            class="font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] hover:bg-[#FFF099] text-black px-6 py-2.5 rounded-lg shadow-lg transition-colors cursor-pointer">
+                            class="font-heading font-bold text-xs uppercase tracking-wider bg-gradient-to-r from-amber-500 to-[#FFD700] hover:brightness-110 active:scale-95 text-black px-6 py-2.5 rounded-xl shadow-lg transition-all cursor-pointer">
                             Send
                         </button>
                     </form>
@@ -911,14 +1091,14 @@
                     </h4>
                     <div id="applications-list" class="space-y-3"></div>
                     <div class="max-w-lg mx-auto mt-8 pt-6 border-t border-white/10" id="invite-by-uid-section">
-                        <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Invite Player</h4>
-                        <p class="text-gray-500 text-xs mb-3">Enter a player's UID to send them a direct invite. They can join even if applications are closed.</p>
+                        <h4 class="text-xs font-bold text-neutral-300 uppercase tracking-wider mb-2 font-heading">Invite Player by UID</h4>
+                        <p class="text-neutral-500 text-xs mb-3">Enter a player's Recruitment ID to dispatch a direct team invite card.</p>
                         <div class="flex gap-2">
-                            <input type="text" id="invite-uid-input" placeholder="Player UID"
-                                class="dark-input flex-1 p-3 rounded text-sm">
+                            <input type="text" id="invite-uid-input"
+                                class="dark-input flex-1 p-3 rounded-xl text-xs font-mono-tag">
                             <button type="button" id="btn-invite-uid" onclick="window.inviteByUid()"
-                                class="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-3 px-5 rounded-lg transition shrink-0">
-                                Invite
+                                class="bg-gradient-to-r from-amber-500 to-[#FFD700] text-black font-heading font-bold text-xs uppercase tracking-wider py-3 px-5 rounded-xl hover:brightness-110 active:scale-95 transition-all shadow-lg shrink-0 cursor-pointer">
+                                Send Invite
                             </button>
                         </div>
                     </div>
@@ -927,27 +1107,26 @@
                 <div id="view-settings" class="manage-view hidden p-6">
                     <div id="edit-form-container">
                         <form id="editTeamForm"
-                            class="space-y-5 max-w-lg mx-auto bg-[#111116] p-6 rounded-xl border border-white/10 text-xs">
+                            class="space-y-4 max-w-lg mx-auto bg-[#111116] p-6 rounded-2xl border border-white/10 text-xs">
                             <input type="hidden" id="edit-team-id">
                             <div>
                                 <label for="edit-desc"
-                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Team
-                                    Description</label>
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Team Description</label>
                                 <textarea id="edit-desc" rows="4"
-                                    class="dark-input w-full p-3 rounded-lg text-sm text-white"></textarea>
+                                    class="dark-input w-full p-3 rounded-xl text-xs text-white leading-relaxed"></textarea>
                             </div>
-                            <div class="grid grid-cols-2 gap-4">
+                            <div class="grid grid-cols-2 gap-3">
                                 <div>
                                     <label for="edit-max"
-                                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Capacity</label>
+                                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Capacity</label>
                                     <input id="edit-max" type="number"
-                                        class="dark-input w-full p-3 rounded-lg text-sm text-white">
+                                        class="dark-input w-full p-3 rounded-xl text-xs text-white font-mono-tag">
                                 </div>
                                 <div>
                                     <label for="edit-status"
-                                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Status</label>
+                                        class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Status</label>
                                     <select id="edit-status"
-                                        class="dark-select w-full p-3 rounded-lg text-sm text-white cursor-pointer">
+                                        class="dark-select w-full p-3 rounded-xl text-xs text-white cursor-pointer font-medium">
                                         <option value="Open">Open</option>
                                         <option value="Closed">Closed</option>
                                     </select>
@@ -955,22 +1134,22 @@
                             </div>
                             <div>
                                 <label for="edit-img-upload"
-                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1">Team Logo (Optional)</label>
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Team Logo (Optional)</label>
                                 <input id="edit-img-upload" type="file" accept="image/*"
-                                    class="dark-input w-full p-2 rounded-lg text-xs file:bg-white/10 file:border-0 file:rounded file:px-2 file:py-1 file:text-white file:text-xs">
+                                    class="dark-input w-full p-2.5 rounded-xl text-xs file:bg-white/10 file:border-0 file:rounded-lg file:px-3 file:py-1.5 file:text-white file:text-xs file:font-semibold">
                                 <span id="edit-img-status"
                                     class="font-mono-tag text-[10px] text-neutral-500 mt-1 block"></span>
                             </div>
                             <button type="submit"
-                                class="w-full font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] hover:bg-[#FFF099] text-black py-3 rounded-lg transition shadow-lg mt-2 cursor-pointer">
+                                class="w-full font-heading font-bold text-xs uppercase tracking-wider bg-gradient-to-r from-amber-500 to-[#FFD700] hover:brightness-110 active:scale-95 text-black py-3 rounded-xl transition-all shadow-lg mt-2 cursor-pointer">
                                 Save Changes
                             </button>
                         </form>
                         <div class="max-w-lg mx-auto mt-6 pt-6 border-t border-white/10">
                             <div class="flex items-center justify-between">
                                 <div>
-                                    <p class="text-sm font-bold text-white">Accept Applications</p>
-                                    <p class="text-xs text-gray-500 mt-0.5">Allow other users to apply to join this team</p>
+                                    <p class="text-sm font-bold text-white font-heading">Accept Applications</p>
+                                    <p class="text-xs text-neutral-400 mt-0.5">Allow players to submit join requests for review</p>
                                 </div>
                                 <button type="button" id="toggle-applications"
                                     onclick="window.toggleApplications()"
@@ -980,7 +1159,7 @@
                                         class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform transition duration-200 ease-in-out translate-x-0"></span>
                                 </button>
                             </div>
-                            <div id="unsaved-warning" class="hidden mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg text-xs text-amber-400 font-medium flex items-center gap-2 transition-all duration-200">
+                            <div id="unsaved-warning" class="hidden mt-3 p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-xs text-amber-400 font-medium flex items-center gap-2 transition-all duration-200">
                                 <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-4 h-4 shrink-0">
                                     <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9-3.75h.008v.008H12V8.25Z" />
                                 </svg>
@@ -988,12 +1167,10 @@
                             </div>
                         </div>
                         <div class="max-w-lg mx-auto mt-8 pt-8 border-t border-white/10">
-                            <h4 class="text-red-400 font-heading font-bold text-sm mb-1 uppercase tracking-wider">Danger
-                                Zone</h4>
-                            <p class="text-neutral-500 text-xs mb-4">Disbanding the team will delete the listing and
-                                remove all members. This action cannot be undone.</p>
+                            <h4 class="text-red-400 font-heading font-bold text-sm mb-1 uppercase tracking-wider">Danger Zone</h4>
+                            <p class="text-neutral-500 text-xs mb-4">Disbanding the team will delete the listing and remove all members. This action cannot be undone.</p>
                             <button id="btn-disband" onclick="window.disbandTeam()"
-                                class="w-full bg-red-950/40 hover:bg-red-900/60 text-red-400 border border-red-500/30 font-heading font-bold text-xs uppercase tracking-wider py-3 rounded-lg transition cursor-pointer">
+                                class="w-full bg-red-950/30 hover:bg-red-900/50 text-red-400 border border-red-500/30 font-heading font-bold text-xs uppercase tracking-wider py-3 rounded-xl transition cursor-pointer">
                                 Disband Team
                             </button>
                         </div>
@@ -1038,13 +1215,264 @@
                     <div id="lft-chat-messages"
                         class="flex-1 p-6 overflow-y-auto space-y-4 flex flex-col custom-scrollbar"></div>
                     <form id="lftChatForm" class="p-4 border-t border-white/10 bg-[#111116] flex gap-3">
-                        <input type="text" id="lft-chat-input" placeholder="Type a message..."
+                        <input type="text" id="lft-chat-input"
                             class="flex-1 dark-input rounded-lg px-4 py-2.5 text-white text-xs">
                         <button type="submit"
                             class="font-heading font-bold text-xs uppercase tracking-wider bg-[#FFD700] hover:bg-[#FFF099] text-black px-6 py-2.5 rounded-lg shadow-lg transition-colors cursor-pointer">
                             Send
                         </button>
                     </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- POST SCRIM MODAL -->
+    <div id="postScrimModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="post-scrim-title" role="dialog" aria-modal="true">
+        <div id="postScrimBackdrop" class="fixed inset-0 bg-black/90 backdrop-blur-md transition-opacity duration-300 opacity-0" onclick="window.closePostScrimModal()"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto custom-scrollbar">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div id="postScrimPanel" class="bg-[#0A0A0E] border border-white/10 rounded-2xl w-full max-w-lg transform shadow-2xl transition-all duration-300 ease-out opacity-0 scale-95 p-0 overflow-hidden">
+                    <div class="bg-[#111116] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                            <h3 id="post-scrim-title" class="font-heading font-bold text-lg uppercase tracking-wider text-white">Post Daily Scrim Request</h3>
+                        </div>
+                        <button onclick="window.closePostScrimModal()" class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white flex items-center justify-center transition-colors">&times;</button>
+                    </div>
+
+                    <form id="postScrimForm" onsubmit="window.handlePostScrimSubmit(event)" class="p-6 space-y-4 text-xs">
+                        <div>
+                            <label for="scrim-post-game" class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Game Title <span class="text-red-500">*</span></label>
+                            <select id="scrim-post-game" required class="dark-select w-full p-3 rounded-xl text-xs cursor-pointer font-medium" onchange="window.handleScrimPostGameChange(this.value)">
+                                <option value="" disabled selected>-- Select Esports Title --</option>
+                                <option value="Valorant">Valorant (PC)</option>
+                                <option value="MLBB">Mobile Legends: Bang Bang (Mobile)</option>
+                                <option value="Honor of Kings">Honor of Kings (Mobile)</option>
+                                <option value="Call of Duty: Mobile">Call of Duty: Mobile (CODM)</option>
+                                <option value="League of Legends">League of Legends (PC)</option>
+                                <option value="Dota 2">Dota 2 (PC)</option>
+                                <option value="Other">Other Esports Title</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label for="scrim-post-team" class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Your Team / Squad Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="scrim-post-team" required class="dark-input w-full p-3 rounded-xl text-xs">
+                        </div>
+
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label for="scrim-post-format" class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Match Format <span class="text-red-500">*</span></label>
+                                <select id="scrim-post-format" required class="dark-select w-full p-3 rounded-xl text-xs cursor-pointer font-medium">
+                                    <option value="5v5 BO3" selected>5v5 Best of 3 (BO3)</option>
+                                    <option value="5v5 BO1">5v5 Best of 1 (BO1)</option>
+                                    <option value="5v5 BO5">5v5 Best of 5 (BO5)</option>
+                                    <option value="1v1 BO3">1v1 BO3</option>
+                                    <option value="Custom Rules">Custom Scrim</option>
+                                </select>
+                            </div>
+
+                            <div>
+                                <label for="scrim-post-rank" class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Target Skill / Rank <span class="text-red-500">*</span></label>
+                                <select id="scrim-post-rank" required class="dark-select w-full p-3 rounded-xl text-xs cursor-pointer font-medium">
+                                    <option value="Open / Any" selected>Open / Any Rank (All Levels)</option>
+                                    <option value="Radiant / Immortal / Mythical Immortal">Radiant / Immortal / Mythical Immortal (Tier 1 Pro / High Elo)</option>
+                                    <option value="Ascendant / Mythical Glory">Ascendant / Mythical Glory (Semi-Pro / High Comp)</option>
+                                    <option value="Diamond / Mythic / Grandmaster">Diamond / Mythic / Grandmaster (Competitive)</option>
+                                    <option value="Platinum / Legend / Master">Platinum / Legend / Master (Intermediate)</option>
+                                    <option value="Gold / Epic">Gold / Epic (Casual Competitive)</option>
+                                    <option value="Silver &amp; Below / Elite">Silver &amp; Below / Elite (Beginner / Learning)</option>
+                                    <option value="Tournament Ready">Tournament Ready (Custom Scrim)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Adjustable Match Date & Time -->
+                        <div>
+                            <label class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Scheduled Practice Match Time <span class="text-red-500">*</span></label>
+                            
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                <div>
+                                    <label for="scrim-post-date" class="block text-[10px] text-neutral-400 uppercase font-mono-tag font-bold mb-1">Match Date <span class="text-red-500">*</span></label>
+                                    <input type="date" id="scrim-post-date" required class="dark-input w-full p-3 rounded-xl text-xs font-mono-tag">
+                                </div>
+                                <div>
+                                    <label for="scrim-post-time" class="block text-[10px] text-neutral-400 uppercase font-mono-tag font-bold mb-1">Match Time <span class="text-red-500">*</span></label>
+                                    <input type="time" id="scrim-post-time" required value="20:00" class="dark-input w-full p-3 rounded-xl text-xs font-mono-tag">
+                                </div>
+                            </div>
+                            
+                            <!-- Quick Time Presets -->
+                            <div class="mt-2.5 flex items-center gap-1.5 flex-wrap">
+                                <span class="text-[10px] font-mono-tag text-neutral-400 uppercase mr-1">Quick Slots:</span>
+                                <button type="button" onclick="window.setScrimTimePreset('now')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#FFD700]/20 hover:text-[#FFD700] border border-white/10 text-[10px] font-mono-tag text-neutral-300 transition-colors cursor-pointer">ASAP / Now</button>
+                                <button type="button" onclick="window.setScrimTimePreset('19:00')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#FFD700]/20 hover:text-[#FFD700] border border-white/10 text-[10px] font-mono-tag text-neutral-300 transition-colors cursor-pointer">7:00 PM</button>
+                                <button type="button" onclick="window.setScrimTimePreset('20:00')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#FFD700]/20 hover:text-[#FFD700] border border-white/10 text-[10px] font-mono-tag text-neutral-300 transition-colors cursor-pointer">8:00 PM</button>
+                                <button type="button" onclick="window.setScrimTimePreset('21:00')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#FFD700]/20 hover:text-[#FFD700] border border-white/10 text-[10px] font-mono-tag text-neutral-300 transition-colors cursor-pointer">9:00 PM</button>
+                                <button type="button" onclick="window.setScrimTimePreset('22:00')" class="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-[#FFD700]/20 hover:text-[#FFD700] border border-white/10 text-[10px] font-mono-tag text-neutral-300 transition-colors cursor-pointer">10:00 PM</button>
+                            </div>
+
+                            <div class="mt-2 flex items-center justify-between text-[10px] text-neutral-400">
+                                <span>Timezone: <span class="text-white font-medium" id="scrim-timezone-label">Local Time</span></span>
+                                <span id="scrim-formatted-preview" class="text-[#FFD700] font-mono-tag font-bold"></span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="scrim-post-contact" class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Captain Contact / Discord Tag <span class="text-red-500">*</span></label>
+                            <input type="text" id="scrim-post-contact" required class="dark-input w-full p-3 rounded-xl text-xs font-mono">
+                            <div class="mt-2 p-2.5 rounded-lg bg-white/5 border border-white/10 flex items-start gap-2 text-[10px] text-neutral-400">
+                                <svg class="w-4 h-4 text-[#FFD700] shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span>Privacy protected: Your contact tag will only be revealed to the opponent team captain once they accept your scrim.</span>
+                            </div>
+                        </div>
+
+                        <div class="pt-3 border-t border-white/10 flex items-center justify-end gap-3">
+                            <button type="button" onclick="window.closePostScrimModal()" class="px-4 py-2.5 rounded-xl text-neutral-400 hover:text-white font-semibold text-xs transition-colors">Cancel</button>
+                            <button type="submit" id="btn-submit-scrim" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 to-[#FFD700] text-black font-heading font-bold text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-lg flex items-center gap-2">
+                                <span>Broadcast Scrim</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ACCEPT SCRIM MODAL -->
+    <div id="acceptScrimModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="accept-scrim-title" role="dialog" aria-modal="true">
+        <div id="acceptScrimBackdrop" class="fixed inset-0 bg-black/90 backdrop-blur-md transition-opacity duration-300 opacity-0" onclick="window.closeAcceptScrimModal()"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto custom-scrollbar">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div id="acceptScrimPanel" class="bg-[#0A0A0E] border border-white/10 rounded-2xl w-full max-w-md transform shadow-2xl transition-all duration-300 ease-out opacity-0 scale-95 p-0 overflow-hidden">
+                    <div class="bg-[#111116] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+                        <h3 id="accept-scrim-title" class="font-heading font-bold text-lg uppercase tracking-wider text-white">Accept Scrim Challenge</h3>
+                        <button onclick="window.closeAcceptScrimModal()" class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white flex items-center justify-center transition-colors">&times;</button>
+                    </div>
+
+                    <form id="acceptScrimForm" onsubmit="window.handleAcceptScrimSubmit(event)" class="p-6 space-y-4 text-xs">
+                        <input type="hidden" id="accept-scrim-id" value="">
+
+                        <!-- Scrim Overview Card -->
+                        <div id="accept-scrim-preview" class="p-3.5 rounded-xl bg-white/5 border border-white/10 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <span id="accept-preview-game" class="font-mono-tag text-[10px] font-bold uppercase px-2 py-0.5 rounded bg-white/10 text-white">GAME</span>
+                                <span id="accept-preview-time" class="text-neutral-400 text-xs font-medium">Time</span>
+                            </div>
+                            <div class="text-sm font-heading font-bold text-white" id="accept-preview-host">Host Team</div>
+                            <div class="flex items-center gap-3 text-[11px] text-neutral-400">
+                                <span>Format: <strong class="text-white" id="accept-preview-format">5v5 BO3</strong></span>
+                                <span>•</span>
+                                <span>Rank: <strong class="text-[#FFD700]" id="accept-preview-rank">Mythic</strong></span>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label for="accept-opponent-team" class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Your Team / Squad Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="accept-opponent-team" required class="dark-input w-full p-3 rounded-xl text-xs">
+                        </div>
+
+                        <div>
+                            <label for="accept-opponent-contact" class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5">Your Discord / Lobby Contact <span class="text-red-500">*</span></label>
+                            <input type="text" id="accept-opponent-contact" required class="dark-input w-full p-3 rounded-xl text-xs font-mono">
+                            <p class="text-[10px] text-neutral-500 mt-1">This will be shared with the host captain to set up the practice match lobby.</p>
+                        </div>
+
+                        <div class="pt-3 border-t border-white/10 flex items-center justify-end gap-3">
+                            <button type="button" onclick="window.closeAcceptScrimModal()" class="px-4 py-2.5 rounded-xl text-neutral-400 hover:text-white font-semibold text-xs transition-colors">Cancel</button>
+                            <button type="submit" id="btn-confirm-accept-scrim" class="px-6 py-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-[#FFD700] text-black font-heading font-bold text-xs uppercase tracking-wider hover:brightness-110 active:scale-95 transition-all shadow-lg flex items-center gap-2">
+                                <span>Confirm &amp; Accept</span>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIM MATCH LOBBY DETAILS MODAL -->
+    <div id="scrimDetailsModal" class="fixed inset-0 z-[100] hidden" aria-labelledby="scrim-details-title" role="dialog" aria-modal="true">
+        <div id="scrimDetailsBackdrop" class="fixed inset-0 bg-black/90 backdrop-blur-md transition-opacity duration-300 opacity-0" onclick="window.closeScrimDetailsModal()"></div>
+        <div class="fixed inset-0 z-10 w-screen overflow-y-auto custom-scrollbar">
+            <div class="flex min-h-full items-center justify-center p-4">
+                <div id="scrimDetailsPanel" class="bg-[#0A0A0E] border border-white/10 rounded-2xl w-full max-w-lg transform shadow-2xl transition-all duration-300 ease-out opacity-0 scale-95 p-0 overflow-hidden">
+                    <div class="bg-[#111116] border-b border-white/10 px-6 py-4 flex justify-between items-center">
+                        <div class="flex items-center gap-2">
+                            <span class="w-2.5 h-2.5 rounded-full bg-[#FFD700]"></span>
+                            <h3 id="scrim-details-title" class="font-heading font-bold text-lg uppercase tracking-wider text-white">Scrim Match Lobby Details</h3>
+                        </div>
+                        <button onclick="window.closeScrimDetailsModal()" class="w-7 h-7 rounded-full bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white flex items-center justify-center transition-colors">&times;</button>
+                    </div>
+
+                    <div class="p-6 space-y-5 text-xs">
+                        <!-- Matchup Banner -->
+                        <div class="p-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-white/5 to-amber-500/10 border border-[#FFD700]/20 flex items-center justify-between text-center">
+                            <div class="flex-1">
+                                <span class="text-[10px] uppercase font-mono-tag text-neutral-400">Host Team</span>
+                                <p id="details-host-name" class="font-heading font-bold text-sm text-white mt-0.5 truncate">Team Alpha</p>
+                            </div>
+                            <div class="px-3 shrink-0">
+                                <span class="font-heading font-extrabold text-sm text-[#FFD700]">VS</span>
+                            </div>
+                            <div class="flex-1">
+                                <span class="text-[10px] uppercase font-mono-tag text-neutral-400">Challenger</span>
+                                <p id="details-opponent-name" class="font-heading font-bold text-sm text-white mt-0.5 truncate">Team Bravo</p>
+                            </div>
+                        </div>
+
+                        <!-- Match Specs Grid -->
+                        <div class="grid grid-cols-3 gap-2 text-center">
+                            <div class="p-2.5 rounded-lg bg-white/5 border border-white/5">
+                                <span class="text-[10px] text-neutral-500 uppercase font-mono-tag block">Game</span>
+                                <span id="details-game" class="font-bold text-white text-xs">Valorant</span>
+                            </div>
+                            <div class="p-2.5 rounded-lg bg-white/5 border border-white/5">
+                                <span class="text-[10px] text-neutral-500 uppercase font-mono-tag block">Format</span>
+                                <span id="details-format" class="font-bold text-white text-xs">5v5 BO3</span>
+                            </div>
+                            <div class="p-2.5 rounded-lg bg-white/5 border border-white/5">
+                                <span class="text-[10px] text-neutral-500 uppercase font-mono-tag block">Scheduled Time</span>
+                                <span id="details-time" class="font-bold text-[#FFD700] text-xs">8:00 PM</span>
+                            </div>
+                        </div>
+
+                        <!-- Captain Contacts Card Exchange -->
+                        <div class="space-y-3 pt-2">
+                            <h4 class="font-heading font-bold text-xs uppercase tracking-wider text-neutral-300">Direct Captain Contacts</h4>
+                            
+                            <!-- Host Captain Contact -->
+                            <div class="p-3.5 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between gap-3">
+                                <div>
+                                    <span class="text-[10px] font-mono-tag text-neutral-400 uppercase block">Host Captain Discord / Contact</span>
+                                    <span id="details-host-contact" class="font-mono text-xs text-white font-semibold select-all">--</span>
+                                </div>
+                                <button type="button" id="btn-copy-host-contact" onclick="window.copyToClipboardText(document.getElementById('details-host-contact').textContent, this)" class="px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-neutral-200 hover:text-white font-bold text-[10px] uppercase tracking-wider transition-colors cursor-pointer shrink-0">
+                                    Copy
+                                </button>
+                            </div>
+
+                            <!-- Opponent Captain Contact -->
+                            <div class="p-3.5 rounded-xl bg-black/40 border border-white/10 flex items-center justify-between gap-3">
+                                <div>
+                                    <span class="text-[10px] font-mono-tag text-neutral-400 uppercase block">Challenger Captain Discord / Contact</span>
+                                    <span id="details-opponent-contact" class="font-mono text-xs text-white font-semibold select-all">--</span>
+                                </div>
+                                <button type="button" id="btn-copy-opponent-contact" onclick="window.copyToClipboardText(document.getElementById('details-opponent-contact').textContent, this)" class="px-3 py-1.5 rounded bg-white/10 hover:bg-white/20 text-neutral-200 hover:text-white font-bold text-[10px] uppercase tracking-wider transition-colors cursor-pointer shrink-0">
+                                    Copy
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-[11px] text-emerald-300 flex items-start gap-2">
+                            <svg class="w-4 h-4 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span>Scrim accepted! Use the Discord tags above to add each other and coordinate lobby invite links or custom match room passwords.</span>
+                        </div>
+
+                        <div class="pt-2 flex justify-end">
+                            <button type="button" onclick="window.closeScrimDetailsModal()" class="px-5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition-colors">Close</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -1145,11 +1573,11 @@
 
     </script>
 
-    <script src="js/toast.js?v=20260823_fix27"></script>
-    <script type="module" src="js/main.js?v=20260823_fix27"></script>
-    <script type="module" src="js/auth.js?v=20260823_fix27"></script>
-    <script type="module" src="js/teams.js?v=20260823_fix27"></script>
-    <script type="module" src="js/notifications.js?v=20260823_fix27"></script>
+    <script src="js/toast.js?v=20260825_tabs_v2"></script>
+    <script type="module" src="js/main.js?v=20260825_tabs_v2"></script>
+    <script type="module" src="js/auth.js?v=20260825_tabs_v2"></script>
+    <script type="module" src="js/teams.js?v=20260825_tabs_v2"></script>
+    <script type="module" src="js/notifications.js?v=20260825_tabs_v2"></script>
 </body>
 
 </html>
