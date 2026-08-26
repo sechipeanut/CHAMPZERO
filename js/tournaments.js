@@ -662,6 +662,7 @@ async function handleCreateTournament() {
 
         const registrationType = qs('#c-registration-type')?.value || 'team';
         const teamSize = parseInt(qs('#c-team-size')?.value) || 5;
+        const feeType = qs('#c-fee-type')?.value || (teamSize === 1 || registrationType === 'solo' ? 'solo' : 'team');
 
         const tourneyData = {
             name: name,
@@ -688,7 +689,8 @@ async function handleCreateTournament() {
             bannerFit: bannerFit,
             entryType: entryType,
             paymentType: paymentType,
-            entryFee: entryFee,        
+            entryFee: entryFee,
+            feeType: feeType,        
             entryCurrency: entryCurrency, 
             paymentQrUrl: proofURL,
             ...(proofURL && { paymentProofURL: proofURL }),
@@ -698,7 +700,6 @@ async function handleCreateTournament() {
             isStarted: false,
             participants: [],
             matches: []
-
         };
 
         if (editId) {
@@ -847,6 +848,7 @@ function openEditTournamentModal(t) {
     if (paymentType !== 'free') {
         if (qs('#c-entry-fee')) qs('#c-entry-fee').value = t.entryFee || '';
         if (qs('#c-entry-currency')) qs('#c-entry-currency').value = t.entryCurrency || 'PHP';
+        if (qs('#c-fee-type')) qs('#c-fee-type').value = t.feeType || (Number(t.teamSize) === 1 || t.registrationType === 'solo' ? 'solo' : 'team');
         if (window.updatePlatformFeePreview) window.updatePlatformFeePreview();
         if (paymentType === 'manual' && t.paymentProofURL) {
             window._proofPreviewURL = t.paymentProofURL;
@@ -995,7 +997,18 @@ async function fetchTournaments() {
         renderTournaments();
 
         const params = new URLSearchParams(window.location.search);
-        const tourneyId = params.get('id');
+        const tourneyId = params.get('id') || params.get('t');
+
+        if (params.get('saved') === 'pending_payment') {
+            if (window.showInfoToast) window.showInfoToast('Registration Saved! 📝', 'Your registration is saved. Complete your payment anytime before the tournament begins.');
+            else if (window.showToast) window.showToast('Registration Saved', 'Your registration is saved. Complete payment anytime before tournament starts.');
+        } else if (params.get('cancelled') === 'registration') {
+            if (window.showWarningToast) window.showWarningToast('Registration Cancelled', 'Your tournament application has been withdrawn.');
+            else if (window.showToast) window.showToast('Cancelled', 'Your application has been withdrawn.');
+        } else if (params.get('payment') === 'success') {
+            if (window.showSuccessToast) window.showSuccessToast('Payment Confirmed! 🏆', 'Your entry fee has been paid and your roster is confirmed.');
+        }
+
         if (tourneyId && !window._currentTournamentId) {
             const found = allTournaments.find(t => t.id === tourneyId);
             if (found) openModal(found);
@@ -1222,7 +1235,9 @@ function renderTournaments() {
             
             const isPaid = (t.paymentType === 'manual' || t.paymentType === 'automatic' || t.entryType === 'Paid');
             const entryFee = Number(t.entryFee) || 0;
-            const entryBadgeText = isPaid ? (entryFee > 0 ? `₱${entryFee.toLocaleString()} ENTRY` : 'PAID ENTRY') : 'FREE ENTRY';
+            const feeType = t.feeType || (isSolo ? 'solo' : 'team');
+            const feeSuffix = isSolo ? 'PLAYER' : (feeType === 'solo' ? 'PLAYER' : 'TEAM');
+            const entryBadgeText = isPaid ? (entryFee > 0 ? `₱${entryFee.toLocaleString()} / ${feeSuffix}` : 'PAID ENTRY') : 'FREE ENTRY';
             const entryColor = isPaid ? 'text-amber-400' : 'text-emerald-400';
 
             const isHost = currentUser && (
@@ -2523,14 +2538,18 @@ window.autoTeamSoloPlayers = async function (tournamentId) {
             const captainPlayer = squadPlayers[0];
             const squadName = teamSize === 1 ? captainPlayer.ign : `${baseName} (Solo ${i + 1})`;
 
+            const memberUids = squadPlayers.map(p => p.userId).filter(Boolean);
             const newSquad = {
                 name: squadName,
                 captain: captainPlayer.ign,
                 contact: captainPlayer.contact || '',
                 phone: captainPlayer.phone || '',
                 members: squadPlayers.map(p => p.ign),
+                memberUids: memberUids,
                 registeredBy: captainPlayer.userId || tData.createdBy || 'system',
-                isSoloSquad: true,
+                userId: captainPlayer.userId || null,
+                isSoloSquad: teamSize > 1,
+                isSoloCompetitor: teamSize === 1,
                 createdAt: Date.now()
             };
 
@@ -4367,16 +4386,55 @@ async function renderTournamentView(t) {
                 }
             }
 
+            const isSoloTournament = (t.registrationType === 'solo' || Number(t.teamSize) === 1);
+            const userEmailLower = (user?.email || '').toLowerCase();
+            const userNameLower = (user?.displayName || '').toLowerCase();
+
+            // Check if user is directly confirmed in participants roster
+            const isConfirmedInRoster = user && Array.isArray(t.participants) && t.participants.some(p => {
+                if (!p) return false;
+                if (typeof p === 'string') {
+                    const pLower = p.toLowerCase();
+                    return (userNameLower && pLower === userNameLower) || (userEmailLower && pLower === userEmailLower);
+                }
+                if (p.registeredBy === user.uid || p.userId === user.uid || p.uid === user.uid || p.id === user.uid) return true;
+                if (p.captainEmail && p.captainEmail.toLowerCase() === userEmailLower) return true;
+                if (p.contact && p.contact.toLowerCase() === userEmailLower) return true;
+                if (Array.isArray(p.members) && p.members.some(m => {
+                    if (!m) return false;
+                    const mName = typeof m === 'object' ? (m.ign || m.name || '') : m;
+                    const mLower = String(mName).toLowerCase();
+                    return (userNameLower && mLower === userNameLower) || (userEmailLower && mLower === userEmailLower);
+                })) return true;
+                return false;
+            });
+
             const mySolo = user && (t.soloQueue || []).find(p => p.userId === user.uid || (p.contact && user.email && p.contact.toLowerCase() === user.email.toLowerCase()));
 
-            if (userStatus === 'approved') {
-                actionArea.innerHTML = `<div class="w-full bg-green-900/30 border border-green-500/30 text-green-400 font-heading font-bold py-2.5 rounded-lg text-center text-xs uppercase tracking-wider">Confirmed in Roster</div>`;
+            let userAppObj = null;
+            if (user && userAppId) {
+                userAppObj = userStatus !== 'none' ? (allTournaments.find(x => x.id === t.id)?.applications?.find?.(a => a.id === userAppId) || null) : null;
+            }
+
+            if (userStatus === 'approved' || isConfirmedInRoster) {
+                actionArea.innerHTML = `<div class="w-full bg-green-900/30 border border-green-500/30 text-green-400 font-heading font-bold py-2.5 rounded-lg text-center text-xs uppercase tracking-wider flex items-center justify-center gap-1.5"><span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>Confirmed in Roster</span></div>`;
+            } else if (userStatus === 'pending_payment' || (userStatus === 'pending' && t.paymentType === 'automatic')) {
+                const feeDisplay = Number(t.entryFee || 0).toFixed(2);
+                actionArea.innerHTML = `
+                    <div class="space-y-1.5">
+                        <a href="/checkout.html?t=${t.id}&app=${userAppId}" class="w-full bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-extrabold py-2.5 px-3 rounded-lg text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg transition-all cursor-pointer">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                            <span>Complete Payment (₱${feeDisplay})</span>
+                        </a>
+                        <button onclick="window.withdrawApplication('${t.id}', '${userAppId}')" class="w-full text-[11px] font-mono-tag text-red-400 hover:text-red-300 hover:underline text-center cursor-pointer py-0.5">Cancel & Withdraw Registration</button>
+                    </div>
+                `;
             } else if (userStatus === 'pending' || userStatus === 'pending_update') {
                 actionArea.innerHTML = `
                     <button disabled class="w-full bg-amber-500/20 border border-amber-500/30 text-amber-300 font-heading font-bold py-2 rounded-lg text-xs uppercase">Pending Review</button>
                     <button onclick="window.withdrawApplication('${t.id}', '${userAppId}')" class="w-full mt-1.5 text-[11px] font-mono-tag text-red-400 hover:underline text-center cursor-pointer">Cancel Application</button>
                 `;
-            } else if (mySolo) {
+            } else if (mySolo && !isSoloTournament) {
                 if (mySolo.status === 'Queued') {
                     actionArea.innerHTML = `
                         <div class="w-full p-2.5 rounded-xl bg-gradient-to-r from-amber-500/15 via-[#FFD700]/5 to-transparent border border-amber-500/30 font-mono-tag text-xs space-y-1">
@@ -4400,9 +4458,8 @@ async function renderTournamentView(t) {
                 }
             } else {
                 if (actualStatus === 'Upcoming' || actualStatus === 'Open' || actualStatus === 'Ready to Start') {
-                    if (t.registrationType === 'solo' || Number(t.teamSize) === 1) {
-                        const soloLabel = Number(t.teamSize) === 1 ? 'Register for 1v1 Tournament' : 'Register as Solo Free Agent';
-                        actionArea.innerHTML = `<button onclick="window.openJoinForm('${t.id}', false, null, 'solo')" class="w-full bg-[var(--gold)] hover:bg-[#FFF099] text-black font-heading font-bold py-2.5 rounded-lg text-xs uppercase tracking-wider shadow transition-transform cursor-pointer">${soloLabel}</button>`;
+                    if (isSoloTournament) {
+                        actionArea.innerHTML = `<button onclick="window.openJoinForm('${t.id}', false, null, 'solo')" class="w-full bg-[var(--gold)] hover:bg-[#FFF099] text-black font-heading font-bold py-2.5 rounded-lg text-xs uppercase tracking-wider shadow transition-transform cursor-pointer">Register for 1v1 Tournament</button>`;
                     } else if (t.registrationType === 'hybrid') {
                         actionArea.innerHTML = `<button onclick="window.openJoinForm('${t.id}', false)" class="w-full bg-[var(--gold)] hover:bg-[#FFF099] text-black font-heading font-bold py-2.5 rounded-lg text-xs uppercase tracking-wider shadow transition-transform cursor-pointer">Join Tournament (Team / Solo)</button>`;
                     } else {
@@ -4420,6 +4477,65 @@ async function renderTournamentView(t) {
 // ----------------------------------------------------
 // JOIN & REGISTRATION WORKFLOW (TEAM & SOLO FREE AGENT)
 // ----------------------------------------------------
+window.updateJoinModalFeeDisplay = function (mode) {
+    const tournDoc = (window.currentEditingTournament || (window.allTournaments && window.allTournaments.find(t => t.id === window.currentJoiningId)));
+    if (!tournDoc) return;
+
+    const paymentType = tournDoc?.paymentType || (tournDoc?.entryType === 'Paid' ? 'manual' : (tournDoc?.entryType ? String(tournDoc.entryType).toLowerCase() : 'free'));
+    const isPaid = (paymentType === 'manual' || paymentType === 'automatic' || tournDoc?.entryType === 'Paid') && (tournDoc?.entryFee > 0);
+    const feeDisplay = document.getElementById('join-entry-fee-display');
+    if (!feeDisplay) return;
+
+    if (!isPaid) {
+        feeDisplay.classList.add('hidden');
+        return;
+    }
+
+    const targetTeamSize = parseInt(tournDoc?.teamSize) || (tournDoc?.registrationType === 'solo' ? 1 : 5);
+    const feeType = tournDoc?.feeType || (targetTeamSize === 1 || tournDoc?.registrationType === 'solo' ? 'solo' : 'team');
+    const baseFee = parseFloat(tournDoc?.entryFee) || 0;
+    const currency = tournDoc?.entryCurrency || 'PHP';
+
+    let calcAmount = baseFee;
+    let label = 'Entry Fee';
+
+    if (mode === 'solo' || targetTeamSize === 1) {
+        if (targetTeamSize === 1 || feeType === 'solo') {
+            calcAmount = baseFee;
+            label = 'Solo Registration Fee';
+        } else {
+            calcAmount = baseFee / targetTeamSize;
+            label = `Solo Share (1/${targetTeamSize} of Team Fee)`;
+        }
+    } else {
+        if (feeType === 'solo') {
+            calcAmount = baseFee * targetTeamSize;
+            label = `Team Fee (${targetTeamSize} x ₱${baseFee.toFixed(2)})`;
+        } else {
+            calcAmount = baseFee;
+            label = 'Team Registration Fee';
+        }
+    }
+
+    const currEl = document.getElementById('join-entry-currency');
+    const amountEl = document.getElementById('join-entry-fee-amount');
+    const labelEl = feeDisplay.querySelector('.font-mono-tag');
+    const netEl = document.getElementById('join-net-fee');
+    const platEl = document.getElementById('join-platform-fee');
+
+    const sym = currency === 'PHP' ? '₱' : '$';
+    const platFee = calcAmount * 0.05;
+    const netFee = calcAmount - platFee;
+
+    if (currEl) currEl.textContent = currency;
+    if (amountEl) amountEl.textContent = calcAmount.toFixed(2);
+    if (labelEl) labelEl.textContent = label;
+    if (netEl) netEl.textContent = `${sym}${netFee.toFixed(2)}`;
+    if (platEl) platEl.textContent = `${sym}${platFee.toFixed(2)}`;
+
+    feeDisplay.classList.remove('hidden');
+};
+
 window.switchJoinMode = function (mode) {
     const activeModeInput = document.getElementById('joinActiveMode');
     const teamBtn = document.getElementById('joinModeTeamBtn');
@@ -4465,6 +4581,8 @@ window.switchJoinMode = function (mode) {
         if (heading) heading.textContent = targetTeamSize ? `Join ${targetTeamSize}v${targetTeamSize} Tournament` : "Join Tournament";
         if (subheading) subheading.textContent = `Register your competitive team roster below (${targetTeamSize} players).`;
     }
+
+    window.updateJoinModalFeeDisplay(mode);
 };
 
 async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode = null) {
@@ -4480,6 +4598,27 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
 
     if (!isEdit) {
         try {
+            const isAlreadyInParticipants = (tournDoc?.participants || []).some(p => {
+                if (!p) return false;
+                if (p.registeredBy === user.uid || p.userId === user.uid || p.uid === user.uid) return true;
+                if (p.captainEmail && user.email && p.captainEmail.toLowerCase() === user.email.toLowerCase()) return true;
+                if (p.contact && user.email && p.contact.toLowerCase() === user.email.toLowerCase()) return true;
+                if (Array.isArray(p.members) && p.members.some(m => {
+                    const mName = typeof m === 'object' ? (m.ign || m.name || '') : m;
+                    return user.displayName && String(mName).toLowerCase() === user.displayName.toLowerCase();
+                })) return true;
+                return false;
+            });
+
+            if (isAlreadyInParticipants) {
+                const targetTeamSize = parseInt(tournDoc?.teamSize) || 5;
+                const isSolo = (tournDoc?.registrationType === 'solo' || targetTeamSize === 1);
+                if (window.showErrorToast) {
+                    window.showErrorToast('Already Registered', isSolo ? 'You are already registered for this 1v1 tournament.' : 'Your team is already confirmed in this tournament.');
+                }
+                return;
+            }
+
             const appsRef = collection(db, "tournaments", id, "applications");
             const q = query(appsRef, where("registeredBy", "==", user.uid));
             const appSnap = await getDocs(q);
@@ -4487,7 +4626,7 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
                 const existingStatus = appSnap.docs[0].data().status;
                 const existingAppId  = appSnap.docs[0].id;
                 if (existingStatus === 'approved') {
-                    if (window.showErrorToast) window.showErrorToast('Already Registered', 'Your team is already confirmed in this tournament.');
+                    if (window.showErrorToast) window.showErrorToast('Already Registered', 'Your registration is already confirmed in this tournament.');
                     return;
                 }
                 if (existingStatus === 'pending' || existingStatus === 'pending_update') {
@@ -4497,10 +4636,13 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
                 }
             }
 
-            const mySolo = (tournDoc?.soloQueue || []).find(p => p.userId === user.uid);
-            if (mySolo && mySolo.status === 'Queued') {
-                if (window.showErrorToast) window.showErrorToast('Already Queued', 'You are already registered in the Solo Free Agent queue.');
-                return;
+            const isSoloTournament = (tournDoc?.registrationType === 'solo' || parseInt(tournDoc?.teamSize) === 1);
+            if (!isSoloTournament) {
+                const mySolo = (tournDoc?.soloQueue || []).find(p => p.userId === user.uid);
+                if (mySolo && mySolo.status === 'Queued') {
+                    if (window.showErrorToast) window.showErrorToast('Already Queued', 'You are already registered in the Solo Free Agent queue.');
+                    return;
+                }
             }
         } catch (e) { console.error(e); }
     }
@@ -4696,10 +4838,12 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
         if (qs('#joinSoloPhone')) qs('#joinSoloPhone').value = matchedPhone;
         if (qs('#joinSoloNotes')) qs('#joinSoloNotes').value = matchedBio;
 
-        if (qs('#membersContainer')) {
-            qs('#membersContainer').innerHTML = `<div class="flex gap-2 w-full"><input type="text" name="memberIgn[]" class="dark-input w-full p-2.5 rounded-lg text-xs font-mono-tag"></div>`;
+        if (select && window.toggleTeamInput) {
+            window.toggleTeamInput(select);
+        } else {
+            const detailsWrap = document.getElementById('joinTeamDetailsWrap');
+            if (detailsWrap) detailsWrap.classList.add('hidden');
         }
-        if (select && window.toggleTeamInput) window.toggleTeamInput(select);
     }
 
     const qrPanel = document.getElementById('join-qr-panel');
@@ -4723,8 +4867,20 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
     const feeDisplay = document.getElementById('join-entry-fee-display');
     if (feeDisplay) {
         if (isPaid && tournDoc.entryFee > 0) {
-            document.getElementById('join-entry-currency').textContent = tournDoc.entryCurrency || 'PHP';
-            document.getElementById('join-entry-fee-amount').textContent = parseFloat(tournDoc.entryFee).toFixed(2);
+            const currEl = document.getElementById('join-entry-currency');
+            const amtEl = document.getElementById('join-entry-fee-amount');
+            const netEl = document.getElementById('join-net-fee');
+            const platEl = document.getElementById('join-platform-fee');
+            const curr = tournDoc.entryCurrency || 'PHP';
+            const sym = curr === 'PHP' ? '₱' : '$';
+            const feeVal = parseFloat(tournDoc.entryFee) || 0;
+            const pFee = feeVal * 0.05;
+            const nFee = feeVal - pFee;
+
+            if (currEl) currEl.textContent = curr;
+            if (amtEl) amtEl.textContent = feeVal.toFixed(2);
+            if (netEl) netEl.textContent = `${sym}${nFee.toFixed(2)}`;
+            if (platEl) platEl.textContent = `${sym}${pFee.toFixed(2)}`;
             feeDisplay.classList.remove('hidden');
         } else {
             feeDisplay.classList.add('hidden');
@@ -4772,7 +4928,7 @@ async function submitJoinRequest() {
     const isPaid = (paymentType === 'manual' || paymentType === 'automatic' || tournDoc?.entryType === 'Paid') && (tournDoc?.entryFee > 0);
     const isManual = paymentType === 'manual' || (isPaid && paymentType !== 'automatic');
 
-    // === SOLO FREE AGENT SUBMISSION ===
+    // === SOLO REGISTRATION & FREE AGENT QUEUE SUBMISSION ===
     if (activeMode === 'solo') {
         const ign = qs('#joinSoloIgn')?.value?.trim();
         const role = qs('#joinSoloRole')?.value || 'Flex / Any';
@@ -4786,91 +4942,218 @@ async function submitJoinRequest() {
             return;
         }
 
-        let entryFeeProofURL = '';
-        if (isPaid && isManual && window._entryFeeFile) {
-            const tournamentName = (tournDoc?.name || 'tournament').trim().replace(/\s+/g, '_');
-            const safeName = window._entryFeeFile.name.replace(/\s+/g, '_');
-            const fileRef = storageRef(storage, `payment-proofs/${tournamentName}/solo-fees/${ign.replace(/\s+/g, '_')}/${safeName}`);
-            const snapshot = await uploadBytes(fileRef, window._entryFeeFile);
-            entryFeeProofURL = await getDownloadURL(snapshot.ref);
-        }
+        const isSoloTournament = Number(tournDoc?.teamSize) === 1 || tournDoc?.registrationType === 'solo';
 
         const submitBtn = qs('#joinForm button[type="submit"]');
-        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = 'Joining Queue...'; }
+        if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isSoloTournament ? 'Registering...' : 'Joining Queue...'; }
 
         try {
             const tourneyRef = doc(db, "tournaments", currentJoiningId);
             const tSnap = await getDoc(tourneyRef);
-            let soloList = tSnap.data().soloQueue || [];
-            let participants = tSnap.data().participants || [];
+            if (!tSnap.exists()) throw new Error("Tournament not found");
+            const tData = tSnap.data();
 
-            const isSoloOrDuel = Number(tournDoc?.teamSize) === 1 || tournDoc?.registrationType === 'solo';
-            const existingIdx = soloList.findIndex(p => p.userId === user.uid || p.ign.toLowerCase() === ign.toLowerCase());
-            const soloPlayer = {
-                id: 'solo_' + user.uid + '_' + Date.now(),
-                userId: user.uid,
-                ign: ign,
-                role: role,
-                rank: rank,
-                contact: contact,
-                phone: phone,
-                notes: notes,
-                status: isSoloOrDuel && !isPaid ? 'Ready' : 'Queued',
-                registeredAt: Date.now(),
-                entryFee: isPaid ? (tournDoc.entryFee / (tournDoc.teamSize || 5)) : 0,
-                entryCurrency: tournDoc?.entryCurrency || 'PHP',
-                ...(entryFeeProofURL && { entryFeeProofURL })
-            };
+            let participants = tData.participants || [];
+            let soloList = tData.soloQueue || [];
 
-            if (existingIdx !== -1) {
-                soloList[existingIdx] = soloPlayer;
-            } else {
-                soloList.push(soloPlayer);
-            }
-
-            // For 1v1 / solo direct tournaments that are free, place directly into participants roster
-            if (isSoloOrDuel && !isPaid) {
-                const pIdx = participants.findIndex(p => (p.registeredBy === user.uid || (p.name && p.name.toLowerCase() === ign.toLowerCase())));
-                const participantData = {
-                    name: ign,
-                    captain: ign,
-                    contact: contact,
-                    phone: phone,
-                    members: [ign],
-                    registeredBy: user.uid,
-                    isSoloSquad: true,
-                    createdAt: Date.now()
-                };
-                if (pIdx !== -1) {
-                    participants[pIdx] = participantData;
-                } else {
-                    participants.push(participantData);
-                }
-                soloPlayer.status = `Assigned: ${ign}`;
-                soloPlayer.assignedSquad = ign;
-            }
-
-            await updateDoc(tourneyRef, { 
-                soloQueue: soloList,
-                ...(isSoloOrDuel && !isPaid && { participants: participants })
+            // Duplicate validation
+            const alreadyInParticipants = participants.some(p => {
+                if (!p) return false;
+                if (p.registeredBy === user.uid || p.userId === user.uid) return true;
+                if (p.name && p.name.toLowerCase() === ign.toLowerCase()) return true;
+                if (p.captain && p.captain.toLowerCase() === ign.toLowerCase()) return true;
+                if (Array.isArray(p.members) && p.members.some(m => String(typeof m === 'object' ? (m.ign || m.name) : m).toLowerCase() === ign.toLowerCase())) return true;
+                return false;
             });
 
-            if (currentEditingTournament && currentEditingTournament.id === currentJoiningId) {
-                currentEditingTournament.soloQueue = soloList;
-                if (isSoloOrDuel && !isPaid) currentEditingTournament.participants = participants;
-                renderSoloQueueList(currentEditingTournament);
-                renderParticipantsList(currentEditingTournament.participants);
-                if (window.openModal) window.openModal(currentEditingTournament);
+            if (alreadyInParticipants) {
+                if (window.showErrorToast) {
+                    window.showErrorToast('Already Registered', isSoloTournament 
+                        ? 'You are already registered as a competitor in this 1v1 tournament.' 
+                        : 'You are already registered in a squad for this tournament.');
+                }
+                if (submitBtn) { submitBtn.disabled = false; submitBtn.textContent = 'Confirm Registration'; }
+                return;
             }
 
+            let entryFeeProofURL = '';
+            if (isPaid && isManual && window._entryFeeFile) {
+                const tournamentName = (tournDoc?.name || 'tournament').trim().replace(/\s+/g, '_');
+                const safeName = window._entryFeeFile.name.replace(/\s+/g, '_');
+                const fileRef = storageRef(storage, `payment-proofs/${tournamentName}/solo-fees/${ign.replace(/\s+/g, '_')}/${safeName}`);
+                const snapshot = await uploadBytes(fileRef, window._entryFeeFile);
+                entryFeeProofURL = await getDownloadURL(snapshot.ref);
+            }
+
+            // === 1V1 TOURNAMENT REGISTRATION (DIRECT COMPETITOR) ===
+            if (isSoloTournament) {
+                // If Paid Automatic: create pending application and redirect to PayRex checkout
+                if (paymentType === 'automatic' && (tournDoc.entryFee > 0)) {
+                    const appsRef = collection(db, "tournaments", currentJoiningId, "applications");
+                    const appData = {
+                        name: ign,
+                        captain: ign,
+                        contact: contact,
+                        phone: phone,
+                        rank: rank,
+                        role: role,
+                        members: [ign],
+                        memberUids: [user.uid],
+                        registeredBy: user.uid,
+                        isSoloCompetitor: true,
+                        paymentType: 'automatic',
+                        entryFee: tournDoc.entryFee,
+                        entryCurrency: tournDoc?.entryCurrency || 'PHP',
+                        status: 'pending',
+                        submittedAt: serverTimestamp()
+                    };
+                    const newAppRef = await addDoc(appsRef, appData);
+
+                    document.getElementById('joinModal').classList.add('hidden');
+                    window.location.href = `/checkout.html?t=${currentJoiningId}&app=${newAppRef.id}`;
+                    return;
+                }
+
+                // If Paid Manual: create application with proof for review
+                if (isPaid && isManual) {
+                    const appsRef = collection(db, "tournaments", currentJoiningId, "applications");
+                    const appData = {
+                        name: ign,
+                        captain: ign,
+                        contact: contact,
+                        phone: phone,
+                        rank: rank,
+                        role: role,
+                        members: [ign],
+                        memberUids: [user.uid],
+                        registeredBy: user.uid,
+                        isSoloCompetitor: true,
+                        paymentType: 'manual',
+                        entryFee: tournDoc.entryFee,
+                        entryCurrency: tournDoc?.entryCurrency || 'PHP',
+                        ...(entryFeeProofURL && { entryFeeProofURL }),
+                        status: 'pending',
+                        submittedAt: serverTimestamp()
+                    };
+                    await addDoc(appsRef, appData);
+
+                    if (window.showSuccessToast) {
+                        window.showSuccessToast('Application Submitted! 🪙', 'Your 1v1 entry has been submitted for payment verification. (+50 CZ Points)');
+                    }
+                } else {
+                    // Free 1v1 tournament: directly add to participants roster!
+                    const participantData = {
+                        name: ign,
+                        captain: ign,
+                        contact: contact,
+                        phone: phone,
+                        rank: rank,
+                        role: role,
+                        members: [ign],
+                        memberUids: [user.uid],
+                        registeredBy: user.uid,
+                        userId: user.uid,
+                        isSoloCompetitor: true,
+                        createdAt: Date.now()
+                    };
+
+                    const pIdx = participants.findIndex(p => p.registeredBy === user.uid || (p.name && p.name.toLowerCase() === ign.toLowerCase()));
+                    if (pIdx !== -1) {
+                        participants[pIdx] = participantData;
+                    } else {
+                        participants.push(participantData);
+                    }
+
+                    // Also save an approved application record for queries
+                    const appsRef = collection(db, "tournaments", currentJoiningId, "applications");
+                    await addDoc(appsRef, {
+                        name: ign,
+                        captain: ign,
+                        contact: contact,
+                        phone: phone,
+                        members: [ign],
+                        memberUids: [user.uid],
+                        registeredBy: user.uid,
+                        isSoloCompetitor: true,
+                        status: 'approved',
+                        submittedAt: serverTimestamp()
+                    });
+
+                    // Remove from soloQueue if user was previously queued
+                    soloList = soloList.filter(p => p.userId !== user.uid);
+
+                    await updateDoc(tourneyRef, { 
+                        participants: participants,
+                        soloQueue: soloList
+                    });
+
+                    if (currentEditingTournament && currentEditingTournament.id === currentJoiningId) {
+                        currentEditingTournament.participants = participants;
+                        currentEditingTournament.soloQueue = soloList;
+                        renderParticipantsList(participants);
+                        renderSoloQueueList(currentEditingTournament);
+                        if (window.openModal) window.openModal(currentEditingTournament);
+                    }
+
+                    if (window.showSuccessToast) {
+                        window.showSuccessToast('Registration Confirmed! 🪙', 'You are now confirmed in the 1v1 tournament roster! (+50 CZ Points)');
+                    }
+                }
+
+            } else {
+                // === TEAM TOURNAMENT SOLO FREE AGENT QUEUE ===
+                const targetTeamSize = parseInt(tournDoc?.teamSize) || 5;
+                const feeType = tournDoc?.feeType || (targetTeamSize === 1 || tournDoc?.registrationType === 'solo' ? 'solo' : 'team');
+                const baseFee = parseFloat(tournDoc?.entryFee) || 0;
+                const soloFee = isPaid ? (feeType === 'solo' ? baseFee : (baseFee / targetTeamSize)) : 0;
+
+                const existingIdx = soloList.findIndex(p => p.userId === user.uid || p.ign.toLowerCase() === ign.toLowerCase());
+                const soloPlayer = {
+                    id: 'solo_' + user.uid + '_' + Date.now(),
+                    userId: user.uid,
+                    ign: ign,
+                    role: role,
+                    rank: rank,
+                    contact: contact,
+                    phone: phone,
+                    notes: notes,
+                    status: 'Queued',
+                    registeredAt: Date.now(),
+                    entryFee: soloFee,
+                    feeType: feeType,
+                    entryCurrency: tournDoc?.entryCurrency || 'PHP',
+                    ...(entryFeeProofURL && { entryFeeProofURL })
+                };
+
+                if (existingIdx !== -1) {
+                    soloList[existingIdx] = soloPlayer;
+                } else {
+                    soloList.push(soloPlayer);
+                }
+
+                await updateDoc(tourneyRef, { soloQueue: soloList });
+
+                if (currentEditingTournament && currentEditingTournament.id === currentJoiningId) {
+                    currentEditingTournament.soloQueue = soloList;
+                    renderSoloQueueList(currentEditingTournament);
+                    renderParticipantsList(currentEditingTournament.participants);
+                    if (window.openModal) window.openModal(currentEditingTournament);
+                }
+
+                if (window.showSuccessToast) {
+                    window.showSuccessToast('Free Agent Queue Joined! 🪙', 'You have been added to the Solo Free Agent queue for squad matchmaking. (+50 CZ Points)');
+                }
+            }
+
+            // Organizer Notification
             if (tournDoc && tournDoc.createdBy) {
                 try {
                     await addDoc(collection(db, "notifications"), {
                         userId: tournDoc.createdBy,
-                        title: isSoloOrDuel ? "New Player Registered" : "New Solo Free Agent",
+                        title: isSoloTournament ? "New 1v1 Competitor" : "New Solo Free Agent",
                         message: `${ign} (${role}) registered for ${tournDoc.name}.`,
                         tournamentId: currentJoiningId,
-                        type: "solo_registration",
+                        type: isSoloTournament ? "tournament_registration" : "solo_registration",
                         read: false,
                         createdAt: serverTimestamp()
                     });
@@ -4890,9 +5173,8 @@ async function submitJoinRequest() {
                 console.warn("Could not award tournament registration points:", ptsErr);
             }
 
-            if (window.showSuccessToast) window.showSuccessToast('Registration Successful! 🪙', (isSoloOrDuel ? 'You have registered for the tournament.' : 'You have been added to the Solo Free Agent queue.') + ' (+50 CZ Points earned)');
         } catch (error) {
-            console.error("Error joining solo queue:", error);
+            console.error("Error completing solo registration:", error);
             if (window.showErrorToast) window.showErrorToast('Error', 'Failed to complete registration: ' + error.message);
         } finally {
             if (submitBtn) {
@@ -4976,6 +5258,10 @@ async function submitJoinRequest() {
         entryFeeProofURL = await getDownloadURL(snapshot.ref);
     }
 
+    const feeType = tournDoc?.feeType || (targetTeamSize === 1 || tournDoc?.registrationType === 'solo' ? 'solo' : 'team');
+    const baseFee = parseFloat(tournDoc?.entryFee) || 0;
+    const teamTotalFee = isPaid ? (feeType === 'solo' ? (baseFee * targetTeamSize) : baseFee) : 0;
+
     let appData;
     if (isEdit) {
         appData = {
@@ -4988,7 +5274,8 @@ async function submitJoinRequest() {
                 memberUids: [...new Set(memberUids)],
                 teamId: dbTeamId,
                 paymentType: paymentType,
-                entryFee: tournDoc?.entryFee || 0,
+                entryFee: teamTotalFee,
+                feeType: feeType,
                 entryCurrency: tournDoc?.entryCurrency || 'PHP',
                 ...(entryFeeProofURL && { entryFeeProofURL }),
             },
@@ -5008,7 +5295,8 @@ async function submitJoinRequest() {
             registeredBy: user.uid,
             submittedAt: serverTimestamp(),
             paymentType: paymentType,
-            entryFee: tournDoc?.entryFee || 0,
+            entryFee: teamTotalFee,
+            feeType: feeType,
             entryCurrency: tournDoc?.entryCurrency || 'PHP',
             ...(entryFeeProofURL && { entryFeeProofURL }),
             status: 'pending',

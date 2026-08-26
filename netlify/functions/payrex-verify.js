@@ -28,42 +28,57 @@ exports.handler = async (event, context) => {
             };
         }
 
-        const payrexSecretKey = process.env.PAYREX_SECRET_KEY;
+        const payrexSecretKey = process.env.PAYREX_SECRET_KEY ? process.env.PAYREX_SECRET_KEY.trim() : '';
 
-        if (payrexSecretKey && payrexSecretKey.startsWith('prx_')) {
-            const payrexResponse = await new Promise((resolve, reject) => {
-                const authHeader = 'Basic ' + Buffer.from(payrexSecretKey + ':').toString('base64');
-
-                const options = {
-                    hostname: 'api.payrex.com',
-                    path: `/v1/checkout_sessions/${encodeURIComponent(sessionId)}`,
-                    method: 'GET',
-                    headers: {
-                        'Authorization': authHeader,
-                        'Accept': 'application/json'
-                    }
-                };
-
-                const req = https.request(options, (res) => {
-                    let resBody = '';
-                    res.on('data', chunk => { resBody += chunk; });
-                    res.on('end', () => {
-                        try {
-                            const parsed = JSON.parse(resBody);
-                            resolve({ statusCode: res.statusCode, data: parsed });
-                        } catch (e) {
-                            reject(new Error(`Failed to parse PayRex response: ${resBody}`));
+        if (payrexSecretKey && !payrexSecretKey.includes('REPLACE_WITH') && payrexSecretKey.length > 5) {
+            const makeVerifyRequest = (host) => {
+                return new Promise((resolve, reject) => {
+                    const authHeader = 'Basic ' + Buffer.from(payrexSecretKey + ':').toString('base64');
+                    const options = {
+                        hostname: host,
+                        path: `/v1/checkout_sessions/${encodeURIComponent(sessionId)}`,
+                        method: 'GET',
+                        headers: {
+                            'Authorization': authHeader,
+                            'Accept': 'application/json'
                         }
+                    };
+
+                    const req = https.request(options, (res) => {
+                        let resBody = '';
+                        res.on('data', chunk => { resBody += chunk; });
+                        res.on('end', () => {
+                            try {
+                                const parsed = JSON.parse(resBody);
+                                resolve({ statusCode: res.statusCode, data: parsed });
+                            } catch (e) {
+                                resolve({ statusCode: res.statusCode, raw: resBody, error: e.message });
+                            }
+                        });
                     });
+
+                    req.on('error', err => reject(err));
+                    req.end();
                 });
+            };
 
-                req.on('error', err => reject(err));
-                req.end();
-            });
+            let payrexResponse;
+            try {
+                payrexResponse = await makeVerifyRequest('api.payrexhq.com');
+                if (!payrexResponse || payrexResponse.statusCode >= 500) {
+                    payrexResponse = await makeVerifyRequest('api.payrex.com');
+                }
+            } catch (netErr) {
+                try {
+                    payrexResponse = await makeVerifyRequest('api.payrex.com');
+                } catch (fallbackErr) {
+                    console.error("PayRex Verify Netlify Error:", fallbackErr);
+                }
+            }
 
-            if (payrexResponse.statusCode >= 200 && payrexResponse.statusCode < 300) {
+            if (payrexResponse && payrexResponse.statusCode >= 200 && payrexResponse.statusCode < 300 && payrexResponse.data) {
                 const session = payrexResponse.data;
-                const isPaid = session.payment_status === 'paid' || session.status === 'completed';
+                const isPaid = session.payment_status === 'paid' || session.status === 'completed' || session.status === 'succeeded';
                 return {
                     statusCode: 200,
                     headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },

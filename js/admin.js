@@ -399,10 +399,10 @@ window.editItem = async function (collectionName, docId) {
             if (qs('#t-prize-2nd')) qs('#t-prize-2nd').value = split.second ?? 30;
             if (qs('#t-prize-3rd')) qs('#t-prize-3rd').value = split.third ?? 10;
 
-            const pType = data.paymentType ? (data.paymentType.toLowerCase() === 'automatic' ? 'Automatic' : (data.paymentType.toLowerCase() === 'manual' ? 'Manual' : 'Free')) : (data.entryType === 'Paid' ? 'Manual' : 'Free');
             qs('#t-entry-type').value = pType;
             qs('#t-entry-fee').value = data.entryFee || '';
             qs('#t-entry-currency').value = data.entryCurrency || 'PHP';
+            if (window.updateAdminFeePreview) window.updateAdminFeePreview();
             qs('#t-date').value = toDateInputFormat(data.date);
             if (qs('#t-time')) qs('#t-time').value = data.startTime || data.time || '19:00';
             qs('#t-end-date').value = toDateInputFormat(data.endDate);
@@ -2610,4 +2610,22 @@ window.adminDeleteDonation = async function (donationId) {
         console.error("Failed to delete donation:", err);
         if (window.showErrorToast) window.showErrorToast("Error", "Failed to delete supporter entry: " + err.message, 3000);
     }
+};
+
+window.updateAdminFeePreview = function() {
+    const feeInput = document.getElementById('t-entry-fee');
+    const currencySelect = document.getElementById('t-entry-currency');
+    const platEl = document.getElementById('t-admin-platform-fee');
+    const netEl = document.getElementById('t-admin-net-fee');
+    if (!feeInput || !platEl || !netEl) return;
+
+    const fee = parseFloat(feeInput.value) || 0;
+    const curr = currencySelect ? currencySelect.value : 'PHP';
+    const sym = curr === 'PHP' ? '₱' : '$';
+
+    const platFee = fee * 0.05;
+    const netFee = fee - platFee;
+
+    platEl.textContent = `${sym}${platFee.toFixed(2)}`;
+    netEl.textContent = `${sym}${netFee.toFixed(2)}`;
 };

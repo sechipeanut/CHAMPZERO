@@ -1447,7 +1447,6 @@
                     </div>
                 </div>
             </div>
-        </div>
 
     </main>
 
@@ -1544,7 +1543,6 @@
                         <img id="join-qr-img" src="" alt="Payment QR Code"
                             class="w-full h-full object-contain rounded-lg">
                     </div>
-
                     <div class="w-full h-px bg-gradient-to-r from-transparent via-[#FFD700]/20 to-transparent"></div>
 
                     <a id="join-qr-download" href="#" download="payment-qr"
@@ -1558,12 +1556,16 @@
                         <span id="join-qr-download-label">Download QR</span>
                     </a>
 
-                    <div id="join-entry-fee-display" class="hidden w-full border-t border-white/5 pt-3 text-center">
-                        <div class="font-mono-tag text-[9px] font-bold tracking-wider text-neutral-500 uppercase">Entry
-                            Fee</div>
-                        <div class="font-heading text-xl font-bold text-[#FFD700] mt-0.5">
+                    <div id="join-entry-fee-display" class="hidden w-full border-t border-white/5 pt-3 text-center space-y-1">
+                        <div class="font-mono-tag text-[9px] font-bold tracking-wider text-neutral-500 uppercase">Entry Fee Breakdown</div>
+                        <div class="font-heading text-xl font-bold text-[#FFD700]">
                             <span id="join-entry-currency">PHP</span>
                             <span id="join-entry-fee-amount">0.00</span>
+                        </div>
+                        <div class="flex items-center justify-center gap-2 text-[10px] font-mono-tag text-neutral-400">
+                            <span>Reg: <strong id="join-net-fee" class="text-white">₱0.00</strong></span>
+                            <span>&bull;</span>
+                            <span>Platform (5%): <strong id="join-platform-fee" class="text-amber-400">₱0.00</strong></span>
                         </div>
                     </div>
                 </div>
@@ -1627,38 +1629,37 @@
                                 </a>
                             </div>
                         </div>
-                        <div>
-                            <label
-                                class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Captain
-                                / IGN <span class="text-red-500">*</span></label>
-                            <input type="text" id="joinCaptain" class="dark-input w-full p-3 rounded-xl text-xs">
-                        </div>
-                        <div>
-                            <label
-                                class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Contact
-                                Info / Discord Tag <span class="text-red-500">*</span></label>
-                            <input type="text" id="joinContact" class="dark-input w-full p-3 rounded-xl text-xs font-mono-tag">
-                        </div>
-                        <div>
-                            <label
-                                class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Phone
-                                Number</label>
-                            <input type="tel" id="joinPhone"
-                                class="dark-input w-full p-3 rounded-xl text-xs font-mono-tag">
-                        </div>
-                        <div class="border-t border-white/5 pt-4 mt-2">
-                            <label
-                                class="block font-semibold text-neutral-300 uppercase tracking-wider mb-2 text-xs font-mono-tag flex justify-between items-center">
-                                <span>Team Members (IGNs)</span>
-                                <button type="button" onclick="addMemberInput()"
-                                    class="text-[#FFD700] hover:text-white text-[10px] uppercase font-mono-tag bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg transition-colors cursor-pointer">+
-                                    Add Member</button>
-                            </label>
-                            <div id="membersContainer" class="space-y-2 font-mono-tag">
-                                <div class="flex gap-2">
-                                    <input type="text" name="memberIgn[]"
-                                        class="dark-input w-full p-2.5 rounded-xl text-xs">
-                                </div>
+                        
+                        <!-- Team Details & Roster (Only visible when a team is selected) -->
+                        <div id="joinTeamDetailsWrap" class="hidden space-y-4 pt-1 border-t border-white/5">
+                            <div>
+                                <label
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Captain
+                                    / IGN <span class="text-red-500">*</span></label>
+                                <input type="text" id="joinCaptain" class="dark-input w-full p-3 rounded-xl text-xs">
+                            </div>
+                            <div>
+                                <label
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Contact
+                                    Info / Discord Tag <span class="text-red-500">*</span></label>
+                                <input type="text" id="joinContact" class="dark-input w-full p-3 rounded-xl text-xs font-mono-tag">
+                            </div>
+                            <div>
+                                <label
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1.5 text-xs font-mono-tag">Phone
+                                    Number</label>
+                                <input type="tel" id="joinPhone"
+                                    class="dark-input w-full p-3 rounded-xl text-xs font-mono-tag">
+                            </div>
+                            <div class="border-t border-white/5 pt-4 mt-2">
+                                <label
+                                    class="block font-semibold text-neutral-300 uppercase tracking-wider mb-2 text-xs font-mono-tag flex justify-between items-center">
+                                    <span>Team Members (IGNs)</span>
+                                    <button type="button" onclick="addMemberInput()"
+                                        class="text-[#FFD700] hover:text-white text-[10px] uppercase font-mono-tag bg-white/5 border border-white/10 px-2.5 py-1 rounded-lg transition-colors cursor-pointer">+
+                                        Add Member</button>
+                                </label>
+                                <div id="membersContainer" class="space-y-2 font-mono-tag"></div>
                             </div>
                         </div>
                     </div>
@@ -2218,6 +2219,14 @@
                                         </div>
                                         <input id="c-entry-fee" type="number" min="0" step="0.01" style="background:transparent;border:none;outline:none;color:white;font-size:13px;font-family:'Space Mono',monospace;font-weight:600;padding:0 10px;height:42px;width:130px;" oninput="if(window.updatePlatformFeePreview) window.updatePlatformFeePreview()">
                                     </div>
+                                    <p id="c-min-fee-note" class="text-[10px] text-amber-300/80 mt-1 font-mono-tag hidden">* Min. ₱20.00 for Automatic Payment</p>
+                                    <div class="mt-2">
+                                        <label for="c-fee-type" class="block font-semibold text-neutral-300 uppercase tracking-wider mb-1 text-[11px] font-mono-tag">Fee Structure</label>
+                                        <select id="c-fee-type" class="dark-select w-full sm:w-[220px] p-2.5 rounded-xl text-xs cursor-pointer font-mono-tag" onchange="if(window.updatePlatformFeePreview) window.updatePlatformFeePreview()">
+                                            <option value="team">Per Team / Squad Fee</option>
+                                            <option value="solo">Per Player / Solo Fee</option>
+                                        </select>
+                                    </div>
                                     <div id="c-fee-preview" class="mt-2 p-3 rounded-xl bg-white/5 border border-white/10 font-mono-tag text-[10px] text-neutral-300 w-full sm:w-[220px] space-y-1">
                                         <div class="flex justify-between items-center text-neutral-400">
                                             <span>Platform Fee:</span>
@@ -2228,7 +2237,7 @@
                                             <span id="c-fee-amount-text" class="text-neutral-300 font-bold">₱0.00</span>
                                         </div>
                                         <div class="flex justify-between items-center text-[#FFD700] font-bold pt-1 border-t border-white/10">
-                                            <span>Est. Net/Team:</span>
+                                            <span id="c-net-fee-label">Est. Net/Entry:</span>
                                             <span id="c-net-fee-text">₱0.00</span>
                                         </div>
                                     </div>
@@ -3317,52 +3326,69 @@
 
         // TOURNAMENT SPECIFIC LOGIC HANDLERS
         function toggleTeamInput(select) {
+            const detailsWrap = document.getElementById('joinTeamDetailsWrap');
             const membersContainer = document.getElementById('membersContainer');
+            if (!select) return;
 
-            if (window.userTeams && Array.isArray(window.userTeams)) {
-                const selectedTeam = window.userTeams.find(t => t.id === select.value);
+            const teamId = select.value;
+            const selectedTeam = (window.userTeams && Array.isArray(window.userTeams)) ? window.userTeams.find(t => t.id === teamId) : null;
 
-                if (selectedTeam && selectedTeam.members && selectedTeam.members.length > 0) {
-                    membersContainer.innerHTML = '';
+            if (!selectedTeam || teamId === 'custom' || teamId === '') {
+                if (detailsWrap) detailsWrap.classList.add('hidden');
+                if (membersContainer) membersContainer.innerHTML = '';
+                return;
+            }
 
-                    const div = document.createElement('div');
-                    div.className = 'flex gap-2 items-center animate-row-in w-full';
+            // Valid team selected -> Show team roster section
+            if (detailsWrap) detailsWrap.classList.remove('hidden');
 
-                    const selectEl = document.createElement('select');
-                    selectEl.name = 'memberIgn[]';
-                    selectEl.className = 'dark-select w-full p-2.5 rounded-lg text-xs font-mono-tag cursor-pointer';
-                    selectEl.required = true;
+            if (membersContainer) {
+                membersContainer.innerHTML = '';
+                if (selectedTeam.members && selectedTeam.members.length > 0) {
+                    const tournDoc = (window.currentEditingTournament || (window.allTournaments && window.allTournaments.find(tourn => tourn.id === window.currentJoiningId)));
+                    const targetTeamSize = parseInt(tournDoc?.teamSize) || 5;
+                    const initialSlotCount = Math.min(selectedTeam.members.length, targetTeamSize);
 
-                    const defaultOpt = document.createElement('option');
-                    defaultOpt.value = '';
-                    defaultOpt.textContent = '-- Select Team Member --';
-                    defaultOpt.disabled = true;
-                    defaultOpt.selected = true;
-                    selectEl.appendChild(defaultOpt);
+                    for (let i = 0; i < Math.max(1, initialSlotCount); i++) {
+                        const div = document.createElement('div');
+                        div.className = 'flex gap-2 items-center animate-row-in w-full';
 
-                    selectedTeam.members.forEach(m => {
-                        const memberName = typeof m === 'string' ? m : (m.displayName || m.ign || m.name || 'Unknown');
-                        const option = document.createElement('option');
-                        option.value = memberName;
-                        option.textContent = memberName;
-                        selectEl.appendChild(option);
-                    });
+                        const selectEl = document.createElement('select');
+                        selectEl.name = 'memberIgn[]';
+                        selectEl.className = 'dark-select w-full p-2.5 rounded-lg text-xs font-mono-tag cursor-pointer';
+                        selectEl.required = true;
 
-                    const deleteBtn = document.createElement('button');
-                    deleteBtn.type = 'button';
-                    deleteBtn.className = 'text-red-400 hover:text-red-300 px-2 text-xl transition-colors';
-                    deleteBtn.innerHTML = '&times;';
-                    deleteBtn.onclick = function () { this.parentElement.remove(); };
+                        const defaultOpt = document.createElement('option');
+                        defaultOpt.value = '';
+                        defaultOpt.textContent = '-- Select Team Member --';
+                        defaultOpt.disabled = true;
+                        selectEl.appendChild(defaultOpt);
 
-                    selectEl.addEventListener('change', syncMemberSelects);
-                    div.appendChild(selectEl);
-                    div.appendChild(deleteBtn);
-                    membersContainer.appendChild(div);
+                        selectedTeam.members.forEach((m, mIdx) => {
+                            const memberName = typeof m === 'string' ? m : (m.displayName || m.ign || m.name || 'Unknown');
+                            const option = document.createElement('option');
+                            option.value = memberName;
+                            option.textContent = memberName;
+                            if (mIdx === i) option.selected = true;
+                            selectEl.appendChild(option);
+                        });
+
+                        const deleteBtn = document.createElement('button');
+                        deleteBtn.type = 'button';
+                        deleteBtn.className = 'text-red-400 hover:text-red-300 px-2 text-xl transition-colors cursor-pointer';
+                        deleteBtn.innerHTML = '&times;';
+                        deleteBtn.onclick = function () { this.parentElement.remove(); syncMemberSelects(); };
+
+                        selectEl.addEventListener('change', syncMemberSelects);
+                        div.appendChild(selectEl);
+                        div.appendChild(deleteBtn);
+                        membersContainer.appendChild(div);
+                    }
                     syncMemberSelects();
                 } else {
                     membersContainer.innerHTML = `
                         <div class="flex gap-2 animate-row-in">
-                            <input type="text" name="memberIgn[]" class="dark-input w-full p-2.5 rounded-lg text-xs" required>
+                            <input type="text" name="memberIgn[]" class="dark-input w-full p-2.5 rounded-lg text-xs font-mono-tag" placeholder="Enter player IGN" required>
                         </div>
                     `;
                 }
@@ -3476,27 +3502,26 @@
             const previewText = document.getElementById('c-net-fee-text');
             const feeRateEl = document.getElementById('c-fee-rate-text');
             const feeAmountEl = document.getElementById('c-fee-amount-text');
-            const paymentTypeSelect = document.getElementById('c-payment-type');
+            const feeTypeSelect = document.getElementById('c-fee-type');
+            const netLabel = document.getElementById('c-net-fee-label');
             if (!feeInput || !previewText) return;
 
             const fee = parseFloat(feeInput.value) || 0;
             const curr = currencySelect ? currencySelect.value : 'PHP';
             const sym = curr === 'PHP' ? '₱' : '$';
-            const pType = paymentTypeSelect ? paymentTypeSelect.value : 'free';
-            const isAuto = pType === 'automatic';
+            const feeType = feeTypeSelect ? feeTypeSelect.value : 'team';
             
-            const rate = isAuto ? 0.05 : 0;
+            const rate = 0.05;
             const feeAmount = fee * rate;
             const net = fee - feeAmount;
 
+            if (netLabel) {
+                netLabel.textContent = feeType === 'solo' ? 'Net Reg Fee (95%):' : 'Net Reg Fee (95%):';
+            }
+
             if (feeRateEl) {
-                if (isAuto) {
-                    feeRateEl.textContent = '5% Auto-Pay';
-                    feeRateEl.className = 'text-amber-400 font-bold';
-                } else {
-                    feeRateEl.textContent = '0% (Manual / Free)';
-                    feeRateEl.className = 'text-emerald-400 font-bold';
-                }
+                feeRateEl.textContent = '5% (Auto-Computed)';
+                feeRateEl.className = 'text-amber-400 font-bold';
             }
             if (feeAmountEl) {
                 feeAmountEl.textContent = `${sym}${feeAmount.toFixed(2)}`;
@@ -3510,10 +3535,12 @@
             const type = select ? select.value : 'free';
             const proofArea = document.getElementById('proof-upload-area');
             const feeArea = document.getElementById('entry-fee-amount-area');
+            const minNote = document.getElementById('c-min-fee-note');
 
             if (type === 'free') {
                 if (proofArea) proofArea.classList.add('hidden');
                 if (feeArea) feeArea.classList.add('hidden');
+                if (minNote) minNote.classList.add('hidden');
 
                 // Reset fee fields
                 const feeInput = document.getElementById('c-entry-fee');
@@ -3530,10 +3557,12 @@
             } else if (type === 'manual') {
                 if (proofArea) proofArea.classList.remove('hidden');
                 if (feeArea) feeArea.classList.remove('hidden');
+                if (minNote) minNote.classList.add('hidden');
                 updatePlatformFeePreview();
             } else if (type === 'automatic') {
                 if (proofArea) proofArea.classList.add('hidden');
                 if (feeArea) feeArea.classList.remove('hidden');
+                if (minNote) minNote.classList.remove('hidden');
                 updatePlatformFeePreview();
             }
         }

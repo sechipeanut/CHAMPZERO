@@ -2,7 +2,7 @@ import { escapeHtml } from './events.js';
 import { db } from './firebase-config.js';
 import { collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
-let liveScoresInterval = null;
+var liveScoresInterval = null;
 
 export async function initLiveScores() {
     updateLiveMatches();

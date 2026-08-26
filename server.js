@@ -348,7 +348,7 @@ apiRouter.post('/payrex/create-checkout-session', async (req, res) => {
             return res.status(400).json({ error: 'Invalid payment amount specified.' });
         }
 
-        const payrexSecretKey = process.env.PAYREX_SECRET_KEY;
+        const payrexSecretKey = process.env.PAYREX_SECRET_KEY ? process.env.PAYREX_SECRET_KEY.trim() : '';
         const amountInCents = Math.round(numAmount * 100);
 
         const origin = req.headers.origin || req.headers.referer || `http://localhost:${PORT}`;
@@ -374,6 +374,7 @@ apiRouter.post('/payrex/create-checkout-session', async (req, res) => {
                     description: description
                 }
             ],
+            payment_method_types: ['gcash', 'maya'],
             success_url: finalSuccessUrl,
             cancel_url: finalCancelUrl,
             metadata: {
@@ -388,58 +389,75 @@ apiRouter.post('/payrex/create-checkout-session', async (req, res) => {
             }
         };
 
-        if (payrexSecretKey && payrexSecretKey.startsWith('prx_')) {
-            const payrexResponse = await new Promise((resolve, reject) => {
-                const reqData = JSON.stringify(payload);
-                const authHeader = 'Basic ' + Buffer.from(payrexSecretKey + ':').toString('base64');
+        if (payrexSecretKey && !payrexSecretKey.includes('REPLACE_WITH') && payrexSecretKey.length > 5) {
+            // Helper function to try request on a hostname
+            const makePayRexRequest = (host) => {
+                return new Promise((resolve, reject) => {
+                    const reqData = JSON.stringify(payload);
+                    const authHeader = 'Basic ' + Buffer.from(payrexSecretKey + ':').toString('base64');
 
-                const options = {
-                    hostname: 'api.payrex.com',
-                    path: '/v1/checkout_sessions',
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Content-Length': Buffer.byteLength(reqData),
-                        'Authorization': authHeader,
-                        'Accept': 'application/json'
-                    }
-                };
-
-                const pReq = https.request(options, (pRes) => {
-                    let resBody = '';
-                    pRes.on('data', chunk => { resBody += chunk; });
-                    pRes.on('end', () => {
-                        try {
-                            const parsed = JSON.parse(resBody);
-                            resolve({ statusCode: pRes.statusCode, data: parsed });
-                        } catch (e) {
-                            reject(new Error(`Failed to parse PayRex response: ${resBody}`));
+                    const options = {
+                        hostname: host,
+                        path: '/v1/checkout_sessions',
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Content-Length': Buffer.byteLength(reqData),
+                            'Authorization': authHeader,
+                            'Accept': 'application/json'
                         }
+                    };
+
+                    const pReq = https.request(options, (pRes) => {
+                        let resBody = '';
+                        pRes.on('data', chunk => { resBody += chunk; });
+                        pRes.on('end', () => {
+                            try {
+                                const parsed = JSON.parse(resBody);
+                                resolve({ statusCode: pRes.statusCode, data: parsed });
+                            } catch (e) {
+                                resolve({ statusCode: pRes.statusCode, raw: resBody, error: e.message });
+                            }
+                        });
                     });
+
+                    pReq.on('error', err => reject(err));
+                    pReq.write(reqData);
+                    pReq.end();
                 });
+            };
 
-                pReq.on('error', err => reject(err));
-                pReq.write(reqData);
-                pReq.end();
-            });
+            let payrexResponse;
+            try {
+                payrexResponse = await makePayRexRequest('api.payrexhq.com');
+                if (!payrexResponse || payrexResponse.statusCode >= 500) {
+                    payrexResponse = await makePayRexRequest('api.payrex.com');
+                }
+            } catch (netErr) {
+                try {
+                    payrexResponse = await makePayRexRequest('api.payrex.com');
+                } catch (fallbackErr) {
+                    console.error("PayRex Network Error:", fallbackErr);
+                }
+            }
 
-            if (payrexResponse.statusCode >= 200 && payrexResponse.statusCode < 300 && payrexResponse.data?.url) {
+            if (payrexResponse && payrexResponse.statusCode >= 200 && payrexResponse.statusCode < 300 && payrexResponse.data?.url) {
                 return res.json({
                     url: payrexResponse.data.url,
                     sessionId: payrexResponse.data.id,
                     status: payrexResponse.data.status,
                     mode: 'live_payrex'
                 });
-            } else {
+            } else if (payrexResponse && payrexResponse.data) {
                 console.error("PayRex API Error:", payrexResponse);
                 return res.status(payrexResponse.statusCode || 500).json({
-                    error: payrexResponse.data?.error?.message || 'PayRex API request failed.',
+                    error: payrexResponse.data?.error?.message || payrexResponse.data?.message || 'PayRex API request failed.',
                     details: payrexResponse.data
                 });
             }
         }
 
-        // Test/Sandbox Simulation mode
+        // Test/Sandbox Simulation mode when no live API key is configured
         const simulatedSessionId = 'cs_prx_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
         const resolvedSuccessUrl = finalSuccessUrl.replace('{CHECKOUT_SESSION_ID}', simulatedSessionId);
 
@@ -460,41 +478,57 @@ apiRouter.post('/payrex/create-checkout-session', async (req, res) => {
 apiRouter.get('/payrex/verify-session/:sessionId', async (req, res) => {
     try {
         const { sessionId } = req.params;
-        const payrexSecretKey = process.env.PAYREX_SECRET_KEY;
+        const payrexSecretKey = process.env.PAYREX_SECRET_KEY ? process.env.PAYREX_SECRET_KEY.trim() : '';
 
-        if (payrexSecretKey && payrexSecretKey.startsWith('prx_')) {
-            const payrexResponse = await new Promise((resolve, reject) => {
-                const authHeader = 'Basic ' + Buffer.from(payrexSecretKey + ':').toString('base64');
-                const options = {
-                    hostname: 'api.payrex.com',
-                    path: `/v1/checkout_sessions/${encodeURIComponent(sessionId)}`,
-                    method: 'GET',
-                    headers: {
-                        'Authorization': authHeader,
-                        'Accept': 'application/json'
-                    }
-                };
-
-                const pReq = https.request(options, (pRes) => {
-                    let resBody = '';
-                    pRes.on('data', chunk => { resBody += chunk; });
-                    pRes.on('end', () => {
-                        try {
-                            const parsed = JSON.parse(resBody);
-                            resolve({ statusCode: pRes.statusCode, data: parsed });
-                        } catch (e) {
-                            reject(new Error(`Failed to parse PayRex response: ${resBody}`));
+        if (payrexSecretKey && !payrexSecretKey.includes('REPLACE_WITH') && payrexSecretKey.length > 5) {
+            const makeVerifyRequest = (host) => {
+                return new Promise((resolve, reject) => {
+                    const authHeader = 'Basic ' + Buffer.from(payrexSecretKey + ':').toString('base64');
+                    const options = {
+                        hostname: host,
+                        path: `/v1/checkout_sessions/${encodeURIComponent(sessionId)}`,
+                        method: 'GET',
+                        headers: {
+                            'Authorization': authHeader,
+                            'Accept': 'application/json'
                         }
+                    };
+
+                    const pReq = https.request(options, (pRes) => {
+                        let resBody = '';
+                        pRes.on('data', chunk => { resBody += chunk; });
+                        pRes.on('end', () => {
+                            try {
+                                const parsed = JSON.parse(resBody);
+                                resolve({ statusCode: pRes.statusCode, data: parsed });
+                            } catch (e) {
+                                resolve({ statusCode: pRes.statusCode, raw: resBody, error: e.message });
+                            }
+                        });
                     });
+
+                    pReq.on('error', err => reject(err));
+                    pReq.end();
                 });
+            };
 
-                pReq.on('error', err => reject(err));
-                pReq.end();
-            });
+            let payrexResponse;
+            try {
+                payrexResponse = await makeVerifyRequest('api.payrexhq.com');
+                if (!payrexResponse || payrexResponse.statusCode >= 500) {
+                    payrexResponse = await makeVerifyRequest('api.payrex.com');
+                }
+            } catch (e) {
+                try {
+                    payrexResponse = await makeVerifyRequest('api.payrex.com');
+                } catch (err) {
+                    console.error("PayRex Verify Network Error:", err);
+                }
+            }
 
-            if (payrexResponse.statusCode >= 200 && payrexResponse.statusCode < 300) {
+            if (payrexResponse && payrexResponse.statusCode >= 200 && payrexResponse.statusCode < 300 && payrexResponse.data) {
                 const session = payrexResponse.data;
-                const isPaid = session.payment_status === 'paid' || session.status === 'completed';
+                const isPaid = session.payment_status === 'paid' || session.status === 'completed' || session.status === 'succeeded';
                 return res.json({
                     isPaid: isPaid,
                     status: session.status,
@@ -582,7 +616,7 @@ const htmlFiles = [
     'index.html', 'home.html', 'tournaments.html', 'events.html', 'teams.html', 'rising.html', 
     'partners.html', 'about.html', 'support.html', 'contact.html', 'terms.html', 'refund-policy.html',
     'careers.html', 'login.html', 'signup.html', 'profile.html', 'edit-profile.html',
-    'admin.html', 'livestream.html', 'forgot-password.html', 
+    'admin.html', 'checkout.html', 'livestream.html', 'forgot-password.html', 
     'reset-password.html', 'verify-email.html', 'access-denied.html', '404.html'
 ];
 
@@ -595,6 +629,21 @@ htmlFiles.forEach(file => {
     app.get(`/${routeName}`, (req, res) => {
         res.sendFile(path.join(__dirname, file));
     });
+});
+
+// Dynamic fallback for any existing HTML file in workspace root
+app.use((req, res, next) => {
+    if (req.method !== 'GET') return next();
+    const cleanPath = req.path.replace(/^\//, '').replace(/\/$/, '');
+    if (!cleanPath) return next();
+
+    const possibleFile = cleanPath.endsWith('.html') ? cleanPath : `${cleanPath}.html`;
+    const fullPath = path.join(__dirname, possibleFile);
+    const fs = require('fs');
+    if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+        return res.sendFile(fullPath);
+    }
+    next();
 });
 
 // Serve root path as home.html

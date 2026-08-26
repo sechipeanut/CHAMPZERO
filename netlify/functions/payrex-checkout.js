@@ -90,7 +90,7 @@ exports.handler = async (event, context) => {
             };
         }
 
-        const payrexSecretKey = process.env.PAYREX_SECRET_KEY;
+        const payrexSecretKey = process.env.PAYREX_SECRET_KEY ? process.env.PAYREX_SECRET_KEY.trim() : '';
         const amountInCents = Math.round(numAmount * 100);
 
         const origin = event.headers.origin || event.headers.referer || 'https://champzero.com';
@@ -116,6 +116,7 @@ exports.handler = async (event, context) => {
                     description: description
                 }
             ],
+            payment_method_types: ['gcash', 'maya'],
             success_url: finalSuccessUrl,
             cancel_url: finalCancelUrl,
             metadata: {
@@ -131,42 +132,58 @@ exports.handler = async (event, context) => {
         };
 
         // If PayRex Secret Key is configured, make the live PayRex REST API request
-        if (payrexSecretKey && payrexSecretKey.startsWith('prx_')) {
-            const payrexResponse = await new Promise((resolve, reject) => {
-                const reqData = JSON.stringify(payload);
-                const authHeader = 'Basic ' + Buffer.from(payrexSecretKey + ':').toString('base64');
+        if (payrexSecretKey && !payrexSecretKey.includes('REPLACE_WITH') && payrexSecretKey.length > 5) {
+            const makePayRexRequest = (host) => {
+                return new Promise((resolve, reject) => {
+                    const reqData = JSON.stringify(payload);
+                    const authHeader = 'Basic ' + Buffer.from(payrexSecretKey + ':').toString('base64');
 
-                const options = {
-                    hostname: 'api.payrex.com',
-                    path: '/v1/checkout_sessions',
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Content-Length': Buffer.byteLength(reqData),
-                        'Authorization': authHeader,
-                        'Accept': 'application/json'
-                    }
-                };
-
-                const req = https.request(options, (res) => {
-                    let resBody = '';
-                    res.on('data', chunk => { resBody += chunk; });
-                    res.on('end', () => {
-                        try {
-                            const parsed = JSON.parse(resBody);
-                            resolve({ statusCode: res.statusCode, data: parsed });
-                        } catch (e) {
-                            reject(new Error(`Failed to parse PayRex response: ${resBody}`));
+                    const options = {
+                        hostname: host,
+                        path: '/v1/checkout_sessions',
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Content-Length': Buffer.byteLength(reqData),
+                            'Authorization': authHeader,
+                            'Accept': 'application/json'
                         }
+                    };
+
+                    const req = https.request(options, (res) => {
+                        let resBody = '';
+                        res.on('data', chunk => { resBody += chunk; });
+                        res.on('end', () => {
+                            try {
+                                const parsed = JSON.parse(resBody);
+                                resolve({ statusCode: res.statusCode, data: parsed });
+                            } catch (e) {
+                                resolve({ statusCode: res.statusCode, raw: resBody, error: e.message });
+                            }
+                        });
                     });
+
+                    req.on('error', err => reject(err));
+                    req.write(reqData);
+                    req.end();
                 });
+            };
 
-                req.on('error', err => reject(err));
-                req.write(reqData);
-                req.end();
-            });
+            let payrexResponse;
+            try {
+                payrexResponse = await makePayRexRequest('api.payrexhq.com');
+                if (!payrexResponse || payrexResponse.statusCode >= 500) {
+                    payrexResponse = await makePayRexRequest('api.payrex.com');
+                }
+            } catch (netErr) {
+                try {
+                    payrexResponse = await makePayRexRequest('api.payrex.com');
+                } catch (fallbackErr) {
+                    console.error("PayRex Netlify Network Error:", fallbackErr);
+                }
+            }
 
-            if (payrexResponse.statusCode >= 200 && payrexResponse.statusCode < 300 && payrexResponse.data?.url) {
+            if (payrexResponse && payrexResponse.statusCode >= 200 && payrexResponse.statusCode < 300 && payrexResponse.data?.url) {
                 return {
                     statusCode: 200,
                     headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
@@ -177,13 +194,13 @@ exports.handler = async (event, context) => {
                         mode: 'live_payrex'
                     })
                 };
-            } else {
+            } else if (payrexResponse && payrexResponse.data) {
                 console.error("PayRex API Error:", payrexResponse);
                 return {
                     statusCode: payrexResponse.statusCode || 500,
                     headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        error: payrexResponse.data?.error?.message || 'PayRex API request failed.',
+                        error: payrexResponse.data?.error?.message || payrexResponse.data?.message || 'PayRex API request failed.',
                         details: payrexResponse.data
                     })
                 };
