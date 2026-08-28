@@ -108,7 +108,7 @@ async function initProfileForUser(user) {
         
         try {
             // Check if this PayRex session has already been credited
-            const existingSnap = await getDocs(collection(db, "cashins"));
+            const existingSnap = await getDocs(query(collection(db, "cashins"), where("organizerId", "==", user.uid)));
             let isAlreadyCredited = false;
             let existingDocId = null;
 
@@ -763,9 +763,16 @@ async function calculateOrganizerStats(uid, email, allTourneys, isAdmin = false)
     // PRIZE POOL CASH-INS & CASHOUT DISBURSEMENT PROCESSING
     // ========================================================
     try {
+        // Scope queries based on role:
+        // - Admins fetch all records (allowed by isAdmin() in Firestore rules)
+        // - Organizers fetch only their own records (matched by organizerId == uid)
         const [cashinsSnap, withdrawalsSnap] = await Promise.all([
-            getDocs(collection(db, "cashins")),
-            getDocs(collection(db, "withdrawals"))
+            isAdmin
+                ? getDocs(collection(db, "cashins"))
+                : getDocs(query(collection(db, "cashins"), where("organizerId", "==", uid))),
+            isAdmin
+                ? getDocs(collection(db, "withdrawals"))
+                : getDocs(query(collection(db, "withdrawals"), where("organizerId", "==", uid)))
         ]);
 
         const allCashIns = [];
@@ -1304,32 +1311,17 @@ window.startPayRexCashIn = async function (e) {
             type: 'organizer_cashin'
         };
 
-        let responseData = null;
+        // Call the Netlify serverless function for PayRex checkout
+        const res = await fetch('/.netlify/functions/payrex-checkout', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
 
-        // Try Netlify function first
-        try {
-            const res = await fetch('/.netlify/functions/payrex-checkout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (res.ok) {
-                responseData = await res.json();
-            }
-        } catch (netErr) {
-            console.warn('Netlify function unavailable, trying Express API route:', netErr);
-        }
+        const responseData = await res.json();
 
-        // Fallback to Express backend if Netlify function not available
-        if (!responseData || !responseData.url) {
-            const apiRes = await fetch('/api/payrex/create-checkout-session', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            if (apiRes.ok) {
-                responseData = await apiRes.json();
-            }
+        if (!res.ok) {
+            throw new Error(responseData?.error || `PayRex checkout request failed (HTTP ${res.status}).`);
         }
 
         if (responseData && responseData.url) {
@@ -2500,7 +2492,9 @@ window.submitRewardRedeem = async function (e) {
     const gameId = qs('#modal-game-id-input')?.value?.trim();
     const zoneId = qs('#modal-zone-id-input')?.value?.trim();
 
-    if (gameType && !gameId) {
+    // Only game-currency reward types require an in-game player ID
+    const requiresGameId = gameType === 'mlbb' || gameType === 'valorant' || gameType === 'hok' || gameType === 'other';
+    if (requiresGameId && !gameId) {
         if (window.showWarningToast) window.showWarningToast("Player ID Required", "Please provide your in-game player ID/IGN to receive your currency.");
         return;
     }

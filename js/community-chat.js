@@ -839,7 +839,7 @@ function renderOnlineList() {
 
     container.innerHTML = onlineUsersList.map(u => {
         const name = u.ign || u.displayName || u.username || 'Champion';
-        const avatar = u.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=111116&color=FFD700');
+        const avatar = u.avatar || u.photoURL || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=111116&color=FFD700');
         const role = (u.role || 'member').toLowerCase();
         const isMe = currentUser && currentUser.uid === u.id;
         const rank = u.rank || u.valRank || u.mlbbRank || u.hokRank || 'Unranked';
@@ -905,7 +905,7 @@ function filterAndRenderSearch(searchQuery) {
 
     resultsContainer.innerHTML = matches.slice(0, 15).map(u => {
         const name = u.ign || u.displayName || u.username || 'Champion';
-        const avatar = u.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=111116&color=FFD700');
+        const avatar = u.avatar || u.photoURL || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=111116&color=FFD700');
         const isMe = currentUser && currentUser.uid === u.id;
         const friendship = getFriendshipStatus(u.id);
         const status = typeof friendship === 'object' ? friendship.status : friendship;
@@ -1062,7 +1062,7 @@ async function loadWidgetDMConversations() {
             }
 
             const name = friendData.ign || friendData.displayName || friendData.username || 'Champion';
-            const avatar = friendData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=111116&color=FFD700&size=36`;
+            const avatar = friendData.avatar || friendData.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=111116&color=FFD700&size=36`;
             const isOnline = onlineUsersList.some(u => u.id === c.friendUid);
             const preview = c.lastMessage ? (c.lastMessage.length > 35 ? c.lastMessage.substring(0, 35) + '...' : c.lastMessage) : 'Start chatting...';
 
@@ -1316,15 +1316,12 @@ window.czSendFriendRequest = async function (targetUid, targetName, targetAvatar
     };
 
     try {
-        const docRef = await addDoc(collection(db, "friend_requests"), reqPayload);
-        outgoingRequestsList.push({ id: docRef.id, ...reqPayload });
+        await addDoc(collection(db, "friend_requests"), reqPayload);
+        // NOTE: Do NOT manually push to outgoingRequestsList here.
+        // listenToFriendRequests() onSnapshot will update the list automatically,
+        // preventing duplicates from appearing in the Friends tab.
         if (window.showSuccessToast) {
             window.showSuccessToast("Friend Request Sent!", `Invitation dispatched to ${targetName}.`);
-        }
-        if (activeDmTab === 'friends') renderFriendsPanel();
-        if (activeDmTab === 'search') {
-            const queryVal = document.getElementById('cz-search-input')?.value || '';
-            filterAndRenderSearch(queryVal);
         }
     } catch (e) {
         console.warn("Client Firestore write failed, attempting server API fallback:", e);
@@ -1336,14 +1333,9 @@ window.czSendFriendRequest = async function (targetUid, targetName, targetAvatar
             });
             const resData = await resp.json();
             if (resp.ok && resData.id) {
-                outgoingRequestsList.push({ id: resData.id, ...reqPayload });
+                // onSnapshot will update outgoingRequestsList; no manual push needed
                 if (window.showSuccessToast) {
                     window.showSuccessToast("Friend Request Sent!", `Invitation dispatched to ${targetName}.`);
-                }
-                if (activeDmTab === 'friends') renderFriendsPanel();
-                if (activeDmTab === 'search') {
-                    const queryVal = document.getElementById('cz-search-input')?.value || '';
-                    filterAndRenderSearch(queryVal);
                 }
                 return;
             }
@@ -1639,7 +1631,7 @@ window.czOpenPlayerModal = async function (uid) {
         }
 
         const name = player.ign || player.displayName || player.username || 'Champion';
-        const avatar = player.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=111116&color=FFD700');
+        const avatar = player.avatar || player.photoURL || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=111116&color=FFD700');
         const role = (player.role || 'member').toLowerCase();
         const rank = player.rank || player.valRank || player.mlbbRank || player.hokRank || 'Unranked';
         const isMe = currentUser && currentUser.uid === player.id;

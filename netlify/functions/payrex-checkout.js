@@ -5,23 +5,23 @@ const https = require('https');
 const admin = require('firebase-admin');
 
 if (!admin.apps.length) {
-  try {
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY 
-      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-      : undefined;
+    try {
+        const privateKey = process.env.FIREBASE_PRIVATE_KEY
+            ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
+            : undefined;
 
-    if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && privateKey) {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: privateKey
-        })
-      });
+        if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && privateKey) {
+            admin.initializeApp({
+                credential: admin.credential.cert({
+                    projectId: process.env.FIREBASE_PROJECT_ID,
+                    clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+                    privateKey: privateKey
+                })
+            });
+        }
+    } catch (initError) {
+        console.error('Firebase initialization error in payrex-checkout:', initError);
     }
-  } catch (initError) {
-    console.error('Firebase initialization error in payrex-checkout:', initError);
-  }
 }
 
 exports.handler = async (event, context) => {
@@ -93,11 +93,11 @@ exports.handler = async (event, context) => {
         const payrexSecretKey = process.env.PAYREX_SECRET_KEY ? process.env.PAYREX_SECRET_KEY.trim() : '';
         const amountInCents = Math.round(numAmount * 100);
 
-        const origin = event.headers.origin || event.headers.referer || 'https://champzero.com';
+        const origin = event.headers.origin || event.headers.referer || 'https://champzero.org';
         const finalSuccessUrl = successUrl || `${origin.replace(/\/$/, '')}/profile.html?tab=organizer&cashin_status=success&session_id={CHECKOUT_SESSION_ID}&amount=${numAmount}`;
         const finalCancelUrl = cancelUrl || `${origin.replace(/\/$/, '')}/profile.html?tab=organizer&cashin_status=cancelled`;
 
-        const description = type === 'tournament_entry' 
+        const description = type === 'tournament_entry'
             ? `Tournament Entry: ${tournamentName || tournamentId}`
             : `Prize Pool Escrow Top-Up for ${organizerName || organizerEmail || 'Organizer'}`;
 
@@ -107,7 +107,7 @@ exports.handler = async (event, context) => {
 
         const payload = {
             currency: 'PHP',
-            payment_methods: ['gcash', 'card', 'maya', 'qrph', 'grab_pay'],
+            payment_methods: ['gcash', 'maya'],
             line_items: [
                 {
                     name: itemName,
@@ -116,31 +116,32 @@ exports.handler = async (event, context) => {
                     description: description
                 }
             ],
-            payment_method_types: ['gcash', 'maya'],
             success_url: finalSuccessUrl,
             cancel_url: finalCancelUrl,
             metadata: {
-                organizerId: organizerId || '',
-                organizerEmail: organizerEmail || '',
-                organizerName: organizerName || '',
+                organizerId: organizerId || 'unknown',
+                organizerEmail: organizerEmail || 'unknown',
+                organizerName: organizerName || 'Organizer',
                 type: type,
                 amount: String(numAmount),
-                notes: notes || '',
-                tournamentId: tournamentId || '',
-                createdAt: new Date().toISOString()
+                notes: notes && notes.trim() ? notes.trim() : 'Prize Pool Top-Up',
+                createdAt: new Date().toISOString(),
+                ...(tournamentId ? { tournamentId } : {})
             }
         };
 
         // If PayRex Secret Key is configured, make the live PayRex REST API request
         if (payrexSecretKey && !payrexSecretKey.includes('REPLACE_WITH') && payrexSecretKey.length > 5) {
-            const makePayRexRequest = (host) => {
+            // api.payrexhq.com uses /checkout_sessions (no /v1/ prefix)
+            // api.payrex.com fallback uses /v1/checkout_sessions
+            const makePayRexRequest = (host, path) => {
                 return new Promise((resolve, reject) => {
                     const reqData = JSON.stringify(payload);
                     const authHeader = 'Basic ' + Buffer.from(payrexSecretKey + ':').toString('base64');
 
                     const options = {
                         hostname: host,
-                        path: '/v1/checkout_sessions',
+                        path: path,
                         method: 'POST',
                         headers: {
                             'Content-Type': 'application/json',
@@ -171,13 +172,13 @@ exports.handler = async (event, context) => {
 
             let payrexResponse;
             try {
-                payrexResponse = await makePayRexRequest('api.payrexhq.com');
+                payrexResponse = await makePayRexRequest('api.payrexhq.com', '/checkout_sessions');
                 if (!payrexResponse || payrexResponse.statusCode >= 500) {
-                    payrexResponse = await makePayRexRequest('api.payrex.com');
+                    payrexResponse = await makePayRexRequest('api.payrex.com', '/v1/checkout_sessions');
                 }
             } catch (netErr) {
                 try {
-                    payrexResponse = await makePayRexRequest('api.payrex.com');
+                    payrexResponse = await makePayRexRequest('api.payrex.com', '/v1/checkout_sessions');
                 } catch (fallbackErr) {
                     console.error("PayRex Netlify Network Error:", fallbackErr);
                 }
@@ -195,12 +196,19 @@ exports.handler = async (event, context) => {
                     })
                 };
             } else if (payrexResponse && payrexResponse.data) {
-                console.error("PayRex API Error:", payrexResponse);
+                console.error("PayRex API Error:", JSON.stringify(payrexResponse));
+                // PayRex may return { errors: [{ detail, code }] } or { error: { message } } or { message }
+                const d = payrexResponse.data;
+                const errMsg = d?.errors?.[0]?.detail
+                    || d?.errors?.[0]?.message
+                    || d?.error?.message
+                    || d?.message
+                    || 'PayRex API request failed.';
                 return {
                     statusCode: payrexResponse.statusCode || 500,
                     headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        error: payrexResponse.data?.error?.message || payrexResponse.data?.message || 'PayRex API request failed.',
+                        error: errMsg,
                         details: payrexResponse.data
                     })
                 };

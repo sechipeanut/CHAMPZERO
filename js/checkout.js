@@ -155,7 +155,7 @@ async function initializePayRex(tournamentId, appId, amount, billingDetails) {
         // Initialize PayRex SDK with Dark Night theme
         payrex = window.Payrex(PAYREX_PUBLIC_KEY);
 
-        elements = payrex.elements({ 
+        elements = payrex.elements({
             clientSecret,
             appearance: {
                 theme: 'night',
@@ -223,7 +223,7 @@ async function initializePayRex(tournamentId, appId, amount, billingDetails) {
     }
 }
 
-window.confirmSandboxPayment = async function(tournamentId, appId, amount) {
+window.confirmSandboxPayment = async function (tournamentId, appId, amount) {
     const btn = document.getElementById('sandbox-pay-btn');
     if (btn) {
         btn.disabled = true;
@@ -231,7 +231,7 @@ window.confirmSandboxPayment = async function(tournamentId, appId, amount) {
     }
     const simulatedId = 'pi_test_' + Date.now();
     await approveApplication(tournamentId, appId, simulatedId);
-    
+
     const statusEl = document.getElementById('checkout-subtitle');
     if (statusEl) {
         statusEl.textContent = "Payment successful! Redirecting to tournament...";

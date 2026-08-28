@@ -333,14 +333,32 @@ service cloud.firestore {
     // --- 7. FINANCIAL TRANSACTIONS (CASHINS & WITHDRAWALS) ---
 
     match /cashins/{cashinId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || request.resource.data.uid == request.auth.uid);
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.uid == request.auth.uid ||
+        resource.data.organizerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.uid == request.auth.uid ||
+        request.resource.data.organizerId == request.auth.uid
+      );
       allow update, delete: if isAdmin();
     }
 
     match /withdrawals/{withdrawalId} {
-      allow read: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.uid == request.auth.uid || isAdmin());
-      allow create: if isSignedIn() && (request.resource.data.userId == request.auth.uid || request.resource.data.uid == request.auth.uid);
+      allow read: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        resource.data.uid == request.auth.uid ||
+        resource.data.organizerId == request.auth.uid ||
+        isAdmin()
+      );
+      allow create: if isSignedIn() && (
+        request.resource.data.userId == request.auth.uid ||
+        request.resource.data.uid == request.auth.uid ||
+        request.resource.data.organizerId == request.auth.uid
+      );
       allow update, delete: if isAdmin();
     }
 
