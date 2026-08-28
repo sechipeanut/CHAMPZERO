@@ -169,6 +169,68 @@ exports.handler = async (event, context) => {
                     console.log(`Successfully logged cash-in top-up for organizer ${organizerId}: ₱${cashinAmount}`);
                 }
             }
+            
+            // Scenario C: Supporter Club Subscription
+            else if (type === 'supporter_club' && metadata.donorUid) {
+                const { tier, donorUid, donorName, donorAvatar, message } = metadata;
+                const paidAmount = parseFloat(amount || (eventData.amount ? eventData.amount / 100 : 0));
+                
+                let supporterBadge = 'scout';
+                if (tier === 'gold') supporterBadge = 'patron';
+                else if (tier === 'silver') supporterBadge = 'elite';
+
+                const durationDays = 30;
+                const durationMs = durationDays * 24 * 60 * 60 * 1000;
+                const now = Date.now();
+                const expiresAt = now + durationMs;
+
+                // 1. Record Donation in Firestore
+                await db.collection('donations').add({
+                    userId: donorUid,
+                    userName: donorName || 'Anonymous Champion',
+                    userAvatar: donorAvatar || 'pictures/cz_logo.png',
+                    tier: tier || 'bronze',
+                    badge: supporterBadge,
+                    amount: paidAmount,
+                    message: message || "Fueling the future of global grassroots esports!",
+                    channel: 'PayRex Checkout',
+                    timestamp: now,
+                    expiresAt: expiresAt,
+                    durationDays: durationDays,
+                    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                    paymentIntentId: eventData.id || ''
+                });
+
+                // 2. Update User Profile if donor is not anonymous
+                if (donorUid && donorUid !== 'anonymous') {
+                    const userRef = db.collection('users').doc(donorUid);
+                    
+                    await db.runTransaction(async (transaction) => {
+                        const userDoc = await transaction.get(userRef);
+                        let existingExpires = now;
+                        
+                        if (userDoc.exists) {
+                            const ud = userDoc.data();
+                            if (ud.supporterExpiresAt && ud.supporterExpiresAt > now) {
+                                existingExpires = ud.supporterExpiresAt;
+                            }
+                        }
+                        
+                        transaction.set(userRef, {
+                            isSupporter: true,
+                            supporterTier: tier || 'bronze',
+                            supporterBadge: supporterBadge,
+                            supporterSince: now,
+                            supporterExpiresAt: existingExpires + durationMs,
+                            totalDonated: admin.firestore.FieldValue.increment(paidAmount),
+                            supporterMessage: message || "",
+                            showOnWallOfFame: true
+                        }, { merge: true });
+                    });
+                }
+                
+                console.log(`Successfully processed Supporter Club checkout for ${donorUid} (Tier: ${tier})`);
+            }
         }
 
         return { statusCode: 200, body: JSON.stringify({ received: true }) };

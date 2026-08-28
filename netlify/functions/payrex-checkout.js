@@ -97,13 +97,17 @@ exports.handler = async (event, context) => {
         const finalSuccessUrl = successUrl || `${origin.replace(/\/$/, '')}/profile.html?tab=organizer&cashin_status=success&session_id={CHECKOUT_SESSION_ID}&amount=${numAmount}`;
         const finalCancelUrl = cancelUrl || `${origin.replace(/\/$/, '')}/profile.html?tab=organizer&cashin_status=cancelled`;
 
-        const description = type === 'tournament_entry'
-            ? `Tournament Entry: ${tournamentName || tournamentId}`
-            : `Prize Pool Escrow Top-Up for ${organizerName || organizerEmail || 'Organizer'}`;
-
-        const itemName = type === 'tournament_entry'
-            ? `ChampZero Tournament Registration: ${tournamentName || 'Tournament'}`
-            : `ChampZero Prize Pool Cash-In (Top-Up)`;
+        let description, itemName;
+        if (type === 'tournament_entry') {
+            description = `Tournament Entry: ${tournamentName || tournamentId}`;
+            itemName = `ChampZero Tournament Registration: ${tournamentName || 'Tournament'}`;
+        } else if (type === 'supporter_club') {
+            description = `Supporter Club Membership: ${body.tier || 'bronze'} tier`;
+            itemName = `ChampZero Supporter Club (${body.tier || 'bronze'})`;
+        } else {
+            description = `Prize Pool Escrow Top-Up for ${organizerName || organizerEmail || 'Organizer'}`;
+            itemName = `ChampZero Prize Pool Cash-In (Top-Up)`;
+        }
 
         const payload = {
             currency: 'PHP',
@@ -119,14 +123,22 @@ exports.handler = async (event, context) => {
             success_url: finalSuccessUrl,
             cancel_url: finalCancelUrl,
             metadata: {
-                organizerId: organizerId || 'unknown',
-                organizerEmail: organizerEmail || 'unknown',
-                organizerName: organizerName || 'Organizer',
                 type: type,
                 amount: String(numAmount),
-                notes: notes && notes.trim() ? notes.trim() : 'Prize Pool Top-Up',
                 createdAt: new Date().toISOString(),
-                ...(tournamentId ? { tournamentId } : {})
+                ...(type === 'supporter_club' ? {
+                    tier: body.tier || 'bronze',
+                    donorUid: body.donorUid || 'anonymous',
+                    donorName: String(body.donorName || 'Champion').substring(0, 100),
+                    donorAvatar: String(body.donorAvatar || '').substring(0, 150),
+                    message: String(body.message || 'Backing grassroots esports!').substring(0, 200)
+                } : {
+                    organizerId: organizerId || 'unknown',
+                    organizerEmail: organizerEmail || 'unknown',
+                    organizerName: organizerName || 'Organizer',
+                    notes: notes && notes.trim() ? notes.trim() : 'Prize Pool Top-Up',
+                    ...(tournamentId ? { tournamentId } : {})
+                })
             }
         };
 

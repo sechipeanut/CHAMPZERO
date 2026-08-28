@@ -31,6 +31,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initWallOfFameListener();
     initCheckoutForm();
+
+    // Check for PayRex redirect statuses
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    const tier = params.get('tier') || 'Supporter';
+
+    if (status === 'success') {
+        setTimeout(() => {
+            if (window.showSuccessToast) {
+                window.showSuccessToast("Payment Confirmed!", `Your ${tier} membership is being activated. Badges will appear shortly.`);
+            } else if (window.toast) {
+                window.toast.success(`Payment confirmed! Your perks will be active shortly.`);
+            } else {
+                alert(`Payment confirmed! Your perks will be active shortly.`);
+            }
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }, 500);
+    } else if (status === 'cancelled') {
+        setTimeout(() => {
+            if (window.showErrorToast) {
+                window.showErrorToast("Payment Cancelled", "Your checkout session was cancelled.");
+            } else if (window.toast) {
+                window.toast.error("Checkout cancelled.");
+            }
+            window.history.replaceState({}, document.title, window.location.pathname);
+        }, 500);
+    }
 });
 
 // 1. OPEN DONATION CHECKOUT MODAL
@@ -153,79 +180,96 @@ function initCheckoutForm() {
                 }
             }
 
-            // Map tier to badge identifier
+            // Map tier to badge identifier (for legacy compat, although webhook handles logic now)
             let supporterBadge = 'scout';
             if (currentSelectedTier === 'gold') supporterBadge = 'patron';
             else if (currentSelectedTier === 'silver') supporterBadge = 'elite';
 
-            const durationDays = 30;
-            const durationMs = durationDays * 24 * 60 * 60 * 1000;
-            const now = Date.now();
-            const expiresAt = now + durationMs;
-
-            // 1. Record donation in Firestore with 30-day expiration
-            await addDoc(collection(db, "donations"), {
-                userId: donorUid,
-                userName: donorName,
-                userAvatar: donorAvatar,
+            const payload = {
+                type: 'supporter_club',
                 tier: currentSelectedTier,
-                badge: supporterBadge,
                 amount: currentAmount,
                 message: message || "Fueling the future of global grassroots esports!",
                 channel: channel,
-                timestamp: now,
-                expiresAt: expiresAt,
-                durationDays: durationDays,
-                createdAt: serverTimestamp()
+                donorUid: donorUid || 'anonymous',
+                donorName: donorName,
+                donorAvatar: donorAvatar,
+                successUrl: window.location.origin + "/support.html?status=success&tier=" + currentSelectedTier,
+                cancelUrl: window.location.origin + "/support.html?status=cancelled"
+            };
+
+            // Call the Netlify serverless function for PayRex checkout
+            const res = await fetch('/.netlify/functions/payrex-checkout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
 
-            // 2. If logged in, update User profile with Supporter Badge & Expiration
-            if (currentUser) {
-                let existingExpires = now;
-                try {
-                    const uSnap = await getDoc(doc(db, "users", currentUser.uid));
-                    if (uSnap.exists()) {
-                        const ud = uSnap.data();
-                        if (ud.supporterExpiresAt && ud.supporterExpiresAt > now) {
-                            existingExpires = ud.supporterExpiresAt;
-                        }
+            const responseData = await res.json();
+
+            if (!res.ok) {
+                throw new Error(responseData?.error || `PayRex checkout request failed (HTTP ${res.status}).`);
+            }
+
+            if (responseData && responseData.url) {
+                if (responseData.mode === 'test_sandbox') {
+                    // Local Sandbox Simulation: Fulfill perks immediately since no webhook will fire
+                    const durationDays = 30;
+                    const durationMs = durationDays * 24 * 60 * 60 * 1000;
+                    const now = Date.now();
+                    const expiresAt = now + durationMs;
+
+                    await addDoc(collection(db, "donations"), {
+                        userId: donorUid || 'anonymous',
+                        userName: donorName,
+                        userAvatar: donorAvatar,
+                        tier: currentSelectedTier,
+                        badge: supporterBadge,
+                        amount: currentAmount,
+                        message: message || "Fueling the future of global grassroots esports!",
+                        channel: 'PayRex Sandbox',
+                        timestamp: now,
+                        expiresAt: expiresAt,
+                        durationDays: durationDays,
+                        createdAt: serverTimestamp()
+                    });
+
+                    if (currentUser) {
+                        let existingExpires = now;
+                        try {
+                            const uSnap = await getDoc(doc(db, "users", currentUser.uid));
+                            if (uSnap.exists()) {
+                                const ud = uSnap.data();
+                                if (ud.supporterExpiresAt && ud.supporterExpiresAt > now) {
+                                    existingExpires = ud.supporterExpiresAt;
+                                }
+                            }
+                        } catch(e) {}
+
+                        const userRef = doc(db, "users", currentUser.uid);
+                        await setDoc(userRef, {
+                            isSupporter: true,
+                            supporterTier: currentSelectedTier,
+                            supporterBadge: supporterBadge,
+                            supporterSince: now,
+                            supporterExpiresAt: existingExpires + durationMs,
+                            totalDonated: increment(currentAmount),
+                            supporterMessage: message || "",
+                            showOnWallOfFame: true
+                        }, { merge: true });
                     }
-                } catch(e) {}
+                }
 
-                const userRef = doc(db, "users", currentUser.uid);
-                await setDoc(userRef, {
-                    isSupporter: true,
-                    supporterTier: currentSelectedTier,
-                    supporterBadge: supporterBadge,
-                    supporterSince: now,
-                    supporterExpiresAt: existingExpires + durationMs,
-                    totalDonated: increment(currentAmount),
-                    supporterMessage: message || "",
-                    showOnWallOfFame: true
-                }, { merge: true });
-
-                // Synchronize instant local auth cache so header & profile update immediately
-                try {
-                    const authCache = JSON.parse(localStorage.getItem('cz_auth_cache') || '{}');
-                    authCache.isSupporter = true;
-                    authCache.supporterTier = currentSelectedTier;
-                    authCache.supporterBadge = supporterBadge;
-                    localStorage.setItem('cz_auth_cache', JSON.stringify(authCache));
-                } catch (e) {}
-            }
-
-            window.closeDonationModal();
-
-            if (typeof window.showSuccessToast === 'function') {
-                window.showSuccessToast("Thank You!", `Your ${currentTierTitle} perks and badges are now active for 30 days!`);
-            } else if (window.toast) {
-                window.toast.success(`Thank you, ${donorName}! Your ${currentTierTitle} perks are active for 30 days.`);
+                // Redirect to PayRex hosted checkout (or sandbox success URL)
+                window.location.href = responseData.url;
+                return;
             } else {
-                alert(`Thank you, ${donorName}! Your supporter perks are active for 30 days.`);
+                throw new Error("No checkout URL returned from server.");
             }
 
-            // Reset form
-            form.reset();
+            // The code below is left as a fallback but will not be reached if redirect succeeds
+            // form.reset();
+
 
         } catch (error) {
             console.error("Donation submission error:", error);
