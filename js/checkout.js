@@ -13,93 +13,122 @@ document.addEventListener('DOMContentLoaded', async () => {
     const params = new URLSearchParams(window.location.search);
     const tournamentId = params.get('t');
     const appId = params.get('app');
+    const piClientSecret = params.get("payment_intent_client_secret");
 
+    // --- GUARD 1: Missing parameters ---
+    // If no order params and not a PayRex return, redirect away immediately.
     if (!tournamentId || !appId) {
-        showError("Invalid checkout URL. Missing tournament or application ID.");
+        if (!piClientSecret) {
+            window.location.replace('/tournaments?error=invalid_checkout');
+        } else {
+            showError("Invalid checkout URL. Missing tournament or application ID.");
+        }
         return;
     }
 
-    // Check if returning from a PayRex redirect (payment status check)
-    const piClientSecret = params.get("payment_intent_client_secret");
-    if (piClientSecret) {
-        await handlePaymentReturn(piClientSecret, tournamentId, appId);
-        return; // Don't initialize the form again
-    }
-
-    try {
-        // Fetch tournament data
-        const tRef = doc(db, "tournaments", tournamentId);
-        const tSnap = await getDoc(tRef);
-        if (!tSnap.exists()) throw new Error("Tournament not found");
-        const tournament = tSnap.data();
-
-        // Fetch application data
-        const appRef = doc(db, "tournaments", tournamentId, "applications", appId);
-        const appSnap = await getDoc(appRef);
-        if (!appSnap.exists()) throw new Error("Application not found");
-        const application = appSnap.data();
-
-        // Check if already paid/approved
-        if (application.status === 'approved') {
-            document.getElementById('checkout-subtitle').textContent = "This application has already been paid and approved.";
-            document.getElementById('loading-spinner').classList.add('hidden');
+    // --- GUARD 2: Require authentication ---
+    // Wait briefly for Firebase Auth to initialize before checking.
+    await new Promise((resolve) => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            unsubscribe();
+            resolve(user);
+        });
+    }).then(async (user) => {
+        if (!user) {
+            // Redirect to login, preserving the checkout URL so user can return.
+            const returnUrl = encodeURIComponent(window.location.pathname + window.location.search);
+            window.location.replace(`/login?redirect=${returnUrl}`);
             return;
         }
 
-        // Render Summary
-        const actualAmount = application.entryFee !== undefined ? Number(application.entryFee) : Number(tournament.entryFee || 0);
-        const platformFee = actualAmount * 0.05;
-        const netRegistrationFee = actualAmount - platformFee;
-        const teamSize = parseInt(tournament.teamSize) || (tournament.registrationType === 'solo' ? 1 : 5);
-        const formatLabel = teamSize === 1 ? '1v1 Solo Tournament' : `${teamSize}v${teamSize} Team Tournament`;
+        // Check if returning from a PayRex redirect (payment status check)
+        if (piClientSecret) {
+            await handlePaymentReturn(piClientSecret, tournamentId, appId);
+            return;
+        }
 
-        const tTitle = document.getElementById('summary-tournament');
-        if (tTitle) tTitle.textContent = tournament.name || 'Tournament Registration';
-        const tTeam = document.getElementById('summary-team');
-        if (tTeam) tTeam.textContent = application.name || application.pendingData?.name || application.captain || "Registered Competitor";
-        const tCap = document.getElementById('summary-captain');
-        if (tCap) tCap.textContent = application.captain || application.contact || "Confirmed";
-        const tFmt = document.getElementById('summary-format');
-        if (tFmt) tFmt.textContent = formatLabel;
-        const tSub = document.getElementById('summary-subtotal');
-        if (tSub) tSub.textContent = `₱${netRegistrationFee.toFixed(2)}`;
-        const tPlat = document.getElementById('summary-platform-fee');
-        if (tPlat) tPlat.textContent = `₱${platformFee.toFixed(2)}`;
-        const tTot = document.getElementById('summary-total');
-        if (tTot) tTot.textContent = `₱${actualAmount.toFixed(2)}`;
+        try {
+            // Fetch tournament data
+            const tRef = doc(db, "tournaments", tournamentId);
+            const tSnap = await getDoc(tRef);
+            if (!tSnap.exists()) throw new Error("Tournament not found.");
+            const tournament = tSnap.data();
 
-        const payBtnText = document.getElementById('btn-pay-text');
-        if (payBtnText) payBtnText.textContent = `Confirm & Pay ₱${actualAmount.toFixed(2)}`;
+            // Fetch application data
+            const appRef = doc(db, "tournaments", tournamentId, "applications", appId);
+            const appSnap = await getDoc(appRef);
+            if (!appSnap.exists()) throw new Error("Application not found.");
+            const application = appSnap.data();
 
-        document.getElementById('order-summary')?.classList.remove('hidden');
-        document.getElementById('checkout-subtitle').textContent = "Complete payment to confirm and lock your spot in the official roster.";
-
-        // Wait for auth state to fetch user info for billing
-        onAuthStateChanged(auth, async (user) => {
-            if (user) {
-                let billingDetails = {
-                    name: user.displayName || application.captain,
-                    email: user.email || application.contact
-                };
-
-                try {
-                    const userDoc = await getDoc(doc(db, "users", user.uid));
-                    if (userDoc.exists()) {
-                        billingDetails.name = userDoc.data().displayName || billingDetails.name;
-                        billingDetails.email = userDoc.data().email || billingDetails.email;
-                    }
-                } catch (e) { console.warn(e); }
-
-                await initializePayRex(tournamentId, appId, actualAmount, billingDetails);
-            } else {
-                showError("You must be logged in to checkout.");
+            // --- GUARD 3a: Ownership check ---
+            // Only the user who submitted the registration can access this checkout.
+            if (application.registeredBy && application.registeredBy !== user.uid) {
+                window.location.replace('/tournaments?error=unauthorized_checkout');
+                return;
             }
-        });
 
-    } catch (error) {
-        console.error(error);
-        showError(error.message);
-    }
+            // --- GUARD 3b: Status check ---
+            // Check if already paid/approved
+            if (application.status === 'approved') {
+                document.getElementById('loading-spinner').classList.add('hidden');
+                document.getElementById('checkout-subtitle').textContent = "This application has already been paid and approved.";
+                return;
+            }
+
+            // Guard against accessing a cancelled or invalid status order
+            if (application.status && !['pending_payment', 'pending', 'submitted'].includes(application.status)) {
+                window.location.replace('/tournaments?error=order_unavailable');
+                return;
+            }
+
+            // Render Summary
+            const actualAmount = application.entryFee !== undefined ? Number(application.entryFee) : Number(tournament.entryFee || 0);
+            const platformFee = actualAmount * 0.05;
+            const netRegistrationFee = actualAmount - platformFee;
+            const teamSize = parseInt(tournament.teamSize) || (tournament.registrationType === 'solo' ? 1 : 5);
+            const formatLabel = teamSize === 1 ? '1v1 Solo Tournament' : `${teamSize}v${teamSize} Team Tournament`;
+
+            const tTitle = document.getElementById('summary-tournament');
+            if (tTitle) tTitle.textContent = tournament.name || 'Tournament Registration';
+            const tTeam = document.getElementById('summary-team');
+            if (tTeam) tTeam.textContent = application.name || application.pendingData?.name || application.captain || "Registered Competitor";
+            const tCap = document.getElementById('summary-captain');
+            if (tCap) tCap.textContent = application.captain || application.contact || "Confirmed";
+            const tFmt = document.getElementById('summary-format');
+            if (tFmt) tFmt.textContent = formatLabel;
+            const tSub = document.getElementById('summary-subtotal');
+            if (tSub) tSub.textContent = `₱${netRegistrationFee.toFixed(2)}`;
+            const tPlat = document.getElementById('summary-platform-fee');
+            if (tPlat) tPlat.textContent = `₱${platformFee.toFixed(2)}`;
+            const tTot = document.getElementById('summary-total');
+            if (tTot) tTot.textContent = `₱${actualAmount.toFixed(2)}`;
+
+            const payBtnText = document.getElementById('btn-pay-text');
+            if (payBtnText) payBtnText.textContent = `Confirm & Pay ₱${actualAmount.toFixed(2)}`;
+
+            document.getElementById('order-summary')?.classList.remove('hidden');
+            document.getElementById('checkout-subtitle').textContent = "Complete payment to confirm and lock your spot in the official roster.";
+
+            let billingDetails = {
+                name: user.displayName || application.captain,
+                email: user.email || application.contact
+            };
+
+            try {
+                const userDoc = await getDoc(doc(db, "users", user.uid));
+                if (userDoc.exists()) {
+                    billingDetails.name = userDoc.data().displayName || billingDetails.name;
+                    billingDetails.email = userDoc.data().email || billingDetails.email;
+                }
+            } catch (e) { console.warn(e); }
+
+            await initializePayRex(tournamentId, appId, actualAmount, billingDetails);
+
+        } catch (error) {
+            console.error(error);
+            showError(error.message);
+        }
+    });
 });
 
 async function initializePayRex(tournamentId, appId, amount, billingDetails) {

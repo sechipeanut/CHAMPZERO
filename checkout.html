@@ -228,6 +228,48 @@
     ChampZero &copy; 2026 &bull; Powered by PayRex Philippines
 </footer>
 
+<script>
+    // Layer 1: Instant synchronous guard — runs before any module loads.
+    // If the URL is missing both checkout params and a PayRex return secret,
+    // replace the page immediately with a "No Active Order" UI.
+    (function () {
+        try {
+            var p = new URLSearchParams(window.location.search);
+            var hasOrder = p.get('t') && p.get('app');
+            var hasReturn = p.get('payment_intent_client_secret');
+            if (!hasOrder && !hasReturn) {
+                document.addEventListener('DOMContentLoaded', function () {
+                    var main = document.querySelector('main');
+                    if (main) {
+                        main.innerHTML = [
+                            '<div class="flex-1 flex items-center justify-center p-8 min-h-[60vh]">',
+                            '  <div class="max-w-md w-full text-center space-y-6">',
+                            '    <div class="w-16 h-16 mx-auto rounded-2xl bg-[#FFD700]/10 border border-[#FFD700]/20 flex items-center justify-center">',
+                            '      <svg class="w-8 h-8 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>',
+                            '    </div>',
+                            '    <div>',
+                            '      <h2 class="text-2xl font-extrabold text-white tracking-tight mb-2">No Active Order</h2>',
+                            '      <p class="text-neutral-400 text-sm leading-relaxed">This checkout page can only be accessed through the tournament registration process. There is no active order to display.</p>',
+                            '    </div>',
+                            '    <div class="p-4 rounded-xl bg-white/5 border border-white/10 text-left text-xs text-neutral-400 font-mono-tag space-y-1">',
+                            '      <p class="text-[#FFD700] font-bold uppercase tracking-wider mb-2">How to register</p>',
+                            '      <p>1. Browse an open tournament on the Tournaments page</p>',
+                            '      <p>2. Click <strong class="text-white">Register</strong> and fill in your team details</p>',
+                            '      <p>3. You will be redirected here automatically to complete payment</p>',
+                            '    </div>',
+                            '    <a href="/tournaments" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-extrabold text-sm uppercase tracking-wider transition-all shadow-lg cursor-pointer">',
+                            '      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>',
+                            '      Browse Tournaments',
+                            '    </a>',
+                            '  </div>',
+                            '</div>'
+                        ].join('');
+                    }
+                });
+            }
+        } catch (e) {}
+    })();
+</script>
 <script src="js/toast.js"></script>
 <script type="module" src="js/main.js"></script>
 <script type="module" src="js/auth.js"></script>
