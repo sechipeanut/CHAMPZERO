@@ -2,19 +2,26 @@
 # Netlify Redirects & Security Access Control for ChampZero
 # ==============================================================================
 
-# 1. SECURITY & SOURCE ISOLATION (Block Sensitive Files & Infrastructure Manifests)
-/.env*                  /404.html             404
-/.git*                  /404.html             404
-/server.js              /404.html             404
-/firestore.rules        /404.html             404
-/package*.json          /404.html             404
-/deno.lock              /404.html             404
-/ARCHITECTURE.txt       /404.html             404
-/*.md                   /404.html             404
-/scratch/*              /404.html             404
-/netlify/*              /404.html             404
+# 1. HARDENED SECURITY & SOURCE ISOLATION (Forced 404 on sensitive paths)
+/.env*                  /404.html             404!
+/.git*                  /404.html             404!
+/server.js              /404.html             404!
+/firestore.rules        /404.html             404!
+/*.json                 /404.html             404!
+/*.toml                 /404.html             404!
+/*.md                   /404.html             404!
+/scratch/*              /404.html             404!
+/scripts/*              /404.html             404!
+/netlify/*              /404.html             404!
+/.netlify/functions/firebase-config /404.html 404!
+/api/firebase-config    /404.html             404!
+/ARCHITECTURE.txt       /404.html             404!
+/deno.lock              /404.html             404!
 
-# 2. APPLICATION PAGE ROUTES (Extensionless URLs)
+# 2. SERVERLESS API PROXY ROUTES
+/api/*                  /.netlify/functions/:splat           200
+
+# 3. APPLICATION PAGE ROUTES (Extensionless Clean URLs)
 /                       /home.html            200
 /home                   /home.html            200
 /tournaments            /tournaments.html     200
@@ -40,6 +47,6 @@
 /access-denied          /access-denied.html   200
 /livestream             /livestream.html      200
 
-# 3. CATCH-ALL & 404 FALLBACK
+# 4. SPA & FALLBACK ROUTING
 /*                      /:splat.html          200
-/*                      /404.html             404
+/*                      /index.html           200

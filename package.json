@@ -4,8 +4,9 @@
   "description": "Champzero Esports website",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "netlify dev"
+    "build": "node scripts/build-config.js",
+    "dev": "node scripts/build-config.js && node server.js",
+    "start": "node scripts/build-config.js && node server.js"
   },
   "keywords": [
     "gaming",

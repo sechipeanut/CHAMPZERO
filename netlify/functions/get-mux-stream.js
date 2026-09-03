@@ -1,28 +1,8 @@
-const admin = require('firebase-admin');
+// netlify/functions/get-mux-stream.js
+// Secure Live Stream Metadata Endpoint with Key Redaction
+
 const Mux = require('@mux/mux-node');
-
-// Initialize Firebase Admin SDK (Fail-Closed)
-if (!admin.apps.length) {
-  try {
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY 
-      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-      : undefined;
-
-    if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
-      console.error('CRITICAL: Missing Firebase environment variables in get-mux-stream');
-    } else {
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: process.env.FIREBASE_PROJECT_ID,
-          clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-          privateKey: privateKey
-        })
-      });
-    }
-  } catch (initError) {
-    console.error('Firebase initialization error in get-mux-stream:', initError.message);
-  }
-}
+const { initFirebaseAdmin } = require('./utils/firebase-admin');
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -46,16 +26,10 @@ exports.handler = async (event, context) => {
     };
   }
 
-  // 3. Fail-Closed Server Configuration Check
-  if (!admin.apps.length) {
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ error: 'Internal Server Error: Authentication provider uninitialized' })
-    };
-  }
+  const tokenId = process.env.MUX_TOKEN_ID;
+  const tokenSecret = process.env.MUX_TOKEN_SECRET;
 
-  if (!process.env.MUX_TOKEN_ID || !process.env.MUX_TOKEN_SECRET) {
+  if (!tokenId || !tokenSecret) {
     return {
       statusCode: 500,
       headers,
@@ -63,7 +37,7 @@ exports.handler = async (event, context) => {
     };
   }
 
-  // 4. Mandatory Authentication Verification
+  // 3. Mandatory Authentication Verification
   const authHeader = event.headers.authorization || event.headers.Authorization;
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
     return {
@@ -83,12 +57,13 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const decodedToken = await admin.auth().verifyIdToken(token);
+    const { auth, db } = initFirebaseAdmin();
+    const decodedToken = await auth.verifyIdToken(token);
 
-    // 5. Role-Based Access Control (Admin Verification)
+    // 4. Role-Based Access Control (Admin Verification)
     let isAdmin = decodedToken.role === 'admin' || decodedToken.admin === true;
     if (!isAdmin) {
-      const userDoc = await admin.firestore().collection('users').doc(decodedToken.uid).get();
+      const userDoc = await db.collection('users').doc(decodedToken.uid).get();
       if (userDoc.exists) {
         const userRole = userDoc.data().role;
         isAdmin = userRole === 'admin' || userRole === 'Admin';
@@ -103,7 +78,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 6. Parameter Validation
+    // 5. Parameter Validation
     const { streamId } = event.queryStringParameters || {};
     if (!streamId || typeof streamId !== 'string' || streamId.trim().length === 0) {
       return {
@@ -113,8 +88,8 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // 7. Mux API Retrieval & Secret Stream Key Redaction
-    const mux = new Mux(process.env.MUX_TOKEN_ID, process.env.MUX_TOKEN_SECRET);
+    // 6. Mux API Retrieval & Secret Stream Key Redaction
+    const mux = new Mux(tokenId, tokenSecret);
     const liveStream = await mux.Video.LiveStreams.get(streamId.trim());
 
     if (!liveStream) {

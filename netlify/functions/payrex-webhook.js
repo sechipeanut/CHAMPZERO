@@ -1,29 +1,8 @@
-const admin = require('firebase-admin');
+// netlify/functions/payrex-webhook.js
+// Secure PayRex Webhook Handler with Cryptographic Verification
+
 const crypto = require('crypto');
-
-// Initialize Firebase Admin (only once)
-if (!admin.apps.length) {
-  try {
-    const privateKey = process.env.FIREBASE_PRIVATE_KEY 
-      ? process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, '\n')
-      : undefined;
-
-    if (!process.env.FIREBASE_PROJECT_ID || !process.env.FIREBASE_CLIENT_EMAIL || !privateKey) {
-      throw new Error('Missing Firebase environment variables');
-    }
-
-    admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: process.env.FIREBASE_PROJECT_ID,
-        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-        privateKey: privateKey
-      })
-    });
-  } catch (initError) {
-    console.error('Firebase initialization error in payrex-webhook:', initError);
-    throw initError;
-  }
-}
+const { initFirebaseAdmin } = require('./utils/firebase-admin');
 
 exports.handler = async (event, context) => {
     if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
@@ -45,9 +24,9 @@ exports.handler = async (event, context) => {
 
         if (!signatureHeader || typeof signatureHeader !== 'string') {
             return {
-                statusCode: 401,
+                statusCode: 400,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ error: 'Unauthorized: Missing or invalid webhook signature header' })
+                body: JSON.stringify({ error: 'Bad Request: Missing or invalid webhook signature header' })
             };
         }
 
@@ -63,7 +42,6 @@ exports.handler = async (event, context) => {
         let isSignatureValid = false;
         try {
             if (signatureHeader.includes('v1=')) {
-                // Timestamped signature format: t=...,v1=...
                 const parts = signatureHeader.split(',').reduce((acc, part) => {
                     const [k, v] = part.split('=');
                     if (k && v) acc[k.trim()] = v.trim();
@@ -88,7 +66,6 @@ exports.handler = async (event, context) => {
                     }
                 }
             } else {
-                // Raw hex signature format
                 const expectedSignature = crypto.createHmac('sha256', webhookSecret)
                     .update(event.body)
                     .digest('hex');
@@ -106,9 +83,9 @@ exports.handler = async (event, context) => {
 
         if (!isSignatureValid) {
             return {
-                statusCode: 401,
+                statusCode: 400,
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ error: 'Unauthorized: Invalid webhook signature' })
+                body: JSON.stringify({ error: 'Bad Request: Invalid webhook signature' })
             };
         }
 
@@ -117,9 +94,9 @@ exports.handler = async (event, context) => {
         const eventData = payload.data?.object || payload.data || {};
         const metadata = eventData.metadata || payload.metadata || {};
 
-        const db = admin.firestore();
+        const { admin, db } = initFirebaseAdmin();
 
-        // 1. TOURNAMENT APPLICATION APPROVAL
+        // 1. PAYMENT EVENT PROCESSING
         const isPaymentSuccessful = [
             'payment_intent.succeeded',
             'checkout_session.completed',
@@ -129,7 +106,7 @@ exports.handler = async (event, context) => {
         ].includes(eventType);
 
         if (isPaymentSuccessful) {
-            const { tournamentId, appId, organizerId, type, amount } = metadata;
+            const { tournamentId, appId, organizerId, type, amount, orderId } = metadata;
 
             // Scenario A: Tournament Entry Application
             if (tournamentId && appId) {
@@ -138,13 +115,10 @@ exports.handler = async (event, context) => {
 
                 await db.runTransaction(async (transaction) => {
                     const appDoc = await transaction.get(appRef);
-                    if (!appDoc.exists) throw new Error("Application not found");
+                    if (!appDoc.exists) return;
 
                     const appData = appDoc.data();
-                    if (appData.status === 'approved') {
-                        console.log("Application already approved, skipping duplicate");
-                        return;
-                    }
+                    if (appData.status === 'approved') return;
 
                     const source = appData.pendingData || appData;
                     const participants = (await transaction.get(tourneyRef)).data()?.participants || [];
@@ -156,7 +130,6 @@ exports.handler = async (event, context) => {
                         });
                     }
 
-                    // Add to tournament participants array
                     const newParticipantData = {
                         name: source.name,
                         captain: source.captain,
@@ -173,7 +146,6 @@ exports.handler = async (event, context) => {
                         participants: admin.firestore.FieldValue.arrayUnion(newParticipantData)
                     });
 
-                    // Update application status
                     transaction.update(appRef, {
                         name: source.name,
                         captain: source.captain,
@@ -223,7 +195,6 @@ exports.handler = async (event, context) => {
                 const now = Date.now();
                 const expiresAt = now + durationMs;
 
-                // 1. Record Donation in Firestore
                 await db.collection('donations').add({
                     userId: donorUid,
                     userName: donorName || 'Anonymous Champion',
@@ -240,10 +211,8 @@ exports.handler = async (event, context) => {
                     paymentIntentId: eventData.id || ''
                 });
 
-                // 2. Update User Profile if donor is not anonymous
                 if (donorUid && donorUid !== 'anonymous') {
                     const userRef = db.collection('users').doc(donorUid);
-                    
                     await db.runTransaction(async (transaction) => {
                         const userDoc = await transaction.get(userRef);
                         let existingExpires = now;
@@ -267,14 +236,24 @@ exports.handler = async (event, context) => {
                         }, { merge: true });
                     });
                 }
-                
-                console.log(`Successfully processed Supporter Club checkout for ${donorUid} (Tier: ${tier})`);
+            }
+
+            // Scenario D: Shop Order Status Update
+            else if (orderId) {
+                const orderRef = db.collection('orders').doc(orderId);
+                await orderRef.update({
+                    status: 'paid',
+                    paymentStatus: 'succeeded',
+                    paymentIntentId: eventData.id || '',
+                    paidAt: new Date().toISOString()
+                });
+                console.log(`Successfully updated order ${orderId} status to paid.`);
             }
         }
 
         return { statusCode: 200, body: JSON.stringify({ received: true }) };
     } catch (error) {
-        console.error("Webhook Error:", error);
+        console.error("Webhook Error:", error.message);
         return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
     }
 };

@@ -37,6 +37,15 @@ app.use((req, res, next) => {
   next();
 });
 
+// 2.1 Security Blocking Middleware (Prevent access to sensitive, environment, and config endpoints)
+app.use((req, res, next) => {
+  const url = req.url || '';
+  if (/\.env/i.test(url) || /serviceAccountKey.*\.json/i.test(url) || /scratch\//i.test(url) || /scripts\//i.test(url) || /\.git/i.test(url) || /firestore\.rules/i.test(url) || /ARCHITECTURE\.txt/i.test(url) || /^\/(api|\.netlify\/functions)\/firebase-config/i.test(url)) {
+    return res.status(404).sendFile(path.join(__dirname, '404.html'));
+  }
+  next();
+});
+
 // 3. Serve static files (pictures, js, etc.)
 app.use('/pictures', express.static(path.join(__dirname, 'pictures'), { maxAge: 0 }));
 app.use('/js', express.static(path.join(__dirname, 'js'), { maxAge: 0 }));
@@ -654,7 +663,7 @@ apiRouter.post('/payrex/create-checkout-session', async (req, res) => {
 
         const payload = {
             currency: 'PHP',
-            payment_methods: ['gcash', 'card', 'maya', 'qrph', 'grab_pay'],
+            payment_methods: ['gcash', 'maya'],
             line_items: [
                 {
                     name: itemName,

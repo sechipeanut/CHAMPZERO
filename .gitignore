@@ -1,46 +1,38 @@
-# Node.js dependencies
-node_modules/
-package-lock.json
+# Build-injected client configuration
+js/env-config.js
 
-# Environment variables (contains sensitive Firebase credentials)
+# Environment variables and secrets
 .env
-.env.local
-.env.production
-.env.example
+.env.*
+!.env.example
+*.env
+*.pem
+*.key
+*.p12
+*.cert
+serviceAccountKey*.json
+*firebase-adminsdk*.json
+google-services.json
 
-# Logs
-logs
-*.log
+# Scratch, temporary and test files
+scratch/
+audit_website.js
+check_null_deref.js
+deep_system_audit.js
+test_*.js
+
+# Build, dependency, and serverless outputs
+node_modules/
+dist/
+build/
+.cache/
+.netlify/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 
-# OS files
+# System and IDE
 .DS_Store
 Thumbs.db
-desktop.ini
-
-# IDE and editor files
 .vscode/
 .idea/
-*.swp
-*.swo
-*~
-
-# Build outputs
-dist/
-build/
-.cache/
-
-# Temporary files
-tmp/
-temp/
-
-# Other
-TOAST_NOTIFICATIONS.md
-FIREBASE_AUTH_SETUP.md
-# Local Netlify folder
-.netlify
-
-# GitHub Files
-.github/
