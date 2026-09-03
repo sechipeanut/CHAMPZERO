@@ -1,32 +1,45 @@
-# Netlify Redirects & Clean URL Routing for ChampZero
+# ==============================================================================
+# Netlify Redirects & Security Access Control for ChampZero
+# ==============================================================================
 
-/                   /home.html            200
-/home               /home.html            200
-/tournaments        /tournaments.html     200
-/events             /events.html          200
-/teams              /teams.html           200
-/rising             /rising.html          200
-/partners           /partners.html        200
-/about              /about.html           200
-/support            /support.html         200
-/profile            /profile.html         200
-/edit-profile       /edit-profile.html    200
-/admin              /admin.html           200
-/login              /login.html           200
-/signup             /signup.html          200
-/contact            /contact.html         200
-/terms              /terms.html           200
-/careers            /careers.html         200
-/refund-policy      /refund-policy.html   200
-/verify-email       /verify-email.html    200
-/forgot-password    /forgot-password.html 200
-/reset-password     /reset-password.html  200
-/checkout           /checkout.html        200
-/access-denied      /access-denied.html   200
-/livestream         /livestream.html      200
+# 1. SECURITY & SOURCE ISOLATION (Block Sensitive Files & Infrastructure Manifests)
+/.env*                  /404.html             404
+/.git*                  /404.html             404
+/server.js              /404.html             404
+/firestore.rules        /404.html             404
+/package*.json          /404.html             404
+/deno.lock              /404.html             404
+/ARCHITECTURE.txt       /404.html             404
+/*.md                   /404.html             404
+/scratch/*              /404.html             404
+/netlify/*              /404.html             404
 
-# Catch-all for extensionless HTML files
-/*                  /:splat.html          200
+# 2. APPLICATION PAGE ROUTES (Extensionless URLs)
+/                       /home.html            200
+/home                   /home.html            200
+/tournaments            /tournaments.html     200
+/events                 /events.html          200
+/teams                  /teams.html           200
+/rising                 /rising.html          200
+/partners               /partners.html        200
+/about                  /about.html           200
+/support                /support.html         200
+/profile                /profile.html         200
+/edit-profile           /edit-profile.html    200
+/admin                  /admin.html           200
+/login                  /login.html           200
+/signup                 /signup.html          200
+/contact                /contact.html         200
+/terms                  /terms.html           200
+/careers                /careers.html         200
+/refund-policy          /refund-policy.html   200
+/verify-email           /verify-email.html    200
+/forgot-password        /forgot-password.html 200
+/reset-password         /reset-password.html  200
+/checkout               /checkout.html        200
+/access-denied          /access-denied.html   200
+/livestream             /livestream.html      200
 
-# 404 Fallback
-/*                  /404.html             404
+# 3. CATCH-ALL & 404 FALLBACK
+/*                      /:splat.html          200
+/*                      /404.html             404

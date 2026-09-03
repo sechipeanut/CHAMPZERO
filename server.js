@@ -13,8 +13,21 @@ const app = express();
 const PORT = 3000;
 
 // 2. Middleware
-app.use(cors());
+app.use(cors({ origin: true, credentials: true }));
 app.use(bodyParser.json());
+
+// Parse cookies from headers (Zero-dependency cookie parser)
+app.use((req, res, next) => {
+  const rawCookies = req.headers.cookie;
+  req.cookies = {};
+  if (rawCookies) {
+    rawCookies.split(';').forEach(c => {
+      const [key, ...v] = c.trim().split('=');
+      if (key) req.cookies[key] = decodeURIComponent(v.join('='));
+    });
+  }
+  next();
+});
 
 // Disable caching for development so browser always gets latest JS/HTML
 app.use((req, res, next) => {
@@ -101,29 +114,128 @@ function computeStatusFromDate(dateStr) {
 // =======================================================
 const apiRouter = express.Router();
 
-// ---------------- AUTHENTICATION ROUTES ----------------
+// ---------------- AUTHENTICATION & SESSION MANAGEMENT (BFF) ----------------
 
-// Middleware to verify Firebase tokens
+// Unified Middleware: Verifies HTTP-Only Session Cookie (__session) or Bearer Token
 async function verifyFirebaseToken(req, res, next) {
+    const sessionCookie = req.cookies?.__session;
     const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-        return res.status(401).json({ error: 'Unauthorized: No token provided' });
+
+    // 1. Primary: Verify HTTP-only session cookie
+    if (sessionCookie) {
+        try {
+            const decodedClaims = await admin.auth().verifySessionCookie(sessionCookie, true);
+            req.user = decodedClaims;
+            return next();
+        } catch (cookieErr) {
+            // Invalid or revoked session cookie; clear it
+            res.setHeader('Set-Cookie', '__session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0');
+        }
     }
 
-    const token = authHeader.split('Bearer ')[1];
-
-    try {
-        const decodedToken = await admin.auth().verifyIdToken(token);
-        req.user = decodedToken; // Attach user info to request
-        next();
-    } catch (error) {
-        console.error('Token verification error:', error);
-        res.status(401).json({ error: 'Unauthorized: Invalid token' });
+    // 2. Fallback: Bearer Token (for backward compatibility during migration)
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        const token = authHeader.split('Bearer ')[1].trim();
+        try {
+            const decodedToken = await admin.auth().verifyIdToken(token);
+            req.user = decodedToken;
+            return next();
+        } catch (error) {
+            return res.status(401).json({ error: 'Unauthorized: Invalid token' });
+        }
     }
+
+    return res.status(401).json({ error: 'Unauthorized: Active session required' });
 }
 
-// Sign Up Route: Creates user with Firebase Authentication
+// Helper to issue an encrypted HTTP-only session cookie
+async function setSessionCookie(res, idToken) {
+    const expiresIn = 5 * 24 * 60 * 60 * 1000; // 5 days in ms
+    const sessionCookie = await admin.auth().createSessionCookie(idToken, { expiresIn });
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    const cookieParts = [
+        `__session=${sessionCookie}`,
+        'Path=/',
+        'HttpOnly',
+        'SameSite=Strict',
+        `Max-Age=${expiresIn / 1000}`
+    ];
+    if (isProduction) {
+        cookieParts.push('Secure');
+    }
+    res.setHeader('Set-Cookie', cookieParts.join('; '));
+    return sessionCookie;
+}
+
+// Session Login: Exchange client token or credentials for HTTP-only cookie
+apiRouter.post('/auth/login', async (req, res) => {
+    const { idToken, email, password } = req.body;
+
+    try {
+        let verifiedIdToken = idToken;
+
+        // Verify credentials with Identity Toolkit if credentials provided directly
+        if (!verifiedIdToken && email && password) {
+            const apiKey = process.env.FIREBASE_WEB_API_KEY;
+            if (!apiKey) {
+                return res.status(500).json({ error: 'Server configuration error: Authentication service unconfigured.' });
+            }
+
+            const postData = JSON.stringify({ email, password, returnSecureToken: true });
+            const response = await new Promise((resolve, reject) => {
+                const reqHttps = https.request({
+                    hostname: 'identitytoolkit.googleapis.com',
+                    path: `/v1/accounts:signInWithPassword?key=${apiKey}`,
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Content-Length': Buffer.byteLength(postData)
+                    }
+                }, (r) => {
+                    let body = '';
+                    r.on('data', chunk => body += chunk);
+                    r.on('end', () => {
+                        try {
+                            resolve({ status: r.statusCode, data: JSON.parse(body) });
+                        } catch (e) {
+                            reject(e);
+                        }
+                    });
+                });
+                reqHttps.on('error', reject);
+                reqHttps.write(postData);
+                reqHttps.end();
+            });
+
+            if (response.status !== 200 || !response.data?.idToken) {
+                return res.status(401).json({ error: response.data?.error?.message || 'Invalid email or password.' });
+            }
+
+            verifiedIdToken = response.data.idToken;
+        }
+
+        if (!verifiedIdToken) {
+            return res.status(400).json({ error: 'Missing authentication credentials or ID token.' });
+        }
+
+        await setSessionCookie(res, verifiedIdToken);
+        const decoded = await admin.auth().verifyIdToken(verifiedIdToken);
+
+        res.json({
+            success: true,
+            uid: decoded.uid,
+            email: decoded.email,
+            message: 'Session initialized successfully with HTTP-only cookie.'
+        });
+
+    } catch (error) {
+        console.error('Session login error:', error.message);
+        res.status(401).json({ error: 'Failed to create authenticated session.' });
+    }
+});
+
+// Sign Up Route: Creates user & initializes profile
 apiRouter.post('/auth/signup', async (req, res) => {
     const { email, password, username } = req.body;
     
@@ -132,66 +244,182 @@ apiRouter.post('/auth/signup', async (req, res) => {
     }
 
     try {
-        // Create user with Firebase Auth (handles password hashing automatically)
         const userRecord = await admin.auth().createUser({
             email: email,
             password: password,
             displayName: username
         });
 
-        // Store additional user data in Firestore
-        await db.collection('artifacts').doc('default-app-id')
-            .collection('users').doc(userRecord.uid)
-            .collection('profile').doc('details')
-            .set({
-                username: username,
-                email: email,
-                joined: Date.now()
-            });
+        await db.collection('users').doc(userRecord.uid).set({
+            username: username,
+            displayName: username,
+            email: email,
+            role: 'user',
+            czPoints: 0,
+            createdAt: new Date().toISOString(),
+            joined: Date.now()
+        }, { merge: true });
 
         res.status(201).json({ 
+            success: true,
             message: 'User created successfully.', 
             uid: userRecord.uid,
             username: username
         });
 
     } catch (error) {
-        console.error('Signup error:', error);
+        console.error('Signup error:', error.message);
         res.status(500).json({ error: error.message || 'Authentication failed.' });
     }
 });
 
-// Note: Login is handled by Firebase Client SDK on the frontend.
-// The client gets a token from Firebase directly and sends it in requests.
+// Current Session State Check (Safe user metadata without secret keys)
+apiRouter.get('/auth/session', verifyFirebaseToken, async (req, res) => {
+    try {
+        const userDoc = await db.collection('users').doc(req.user.uid).get();
+        const userData = userDoc.exists ? userDoc.data() : {};
+
+        res.json({
+            authenticated: true,
+            user: {
+                uid: req.user.uid,
+                email: req.user.email || userData.email || '',
+                displayName: userData.displayName || userData.username || req.user.name || 'Champion',
+                role: userData.role || req.user.role || 'user',
+                avatar: userData.avatar || userData.photoURL || '',
+                czPoints: userData.czPoints || 0
+            }
+        });
+    } catch (err) {
+        console.error('Session fetch error:', err.message);
+        res.status(500).json({ error: 'Failed to retrieve session state' });
+    }
+});
+
+// Session Logout: Revokes tokens and clears cookie
+apiRouter.post('/auth/logout', async (req, res) => {
+    const sessionCookie = req.cookies?.__session;
+    if (sessionCookie) {
+        try {
+            const decoded = await admin.auth().verifySessionCookie(sessionCookie);
+            await admin.auth().revokeRefreshTokens(decoded.uid);
+        } catch (e) {
+            // Continue clearing cookie
+        }
+    }
+
+    res.setHeader('Set-Cookie', '__session=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0');
+    res.json({ success: true, message: 'Logged out successfully.' });
+});
 
 // ---------------- GET User Profile Data (Protected) ----------------
 apiRouter.get('/user/data/:uid', verifyFirebaseToken, async (req, res) => {
     const { uid } = req.params;
     
-    // Verify user can only access their own data
-    if (req.user.uid !== uid) {
+    // Verify user can only access their own data or is admin
+    const isAdmin = req.user.role === 'admin' || req.user.admin === true;
+    if (req.user.uid !== uid && !isAdmin) {
         return res.status(403).json({ error: 'Forbidden: Cannot access other users data.' });
     }
     
-    // This path must EXACTLY match the path used in signup.html and profile.html
-    // We'll use 'default-app-id' to match the frontend's fallback.
-    const profileRef = db.collection('artifacts').doc('default-app-id')
-                         .collection('users').doc(uid)
-                         .collection('profile').doc('details');
-    
     try {
-        const doc = await profileRef.get();
+        const doc = await db.collection('users').doc(uid).get();
         
         if (!doc.exists) {
-            return res.status(404).json({ error: 'User profile not found in Firestore.' });
+            return res.status(404).json({ error: 'User profile not found.' });
         }
 
-        // Return the real data from Firestore
         res.json(doc.data());
 
     } catch (error) {
         console.error('GET /user/data Firestore error:', error);
         res.status(500).json({ error: 'Failed to fetch user data from Firestore.' });
+    }
+});
+
+// ---------------- SECURE DATA PROXY ROUTES (BFF) ----------------
+
+apiRouter.get('/data/tournaments', async (req, res) => {
+    try {
+        const snap = await db.collection('tournaments').get();
+        const items = [];
+        snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        res.json(items);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch tournaments' });
+    }
+});
+
+apiRouter.get('/data/tournaments/:id', async (req, res) => {
+    try {
+        const doc = await db.collection('tournaments').doc(req.params.id).get();
+        if (!doc.exists) return res.status(404).json({ error: 'Tournament not found' });
+        res.json({ id: doc.id, ...doc.data() });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+apiRouter.get('/data/events', async (req, res) => {
+    try {
+        const snap = await db.collection('events').get();
+        const items = [];
+        snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        res.json(items);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+apiRouter.get('/data/teams', async (req, res) => {
+    try {
+        const snap = await db.collection('recruitment').get();
+        const items = [];
+        snap.forEach(doc => items.push({ id: doc.id, ...doc.data() }));
+        res.json(items);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+apiRouter.get('/data/user/profile', verifyFirebaseToken, async (req, res) => {
+    try {
+        const doc = await db.collection('users').doc(req.user.uid).get();
+        if (!doc.exists) return res.status(404).json({ error: 'Profile not found' });
+        res.json({ id: doc.id, ...doc.data() });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch profile' });
+    }
+});
+
+apiRouter.patch('/data/user/profile', verifyFirebaseToken, async (req, res) => {
+    try {
+        const updates = req.body || {};
+        delete updates.role;
+        delete updates.uid;
+        delete updates.id;
+        delete updates.escrowBalance;
+
+        updates.updatedAt = new Date().toISOString();
+        await db.collection('users').doc(req.user.uid).update(updates);
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+apiRouter.get('/data/chat/messages', async (req, res) => {
+    try {
+        const limit = Math.min(parseInt(req.query.limit || '50', 10), 100);
+        const snap = await db.collection('global_chat_messages')
+            .orderBy('createdAt', 'desc')
+            .limit(limit)
+            .get();
+        const messages = [];
+        snap.forEach(doc => messages.push({ id: doc.id, ...doc.data() }));
+        res.json(messages.reverse());
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch messages' });
     }
 });
 
@@ -251,20 +479,29 @@ apiRouter.get('/teams', async (req, res) => {
     }
 });
 
-// ---------------- SOCIAL & FRIEND REQUEST ROUTES ----------------
-apiRouter.post('/friends/request', async (req, res) => {
+// ---------------- SOCIAL & FRIEND REQUEST ROUTES (PROTECTED) ----------------
+apiRouter.post('/friends/request', verifyFirebaseToken, async (req, res) => {
     try {
         const { fromUid, fromName, fromAvatar, toUid, toName, toAvatar } = req.body;
         if (!fromUid || !toUid) {
             return res.status(400).json({ error: 'Missing fromUid or toUid' });
         }
 
+        // Anti-IDOR: verify sender identity matches authenticated user
+        if (req.user.uid !== fromUid) {
+            return res.status(403).json({ error: 'Forbidden: Cannot send friend request on behalf of another user.' });
+        }
+
+        if (fromUid === toUid) {
+            return res.status(400).json({ error: 'Cannot send a friend request to yourself.' });
+        }
+
         const reqPayload = {
             type: "friend_request",
-            fromUid,
-            fromName: fromName || 'Champion',
+            fromUid: req.user.uid,
+            fromName: fromName || req.user.name || 'Champion',
             fromAvatar: fromAvatar || '',
-            toUid,
+            toUid: String(toUid).trim(),
             toName: toName || 'Champion',
             toAvatar: toAvatar || '',
             status: 'pending',
@@ -279,14 +516,32 @@ apiRouter.post('/friends/request', async (req, res) => {
     }
 });
 
-apiRouter.post('/friends/respond', async (req, res) => {
+apiRouter.post('/friends/respond', verifyFirebaseToken, async (req, res) => {
     try {
         const { reqId, status } = req.body;
         if (!reqId || !status) {
             return res.status(400).json({ error: 'Missing reqId or status' });
         }
 
-        await db.collection('friend_requests').doc(reqId).update({
+        const allowedStatuses = ['accepted', 'rejected'];
+        if (!allowedStatuses.includes(status)) {
+            return res.status(400).json({ error: 'Invalid status value.' });
+        }
+
+        const docRef = db.collection('friend_requests').doc(reqId);
+        const docSnap = await docRef.get();
+        if (!docSnap.exists) {
+            return res.status(404).json({ error: 'Friend request not found.' });
+        }
+
+        const data = docSnap.data();
+        // Anti-IDOR: only the recipient (or an admin) can accept/reject the request
+        const isAdmin = req.user.role === 'admin' || req.user.admin === true;
+        if (data.toUid !== req.user.uid && !isAdmin) {
+            return res.status(403).json({ error: 'Forbidden: You are not authorized to respond to this friend request.' });
+        }
+
+        await docRef.update({
             status,
             updatedAt: new Date().toISOString()
         });
@@ -298,14 +553,27 @@ apiRouter.post('/friends/respond', async (req, res) => {
     }
 });
 
-apiRouter.post('/friends/remove', async (req, res) => {
+apiRouter.post('/friends/remove', verifyFirebaseToken, async (req, res) => {
     try {
         const { reqId } = req.body;
         if (!reqId) {
             return res.status(400).json({ error: 'Missing reqId' });
         }
 
-        await db.collection('friend_requests').doc(reqId).delete();
+        const docRef = db.collection('friend_requests').doc(reqId);
+        const docSnap = await docRef.get();
+        if (!docSnap.exists) {
+            return res.status(404).json({ error: 'Friend request not found.' });
+        }
+
+        const data = docSnap.data();
+        // Anti-IDOR: only participants (fromUid or toUid) or admin can remove/cancel the request
+        const isAdmin = req.user.role === 'admin' || req.user.admin === true;
+        if (data.fromUid !== req.user.uid && data.toUid !== req.user.uid && !isAdmin) {
+            return res.status(403).json({ error: 'Forbidden: You are not authorized to remove this friend request.' });
+        }
+
+        await docRef.delete();
         res.json({ success: true });
     } catch (err) {
         console.error('Server error removing friend:', err);
@@ -313,10 +581,31 @@ apiRouter.post('/friends/remove', async (req, res) => {
     }
 });
 
-apiRouter.post('/chat/send', async (req, res) => {
+apiRouter.post('/chat/send', verifyFirebaseToken, async (req, res) => {
     try {
-        const msgPayload = req.body;
-        const docRef = await db.collection('global_chat_messages').add(msgPayload);
+        const msgPayload = req.body || {};
+        const senderId = msgPayload.senderId || msgPayload.userId;
+
+        // Anti-IDOR: senderId must match authenticated user
+        if (senderId && senderId !== req.user.uid) {
+            return res.status(403).json({ error: 'Forbidden: Cannot send messages on behalf of another user.' });
+        }
+
+        const messageText = msgPayload.text || msgPayload.message;
+        if (!messageText || typeof messageText !== 'string' || messageText.trim().length === 0) {
+            return res.status(400).json({ error: 'Message content cannot be empty.' });
+        }
+
+        const sanitizedPayload = {
+            ...msgPayload,
+            senderId: req.user.uid,
+            userId: req.user.uid,
+            senderEmail: req.user.email || '',
+            text: messageText.trim(),
+            createdAt: new Date().toISOString()
+        };
+
+        const docRef = await db.collection('global_chat_messages').add(sanitizedPayload);
         res.json({ success: true, id: docRef.id });
     } catch (err) {
         console.error('Server error sending chat message:', err);
@@ -457,16 +746,9 @@ apiRouter.post('/payrex/create-checkout-session', async (req, res) => {
             }
         }
 
-        // Test/Sandbox Simulation mode when no live API key is configured
-        const simulatedSessionId = 'cs_prx_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
-        const resolvedSuccessUrl = finalSuccessUrl.replace('{CHECKOUT_SESSION_ID}', simulatedSessionId);
-
-        return res.json({
-            url: resolvedSuccessUrl,
-            sessionId: simulatedSessionId,
-            status: 'open',
-            mode: 'test_sandbox',
-            message: 'PayRex sandbox test session initialized.'
+        // Fail-Closed: No unauthenticated or mock sandbox approvals
+        return res.status(500).json({
+            error: 'Server configuration error: PayRex payment gateway credentials not configured or live gateway unreachable.'
         });
 
     } catch (error) {
@@ -480,77 +762,89 @@ apiRouter.get('/payrex/verify-session/:sessionId', async (req, res) => {
         const { sessionId } = req.params;
         const payrexSecretKey = process.env.PAYREX_SECRET_KEY ? process.env.PAYREX_SECRET_KEY.trim() : '';
 
-        if (payrexSecretKey && !payrexSecretKey.includes('REPLACE_WITH') && payrexSecretKey.length > 5) {
-            const makeVerifyRequest = (host) => {
-                return new Promise((resolve, reject) => {
-                    const authHeader = 'Basic ' + Buffer.from(payrexSecretKey + ':').toString('base64');
-                    const options = {
-                        hostname: host,
-                        path: `/v1/checkout_sessions/${encodeURIComponent(sessionId)}`,
-                        method: 'GET',
-                        headers: {
-                            'Authorization': authHeader,
-                            'Accept': 'application/json'
+        if (!payrexSecretKey || payrexSecretKey.includes('REPLACE_WITH') || payrexSecretKey.length < 10) {
+            return res.status(500).json({
+                error: 'Server configuration error: PayRex payment gateway credentials not configured.'
+            });
+        }
+
+        const makeVerifyRequest = (host) => {
+            return new Promise((resolve, reject) => {
+                const authHeader = 'Basic ' + Buffer.from(payrexSecretKey + ':').toString('base64');
+                const options = {
+                    hostname: host,
+                    path: `/v1/checkout_sessions/${encodeURIComponent(sessionId)}`,
+                    method: 'GET',
+                    headers: {
+                        'Authorization': authHeader,
+                        'Accept': 'application/json'
+                    },
+                    timeout: 8000
+                };
+
+                const pReq = https.request(options, (pRes) => {
+                    let resBody = '';
+                    pRes.on('data', chunk => { resBody += chunk; });
+                    pRes.on('end', () => {
+                        try {
+                            const parsed = JSON.parse(resBody);
+                            resolve({ statusCode: pRes.statusCode, data: parsed });
+                        } catch (e) {
+                            resolve({ statusCode: pRes.statusCode, raw: resBody, error: e.message });
                         }
-                    };
-
-                    const pReq = https.request(options, (pRes) => {
-                        let resBody = '';
-                        pRes.on('data', chunk => { resBody += chunk; });
-                        pRes.on('end', () => {
-                            try {
-                                const parsed = JSON.parse(resBody);
-                                resolve({ statusCode: pRes.statusCode, data: parsed });
-                            } catch (e) {
-                                resolve({ statusCode: pRes.statusCode, raw: resBody, error: e.message });
-                            }
-                        });
                     });
-
-                    pReq.on('error', err => reject(err));
-                    pReq.end();
                 });
-            };
 
-            let payrexResponse;
-            try {
-                payrexResponse = await makeVerifyRequest('api.payrexhq.com');
-                if (!payrexResponse || payrexResponse.statusCode >= 500) {
-                    payrexResponse = await makeVerifyRequest('api.payrex.com');
-                }
-            } catch (e) {
-                try {
-                    payrexResponse = await makeVerifyRequest('api.payrex.com');
-                } catch (err) {
-                    console.error("PayRex Verify Network Error:", err);
-                }
+                pReq.on('timeout', () => {
+                    pReq.destroy();
+                    reject(new Error('Gateway request timed out'));
+                });
+
+                pReq.on('error', err => reject(err));
+                pReq.end();
+            });
+        };
+
+        let payrexResponse;
+        try {
+            payrexResponse = await makeVerifyRequest('api.payrexhq.com');
+            if (!payrexResponse || payrexResponse.statusCode >= 500) {
+                payrexResponse = await makeVerifyRequest('api.payrex.com');
             }
-
-            if (payrexResponse && payrexResponse.statusCode >= 200 && payrexResponse.statusCode < 300 && payrexResponse.data) {
-                const session = payrexResponse.data;
-                const isPaid = session.payment_status === 'paid' || session.status === 'completed' || session.status === 'succeeded';
-                return res.json({
-                    isPaid: isPaid,
-                    status: session.status,
-                    paymentStatus: session.payment_status,
-                    amount: (session.line_items?.[0]?.amount || session.amount_total || 0) / 100,
-                    metadata: session.metadata || {},
-                    referenceNumber: session.payment_intent_id || session.id
+        } catch (e) {
+            try {
+                payrexResponse = await makeVerifyRequest('api.payrex.com');
+            } catch (err) {
+                console.error("PayRex Verify Network Error:", err.message);
+                return res.status(502).json({
+                    isPaid: false,
+                    error: 'Payment gateway communication failure. Could not verify payment status.'
                 });
             }
         }
 
-        return res.json({
-            isPaid: true,
-            status: 'completed',
-            paymentStatus: 'paid',
-            referenceNumber: sessionId,
-            mode: 'test_sandbox'
+        if (payrexResponse && payrexResponse.statusCode >= 200 && payrexResponse.statusCode < 300 && payrexResponse.data) {
+            const session = payrexResponse.data;
+            const isPaid = session.payment_status === 'paid' || session.status === 'completed' || session.status === 'succeeded';
+            return res.json({
+                isPaid: isPaid,
+                status: session.status || 'unknown',
+                paymentStatus: session.payment_status || 'unpaid',
+                amount: (session.line_items?.[0]?.amount || session.amount_total || 0) / 100,
+                metadata: session.metadata || {},
+                referenceNumber: session.payment_intent_id || session.id || sessionId
+            });
+        }
+
+        // Fail-Closed: Return unconfirmed payment if gateway does not report completion
+        return res.status(payrexResponse?.statusCode === 404 ? 404 : 400).json({
+            isPaid: false,
+            error: payrexResponse?.data?.error?.message || 'Payment session verification failed or session unconfirmed.'
         });
 
     } catch (error) {
-        console.error('Error verifying PayRex session:', error);
-        res.status(500).json({ error: error.message || 'Internal Server Error' });
+        console.error('Error verifying PayRex session:', error.message);
+        res.status(500).json({ isPaid: false, error: error.message || 'Internal Server Error' });
     }
 });
 
@@ -636,6 +930,11 @@ app.use((req, res, next) => {
     if (req.method !== 'GET') return next();
     const cleanPath = req.path.replace(/^\//, '').replace(/\/$/, '');
     if (!cleanPath) return next();
+
+    // Prevent directory traversal or source/configuration file disclosure
+    if (cleanPath.startsWith('.') || cleanPath.includes('..') || cleanPath.endsWith('.env') || cleanPath.endsWith('.js') || cleanPath.endsWith('.rules') || cleanPath.endsWith('.txt') || cleanPath.endsWith('.json') || cleanPath.endsWith('.md')) {
+        return next();
+    }
 
     const possibleFile = cleanPath.endsWith('.html') ? cleanPath : `${cleanPath}.html`;
     const fullPath = path.join(__dirname, possibleFile);

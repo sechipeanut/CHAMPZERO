@@ -30,47 +30,86 @@ exports.handler = async (event, context) => {
 
     try {
         const webhookSecret = process.env.PAYREX_WEBHOOK_SECRET;
-        const signatureHeader = event.headers['payrex-signature'] || event.headers['x-webhook-signature'] || event.headers['Payrex-Signature'];
+        if (!webhookSecret || typeof webhookSecret !== 'string' || webhookSecret.trim().length === 0) {
+            console.error('CRITICAL: PAYREX_WEBHOOK_SECRET is not configured on the server. Rejecting incoming webhook.');
+            return {
+                statusCode: 500,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: 'Server configuration error: Webhook verification secret missing' })
+            };
+        }
 
-        // Strict Cryptographic Webhook Verification
-        if (webhookSecret) {
-            if (!signatureHeader) {
-                return { statusCode: 401, body: JSON.stringify({ error: 'Missing webhook signature header' }) };
-            }
+        const signatureHeader = event.headers['payrex-signature'] || 
+                                event.headers['x-webhook-signature'] || 
+                                event.headers['Payrex-Signature'];
 
-            const hmac = crypto.createHmac('sha256', webhookSecret);
-            hmac.update(event.body);
-            const expectedSignature = hmac.digest('hex');
+        if (!signatureHeader || typeof signatureHeader !== 'string') {
+            return {
+                statusCode: 401,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: 'Unauthorized: Missing or invalid webhook signature header' })
+            };
+        }
 
-            let providedSignature = signatureHeader;
+        if (!event.body) {
+            return {
+                statusCode: 400,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: 'Bad Request: Empty request payload' })
+            };
+        }
+
+        // Strict Cryptographic HMAC SHA-256 Verification
+        let isSignatureValid = false;
+        try {
             if (signatureHeader.includes('v1=')) {
+                // Timestamped signature format: t=...,v1=...
                 const parts = signatureHeader.split(',').reduce((acc, part) => {
                     const [k, v] = part.split('=');
                     if (k && v) acc[k.trim()] = v.trim();
                     return acc;
                 }, {});
 
-                if (parts.v1) {
-                    providedSignature = parts.v1;
-                    const stripeHmac = crypto.createHmac('sha256', webhookSecret);
-                    stripeHmac.update(`${parts.t}.${event.body}`);
-                    const expectedStripeSig = stripeHmac.digest('hex');
-                    
-                    if (expectedStripeSig !== providedSignature && expectedSignature !== providedSignature) {
-                        return { statusCode: 401, body: JSON.stringify({ error: 'Invalid webhook signature' }) };
+                if (parts.v1 && parts.t) {
+                    const timestamp = parseInt(parts.t, 10);
+                    const currentTime = Math.floor(Date.now() / 1000);
+                    // Prevent replay attacks with 5-minute threshold
+                    if (!isNaN(timestamp) && Math.abs(currentTime - timestamp) <= 300) {
+                        const timestampedPayload = `${parts.t}.${event.body}`;
+                        const expectedTimestampedSig = crypto.createHmac('sha256', webhookSecret)
+                            .update(timestampedPayload)
+                            .digest('hex');
+
+                        const bufProvided = Buffer.from(parts.v1, 'hex');
+                        const bufExpected = Buffer.from(expectedTimestampedSig, 'hex');
+                        if (bufProvided.length === bufExpected.length && crypto.timingSafeEqual(bufProvided, bufExpected)) {
+                            isSignatureValid = true;
+                        }
                     }
                 }
             } else {
-                try {
-                    const isVerified = crypto.timingSafeEqual(
-                        Buffer.from(providedSignature, 'hex'),
-                        Buffer.from(expectedSignature, 'hex')
-                    );
-                    if (!isVerified) return { statusCode: 401, body: JSON.stringify({ error: 'Invalid webhook signature' }) };
-                } catch (e) {
-                    return { statusCode: 401, body: JSON.stringify({ error: 'Invalid signature format' }) };
+                // Raw hex signature format
+                const expectedSignature = crypto.createHmac('sha256', webhookSecret)
+                    .update(event.body)
+                    .digest('hex');
+
+                const bufProvided = Buffer.from(signatureHeader.trim(), 'hex');
+                const bufExpected = Buffer.from(expectedSignature, 'hex');
+                if (bufProvided.length === bufExpected.length && crypto.timingSafeEqual(bufProvided, bufExpected)) {
+                    isSignatureValid = true;
                 }
             }
+        } catch (sigErr) {
+            console.error('Webhook cryptographic comparison error:', sigErr.message);
+            isSignatureValid = false;
+        }
+
+        if (!isSignatureValid) {
+            return {
+                statusCode: 401,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ error: 'Unauthorized: Invalid webhook signature' })
+            };
         }
 
         const payload = JSON.parse(event.body || '{}');

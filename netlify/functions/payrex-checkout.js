@@ -227,19 +227,12 @@ exports.handler = async (event, context) => {
             }
         }
 
-        // Test/Sandbox Simulation mode when PAYREX_SECRET_KEY is not yet populated
-        const simulatedSessionId = 'cs_prx_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
-        const resolvedSuccessUrl = finalSuccessUrl.replace('{CHECKOUT_SESSION_ID}', simulatedSessionId);
-
+        // Fail-Closed: No unauthenticated or mock sandbox sessions
         return {
-            statusCode: 200,
+            statusCode: 500,
             headers: { 'Access-Control-Allow-Origin': '*', 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                url: resolvedSuccessUrl,
-                sessionId: simulatedSessionId,
-                status: 'open',
-                mode: 'test_sandbox',
-                message: 'PayRex sandbox test session initialized.'
+                error: 'Server configuration error: PayRex payment gateway credentials not configured or live gateway unreachable.'
             })
         };
 

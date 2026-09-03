@@ -2,7 +2,67 @@
   publish = "."
   functions = "netlify/functions"
 
-# Root redirect to home (must be first)
+# ------------------------------------------------------------------------------
+# SECURITY HEADERS
+# ------------------------------------------------------------------------------
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    X-XSS-Protection = "1; mode=block"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
+
+# ------------------------------------------------------------------------------
+# SOURCE ISOLATION & SENSITIVE FILE BLOCKING (Fail-Closed 404)
+# ------------------------------------------------------------------------------
+[[redirects]]
+  from = "/.env*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/.git*"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/server.js"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/firestore.rules"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/package*.json"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/ARCHITECTURE.txt"
+  to = "/404.html"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/*.md"
+  to = "/404.html"
+  status = 404
+  force = true
+
+# ------------------------------------------------------------------------------
+# APPLICATION ROUTING
+# ------------------------------------------------------------------------------
+# Root redirect to home
 [[redirects]]
   from = "/"
   to = "/home.html"

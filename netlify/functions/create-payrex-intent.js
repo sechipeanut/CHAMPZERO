@@ -43,19 +43,11 @@ exports.handler = async (event, context) => {
         const PAYREX_SECRET_KEY = process.env.PAYREX_SECRET_KEY || process.env.PAYREX_SK || process.env.PAYREX_API_KEY;
         let verifiedAmount = parseFloat(amount) || 0;
 
-        if (!PAYREX_SECRET_KEY || PAYREX_SECRET_KEY.includes('REPLACE_WITH')) {
-            console.log("PayRex secret key not configured in local environment; creating sandbox test intent.");
+        if (!PAYREX_SECRET_KEY || PAYREX_SECRET_KEY.includes('REPLACE_WITH') || PAYREX_SECRET_KEY.length < 10) {
             return {
-                statusCode: 200,
+                statusCode: 500,
                 headers: { ...headers, 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    client_secret: `pi_test_secret_${Date.now()}_sandbox`,
-                    id: `pi_test_${Date.now()}`,
-                    amount: Math.round(verifiedAmount * 100),
-                    currency: currency || 'PHP',
-                    status: 'requires_payment_method',
-                    mode: 'test_sandbox'
-                })
+                body: JSON.stringify({ error: 'Server configuration error: Payment gateway credentials unconfigured.' })
             };
         }
 
