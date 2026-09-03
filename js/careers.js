@@ -75,7 +75,7 @@ function checkAdminStatus() {
     onAuthStateChanged(auth, (user) => {
         if (user) {
             // Check your admin email here
-            const adminEmails = ["admin@champzero.com", "casalmeseanlloyd@gmail.com"]; 
+            const adminEmails = ["admin@champzero.com"]; 
             
             if (adminEmails.includes(user.email)) {
                 adminArea.innerHTML = `
