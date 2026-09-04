@@ -209,6 +209,41 @@ if (document.readyState === 'loading') {
 const TAB_ACTIVE_CLASS = "px-3.5 py-1.5 rounded-lg bg-[#FFD700] text-black font-extrabold shadow-sm transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap";
 const TAB_INACTIVE_CLASS = "px-3.5 py-1.5 rounded-lg text-neutral-400 hover:text-white font-bold transition-all cursor-pointer flex items-center gap-1.5 whitespace-nowrap";
 
+function updateScrimTabBreathing(hasActiveOpenScrims) {
+    const tabScrims = document.getElementById('tab-scrims');
+    const dot = document.getElementById('tab-scrims-dot');
+    const countBadge = document.getElementById('count-scrims');
+    if (!tabScrims) return;
+
+    if (hasActiveOpenScrims) {
+        // Active scrim exists: make Daily Scrims tab breathing in bright color!
+        if (activeView !== 'scrims') {
+            tabScrims.classList.add('scrims-tab-breathing');
+            if (countBadge) {
+                countBadge.className = "text-[10px] bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 px-1.5 py-0.2 rounded-full font-mono-tag font-bold";
+            }
+        } else {
+            tabScrims.classList.remove('scrims-tab-breathing');
+            if (countBadge) {
+                countBadge.className = "text-[10px] bg-black/20 text-black px-1.5 py-0.2 rounded-full font-mono-tag font-bold";
+            }
+        }
+        if (dot) {
+            dot.className = "w-2 h-2 rounded-full bg-emerald-400 animate-ping";
+        }
+    } else {
+        // No active scrim available - stop the breathing
+        tabScrims.classList.remove('scrims-tab-breathing');
+        if (dot) {
+            dot.className = "w-1.5 h-1.5 rounded-full bg-emerald-500/40";
+        }
+        if (countBadge && activeView !== 'scrims') {
+            countBadge.className = "text-[10px] bg-white/10 text-neutral-300 px-1.5 py-0.2 rounded-full font-mono-tag font-bold";
+        }
+    }
+}
+window.updateScrimTabBreathing = updateScrimTabBreathing;
+
 async function updateTeamTabCounts() {
     const user = auth.currentUser;
     const allTeams = (cachedRecruitmentPosts || []).filter(p => p.type === 'team' || !p.type);
@@ -223,7 +258,10 @@ async function updateTeamTabCounts() {
 
     if (countFindTeams) countFindTeams.textContent = allTeams.length;
     if (countFindPlayers) countFindPlayers.textContent = allPlayers.length;
-    if (countScrims) countScrims.textContent = (activeScrimsList || []).filter(s => s.status === 'open').length;
+    
+    const openScrims = (activeScrimsList || []).filter(s => s.status === 'open');
+    if (countScrims) countScrims.textContent = openScrims.length;
+    updateScrimTabBreathing(openScrims.length > 0);
 
     if (user) {
         const myTeams = allTeams.filter(p => p.authorId === user.uid || (Array.isArray(p.members) && p.members.some(m => (typeof m === 'object' ? m.uid : m) === user.uid)));
@@ -3014,6 +3052,14 @@ async function renderScrimsBoard() {
         // Exclude cancelled listings
         if (scrim.status === 'cancelled') return false;
 
+        // Archived / Done scrims: not shown to others except the uploader
+        const isArchivedOrDone = scrim.status === 'done' || scrim.status === 'completed' || scrim.isArchived === true;
+        if (isArchivedOrDone) {
+            if (!user || user.uid !== scrim.captainId) {
+                return false;
+            }
+        }
+
         // Auto-archive client side: exclude stale listings (>12h) unless current user is host or accepted opponent
         if (scrim.isStale && (!user || (user.uid !== scrim.captainId && user.uid !== scrim.opponentCaptainId))) {
             return false;
@@ -3081,15 +3127,23 @@ async function renderScrimsBoard() {
 
     for (const scrim of filtered) {
         const card = document.createElement('article');
-        card.className = "scrim-card p-5 flex flex-col justify-between";
         card.dataset.scrimId = scrim.id;
 
         const gameBadge = formatScrimGameBadge(scrim.game);
         const isOpen = scrim.status === 'open';
         const isAccepted = scrim.status === 'accepted';
+        const isDone = scrim.status === 'done' || scrim.status === 'completed' || scrim.isArchived === true;
         const isHost = user && user.uid === scrim.captainId;
         const isOpponent = user && user.uid === scrim.opponentCaptainId;
         const canViewLobby = isHost || isOpponent || currentUserRole === 'admin';
+
+        let cardClasses = "scrim-card p-5 flex flex-col justify-between";
+        if (isOpen) {
+            cardClasses += " scrim-card-available";
+        } else if (isDone) {
+            cardClasses += " scrim-card-archived";
+        }
+        card.className = cardClasses;
 
         card.innerHTML = `
             <div>
@@ -3098,9 +3152,9 @@ async function renderScrimsBoard() {
                     <span class="font-mono-tag text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md ${gameBadge.cssClass}">
                         ${escapeHtml(gameBadge.title)}
                     </span>
-                    <span class="font-mono-tag text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md flex items-center gap-1.5 ${isOpen ? 'scrim-badge-open' : 'scrim-badge-accepted'}">
-                        <span class="w-1.5 h-1.5 rounded-full ${isOpen ? 'bg-emerald-400 animate-ping' : 'bg-yellow-400'}"></span>
-                        <span>${isOpen ? 'LOBBY OPEN' : 'CONFIRMED'}</span>
+                    <span class="font-mono-tag text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-md flex items-center gap-1.5 ${isOpen ? 'scrim-badge-open' : isDone ? 'scrim-badge-archived' : 'scrim-badge-accepted'}">
+                        <span class="w-1.5 h-1.5 rounded-full ${isOpen ? 'bg-emerald-400 animate-ping' : isDone ? 'bg-neutral-500' : 'bg-yellow-400'}"></span>
+                        <span>${isOpen ? 'LOBBY OPEN' : isDone ? 'DONE (ARCHIVED)' : 'CONFIRMED'}</span>
                     </span>
                 </div>
 
@@ -3155,15 +3209,35 @@ async function renderScrimsBoard() {
                     `}
                 ` : isAccepted ? `
                     ${canViewLobby ? `
-                        <button onclick="window.openScrimDetailsModal('${scrim.id}')" class="w-full py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer">
-                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
-                            <span>Lobby Details</span>
-                        </button>
+                        <div class="flex items-center gap-2">
+                            <button onclick="window.openScrimDetailsModal('${scrim.id}')" class="flex-1 py-2.5 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                                <span>Lobby Details</span>
+                            </button>
+                            ${isHost ? `
+                                <button onclick="window.archiveScrim('${scrim.id}')" title="Archive / Mark Scrim as Done" class="px-3 py-2.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1 cursor-pointer">
+                                    <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                                    <span>Done</span>
+                                </button>
+                            ` : ''}
+                        </div>
                     ` : `
                         <div class="text-center py-2 text-[10px] font-mono-tag text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg font-semibold">
                             Match Scheduled
                         </div>
                     `}
+                ` : isDone ? `
+                    <div class="flex items-center gap-2">
+                        <button onclick="window.openScrimDetailsModal('${scrim.id}')" class="flex-1 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white border border-white/10 font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer">
+                            <svg class="w-3.5 h-3.5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                            <span>Lobby Details</span>
+                        </button>
+                        ${isHost ? `
+                            <button onclick="window.unarchiveScrim('${scrim.id}')" title="Restore / Unarchive Scrim" class="px-3 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white border border-white/10 font-heading font-bold text-[10px] uppercase tracking-wider transition-all cursor-pointer">
+                                Restore
+                            </button>
+                        ` : ''}
+                    </div>
                 ` : ''}
             </div>
         `;
@@ -3689,6 +3763,29 @@ window.openScrimDetailsModal = async (scrimId) => {
     if (hostContactEl) hostContactEl.textContent = scrim.captainContact || 'Not provided';
     if (oppContactEl) oppContactEl.textContent = scrim.opponentContact || 'Not provided';
 
+    const hostActionsEl = document.getElementById('scrim-details-host-actions');
+    if (hostActionsEl) {
+        const user = auth.currentUser;
+        const isHost = user && user.uid === scrim.captainId;
+        const isDone = scrim.status === 'done' || scrim.status === 'completed' || scrim.isArchived === true;
+        if (isHost && !isDone) {
+            hostActionsEl.innerHTML = `
+                <button type="button" onclick="window.archiveScrim('${scrim.id}'); window.closeScrimDetailsModal();" class="px-3.5 py-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer">
+                    <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    <span>Mark as Done / Archive</span>
+                </button>
+            `;
+        } else if (isHost && isDone) {
+            hostActionsEl.innerHTML = `
+                <button type="button" onclick="window.unarchiveScrim('${scrim.id}'); window.closeScrimDetailsModal();" class="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-1.5 cursor-pointer">
+                    <span>Restore / Unarchive</span>
+                </button>
+            `;
+        } else {
+            hostActionsEl.innerHTML = '';
+        }
+    }
+
     animateGenericOpen('scrimDetailsModal', 'scrimDetailsBackdrop', 'scrimDetailsPanel');
 };
 
@@ -3696,7 +3793,60 @@ window.closeScrimDetailsModal = () => {
     animateGenericClose('scrimDetailsModal', 'scrimDetailsBackdrop', 'scrimDetailsPanel');
 };
 
-// 7. CANCEL SCRIM
+// 7. ARCHIVE SCRIM (POST-SCRIM DONE)
+window.archiveScrim = async (scrimId) => {
+    const user = auth.currentUser;
+    if (!user) {
+        if (typeof window.showErrorToast === 'function') window.showErrorToast("Sign In Required", "Please log in to manage your scrims.");
+        return;
+    }
+
+    const confirmed = await (window.showCustomConfirm
+        ? window.showCustomConfirm("Archive Scrim Match", "Mark this scrim as done? It will be archived and hidden from all other players, remaining visible only in your personal squad history.")
+        : confirm("Mark this scrim as done? It will be archived and hidden from all other players, remaining visible only to you."));
+    if (!confirmed) return;
+
+    try {
+        await updateDoc(doc(db, "scrims", scrimId), {
+            status: "done",
+            isArchived: true,
+            archivedAt: serverTimestamp()
+        });
+
+        if (typeof window.showSuccessToast === 'function') {
+            window.showSuccessToast("Scrim Archived 🏆", "Match marked as done. It is now archived and hidden from other players.");
+        }
+    } catch (err) {
+        console.error("Error archiving scrim:", err);
+        if (typeof window.showErrorToast === 'function') {
+            window.showErrorToast("Error", "Failed to archive scrim match.");
+        }
+    }
+};
+
+window.unarchiveScrim = async (scrimId) => {
+    const user = auth.currentUser;
+    if (!user) return;
+
+    try {
+        await updateDoc(doc(db, "scrims", scrimId), {
+            status: "accepted",
+            isArchived: false,
+            unarchivedAt: serverTimestamp()
+        });
+
+        if (typeof window.showSuccessToast === 'function') {
+            window.showSuccessToast("Scrim Restored", "Match has been restored to your active confirmed list.");
+        }
+    } catch (err) {
+        console.error("Error unarchiving scrim:", err);
+        if (typeof window.showErrorToast === 'function') {
+            window.showErrorToast("Error", "Failed to restore scrim.");
+        }
+    }
+};
+
+// 8. CANCEL SCRIM
 window.cancelScrim = async (scrimId) => {
     const user = auth.currentUser;
     if (!user) return;
