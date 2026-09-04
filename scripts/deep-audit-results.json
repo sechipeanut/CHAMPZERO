@@ -1,0 +1,2785 @@
+{
+  "envConfigOrder": [
+    {
+      "file": "404.html",
+      "hasEnvConfig": false,
+      "hasFbConfig": false,
+      "envIdx": -1,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "about.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "access-denied.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "admin.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "careers.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "checkout.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "contact.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "edit-profile.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "events.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "footer.html",
+      "hasEnvConfig": false,
+      "hasFbConfig": false,
+      "envIdx": -1,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "forgot-password.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "header.html",
+      "hasEnvConfig": false,
+      "hasFbConfig": false,
+      "envIdx": -1,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "home.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "index.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "livestream.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "login.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "partners.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "profile.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "refund-policy.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "reset-password.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "rising.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "signup.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "support.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "teams.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "terms.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "tournaments.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    },
+    {
+      "file": "verify-email.html",
+      "hasEnvConfig": true,
+      "hasFbConfig": false,
+      "envIdx": 0,
+      "fbIdx": -1,
+      "status": "OK"
+    }
+  ],
+  "checkoutPayrexAudit": {
+    "hasPayrexScriptInHtml": true,
+    "payrexScriptMatches": [
+      "<script type=\"text/javascript\" src=\"https://js.payrexhq.com\">"
+    ],
+    "hasPaymentElementContainerInHtml": false,
+    "usesConfigPublicKey": true,
+    "handlesCreateIntent": true,
+    "handlesPayrexInit": true
+  },
+  "firebaseConfigAudit": {},
+  "firebaseAdminAudit": {},
+  "pageScriptMapping": {
+    "404.html": [],
+    "about.html": [
+      "/js/env-config.js",
+      "js/toast.js?v=20260820_fix6",
+      "js/main.js?v=20260820_fix6",
+      "js/auth.js?v=20260820_fix6",
+      "js/notifications.js?v=20260820_fix6"
+    ],
+    "access-denied.html": [
+      "/js/env-config.js"
+    ],
+    "admin.html": [
+      "/js/env-config.js",
+      "js/toast.js",
+      "js/admin.js"
+    ],
+    "careers.html": [
+      "/js/env-config.js",
+      "js/toast.js",
+      "js/main.js",
+      "js/auth.js",
+      "js/careers.js",
+      "js/notifications.js"
+    ],
+    "checkout.html": [
+      "/js/env-config.js",
+      "js/toast.js",
+      "js/main.js",
+      "js/auth.js",
+      "js/checkout.js"
+    ],
+    "contact.html": [
+      "/js/env-config.js",
+      "js/toast.js",
+      "js/main.js",
+      "js/auth.js",
+      "js/contact.js",
+      "js/notifications.js"
+    ],
+    "edit-profile.html": [
+      "/js/env-config.js",
+      "js/toast.js",
+      "js/main.js",
+      "js/auth.js",
+      "js/notifications.js",
+      "js/edit-profile.js"
+    ],
+    "events.html": [
+      "/js/env-config.js",
+      "js/toast.js?v=20260820_fix6",
+      "js/main.js?v=20260820_fix6",
+      "js/auth.js?v=20260820_fix6",
+      "js/events.js?v=20260820_fix6",
+      "js/notifications.js?v=20260820_fix6"
+    ],
+    "footer.html": [],
+    "forgot-password.html": [
+      "/js/env-config.js",
+      "js/toast.js"
+    ],
+    "header.html": [],
+    "home.html": [
+      "/js/env-config.js",
+      "js/toast.js?v=20260820_fix3",
+      "js/main.js?v=20260820_fix3",
+      "js/home.js?v=20260820_fix3",
+      "js/auth.js?v=20260820_fix3",
+      "js/notifications.js?v=20260820_fix3"
+    ],
+    "index.html": [
+      "/js/env-config.js",
+      "js/toast.js?v=20260820_fix3",
+      "js/main.js?v=20260820_fix3",
+      "js/home.js?v=20260820_fix3",
+      "js/auth.js?v=20260820_fix3",
+      "js/notifications.js?v=20260820_fix3"
+    ],
+    "livestream.html": [
+      "/js/env-config.js",
+      "js/livestream.js"
+    ],
+    "login.html": [
+      "/js/env-config.js",
+      "js/toast.js",
+      "js/auth.js"
+    ],
+    "partners.html": [
+      "/js/env-config.js",
+      "js/toast.js",
+      "js/main.js",
+      "js/auth.js",
+      "js/partners.js",
+      "js/notifications.js"
+    ],
+    "profile.html": [
+      "/js/env-config.js",
+      "js/toast.js",
+      "js/main.js",
+      "js/auth.js",
+      "js/notifications.js",
+      "js/profile.js"
+    ],
+    "refund-policy.html": [
+      "/js/env-config.js",
+      "js/toast.js",
+      "js/main.js",
+      "js/auth.js",
+      "js/notifications.js"
+    ],
+    "reset-password.html": [
+      "/js/env-config.js",
+      "js/toast.js",
+      "js/reset-password.js"
+    ],
+    "rising.html": [
+      "/js/env-config.js",
+      "js/toast.js?v=20260820_fix3",
+      "js/main.js?v=20260820_fix3",
+      "js/auth.js?v=20260820_fix3",
+      "js/rising.js?v=20260820_fix3",
+      "js/notifications.js?v=20260820_fix3"
+    ],
+    "signup.html": [
+      "/js/env-config.js",
+      "js/toast.js",
+      "js/auth.js"
+    ],
+    "support.html": [
+      "/js/env-config.js",
+      "js/toast.js?v=20260820_fix6",
+      "js/main.js?v=20260820_fix6",
+      "js/auth.js?v=20260820_fix6",
+      "js/notifications.js?v=20260820_fix6",
+      "js/support.js?v=20260820_fix6"
+    ],
+    "teams.html": [
+      "/js/env-config.js",
+      "js/toast.js?v=20260825_tabs_v2",
+      "js/main.js?v=20260825_tabs_v2",
+      "js/auth.js?v=20260825_tabs_v2",
+      "js/teams.js?v=20260825_tabs_v2",
+      "js/notifications.js?v=20260825_tabs_v2"
+    ],
+    "terms.html": [
+      "/js/env-config.js",
+      "js/toast.js",
+      "js/main.js",
+      "js/auth.js",
+      "js/notifications.js"
+    ],
+    "tournaments.html": [
+      "/js/env-config.js",
+      "js/toast.js?v=20260824_fix35",
+      "js/main.js?v=20260824_fix35",
+      "js/auth.js?v=20260824_fix35",
+      "js/notifications.js?v=20260824_fix35",
+      "js/tournaments.js?v=20260824_fix35"
+    ],
+    "verify-email.html": [
+      "/js/env-config.js",
+      "js/toast.js",
+      "js/verify-email.js"
+    ]
+  },
+  "domSelectorAudit": [
+    {
+      "jsFile": "admin.js",
+      "htmlFile": "admin.html",
+      "id": "livestreamModal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "about.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "careers.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "checkout.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "contact.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "edit-profile.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "events.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "forgot-password.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "home.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "index.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "login.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "partners.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "profile.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "refund-policy.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "rising.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "support.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "teams.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "terms.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "tournaments.html",
+      "id": "referral-code",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "about.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "careers.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "checkout.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "contact.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "edit-profile.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "events.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "forgot-password.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "home.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "index.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "login.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "partners.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "profile.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "refund-policy.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "rising.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "support.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "teams.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "terms.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "tournaments.html",
+      "id": "referral-applied-badge",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "about.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "careers.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "checkout.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "contact.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "edit-profile.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "events.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "forgot-password.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "home.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "index.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "partners.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "profile.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "refund-policy.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "rising.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "signup.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "support.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "teams.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "terms.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "tournaments.html",
+      "id": "loginForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "about.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "careers.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "checkout.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "edit-profile.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "events.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "forgot-password.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "home.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "index.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "partners.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "profile.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "refund-policy.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "rising.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "support.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "teams.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "terms.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "tournaments.html",
+      "id": "email",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "about.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "careers.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "checkout.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "contact.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "edit-profile.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "events.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "forgot-password.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "home.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "index.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "partners.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "profile.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "refund-policy.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "rising.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "support.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "teams.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "terms.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "tournaments.html",
+      "id": "password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "about.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "careers.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "checkout.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "contact.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "edit-profile.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "events.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "forgot-password.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "home.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "index.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "login.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "partners.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "profile.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "refund-policy.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "rising.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "support.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "teams.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "terms.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "tournaments.html",
+      "id": "signupForm",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "about.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "careers.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "checkout.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "contact.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "edit-profile.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "events.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "forgot-password.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "home.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "index.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "login.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "partners.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "profile.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "refund-policy.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "rising.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "support.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "teams.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "terms.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "tournaments.html",
+      "id": "username",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "about.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "careers.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "checkout.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "contact.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "edit-profile.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "events.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "forgot-password.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "home.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "index.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "login.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "partners.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "profile.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "refund-policy.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "rising.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "support.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "teams.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "terms.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "tournaments.html",
+      "id": "confirm-password",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "about.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "careers.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "checkout.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "contact.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "edit-profile.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "events.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "forgot-password.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "home.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "index.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "login.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "partners.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "profile.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "refund-policy.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "rising.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "support.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "teams.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "terms.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "tournaments.html",
+      "id": "terms",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "about.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "careers.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "checkout.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "contact.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "edit-profile.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "events.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "forgot-password.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "home.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "index.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "partners.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "profile.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "refund-policy.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "rising.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "support.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "teams.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "terms.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "auth.js",
+      "htmlFile": "tournaments.html",
+      "id": "google-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "checkout.html",
+      "id": "mobile-menu",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "checkout.html",
+      "id": "mobile-menu-button",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "checkout.html",
+      "id": "close-mobile-menu",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "checkout.html",
+      "id": "auth-controls",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "about.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "careers.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "checkout.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "contact.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "events.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "home.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "index.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "partners.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "refund-policy.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "rising.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "support.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "teams.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "terms.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "tournaments.html",
+      "id": "display-name-header",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "about.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "careers.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "checkout.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "contact.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "events.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "home.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "index.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "partners.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "refund-policy.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "rising.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "support.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "teams.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "terms.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "tournaments.html",
+      "id": "email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "about.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "careers.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "checkout.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "contact.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "edit-profile.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "events.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "home.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "index.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "partners.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "refund-policy.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "rising.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "support.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "teams.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "terms.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "tournaments.html",
+      "id": "account-email-display",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "about.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "careers.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "checkout.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "contact.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "events.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "home.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "index.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "partners.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "refund-policy.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "rising.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "support.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "teams.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "terms.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "tournaments.html",
+      "id": "profile-avatar",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "about.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "careers.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "checkout.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "contact.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "edit-profile.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "events.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "partners.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "profile.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "refund-policy.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "rising.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "support.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "teams.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "terms.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "tournaments.html",
+      "id": "hero-cta-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "checkout.html",
+      "id": "auth-controls-wrapper",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "about.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "careers.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "checkout.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "contact.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "edit-profile.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "events.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "home.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "index.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "partners.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "profile.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "refund-policy.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "rising.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "support.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "teams.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "terms.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "tournaments.html",
+      "id": "cz-custom-cursor-css",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "about.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "careers.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "checkout.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "contact.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "edit-profile.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "events.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "home.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "index.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "partners.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "profile.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "refund-policy.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "rising.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "support.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "teams.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "terms.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "main.js",
+      "htmlFile": "tournaments.html",
+      "id": "cz-system-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "about.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "careers.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "contact.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "edit-profile.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "events.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "home.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "index.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "partners.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "profile.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "refund-policy.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "rising.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "support.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "teams.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "terms.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "tournaments.html",
+      "id": "cz-notif-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "about.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "careers.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "contact.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "edit-profile.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "events.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "home.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "index.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "partners.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "profile.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "refund-policy.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "rising.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "support.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "teams.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "terms.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "notifications.js",
+      "htmlFile": "tournaments.html",
+      "id": "announcement-modal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "email-verification-alert",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "profile.html",
+      "id": "email-verification-alert",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "withdrawalMethodModal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "w-channel",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "w-bank-select",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "w-bank-custom",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "w-account-name",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "w-account-number",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "w-notes",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "w-bank-name-group",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "w-save-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "cashInModal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "payrex-amount",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "payrex-notes",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "payrex-submit-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "cashin-amount",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "cashin-channel",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "cashin-ref",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "cashin-notes",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "cashin-submit-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "adminApproveCashInModal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "admin-cashin-req-id",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "admin-cashin-notes",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "admin-cashin-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "requestWithdrawalModal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "req-amount",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "req-notes",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "req-submit-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "adminDisburseModal",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "admin-disburse-req-id",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "admin-disburse-ref",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "admin-disburse-notes",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "profile.js",
+      "htmlFile": "edit-profile.html",
+      "id": "admin-disburse-btn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "teams.js",
+      "htmlFile": "teams.html",
+      "id": "lft-ign-field",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "teams.js",
+      "htmlFile": "teams.html",
+      "id": "lft-sync-banner",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "teams.js",
+      "htmlFile": "teams.html",
+      "id": "edit-img",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "about.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "admin.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "careers.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "checkout.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "contact.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "edit-profile.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "events.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "forgot-password.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "home.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "index.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "login.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "partners.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "profile.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "refund-policy.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "reset-password.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "rising.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "signup.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "support.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "teams.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "terms.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "tournaments.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "toast.js",
+      "htmlFile": "verify-email.html",
+      "id": "cz-toast-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "tree-bracket-styles",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "prizePodiumContainer",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "editTournamentBtn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "archiveTournamentBtn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "archiveBtnText",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "checkInSubText",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "vm-contactInfo",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "ub-container",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "lb-container",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "chat-readonly-notice",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "mvpSelectPlayer",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "mvpCustomIgn",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "mvpCustomTeam",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "mvpCustomTitle",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    },
+    {
+      "jsFile": "tournaments.js",
+      "htmlFile": "tournaments.html",
+      "id": "mvpCustomStats",
+      "status": "POSSIBLE_MISSING_ELEMENT"
+    }
+  ],
+  "deadLinksAudit": [
+    {
+      "file": "home.html",
+      "type": "DEAD_OR_EMPTY_ANCHOR",
+      "href": "#",
+      "tag": "<a href=\"#\" id=\"activity-link-1\"\r\n                        class=\"event-card rounded-xl overflow-hidd"
+    },
+    {
+      "file": "home.html",
+      "type": "DEAD_OR_EMPTY_ANCHOR",
+      "href": "#",
+      "tag": "<a href=\"#\" id=\"activity-link-2\"\r\n                        class=\"event-card rounded-xl overflow-hidd"
+    },
+    {
+      "file": "home.html",
+      "type": "DEAD_OR_EMPTY_ANCHOR",
+      "href": "#",
+      "tag": "<a href=\"#\" id=\"activity-link-3\"\r\n                        class=\"event-card rounded-xl overflow-hidd"
+    },
+    {
+      "file": "index.html",
+      "type": "DEAD_OR_EMPTY_ANCHOR",
+      "href": "#",
+      "tag": "<a href=\"#\" id=\"activity-link-1\"\r\n                        class=\"event-card rounded-xl overflow-hidd"
+    },
+    {
+      "file": "index.html",
+      "type": "DEAD_OR_EMPTY_ANCHOR",
+      "href": "#",
+      "tag": "<a href=\"#\" id=\"activity-link-2\"\r\n                        class=\"event-card rounded-xl overflow-hidd"
+    },
+    {
+      "file": "index.html",
+      "type": "DEAD_OR_EMPTY_ANCHOR",
+      "href": "#",
+      "tag": "<a href=\"#\" id=\"activity-link-3\"\r\n                        class=\"event-card rounded-xl overflow-hidd"
+    },
+    {
+      "file": "teams.html",
+      "type": "DEAD_OR_EMPTY_ANCHOR",
+      "href": "#",
+      "tag": "<a id=\"td-discord-link\" href=\"#\" target=\"_blank\" rel=\"noopener noreferrer\"\r\n                        "
+    },
+    {
+      "file": "tournaments.html",
+      "type": "DEAD_OR_EMPTY_ANCHOR",
+      "href": "#",
+      "tag": "<a id=\"detailDiscordLink\" href=\"#\" target=\"_blank\" rel=\"noopener noreferrer\"\r\n                      "
+    },
+    {
+      "file": "tournaments.html",
+      "type": "DEAD_OR_EMPTY_ANCHOR",
+      "href": "#",
+      "tag": "<a id=\"join-qr-download\" href=\"#\" download=\"payment-qr\"\r\n                        class=\"flex items-c"
+    }
+  ],
+  "serverlessContracts": [],
+  "formAudits": []
+}

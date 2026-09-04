@@ -1,0 +1,352 @@
+{
+  "htmlAssetChecks": [],
+  "redirectChecks": [
+    {
+      "line": 6,
+      "from": "/.env*",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 7,
+      "from": "/.git*",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 8,
+      "from": "/server.js",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 9,
+      "from": "/firestore.rules",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 10,
+      "from": "/*.json",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 11,
+      "from": "/*.toml",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 12,
+      "from": "/*.md",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 13,
+      "from": "/scratch/*",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 14,
+      "from": "/scripts/*",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 15,
+      "from": "/netlify/*",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 16,
+      "from": "/.netlify/functions/firebase-config",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 17,
+      "from": "/api/firebase-config",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 18,
+      "from": "/ARCHITECTURE.txt",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 19,
+      "from": "/deno.lock",
+      "to": "/404.html",
+      "status": "PASS"
+    },
+    {
+      "line": 25,
+      "from": "/",
+      "to": "/home.html",
+      "status": "PASS"
+    },
+    {
+      "line": 26,
+      "from": "/home",
+      "to": "/home.html",
+      "status": "PASS"
+    },
+    {
+      "line": 27,
+      "from": "/tournaments",
+      "to": "/tournaments.html",
+      "status": "PASS"
+    },
+    {
+      "line": 28,
+      "from": "/events",
+      "to": "/events.html",
+      "status": "PASS"
+    },
+    {
+      "line": 29,
+      "from": "/teams",
+      "to": "/teams.html",
+      "status": "PASS"
+    },
+    {
+      "line": 30,
+      "from": "/rising",
+      "to": "/rising.html",
+      "status": "PASS"
+    },
+    {
+      "line": 31,
+      "from": "/partners",
+      "to": "/partners.html",
+      "status": "PASS"
+    },
+    {
+      "line": 32,
+      "from": "/about",
+      "to": "/about.html",
+      "status": "PASS"
+    },
+    {
+      "line": 33,
+      "from": "/support",
+      "to": "/support.html",
+      "status": "PASS"
+    },
+    {
+      "line": 34,
+      "from": "/profile",
+      "to": "/profile.html",
+      "status": "PASS"
+    },
+    {
+      "line": 35,
+      "from": "/edit-profile",
+      "to": "/edit-profile.html",
+      "status": "PASS"
+    },
+    {
+      "line": 36,
+      "from": "/admin",
+      "to": "/admin.html",
+      "status": "PASS"
+    },
+    {
+      "line": 37,
+      "from": "/login",
+      "to": "/login.html",
+      "status": "PASS"
+    },
+    {
+      "line": 38,
+      "from": "/signup",
+      "to": "/signup.html",
+      "status": "PASS"
+    },
+    {
+      "line": 39,
+      "from": "/contact",
+      "to": "/contact.html",
+      "status": "PASS"
+    },
+    {
+      "line": 40,
+      "from": "/terms",
+      "to": "/terms.html",
+      "status": "PASS"
+    },
+    {
+      "line": 41,
+      "from": "/careers",
+      "to": "/careers.html",
+      "status": "PASS"
+    },
+    {
+      "line": 42,
+      "from": "/refund-policy",
+      "to": "/refund-policy.html",
+      "status": "PASS"
+    },
+    {
+      "line": 43,
+      "from": "/verify-email",
+      "to": "/verify-email.html",
+      "status": "PASS"
+    },
+    {
+      "line": 44,
+      "from": "/forgot-password",
+      "to": "/forgot-password.html",
+      "status": "PASS"
+    },
+    {
+      "line": 45,
+      "from": "/reset-password",
+      "to": "/reset-password.html",
+      "status": "PASS"
+    },
+    {
+      "line": 46,
+      "from": "/checkout",
+      "to": "/checkout.html",
+      "status": "PASS"
+    },
+    {
+      "line": 47,
+      "from": "/access-denied",
+      "to": "/access-denied.html",
+      "status": "PASS"
+    },
+    {
+      "line": 48,
+      "from": "/livestream",
+      "to": "/livestream.html",
+      "status": "PASS"
+    },
+    {
+      "line": 52,
+      "from": "/*",
+      "to": "/index.html",
+      "status": "PASS"
+    }
+  ],
+  "scriptLoadingOrder": [],
+  "domElementChecks": [],
+  "serverlessFunctionChecks": [
+    {
+      "name": "action.js",
+      "hasHandler": true,
+      "hasCorsOptions": false,
+      "hasTryCatch": true,
+      "returnsJson": false,
+      "status": "WARN"
+    },
+    {
+      "name": "create-mux-stream.js",
+      "hasHandler": true,
+      "hasCorsOptions": true,
+      "hasTryCatch": true,
+      "returnsJson": true,
+      "status": "PASS"
+    },
+    {
+      "name": "create-payrex-intent.js",
+      "hasHandler": true,
+      "hasCorsOptions": true,
+      "hasTryCatch": true,
+      "returnsJson": true,
+      "status": "PASS"
+    },
+    {
+      "name": "delete-mux-stream.js",
+      "hasHandler": true,
+      "hasCorsOptions": true,
+      "hasTryCatch": true,
+      "returnsJson": true,
+      "status": "PASS"
+    },
+    {
+      "name": "disable-mux-stream.js",
+      "hasHandler": true,
+      "hasCorsOptions": true,
+      "hasTryCatch": true,
+      "returnsJson": true,
+      "status": "PASS"
+    },
+    {
+      "name": "firebase-config.js",
+      "hasHandler": true,
+      "hasCorsOptions": false,
+      "hasTryCatch": false,
+      "returnsJson": true,
+      "status": "WARN"
+    },
+    {
+      "name": "get-mux-stream.js",
+      "hasHandler": true,
+      "hasCorsOptions": true,
+      "hasTryCatch": true,
+      "returnsJson": true,
+      "status": "PASS"
+    },
+    {
+      "name": "get-users.js",
+      "hasHandler": true,
+      "hasCorsOptions": true,
+      "hasTryCatch": true,
+      "returnsJson": true,
+      "status": "PASS"
+    },
+    {
+      "name": "get-viewer-count.js",
+      "hasHandler": true,
+      "hasCorsOptions": true,
+      "hasTryCatch": true,
+      "returnsJson": true,
+      "status": "PASS"
+    },
+    {
+      "name": "payrex-checkout.js",
+      "hasHandler": true,
+      "hasCorsOptions": true,
+      "hasTryCatch": true,
+      "returnsJson": true,
+      "status": "PASS"
+    },
+    {
+      "name": "payrex-verify.js",
+      "hasHandler": true,
+      "hasCorsOptions": true,
+      "hasTryCatch": true,
+      "returnsJson": true,
+      "status": "PASS"
+    },
+    {
+      "name": "payrex-webhook.js",
+      "hasHandler": true,
+      "hasCorsOptions": false,
+      "hasTryCatch": true,
+      "returnsJson": true,
+      "status": "PASS"
+    },
+    {
+      "name": "update-user-role.js",
+      "hasHandler": true,
+      "hasCorsOptions": true,
+      "hasTryCatch": true,
+      "returnsJson": true,
+      "status": "PASS"
+    }
+  ],
+  "warnings": [
+    "[action.js] May be missing explicit CORS OPTIONS preflight handler",
+    "[payrex-webhook.js] May be missing explicit CORS OPTIONS preflight handler"
+  ],
+  "errors": []
+}
