@@ -444,11 +444,20 @@
             if (subjectParam) {
                 const subjectSelect = document.getElementById('subject');
                 if (subjectSelect) {
+                    let matched = false;
                     for (let i = 0; i < subjectSelect.options.length; i++) {
                         if (subjectSelect.options[i].value.toLowerCase() === subjectParam.toLowerCase()) {
                             subjectSelect.selectedIndex = i;
+                            matched = true;
                             break;
                         }
+                    }
+                    if (!matched) {
+                        const newOpt = document.createElement('option');
+                        newOpt.value = subjectParam;
+                        newOpt.textContent = subjectParam;
+                        newOpt.selected = true;
+                        subjectSelect.appendChild(newOpt);
                     }
                 }
             }

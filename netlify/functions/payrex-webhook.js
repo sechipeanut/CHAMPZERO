@@ -5,7 +5,25 @@ const crypto = require('crypto');
 const { initFirebaseAdmin } = require('./utils/firebase-admin');
 
 exports.handler = async (event, context) => {
-    if (event.httpMethod !== 'POST') return { statusCode: 405, body: 'Method Not Allowed' };
+    if (event.httpMethod === 'OPTIONS') {
+        return {
+            statusCode: 200,
+            headers: {
+                'Access-Control-Allow-Origin': '*',
+                'Access-Control-Allow-Headers': 'Content-Type, payrex-signature, x-webhook-signature, Payrex-Signature',
+                'Access-Control-Allow-Methods': 'POST, OPTIONS'
+            },
+            body: ''
+        };
+    }
+
+    if (event.httpMethod !== 'POST') {
+        return {
+            statusCode: 405,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ error: 'Method Not Allowed' })
+        };
+    }
 
     try {
         const webhookSecret = process.env.PAYREX_WEBHOOK_SECRET;
@@ -241,19 +259,19 @@ exports.handler = async (event, context) => {
             // Scenario D: Shop Order Status Update
             else if (orderId) {
                 const orderRef = db.collection('orders').doc(orderId);
-                await orderRef.update({
+                await orderRef.set({
                     status: 'paid',
                     paymentStatus: 'succeeded',
                     paymentIntentId: eventData.id || '',
                     paidAt: new Date().toISOString()
-                });
+                }, { merge: true });
                 console.log(`Successfully updated order ${orderId} status to paid.`);
             }
         }
 
-        return { statusCode: 200, body: JSON.stringify({ received: true }) };
+        return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ received: true }) };
     } catch (error) {
         console.error("Webhook Error:", error.message);
-        return { statusCode: 500, body: JSON.stringify({ error: error.message }) };
+        return { statusCode: 500, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ error: 'Internal Server Error' }) };
     }
 };

@@ -37,6 +37,7 @@ let auth = null;
 let db = null;
 let storage = null;
 
+let initError = null;
 try {
     const existingApps = getApps();
     app = existingApps.length > 0 ? getApp() : initializeApp(fbConfig);
@@ -63,10 +64,13 @@ try {
         detail: { app, auth, db, storage }
     }));
 } catch (err) {
+    initError = err;
     console.error('[Firebase Init Error]', err);
 }
 
-window.czFirebase.ready = Promise.resolve({ app, auth, db, storage });
+window.czFirebase.ready = initError
+    ? Promise.reject(initError)
+    : Promise.resolve({ app, auth, db, storage });
 
 export { app, auth, db, storage };
 export default window.czFirebase;

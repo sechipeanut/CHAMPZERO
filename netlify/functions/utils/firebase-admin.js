@@ -34,13 +34,20 @@ function initFirebaseAdmin() {
             };
         }
 
-        if (!credentialConfig) {
-            throw new Error('Firebase Admin initialization error: Missing service account credentials. Provide either FIREBASE_SERVICE_ACCOUNT_BASE64 or FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL, and FIREBASE_PROJECT_ID.');
+        let credential;
+        if (credentialConfig) {
+            credential = admin.credential.cert(credentialConfig);
+        } else {
+            try {
+                credential = admin.credential.applicationDefault();
+            } catch (adcErr) {
+                throw new Error('Firebase Admin initialization error: Missing service account credentials. Provide either FIREBASE_SERVICE_ACCOUNT_BASE64 or FIREBASE_PRIVATE_KEY, FIREBASE_CLIENT_EMAIL, and FIREBASE_PROJECT_ID, or configure Google Application Default Credentials.');
+            }
         }
 
         admin.initializeApp({
-            credential: admin.credential.cert(credentialConfig),
-            databaseURL: process.env.FIREBASE_DATABASE_URL || `https://${process.env.FIREBASE_PROJECT_ID}-default-rtdb.asia-southeast1.firebasedatabase.app`
+            credential,
+            databaseURL: process.env.FIREBASE_DATABASE_URL || (process.env.FIREBASE_PROJECT_ID ? `https://${process.env.FIREBASE_PROJECT_ID}-default-rtdb.asia-southeast1.firebasedatabase.app` : undefined)
         });
 
         return {
