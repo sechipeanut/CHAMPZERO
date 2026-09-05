@@ -1346,11 +1346,11 @@
                     <div id="rewards-catalog-cards" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
 
                         <!-- ITEM 1: 1-Month Golden PRO Badge -->
-                        <div
+                        <div id="reward-card-pro_badge"
                             class="bg-[#111116] border border-white/10 hover:border-[#FFD700]/40 rounded-2xl p-5 flex flex-col justify-between gap-4 transition-all">
                             <div>
                                 <div class="flex items-center justify-between mb-3">
-                                    <span
+                                    <span id="reward-badge-pro_badge"
                                         class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-[#FFD700]/15 text-[#FFD700] border border-[#FFD700]/30">Instant Unlock</span>
                                     <div class="font-heading font-bold text-base text-[#FFD700]">300 CZ</div>
                                 </div>
@@ -1359,11 +1359,14 @@
                                     Verified golden PRO badge across all tournament brackets, profile HUD, and recruitment cards.
                                 </p>
                             </div>
-                            <button type="button"
-                                onclick="window.openRedeemModalById('pro_badge')"
-                                class="w-full py-2.5 rounded-xl bg-white/5 hover:bg-[#FFD700] text-neutral-200 hover:text-black font-heading font-bold text-xs uppercase tracking-wider transition-all border border-white/10 hover:border-[#FFD700] cursor-pointer">
-                                Redeem (300 CZ)
-                            </button>
+                            <div id="reward-action-pro_badge">
+                                <button type="button"
+                                    id="reward-btn-pro_badge"
+                                    onclick="window.openRedeemModalById('pro_badge')"
+                                    class="w-full py-2.5 rounded-xl bg-white/5 hover:bg-[#FFD700] text-neutral-200 hover:text-black font-heading font-bold text-xs uppercase tracking-wider transition-all border border-white/10 hover:border-[#FFD700] cursor-pointer">
+                                    Redeem (300 CZ)
+                                </button>
+                            </div>
                         </div>
 
                         <!-- ITEM 2: CZ Mystery Esports Crate (Special Drop) -->

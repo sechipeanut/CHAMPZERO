@@ -2481,8 +2481,6 @@ async function loadRewardsData(userData) {
     if (!userData) userData = activeUserData || {};
     const czPoints = typeof userData.czPoints === 'number' ? userData.czPoints : 0;
     const lifetimePoints = typeof userData.lifetimePoints === 'number' ? userData.lifetimePoints : czPoints;
-    const dailyStreak = typeof userData.dailyStreak === 'number' ? userData.dailyStreak : 1;
-    const lastCheckIn = userData.lastCheckInDate || '';
     const referralCount = typeof userData.referralCount === 'number' ? userData.referralCount : 0;
     const referralCode = userData.referralCode || ('CZ-' + (activeUserUid ? activeUserUid.substring(0, 6).toUpperCase() : 'MEMBER'));
 
@@ -2492,6 +2490,8 @@ async function loadRewardsData(userData) {
     // 1. Vault Balance & Lifetime Points
     if (qs('#reward-points-balance')) qs('#reward-points-balance').textContent = czPoints.toLocaleString();
     if (qs('#reward-lifetime-points')) qs('#reward-lifetime-points').textContent = `${lifetimePoints.toLocaleString()} CZ`;
+    const headerPtsEl = document.querySelector('.profile-dropdown-container a[href*="tab=rewards"]');
+    if (headerPtsEl) headerPtsEl.textContent = `${czPoints} CZ`;
 
     // Tier badge
     const tierBadge = qs('#reward-tier-badge');
@@ -2508,16 +2508,58 @@ async function loadRewardsData(userData) {
         }
     }
 
-    // 2. Streak Counter & 7-Day Pills
-    const streakPill = qs('#streak-counter-pill');
-    if (streakPill) {
-        streakPill.textContent = `🔥 Day ${dailyStreak} of 7`;
+    const todayStr = getPHTDate();
+    const yesterdayStr = getPHTYesterday();
+    let lastCheckIn = userData.lastCheckInDate || '';
+    let storedStreak = typeof userData.dailyStreak === 'number' && userData.dailyStreak >= 1 ? userData.dailyStreak : 0;
+
+    let isCheckedInToday = (lastCheckIn === todayStr);
+    let isStreakBroken = false;
+
+    // CRITICAL: Check if user missed check-in in the middle of a streak
+    if (lastCheckIn && lastCheckIn !== todayStr && lastCheckIn !== yesterdayStr) {
+        // User missed yesterday! Reset streak completely back to Day 1
+        isStreakBroken = true;
+        storedStreak = 0;
+        lastCheckIn = '';
+        isCheckedInToday = false;
+
+        // Automatically sync streak reset to Firestore and local state
+        if (auth.currentUser && (!activeUserUid || activeUserUid === auth.currentUser.uid)) {
+            updateDoc(doc(db, "users", auth.currentUser.uid), {
+                dailyStreak: 0,
+                lastCheckInDate: ""
+            }).catch(() => {});
+            if (activeUserData) {
+                activeUserData.dailyStreak = 0;
+                activeUserData.lastCheckInDate = "";
+            }
+        }
     }
 
-    const todayStr = getPHTDate();
-    let isCheckedInToday = (lastCheckIn === todayStr);
-    if (isCheckedInToday && (!userData.czPoints || userData.czPoints === 0) && (!userData.lifetimePoints || userData.lifetimePoints === 0)) {
-        isCheckedInToday = false;
+    // Determine completed days and active day:
+    let completedDays = 0;
+    let activeDay = null;
+
+    if (isCheckedInToday) {
+        // Already checked in today: days 1..storedStreak are completed
+        completedDays = storedStreak;
+        activeDay = null;
+    } else if (lastCheckIn === yesterdayStr && storedStreak > 0) {
+        // Checked in yesterday: previous days are completed, next day is active
+        completedDays = storedStreak >= 7 ? 0 : storedStreak;
+        activeDay = (storedStreak % 7) + 1;
+    } else {
+        // Never checked in, or streak broken/reset: 0 days completed, Day 1 is active
+        completedDays = 0;
+        activeDay = 1;
+    }
+
+    // 2. Streak Counter & 7-Day Pills
+    const currentDisplayDay = activeDay || (completedDays > 0 ? completedDays : 1);
+    const streakPill = qs('#streak-counter-pill');
+    if (streakPill) {
+        streakPill.textContent = `🔥 Day ${currentDisplayDay} of 7`;
     }
 
     const checkinBtn = qs('#daily-checkin-btn');
@@ -2528,7 +2570,7 @@ async function loadRewardsData(userData) {
             checkinBtn.className = 'px-5 py-2.5 rounded-xl bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 font-heading font-bold text-xs uppercase tracking-wider shrink-0 cursor-not-allowed';
         } else {
             checkinBtn.disabled = false;
-            const pts = dailyStreak === 7 ? 50 : 15;
+            const pts = (activeDay === 7) ? 50 : 15;
             checkinBtn.innerHTML = `<span>Claim Check-In (+${pts} CZ)</span>`;
             checkinBtn.className = 'px-5 py-2.5 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-md shrink-0 cursor-pointer';
         }
@@ -2585,8 +2627,8 @@ async function loadRewardsData(userData) {
         for (let day = 1; day <= 7; day++) {
             const isMystery = (day === 7);
             const pts = isMystery ? '+50' : '+15';
-            const isCompleted = (day < dailyStreak) || (day === dailyStreak && isCheckedInToday);
-            const isCurrent = (day === dailyStreak && !isCheckedInToday);
+            const isCompleted = (day <= completedDays);
+            const isCurrent = (day === activeDay);
 
             let bgBorder = 'bg-white/5 border-white/10 text-neutral-500';
             let iconOrBonus = `<span class="text-[9px] font-mono font-bold">${pts}</span>`;
@@ -2628,10 +2670,35 @@ async function loadRewardsData(userData) {
     if (referralsPointsDisplay) referralsPointsDisplay.textContent = `+${referralCount * 100}`;
 
     // 4. Dynamic Rewards Catalog Pricing & 5. Redemption Receipts History in parallel
+    updateStaticRewardCards();
     await Promise.all([
         loadRewardsCatalog(),
         loadRedemptionHistory()
     ]);
+}
+
+function updateStaticRewardCards() {
+    const now = Date.now();
+    const isCurrentlyPro = Boolean(
+        activeUserData &&
+        (activeUserData.isSupporter || activeUserData.supporterTier || activeUserData.supporterBadge) &&
+        (!activeUserData.supporterExpiresAt || activeUserData.supporterExpiresAt > now)
+    );
+    const proActionContainer = qs('#reward-action-pro_badge');
+    const proBadgeStatus = qs('#reward-badge-pro_badge');
+    if (proActionContainer && isCurrentlyPro) {
+        const daysLeft = activeUserData.supporterExpiresAt ? Math.max(1, Math.ceil((activeUserData.supporterExpiresAt - now) / (1000 * 60 * 60 * 24))) : 30;
+        proActionContainer.innerHTML = `
+            <button type="button" disabled class="w-full py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 font-heading font-bold text-xs uppercase tracking-wider border border-emerald-500/30 cursor-not-allowed flex items-center justify-center gap-1.5 opacity-90 select-none">
+                <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                <span>Active PRO (${daysLeft}d left)</span>
+            </button>
+        `;
+        if (proBadgeStatus) {
+            proBadgeStatus.textContent = `✓ Active PRO (${daysLeft}d left)`;
+            proBadgeStatus.className = 'px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30';
+        }
+    }
 }
 
 async function loadRewardsCatalog() {
@@ -2697,8 +2764,45 @@ async function loadRewardsCatalog() {
                        </div>`
                     : '';
 
+                const now = Date.now();
+                const isCurrentlyPro = Boolean(
+                    activeUserData &&
+                    (activeUserData.isSupporter || activeUserData.supporterTier || activeUserData.supporterBadge) &&
+                    (!activeUserData.supporterExpiresAt || activeUserData.supporterExpiresAt > now)
+                );
+
+                let customBadgeClass = badgeClass;
+                let customSafeBadge = safeBadge;
+                if (item.id === 'pro_badge' && isCurrentlyPro) {
+                    const daysLeft = activeUserData.supporterExpiresAt ? Math.max(1, Math.ceil((activeUserData.supporterExpiresAt - now) / (1000 * 60 * 60 * 24))) : 30;
+                    customSafeBadge = `✓ Active PRO (${daysLeft}d left)`;
+                    customBadgeClass = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+                }
+
                 let buttonAction = '';
-                if (isUnavailable) {
+                if (item.id === 'pro_badge' && isCurrentlyPro) {
+                    const daysLeft = activeUserData.supporterExpiresAt ? Math.max(1, Math.ceil((activeUserData.supporterExpiresAt - now) / (1000 * 60 * 60 * 24))) : 30;
+                    buttonAction = `
+                        <button type="button" disabled class="w-full py-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 font-heading font-bold text-xs uppercase tracking-wider border border-emerald-500/30 cursor-not-allowed flex items-center justify-center gap-1.5 opacity-90 select-none">
+                            <svg class="w-3.5 h-3.5 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span>Active PRO (${daysLeft}d left)</span>
+                        </button>
+                    `;
+                } else if (item.id === 'animated_title_apex' && activeUserData && Array.isArray(activeUserData.unlockedTitles) && activeUserData.unlockedTitles.includes('Apex Striker')) {
+                    buttonAction = `
+                        <button type="button" disabled class="w-full py-2.5 rounded-xl bg-indigo-500/10 text-indigo-300 font-heading font-bold text-xs uppercase tracking-wider border border-indigo-500/30 cursor-not-allowed flex items-center justify-center gap-1.5 opacity-90 select-none">
+                            <svg class="w-3.5 h-3.5 text-indigo-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span>Already Owned</span>
+                        </button>
+                    `;
+                } else if (item.id === 'cyber_theme_hud' && activeUserData && (activeUserData.profileTheme === 'cyberpunk' || (Array.isArray(activeUserData.unlockedThemes) && activeUserData.unlockedThemes.includes('cyberpunk')))) {
+                    buttonAction = `
+                        <button type="button" disabled class="w-full py-2.5 rounded-xl bg-cyan-500/10 text-cyan-400 font-heading font-bold text-xs uppercase tracking-wider border border-cyan-500/30 cursor-not-allowed flex items-center justify-center gap-1.5 opacity-90 select-none">
+                            <svg class="w-3.5 h-3.5 text-cyan-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <span>Already Owned</span>
+                        </button>
+                    `;
+                } else if (isUnavailable) {
                     buttonAction = `
                         <button type="button" disabled class="w-full py-2.5 rounded-xl bg-white/5 text-neutral-400 font-heading font-bold text-xs uppercase tracking-wider border border-white/10 cursor-not-allowed flex items-center justify-center gap-1.5 opacity-80 select-none">
                             <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
@@ -2727,7 +2831,7 @@ async function loadRewardsCatalog() {
                     <div>
                         <div class="flex items-center justify-between mb-3 ${isSpecial || isUnavailable ? 'pt-2' : ''}">
                             <div class="flex items-center gap-1.5 flex-wrap">
-                                <span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase ${badgeClass} border">${safeBadge}</span>
+                                <span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase ${customBadgeClass} border">${customSafeBadge}</span>
                                 ${stockBadge}
                             </div>
                             <div class="font-heading font-extrabold text-base text-[#FFD700]">${cost.toLocaleString()} CZ</div>
@@ -2824,9 +2928,6 @@ window.claimDailyCheckin = async function () {
     const lastCheckIn = activeUserData.lastCheckInDate || '';
 
     let isAlreadyClaimed = (lastCheckIn === todayStr);
-    if (isAlreadyClaimed && (!activeUserData.czPoints || activeUserData.czPoints === 0) && (!activeUserData.lifetimePoints || activeUserData.lifetimePoints === 0)) {
-        isAlreadyClaimed = false;
-    }
 
     if (isAlreadyClaimed) {
         if (window.showWarningToast) window.showWarningToast("Already Claimed", "You have already claimed your daily check-in today! Next reset is at 12:00 AM PHT (midnight).");
@@ -2835,15 +2936,19 @@ window.claimDailyCheckin = async function () {
 
     const yesterdayStr = getPHTYesterday();
 
-    const currentStreak = typeof activeUserData.dailyStreak === 'number' ? activeUserData.dailyStreak : 1;
+    const currentStreak = typeof activeUserData.dailyStreak === 'number' && activeUserData.dailyStreak >= 1 ? activeUserData.dailyStreak : 0;
     let newStreak = 1;
+    let wasStreakBroken = false;
 
-    if (lastCheckIn === yesterdayStr) {
+    if (lastCheckIn === yesterdayStr && currentStreak > 0) {
+        // Consecutive check-in: advance streak by 1 (rolls over to Day 1 after Day 7)
         newStreak = (currentStreak % 7) + 1;
-    } else if (!lastCheckIn) {
-        newStreak = 1;
     } else {
-        newStreak = 1; // Streak reset to day 1 after a missed day
+        // Missed check-in in the middle of streak or first-time: RESTART FROM DAY 1
+        newStreak = 1;
+        if (lastCheckIn && lastCheckIn !== yesterdayStr) {
+            wasStreakBroken = true;
+        }
     }
 
     const pointsToAward = (newStreak === 7) ? 50 : 15;
@@ -2867,13 +2972,35 @@ window.claimDailyCheckin = async function () {
         activeUserData.dailyStreak = newStreak;
         activeUserData.lastCheckInDate = todayStr;
 
+        // Sync local auth cache & header display
+        try {
+            const raw = localStorage.getItem('cz_auth_cache');
+            if (raw) {
+                const u = JSON.parse(raw);
+                u.czPoints = activeUserData.czPoints;
+                u.dailyStreak = newStreak;
+                localStorage.setItem('cz_auth_cache', JSON.stringify(u));
+            }
+            const headerPtsEl = document.querySelector('.profile-dropdown-container a[href*="tab=rewards"]');
+            if (headerPtsEl) {
+                headerPtsEl.textContent = `${activeUserData.czPoints} CZ`;
+            }
+        } catch (cacheErr) {}
+
         await loadRewardsData(activeUserData);
 
         if (window.showSuccessToast) {
-            window.showSuccessToast(
-                `Check-In Claimed! +${pointsToAward} CZ`,
-                newStreak === 7 ? "Day 7 Mystery Drop unlocked! +50 CZ added to your vault." : `Day ${newStreak} of 7 streak active! Next reset at 12:00 AM PHT.`
-            );
+            if (wasStreakBroken) {
+                window.showSuccessToast(
+                    `Check-In Claimed! +${pointsToAward} CZ`,
+                    "You missed check-in yesterday, so your streak has restarted from Day 1. Keep checking in daily to reach Day 7!"
+                );
+            } else {
+                window.showSuccessToast(
+                    `Check-In Claimed! +${pointsToAward} CZ`,
+                    newStreak === 7 ? "Day 7 Mystery Drop unlocked! +50 CZ added to your vault." : `Day ${newStreak} of 7 streak active! Next reset at 12:00 AM PHT.`
+                );
+            }
         }
 
     } catch (err) {
@@ -2948,6 +3075,36 @@ window.openRedeemModal = function (rewardId, title, cost, gameType) {
 
     if (rewardId === 'cz_pro_jersey' || rewardId === 'logitech_gpro_drop') {
         if (window.showWarningToast) window.showWarningToast("Currently Unavailable", "This reward is locked and coming soon in an upcoming rewards wave.");
+        return;
+    }
+
+    // Strict Guard: Prevent double-redeeming 1-Month Golden PRO while current month is still active
+    if (rewardId === 'pro_badge') {
+        const now = Date.now();
+        const isCurrentlyPro = Boolean(
+            activeUserData &&
+            (activeUserData.isSupporter || activeUserData.supporterTier || activeUserData.supporterBadge) &&
+            (!activeUserData.supporterExpiresAt || activeUserData.supporterExpiresAt > now)
+        );
+        if (isCurrentlyPro) {
+            const daysLeft = activeUserData.supporterExpiresAt ? Math.max(1, Math.ceil((activeUserData.supporterExpiresAt - now) / (1000 * 60 * 60 * 24))) : 30;
+            if (window.showWarningToast) {
+                window.showWarningToast(
+                    "PRO Already Active",
+                    `You already have an active Golden PRO membership (${daysLeft} days remaining). You can redeem this reward again once your current month has expired!`
+                );
+            }
+            return;
+        }
+    }
+
+    // Strict Guard: Prevent double-purchasing permanent cosmetic titles or themes
+    if (rewardId === 'animated_title_apex' && activeUserData && Array.isArray(activeUserData.unlockedTitles) && activeUserData.unlockedTitles.includes('Apex Striker')) {
+        if (window.showWarningToast) window.showWarningToast("Already Owned", "You already own and unlocked the 'Apex Striker' player title!");
+        return;
+    }
+    if (rewardId === 'cyber_theme_hud' && activeUserData && (activeUserData.profileTheme === 'cyberpunk' || (Array.isArray(activeUserData.unlockedThemes) && activeUserData.unlockedThemes.includes('cyberpunk')))) {
+        if (window.showWarningToast) window.showWarningToast("Already Owned", "You already own and unlocked the Neon Cyberpunk Profile HUD theme!");
         return;
     }
 
@@ -3037,6 +3194,39 @@ window.submitRewardRedeem = async function (e) {
     const currentPoints = typeof activeUserData.czPoints === 'number' ? activeUserData.czPoints : 0;
     if (currentPoints < cost) {
         if (window.showWarningToast) window.showWarningToast("Insufficient Points", "You do not have enough CZ Points.");
+        return;
+    }
+
+    // Strict Enforcement: Prevent double-redeeming 1-Month Golden PRO while active
+    if (rewardId === 'pro_badge') {
+        const now = Date.now();
+        const isCurrentlyPro = Boolean(
+            activeUserData &&
+            (activeUserData.isSupporter || activeUserData.supporterTier || activeUserData.supporterBadge) &&
+            (!activeUserData.supporterExpiresAt || activeUserData.supporterExpiresAt > now)
+        );
+        if (isCurrentlyPro) {
+            const daysLeft = activeUserData.supporterExpiresAt ? Math.max(1, Math.ceil((activeUserData.supporterExpiresAt - now) / (1000 * 60 * 60 * 24))) : 30;
+            if (window.showWarningToast) {
+                window.showWarningToast(
+                    "PRO Already Active",
+                    `Your Golden PRO membership is still active (${daysLeft} days remaining). You cannot redeem it again until your current month has expired!`
+                );
+            }
+            window.closeRedeemModal();
+            return;
+        }
+    }
+
+    // Strict Enforcement: Prevent double-purchasing permanent cosmetic titles or themes
+    if (rewardId === 'animated_title_apex' && activeUserData && Array.isArray(activeUserData.unlockedTitles) && activeUserData.unlockedTitles.includes('Apex Striker')) {
+        if (window.showWarningToast) window.showWarningToast("Already Owned", "You already own the 'Apex Striker' player title!");
+        window.closeRedeemModal();
+        return;
+    }
+    if (rewardId === 'cyber_theme_hud' && activeUserData && (activeUserData.profileTheme === 'cyberpunk' || (Array.isArray(activeUserData.unlockedThemes) && activeUserData.unlockedThemes.includes('cyberpunk')))) {
+        if (window.showWarningToast) window.showWarningToast("Already Owned", "You already own the Neon Cyberpunk Profile HUD theme!");
+        window.closeRedeemModal();
         return;
     }
 

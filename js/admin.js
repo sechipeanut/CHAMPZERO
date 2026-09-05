@@ -12,7 +12,8 @@ import {
     query,
     serverTimestamp,
     orderBy,
-    onSnapshot
+    onSnapshot,
+    writeBatch
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { toDateInputFormat, calculateStatus, uploadImage } from './utils.js';
 
@@ -1418,6 +1419,7 @@ async function refreshAllLists() {
     fetchSiteConfig();
 
     if (window.fetchUsers) window.fetchUsers();
+    if (window.fetchTeamsAdmin) window.fetchTeamsAdmin();
 }
 
 async function fetchTournaments() {
@@ -2004,8 +2006,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     handleForm('#notifForm', 'notifications', () => ({
         title: qs('#n-title').value,
-        type: qs('#n-type').value,
-        message: qs('#n-message').value
+        type: qs('#n-type').value || 'announcement',
+        message: qs('#n-message').value,
+        isGlobal: true,
+        isPublic: true,
+        tag: 'ANNOUNCEMENT',
+        createdAt: serverTimestamp(),
+        timestamp: Date.now()
     }), "Notification Sent!");
 
     // PARTNER FORM SUBMIT HANDLER
@@ -2811,4 +2818,591 @@ window.updateAdminFeePreview = function() {
 
     platEl.textContent = `${sym}${platFee.toFixed(2)}`;
     netEl.textContent = `${sym}${netFee.toFixed(2)}`;
+};
+
+window.refreshAllStreaksPrompt = async function() {
+    if (!confirm("Are you sure you want to refresh all player daily streaks and reset check-in availability? This will also dispatch an update announcement to all players.")) return;
+
+    const btn = document.getElementById('refresh-all-streaks-btn');
+    const origHtml = btn ? btn.innerHTML : '';
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<span>⚡ Refreshing Streaks...</span>';
+    }
+
+    try {
+        const d = new Date(new Date().toLocaleString("en-US", { timeZone: "Asia/Manila" }));
+        d.setDate(d.getDate() - 1);
+        const yesterdayStr = d.toISOString().split('T')[0];
+
+        const usersSnap = await getDocs(collection(db, "users"));
+        let count = 0;
+        
+        const batches = [];
+        let curBatch = writeBatch(db);
+        let opCount = 0;
+
+        usersSnap.forEach(docSnap => {
+            curBatch.update(docSnap.ref, {
+                lastCheckInDate: "",
+                dailyStreak: 1,
+                lastDailyScoutDate: "",
+                lastDailyChatDate: "",
+                lastDailyScrimDate: "",
+                lastStreakRefreshAt: serverTimestamp()
+            });
+            count++;
+            opCount++;
+            if (opCount >= 400) {
+                batches.push(curBatch.commit());
+                curBatch = writeBatch(db);
+                opCount = 0;
+            }
+        });
+        if (opCount > 0) batches.push(curBatch.commit());
+        await Promise.all(batches);
+
+        // Send Global Announcement
+        await addDoc(collection(db, "notifications"), {
+            isGlobal: true,
+            isPublic: true,
+            title: "Daily Streaks Refreshed! ⚡",
+            message: "All player daily check-ins and Arena streaks have been refreshed for today. Visit your player profile rewards vault now to claim your CZ points and build your 7-day streak!",
+            tag: "STREAK REFRESH",
+            type: "announcement",
+            link: "/profile?tab=rewards",
+            createdAt: serverTimestamp(),
+            timestamp: Date.now()
+        });
+
+        if (window.showSuccessToast) {
+            window.showSuccessToast("Streaks Refreshed", `Successfully refreshed streaks for ${count} users and published update announcement!`);
+        } else {
+            alert(`Successfully refreshed streaks for ${count} users and published update announcement!`);
+        }
+    } catch(err) {
+        console.error("Error refreshing streaks:", err);
+        if (window.showErrorToast) {
+            window.showErrorToast("Error", err.message || "Failed to refresh streaks.");
+        } else {
+            alert("Error refreshing streaks: " + err.message);
+        }
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.innerHTML = origHtml;
+        }
+    }
+};
+
+// ==========================================
+// TEAMS & ROSTERS ADMIN MANAGEMENT MODULE
+// ==========================================
+
+let _adminTeamsData = [];
+let _adminLftData = [];
+let _adminScrimsData = [];
+let _adminTeamsActiveCategory = 'teams'; // 'teams' | 'lft' | 'scrims'
+let _adminTeamsActiveGame = 'all'; // 'all' | 'val' | 'mlbb' | 'hok'
+let _adminTeamsSearchQuery = '';
+
+window.fetchTeamsAdmin = async function() {
+    const listEl = qs('#admin-teams-list');
+    if (listEl) {
+        listEl.innerHTML = '<div class="text-center py-8 text-neutral-500 font-mono-tag text-xs"><span class="animate-pulse">Loading squads, free agents, and scrims...</span></div>';
+    }
+
+    try {
+        // 1. Fetch recruitment collection (both teams and LFT free agents)
+        const recruitSnap = await getDocs(collection(db, "recruitment"));
+        const teams = [];
+        const lfts = [];
+
+        recruitSnap.forEach(docSnap => {
+            const data = docSnap.data();
+            const item = { id: docSnap.id, ...data };
+            if (data.type === 'lft') {
+                lfts.push(item);
+            } else {
+                teams.push(item);
+            }
+        });
+
+        // 2. Fetch scrims collection
+        const scrimsSnap = await getDocs(collection(db, "scrims"));
+        const scrims = [];
+        scrimsSnap.forEach(docSnap => {
+            scrims.push({ id: docSnap.id, ...docSnap.data() });
+        });
+
+        // Sort descending by creation date / timestamp
+        const getTs = (item) => {
+            if (item.createdAt && typeof item.createdAt.toMillis === 'function') return item.createdAt.toMillis();
+            if (item.timestamp) return item.timestamp;
+            return 0;
+        };
+
+        teams.sort((a, b) => getTs(b) - getTs(a));
+        lfts.sort((a, b) => getTs(b) - getTs(a));
+        scrims.sort((a, b) => getTs(b) - getTs(a));
+
+        _adminTeamsData = teams;
+        _adminLftData = lfts;
+        _adminScrimsData = scrims;
+
+        // Calculate total roster members across all registered teams
+        let totalRosterMembers = 0;
+        teams.forEach(t => {
+            if (Array.isArray(t.members)) {
+                totalRosterMembers += t.members.length;
+            } else {
+                totalRosterMembers += Number(t.currentMembers || 1);
+            }
+        });
+
+        // Update Counter badges & metrics
+        const statTeams = qs('#stat-total-teams');
+        const statPlayers = qs('#stat-total-roster-players');
+        const statLft = qs('#stat-total-lft');
+        const statScrims = qs('#stat-total-scrims');
+        const navBadge = qs('#teams-nav-badge');
+        const countTabTeams = qs('#count-tab-teams');
+        const countTabLft = qs('#count-tab-lft');
+        const countTabScrims = qs('#count-tab-scrims');
+
+        if (statTeams) statTeams.textContent = teams.length;
+        if (statPlayers) statPlayers.textContent = totalRosterMembers;
+        if (statLft) statLft.textContent = lfts.length;
+        if (statScrims) statScrims.textContent = scrims.length;
+        if (navBadge) navBadge.textContent = teams.length;
+        if (countTabTeams) countTabTeams.textContent = teams.length;
+        if (countTabLft) countTabLft.textContent = lfts.length;
+        if (countTabScrims) countTabScrims.textContent = scrims.length;
+
+        window.renderTeamsAdminView();
+    } catch (err) {
+        console.error("Error fetching teams admin:", err);
+        if (listEl) {
+            listEl.innerHTML = `<div class="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 font-mono-tag text-xs">Failed to load teams: ${escapeHtml(err.message)}</div>`;
+        }
+        if (window.showErrorToast) window.showErrorToast("Error", "Could not load teams data: " + err.message);
+    }
+};
+
+window.filterTeamsCategory = function(category) {
+    _adminTeamsActiveCategory = category;
+
+    ['teams', 'lft', 'scrims'].forEach(cat => {
+        const btn = qs(`#btn-team-filter-${cat}`);
+        if (btn) {
+            if (cat === category) {
+                btn.className = "px-3.5 py-1.5 rounded-lg text-xs font-heading font-bold uppercase border bg-[var(--gold)] text-black border-[var(--gold)] cursor-pointer shadow-sm";
+            } else {
+                btn.className = "px-3.5 py-1.5 rounded-lg text-xs font-heading font-bold uppercase border border-white/10 bg-white/5 text-neutral-300 hover:border-white/30 cursor-pointer";
+            }
+        }
+    });
+
+    window.renderTeamsAdminView();
+};
+
+window.filterTeamsGame = function(game) {
+    _adminTeamsActiveGame = game;
+    window.renderTeamsAdminView();
+};
+
+window.searchTeamsAdmin = function(queryStr) {
+    _adminTeamsSearchQuery = (queryStr || '').trim().toLowerCase();
+    window.renderTeamsAdminView();
+};
+
+window.renderTeamsAdminView = function() {
+    const listEl = qs('#admin-teams-list');
+    if (!listEl) return;
+
+    if (_adminTeamsActiveCategory === 'teams') {
+        renderTeamsCards(listEl);
+    } else if (_adminTeamsActiveCategory === 'lft') {
+        renderLftCards(listEl);
+    } else if (_adminTeamsActiveCategory === 'scrims') {
+        renderScrimsCards(listEl);
+    }
+};
+
+function formatGameBadge(rawGame) {
+    const g = (rawGame || '').toLowerCase();
+    if (g.includes('val')) return `<span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-red-500/15 text-red-400 border border-red-500/30">VALORANT</span>`;
+    if (g.includes('mlbb') || g.includes('mobile')) return `<span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-blue-500/15 text-blue-400 border border-blue-500/30">MLBB</span>`;
+    if (g.includes('hok') || g.includes('honor')) return `<span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30">HOK</span>`;
+    return `<span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-white/10 text-neutral-300 border border-white/15">${escapeHtml(rawGame || 'CUSTOM')}</span>`;
+}
+
+function matchesGameFilter(rawGame) {
+    if (_adminTeamsActiveGame === 'all') return true;
+    const g = (rawGame || '').toLowerCase();
+    if (_adminTeamsActiveGame === 'val') return g.includes('val');
+    if (_adminTeamsActiveGame === 'mlbb') return g.includes('mlbb') || g.includes('mobile');
+    if (_adminTeamsActiveGame === 'hok') return g.includes('hok') || g.includes('honor');
+    return true;
+}
+
+function renderTeamsCards(container) {
+    let filtered = _adminTeamsData.filter(team => {
+        if (!matchesGameFilter(team.game)) return false;
+        if (_adminTeamsSearchQuery) {
+            const nameMatch = (team.name || '').toLowerCase().includes(_adminTeamsSearchQuery);
+            const authorMatch = (team.authorEmail || team.authorName || team.authorId || '').toLowerCase().includes(_adminTeamsSearchQuery);
+            const descMatch = (team.description || '').toLowerCase().includes(_adminTeamsSearchQuery);
+            const memberMatch = Array.isArray(team.members) && team.members.some(m => (m.name || m.ign || '').toLowerCase().includes(_adminTeamsSearchQuery));
+            if (!nameMatch && !authorMatch && !descMatch && !memberMatch) return false;
+        }
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="p-8 text-center bg-black/20 border border-white/5 rounded-2xl">
+                <p class="text-neutral-500 font-mono-tag text-xs">No competitive teams found matching your filters.</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = filtered.map(t => {
+        const logo = t.image || t.logo || 'pictures/cz_logo.png';
+        const memberCount = Array.isArray(t.members) ? t.members.length : (t.currentMembers || 1);
+        const maxMembers = t.maxMembers || 5;
+        const isVerified = Boolean(t.isPremium || t.isVerified);
+        const dateStr = t.createdAt && typeof t.createdAt.toDate === 'function' 
+            ? t.createdAt.toDate().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+            : (t.timestamp ? new Date(t.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Registered');
+
+        const rolesStr = Array.isArray(t.roles) && t.roles.length > 0 
+            ? t.roles.map(r => `<span class="px-1.5 py-0.5 rounded text-[8px] font-mono-tag uppercase bg-white/5 border border-white/10 text-neutral-400">${escapeHtml(r)}</span>`).join(' ')
+            : '';
+
+        return `
+            <div class="bg-[var(--dark-surface)] border ${isVerified ? 'border-[#FFD700]/30 shadow-[0_0_15px_rgba(255,215,0,0.06)]' : 'border-white/10'} rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 transition-all hover:border-white/20">
+                <div class="flex items-center gap-3.5 min-w-0">
+                    <img src="${escapeHtml(logo)}" class="w-12 h-12 rounded-xl object-cover bg-black border border-white/10 shrink-0" onerror="this.src='pictures/cz_logo.png'" alt="Team Logo">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-heading font-bold text-white text-base tracking-wide truncate">${escapeHtml(t.name || 'Unnamed Squad')}</span>
+                            ${formatGameBadge(t.game)}
+                            ${isVerified ? '<span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/40">★ Verified Pro</span>' : ''}
+                        </div>
+                        <div class="flex items-center gap-3 text-xs text-neutral-400 font-mono-tag mt-1 flex-wrap">
+                            <span>Captain: <strong class="text-neutral-200">${escapeHtml(t.authorEmail || t.authorName || t.authorId || 'Unknown')}</strong></span>
+                            <span>•</span>
+                            <span class="text-cyan-400 font-bold">Roster: ${memberCount}/${maxMembers}</span>
+                            <span>•</span>
+                            <span>${dateStr}</span>
+                        </div>
+                        ${rolesStr ? `<div class="flex items-center gap-1.5 mt-2 flex-wrap">${rolesStr}</div>` : ''}
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0 self-end md:self-center flex-wrap">
+                    <button type="button" onclick="window.openTeamRosterModal('${t.id}')" class="px-3 py-1.5 rounded-lg text-xs font-mono-tag uppercase font-bold bg-white/5 hover:bg-white/10 border border-white/15 text-white transition-all cursor-pointer flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+                        <span>Inspect Roster</span>
+                    </button>
+                    <button type="button" onclick="window.toggleTeamPremium('${t.id}', ${!isVerified})" class="px-3 py-1.5 rounded-lg text-xs font-mono-tag uppercase font-bold ${isVerified ? 'bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/30 text-amber-300' : 'bg-[#FFD700]/15 hover:bg-[#FFD700]/25 border-[#FFD700]/40 text-[#FFD700]'} border transition-all cursor-pointer">
+                        ${isVerified ? 'Unverify' : 'Verify Pro'}
+                    </button>
+                    <button type="button" onclick="window.deleteTeamAdmin('${t.id}', '${escapeHtml(t.name || 'Team')}')" class="px-3 py-1.5 rounded-lg text-xs font-mono-tag uppercase font-bold bg-red-500/10 hover:bg-red-500/25 border border-red-500/30 text-red-400 transition-all cursor-pointer">
+                        Disband
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderLftCards(container) {
+    let filtered = _adminLftData.filter(lft => {
+        if (!matchesGameFilter(lft.game)) return false;
+        if (_adminTeamsSearchQuery) {
+            const nameMatch = (lft.name || lft.ign || '').toLowerCase().includes(_adminTeamsSearchQuery);
+            const authorMatch = (lft.authorEmail || lft.authorName || lft.authorId || '').toLowerCase().includes(_adminTeamsSearchQuery);
+            const descMatch = (lft.description || '').toLowerCase().includes(_adminTeamsSearchQuery);
+            if (!nameMatch && !authorMatch && !descMatch) return false;
+        }
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="p-8 text-center bg-black/20 border border-white/5 rounded-2xl">
+                <p class="text-neutral-500 font-mono-tag text-xs">No Free Agent (LFT) posts found matching your search.</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = filtered.map(lft => {
+        const avatar = lft.image || 'pictures/cz_logo.png';
+        const dateStr = lft.createdAt && typeof lft.createdAt.toDate === 'function'
+            ? lft.createdAt.toDate().toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' })
+            : (lft.timestamp ? new Date(lft.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : 'Active');
+
+        return `
+            <div class="bg-[var(--dark-surface)] border border-white/10 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-white/20 transition-all">
+                <div class="flex items-center gap-3.5 min-w-0">
+                    <img src="${escapeHtml(avatar)}" class="w-11 h-11 rounded-full object-cover bg-black border border-white/10 shrink-0" onerror="this.src='pictures/cz_logo.png'" alt="Player Avatar">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-heading font-bold text-white text-base truncate">${escapeHtml(lft.name || lft.ign || 'Free Agent')}</span>
+                            ${formatGameBadge(lft.game)}
+                            <span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-purple-500/15 text-purple-400 border border-purple-500/30">LOOKING FOR TEAM</span>
+                        </div>
+                        <div class="flex items-center gap-3 text-xs text-neutral-400 font-mono-tag mt-1 flex-wrap">
+                            <span>User: <strong class="text-neutral-200">${escapeHtml(lft.authorEmail || lft.authorName || lft.authorId || 'Player')}</strong></span>
+                            <span>•</span>
+                            <span>Role: <strong class="text-purple-300">${escapeHtml(lft.role || 'Flex')}</strong></span>
+                            <span>•</span>
+                            <span>${dateStr}</span>
+                        </div>
+                        ${lft.description ? `<p class="text-xs text-neutral-400 font-mono-tag mt-1 line-clamp-1">${escapeHtml(lft.description)}</p>` : ''}
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0 self-end md:self-center">
+                    <button type="button" onclick="window.deleteLftAdmin('${lft.id}', '${escapeHtml(lft.name || 'Free Agent')}')" class="px-3 py-1.5 rounded-lg text-xs font-mono-tag uppercase font-bold bg-red-500/10 hover:bg-red-500/25 border border-red-500/30 text-red-400 transition-all cursor-pointer">
+                        Delete Post
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function renderScrimsCards(container) {
+    let filtered = _adminScrimsData.filter(scrim => {
+        if (!matchesGameFilter(scrim.game)) return false;
+        if (_adminTeamsSearchQuery) {
+            const teamMatch = (scrim.teamName || scrim.team || '').toLowerCase().includes(_adminTeamsSearchQuery);
+            const userMatch = (scrim.creatorName || scrim.creatorEmail || scrim.userId || '').toLowerCase().includes(_adminTeamsSearchQuery);
+            const formatMatch = (scrim.format || scrim.mode || '').toLowerCase().includes(_adminTeamsSearchQuery);
+            if (!teamMatch && !userMatch && !formatMatch) return false;
+        }
+        return true;
+    });
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div class="p-8 text-center bg-black/20 border border-white/5 rounded-2xl">
+                <p class="text-neutral-500 font-mono-tag text-xs">No active Scrim Lobbies found matching your search.</p>
+            </div>`;
+        return;
+    }
+
+    container.innerHTML = filtered.map(scrim => {
+        const status = (scrim.status || 'open').toLowerCase();
+        let statusBadge = `<span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">OPEN LOBBY</span>`;
+        if (status === 'matched') statusBadge = `<span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-blue-500/15 text-blue-400 border border-blue-500/30">MATCHED</span>`;
+        if (status === 'completed' || status === 'done') statusBadge = `<span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase bg-neutral-500/20 text-neutral-400 border border-neutral-500/30">COMPLETED</span>`;
+
+        const dateStr = scrim.createdAt && typeof scrim.createdAt.toDate === 'function'
+            ? scrim.createdAt.toDate().toLocaleDateString([], { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })
+            : (scrim.timestamp ? new Date(scrim.timestamp).toLocaleDateString([], { month: 'short', day: 'numeric' }) : 'Scrim Session');
+
+        return `
+            <div class="bg-[var(--dark-surface)] border border-white/10 rounded-xl p-4 flex flex-col md:flex-row md:items-center justify-between gap-4 hover:border-white/20 transition-all">
+                <div class="flex items-center gap-3.5 min-w-0">
+                    <div class="w-11 h-11 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0 font-heading font-bold text-sm">
+                        ⚔
+                    </div>
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <span class="font-heading font-bold text-white text-base truncate">${escapeHtml(scrim.teamName || scrim.team || 'Challenger Squad')}</span>
+                            ${formatGameBadge(scrim.game)}
+                            ${statusBadge}
+                        </div>
+                        <div class="flex items-center gap-3 text-xs text-neutral-400 font-mono-tag mt-1 flex-wrap">
+                            <span>Host: <strong class="text-neutral-200">${escapeHtml(scrim.creatorName || scrim.creatorEmail || scrim.userId || 'Host')}</strong></span>
+                            <span>•</span>
+                            <span>Rank/Tier: <strong class="text-amber-300">${escapeHtml(scrim.rank || scrim.tier || 'Any')}</strong></span>
+                            <span>•</span>
+                            <span>Format: <strong class="text-neutral-300">${escapeHtml(scrim.format || scrim.mode || '5v5')}</strong></span>
+                            <span>•</span>
+                            <span>${dateStr}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex items-center gap-2 shrink-0 self-end md:self-center">
+                    <button type="button" onclick="window.deleteScrimAdmin('${scrim.id}', '${escapeHtml(scrim.teamName || 'Scrim')}')" class="px-3 py-1.5 rounded-lg text-xs font-mono-tag uppercase font-bold bg-red-500/10 hover:bg-red-500/25 border border-red-500/30 text-red-400 transition-all cursor-pointer">
+                        Close Lobby
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+window.openTeamRosterModal = function(teamId) {
+    const team = _adminTeamsData.find(t => t.id === teamId);
+    if (!team) return;
+
+    const modal = qs('#teamRosterModal');
+    const nameEl = qs('#roster-modal-team-name');
+    const gameEl = qs('#roster-modal-game');
+    const countEl = qs('#roster-modal-count');
+    const emailEl = qs('#roster-modal-captain-email');
+    const membersListEl = qs('#roster-modal-members-list');
+
+    if (nameEl) nameEl.textContent = team.name || 'Unnamed Squad';
+    if (gameEl) gameEl.textContent = (team.game || 'VALORANT').toUpperCase();
+    if (emailEl) emailEl.textContent = `Captain: ${team.authorEmail || team.authorName || team.authorId || 'Unknown'}`;
+
+    const members = Array.isArray(team.members) ? team.members : [];
+    const maxMembers = team.maxMembers || 5;
+    if (countEl) countEl.textContent = `${members.length} / ${maxMembers} Registered Members`;
+
+    if (membersListEl) {
+        if (members.length === 0) {
+            membersListEl.innerHTML = `
+                <div class="p-6 text-center bg-black/20 rounded-xl border border-white/5 font-mono-tag text-xs text-neutral-400">
+                    No individual member roster records attached yet. Captain has ${team.currentMembers || 1} reported player(s).
+                </div>`;
+        } else {
+            membersListEl.innerHTML = members.map((m, idx) => {
+                const role = (m.role || (idx === 0 ? 'Captain' : 'Member')).toUpperCase();
+                let roleBadge = 'bg-white/10 text-neutral-300 border-white/15';
+                if (role.includes('CAPTAIN')) roleBadge = 'bg-[#FFD700]/20 text-[#FFD700] border-[#FFD700]/40 font-bold';
+                else if (role.includes('VICE')) roleBadge = 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40';
+
+                return `
+                    <div class="flex items-center justify-between p-3 rounded-xl bg-black/40 border border-white/10 hover:border-white/20 transition-all">
+                        <div class="flex items-center gap-3">
+                            <div class="w-8 h-8 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center font-heading font-bold text-xs text-white shrink-0">
+                                ${idx + 1}
+                            </div>
+                            <div>
+                                <div class="font-heading font-bold text-white text-sm flex items-center gap-2">
+                                    <span>${escapeHtml(m.ign || m.name || 'Roster Member')}</span>
+                                </div>
+                                <div class="text-[10px] font-mono-tag text-neutral-500">
+                                    UID: ${escapeHtml(m.uid || m.id || 'N/A')}
+                                </div>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-1 rounded text-[10px] font-mono-tag uppercase border ${roleBadge}">${escapeHtml(role)}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+    }
+
+    if (modal) {
+        modal.classList.remove('hidden');
+        document.body.style.overflow = 'hidden';
+    }
+};
+
+window.closeTeamRosterModal = function() {
+    const modal = qs('#teamRosterModal');
+    if (modal) {
+        modal.classList.add('hidden');
+        document.body.style.overflow = 'auto';
+    }
+};
+
+window.toggleTeamPremium = async function(teamId, newStatus) {
+    try {
+        await updateDoc(doc(db, "recruitment", teamId), {
+            isPremium: Boolean(newStatus),
+            isVerified: Boolean(newStatus),
+            updatedAt: serverTimestamp()
+        });
+
+        // Update locally
+        const t = _adminTeamsData.find(x => x.id === teamId);
+        if (t) {
+            t.isPremium = Boolean(newStatus);
+            t.isVerified = Boolean(newStatus);
+        }
+
+        if (window.showSuccessToast) {
+            window.showSuccessToast("Team Updated", `Team verification status set to ${newStatus ? 'VERIFIED PRO' : 'STANDARD'}.`);
+        }
+        window.renderTeamsAdminView();
+    } catch (err) {
+        console.error("Error toggling team verification:", err);
+        if (window.showErrorToast) window.showErrorToast("Error", "Failed to update team: " + err.message);
+    }
+};
+
+window.deleteTeamAdmin = async function(teamId, teamName) {
+    const confirmed = await window.showCustomConfirm(
+        "Disband Team", 
+        `Are you sure you want to permanently disband and delete team "${teamName}"? This action cannot be undone.`
+    );
+    if (!confirmed) return;
+
+    try {
+        await deleteDoc(doc(db, "recruitment", teamId));
+        _adminTeamsData = _adminTeamsData.filter(t => t.id !== teamId);
+
+        // Update metrics
+        const statTeams = qs('#stat-total-teams');
+        const countTabTeams = qs('#count-tab-teams');
+        const navBadge = qs('#teams-nav-badge');
+        if (statTeams) statTeams.textContent = _adminTeamsData.length;
+        if (countTabTeams) countTabTeams.textContent = _adminTeamsData.length;
+        if (navBadge) navBadge.textContent = _adminTeamsData.length;
+
+        if (window.showSuccessToast) window.showSuccessToast("Team Disbanded", `Team "${teamName}" was removed from the recruitment directory.`);
+        window.renderTeamsAdminView();
+    } catch (err) {
+        console.error("Error deleting team:", err);
+        if (window.showErrorToast) window.showErrorToast("Error", "Failed to disband team: " + err.message);
+    }
+};
+
+window.deleteLftAdmin = async function(lftId, playerName) {
+    const confirmed = await window.showCustomConfirm(
+        "Delete Free Agent Post", 
+        `Delete LFT listing for "${playerName}"?`
+    );
+    if (!confirmed) return;
+
+    try {
+        await deleteDoc(doc(db, "recruitment", lftId));
+        _adminLftData = _adminLftData.filter(l => l.id !== lftId);
+
+        const statLft = qs('#stat-total-lft');
+        const countTabLft = qs('#count-tab-lft');
+        if (statLft) statLft.textContent = _adminLftData.length;
+        if (countTabLft) countTabLft.textContent = _adminLftData.length;
+
+        if (window.showSuccessToast) window.showSuccessToast("Post Deleted", `Free agent post was deleted.`);
+        window.renderTeamsAdminView();
+    } catch (err) {
+        console.error("Error deleting LFT post:", err);
+        if (window.showErrorToast) window.showErrorToast("Error", "Failed to delete post: " + err.message);
+    }
+};
+
+window.deleteScrimAdmin = async function(scrimId, scrimName) {
+    const confirmed = await window.showCustomConfirm(
+        "Close Scrim Lobby", 
+        `Close and remove scrimmage lobby for "${scrimName}"?`
+    );
+    if (!confirmed) return;
+
+    try {
+        await deleteDoc(doc(db, "scrims", scrimId));
+        _adminScrimsData = _adminScrimsData.filter(s => s.id !== scrimId);
+
+        const statScrims = qs('#stat-total-scrims');
+        const countTabScrims = qs('#count-tab-scrims');
+        if (statScrims) statScrims.textContent = _adminScrimsData.length;
+        if (countTabScrims) countTabScrims.textContent = _adminScrimsData.length;
+
+        if (window.showSuccessToast) window.showSuccessToast("Lobby Closed", `Scrimmage lobby was closed and removed.`);
+        window.renderTeamsAdminView();
+    } catch (err) {
+        console.error("Error deleting scrim:", err);
+        if (window.showErrorToast) window.showErrorToast("Error", "Failed to close scrim lobby: " + err.message);
+    }
 };

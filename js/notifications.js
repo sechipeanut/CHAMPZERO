@@ -28,6 +28,7 @@ let scrimsLoaded = false;
 let firestorePersonalAlerts = [];
 let rootPersonalAlerts = [];
 let generatedTournamentAlerts = [];
+let friendRequestAlerts = [];
 
 function extractTournamentId(link) {
     if (!link || typeof link !== 'string') return null;
@@ -55,6 +56,7 @@ function rebuildPersonalAlerts() {
     const validFirestore = firestorePersonalAlerts.filter(a => !isOrphanedTournamentAlert(a));
     const validRoot = rootPersonalAlerts.filter(a => !isOrphanedTournamentAlert(a));
     const validGenerated = generatedTournamentAlerts.filter(a => !isOrphanedTournamentAlert(a));
+    const validFriends = friendRequestAlerts || [];
 
     const combined = [...validFirestore];
     const existingIds = new Set(combined.map(a => a.id));
@@ -66,6 +68,12 @@ function rebuildPersonalAlerts() {
         }
     }
     for (const alert of validGenerated) {
+        if (!existingIds.has(alert.id)) {
+            combined.push(alert);
+            existingIds.add(alert.id);
+        }
+    }
+    for (const alert of validFriends) {
         if (!existingIds.has(alert.id)) {
             combined.push(alert);
             existingIds.add(alert.id);
@@ -108,16 +116,67 @@ function getDate(d) {
 }
 
 const ICONS = {
-    checkIn: `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
+    // 1. Tournament: Classic Golden Trophy Cup
+    tournament: `<svg class="w-4 h-4 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9H4.5a2.5 2.5 0 010-5H6M18 9h1.5a2.5 2.5 0 000-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0012 0V2z"/></svg>`,
+    
+    // 2. Team Recruitment: Esports Squad / Roster Recruitment
+    teamRecruiting: `<svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>`,
+    
+    // 3. Add Friend / Friend Requests: User Silhouette with Plus
+    friendRequest: `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>`,
+    addFriend: `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>`,
+    
+    // 4. Team Alerts & Invites: Esports Team Shield
+    team: `<svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>`,
+    
+    // 5. Scrims: Esports Gamepad Controller
+    scrim: `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="6" stroke-width="2"></rect><path d="M6 12h4m-2-2v4m10-2h.01m-3 0h.01" stroke-width="2" stroke-linecap="round"></path></svg>`,
+    
+    // 6. Match Ready: High-Voltage Lightning Bolt
     matchReady: `<svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>`,
-    tournament: `<svg class="w-4 h-4 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.5 18.75h-9m9 0a3 3 0 0 1 3-3h1.5a1.5 1.5 0 0 0 1.5-1.5v-2.25a1.5 1.5 0 0 0-1.5-1.5h-1.5a3 3 0 0 1-3-3V6a3 3 0 0 0-3-3h-3a3 3 0 0 0-3 3v1.5a3 3 0 0 1-3 3H3a1.5 1.5 0 0 0-1.5 1.5v2.25A1.5 1.5 0 0 0 3 15.75h1.5a3 3 0 0 1 3 3m9 0v3m-9-3v3m0 0h9"/></svg>`,
-    team: `<svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>`,
-    teamRecruiting: `<svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/></svg>`,
-    freeAgent: `<svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`,
-    scrim: `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>`,
+    
+    // 7. Check-In: Calendar / Ready-Up Checkmark
+    checkIn: `<svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`,
+    
+    // 8. Public Announcements & System Broadcasts: Broadcast Megaphone
     announcement: `<svg class="w-4 h-4 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" /></svg>`,
+    
+    // 9. Free Agent: Solo Player Badge
+    freeAgent: `<svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/></svg>`,
+    
+    // 10. Community Events: Calendar Star
     event: `<svg class="w-4 h-4 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>`
 };
+
+function getNotificationIcon(type) {
+    if (!type) return ICONS.announcement;
+    const t = String(type).toLowerCase();
+    if (t.includes('tournament')) return ICONS.tournament;
+    if (t.includes('friend')) return ICONS.friendRequest;
+    if (t.includes('recruit')) return ICONS.teamRecruiting;
+    if (t.includes('scrim')) return ICONS.scrim;
+    if (t.includes('checkin') || t.includes('check_in')) return ICONS.checkIn;
+    if (t.includes('match')) return ICONS.matchReady;
+    if (t.includes('agent') || t.includes('lft') || t.includes('solo')) return ICONS.freeAgent;
+    if (t.includes('event')) return ICONS.event;
+    if (t.includes('team')) return ICONS.team;
+    if (t.includes('announc') || t.includes('streak') || t.includes('update') || t.includes('broadcast')) return ICONS.announcement;
+    return ICONS[type] || ICONS.announcement;
+}
+
+function getNotificationTagColor(type) {
+    const t = String(type || '').toLowerCase();
+    if (t.includes('checkin') || t.includes('check_in')) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+    if (t.includes('friend')) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+    if (t.includes('match')) return 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+    if (t.includes('scrim')) return 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+    if (t.includes('recruit')) return 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40';
+    if (t.includes('agent') || t.includes('lft') || t.includes('solo')) return 'bg-violet-500/20 text-violet-300 border-violet-500/40';
+    if (t.includes('tournament')) return 'bg-amber-500/20 text-[#FFD700] border-amber-500/40';
+    if (t.includes('event')) return 'bg-purple-500/20 text-purple-300 border-purple-500/40';
+    if (t.includes('team')) return 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40';
+    return 'bg-white/10 text-neutral-300 border-white/10';
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     injectNotificationStyles(); 
@@ -328,6 +387,7 @@ function injectNotificationHTML() {
             firestorePersonalAlerts = [];
             rootPersonalAlerts = [];
             generatedTournamentAlerts = [];
+            friendRequestAlerts = [];
             feedData.personal = [];
             renderUnifiedFeed();
         }
@@ -615,7 +675,7 @@ function initPersonalRealTimeListeners(user) {
                     category: 'personal',
                     type: d.type || 'player_alert',
                     tag: d.tag || 'ALERT',
-                    icon: d.type === 'team' ? ICONS.team : d.type === 'checkIn' ? ICONS.checkIn : d.type === 'match' ? ICONS.matchReady : ICONS.tournament,
+                    icon: getNotificationIcon(d.type),
                     title: d.title || "Match Alert",
                     message: d.message || "",
                     tournamentId: tourneyId,
@@ -656,7 +716,7 @@ function initPersonalRealTimeListeners(user) {
                     category: 'personal',
                     type: d.type || 'player_alert',
                     tag: d.tag || 'ALERT',
-                    icon: d.type === 'team' ? ICONS.team : d.type === 'checkIn' ? ICONS.checkIn : d.type === 'match' ? ICONS.matchReady : ICONS.tournament,
+                    icon: getNotificationIcon(d.type),
                     title: d.title || "Tournament Alert",
                     message: d.message || "",
                     tournamentId: tourneyId,
@@ -776,6 +836,39 @@ function initPersonalRealTimeListeners(user) {
             rebuildPersonalAlerts();
         }, (err) => {});
         personalUnsubscribes.push(unsubTournamentsMonitor);
+    } catch(e) {}
+
+    // D. Incoming Friend Requests: friend_requests where toUid == user.uid & status == 'pending'
+    try {
+        const friendReqQuery = query(
+            collection(db, "friend_requests"),
+            where("toUid", "==", user.uid),
+            where("status", "==", "pending"),
+            limit(15)
+        );
+        const unsubFriendReq = onSnapshot(friendReqQuery, (snap) => {
+            friendRequestAlerts = snap.docs.map(docSnap => {
+                const d = docSnap.data();
+                const dDate = getDate(d);
+                return {
+                    id: `friend_req_${docSnap.id}`,
+                    category: 'personal',
+                    type: 'friendRequest',
+                    tag: 'FRIEND REQUEST',
+                    icon: ICONS.friendRequest,
+                    title: `Friend Request from ${d.fromName || 'Champion'}`,
+                    message: `${d.fromName || 'A player'} wants to connect on ChampZero. Open Friends dossier to accept.`,
+                    link: '/profile?tab=friends',
+                    dateObj: dDate,
+                    dateStr: timeAgo(dDate),
+                    isActionable: true
+                };
+            });
+            rebuildPersonalAlerts();
+        }, (err) => {
+            console.warn("Friend request notif listener notice:", err);
+        });
+        personalUnsubscribes.push(unsubFriendReq);
     } catch(e) {}
 }
 
@@ -938,23 +1031,7 @@ function renderUnifiedFeed() {
             ? 'border-l-2 border-emerald-400 bg-emerald-500/5' 
             : (isUnread ? 'border-l-2 border-[#FFD700] bg-[#FFD700]/5' : '');
 
-        const tagColor = item.type === 'checkIn' 
-            ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' 
-            : item.type === 'match' 
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' 
-                : item.type === 'scrim'
-                    ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
-                    : item.type === 'teamRecruiting'
-                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                        : item.type === 'freeAgent'
-                            ? 'bg-violet-500/20 text-violet-300 border-violet-500/40'
-                            : item.type === 'tournament'
-                                ? 'bg-amber-500/20 text-[#FFD700] border-amber-500/40'
-                                : item.type === 'event'
-                                    ? 'bg-purple-500/20 text-purple-300 border-purple-500/40'
-                                    : item.type === 'team'
-                                        ? 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40'
-                                        : 'bg-white/10 text-neutral-300 border-white/10';
+        const tagColor = getNotificationTagColor(item.type);
 
         html += `
             <a href="${escapeHtml(item.link || '#')}" class="notif-item block p-3.5 hover:bg-white/5 transition-all group ${borderClass}" data-notif-idx="${index}">
