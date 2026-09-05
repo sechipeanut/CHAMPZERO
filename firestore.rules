@@ -16,8 +16,18 @@ service cloud.firestore {
 
     function isAdmin() { 
       let role = getUserRole();
-      return (request.auth.token != null && (request.auth.token.role == 'admin' || request.auth.token.admin == true)) ||
+      return (request.auth.token != null && (request.auth.token.role == 'admin' || request.auth.token.admin == true || (request.auth.token.email != null && request.auth.token.email in ['admin@champzero.com', 'owner@champzero.com']))) ||
              role == 'admin' || role == 'Admin'; 
+    }
+
+    function isOrganizer() { 
+      let role = getUserRole();
+      return (request.auth.token != null && (request.auth.token.role == 'organizer' || request.auth.token.organizer == true)) ||
+             role == 'organizer' || role == 'Organizer' || role == 'host' || role == 'Host'; 
+    }
+
+    function canCreateTournament() { 
+      return isEmailVerified() && (isAdmin() || isOrganizer()); 
     }
 
     function isSubscriber() { 
@@ -49,7 +59,7 @@ service cloud.firestore {
 
     match /tournaments/{docId} {
       allow read: if true;
-      allow create: if isEmailVerified();  // verified users or admin
+      allow create: if canCreateTournament();  // only organizers and admins
       allow delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
       allow update: if isAdmin() || 
                       (isSignedIn() && (

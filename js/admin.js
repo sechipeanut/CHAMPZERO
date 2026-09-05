@@ -1738,13 +1738,20 @@ async function fetchMessages() {
     }
 
     validMessages.forEach(data => {
+        const isOrgReq = data.isOrganizerRequest || data.subject === 'Organizer Role Request';
         const dateStr = data.sentAt ? new Date(data.sentAt).toLocaleString() : (data.createdAt ? new Date(data.createdAt).toLocaleString() : 'No Date');
+        const badgeHtml = isOrgReq
+            ? `<span class="bg-amber-500/20 text-[#FFD700] border border-amber-500/40 text-[9px] font-mono-tag font-bold px-2 py-0.5 rounded uppercase tracking-wider">🏆 Organizer Application</span>`
+            : `<span class="text-[var(--gold)] text-[10px] font-mono-tag font-bold uppercase tracking-wider">${escapeHtml(data.subject || data.type || 'General Contact')}</span>`;
         list.innerHTML += `
-            <div class="bg-[var(--dark-surface)] p-5 rounded-xl border border-white/10 relative group">
+            <div class="bg-[var(--dark-surface)] p-5 rounded-xl border ${isOrgReq ? 'border-[#FFD700]/40 shadow-[0_0_15px_rgba(255,215,0,0.08)]' : 'border-white/10'} relative group">
                 <div class="flex justify-between items-start mb-2">
                     <div>
-                        <span class="text-[var(--gold)] text-[10px] font-mono-tag font-bold uppercase tracking-wider">${escapeHtml(data.subject || data.type || 'General Contact')}</span>
-                        <h3 class="text-white font-heading font-bold text-lg uppercase mt-0.5">${escapeHtml(data.name || 'Anonymous Sender')}</h3>
+                        <div class="flex items-center gap-2 mb-1">
+                            ${badgeHtml}
+                            ${data.userId ? `<span class="text-[9px] font-mono-tag text-neutral-400">UID: ${escapeHtml(data.userId.substring(0, 10))}...</span>` : ''}
+                        </div>
+                        <h3 class="text-white font-heading font-bold text-lg uppercase mt-0.5">${escapeHtml(data.name || 'Anonymous Sender')} ${data.userIgn ? `<span class="text-xs text-neutral-400 font-mono-tag">(@${escapeHtml(data.userIgn)})</span>` : ''}</h3>
                         <div class="text-neutral-400 text-xs font-mono-tag mb-3">
                             ${data.email ? `<a href="mailto:${escapeHtml(data.email)}" class="hover:text-white hover:underline">${escapeHtml(data.email)}</a> • ` : ''} 
                             ${dateStr}

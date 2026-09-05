@@ -415,3 +415,121 @@ select option {
 .cz-dropdown-item:hover::before {
     opacity: 1;
 }
+
+/* ==========================================================================
+   4. ULTRA-SMOOTH HARDWARE-ACCELERATED NAVBAR & NAV-LINKS
+   ========================================================================== */
+#main-header {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1000 !important;
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+    will-change: background-color, border-color, box-shadow;
+    background-color: rgba(6, 6, 10, 0.88) !important;
+    backdrop-filter: blur(20px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    transition: background-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+#main-header.cz-header-scrolled {
+    background-color: rgba(4, 4, 7, 0.96) !important;
+    border-bottom: 1px solid rgba(255, 215, 0, 0.18) !important;
+    box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.85),
+                0 1px 0 rgba(255, 215, 0, 0.1) inset !important;
+}
+
+/* Ensure consistent header height container to eliminate Cumulative Layout Shift */
+#main-header .h-18,
+#main-header > div {
+    min-height: 68px !important;
+    height: 68px !important;
+}
+
+/* Global Nav Links Polish & Micro-Interactions */
+.nav-link {
+    position: relative;
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+    transition: color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                text-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.nav-link::after {
+    content: '' !important;
+    position: absolute !important;
+    bottom: -2px !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 2px !important;
+    background: #FFD700 !important;
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.6) !important;
+    border-radius: 2px !important;
+    transform: scaleX(0) !important;
+    transform-origin: center !important;
+    transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.nav-link:hover {
+    color: #FFFFFF !important;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.35) !important;
+}
+
+.nav-link:hover::after,
+.nav-link.active::after {
+    transform: scaleX(1) !important;
+}
+
+.nav-link.active {
+    color: #FFD700 !important;
+    text-shadow: 0 0 12px rgba(255, 215, 0, 0.45) !important;
+}
+
+/* Smooth Mobile Drawer Transition */
+#mobile-menu {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transform: translateY(-8px);
+    transition: opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.22s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.22s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+#mobile-menu.cz-menu-open {
+    display: flex !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+    transform: translateY(0) !important;
+}
+
+/* Smooth Profile Button Micro-interactions */
+#profile-dropdown-btn {
+    transition: background-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                border-color 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.15s ease !important;
+}
+
+#profile-dropdown-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4), 0 0 10px rgba(255, 215, 0, 0.15) !important;
+}
+
+#profile-dropdown-btn:active {
+    transform: translateY(0);
+}
+
+/* Hide and suppress any leftover banner element */
+#cz-system-banner {
+    display: none !important;
+    height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: hidden !important;
+    border: none !important;
+}

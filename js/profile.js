@@ -4,6 +4,29 @@ import { doc, getDoc, updateDoc, addDoc, collection, getDocs, query, orderBy, li
 
 let activeUserUid = null;
 let activeUserData = {};
+let isCurrentProfilePublic = false;
+let isCurrentProfileOrganizer = false;
+let cachedTournamentsSnap = null;
+let cachedAllTournaments = null;
+let isOrganizerStatsLoaded = false;
+let isRewardsDataLoaded = false;
+
+window.hideProfileLoadingScreen = function () {
+    const loader = qs('#profile-loading-screen');
+    if (loader && !loader.classList.contains('opacity-0')) {
+        loader.classList.add('opacity-0', 'pointer-events-none');
+        setTimeout(() => {
+            if (loader) loader.style.display = 'none';
+        }, 350);
+    }
+};
+
+// Emergency fallback: ensure loading screen is dismissed even if network stalls
+setTimeout(() => {
+    if (typeof window.hideProfileLoadingScreen === 'function') {
+        window.hideProfileLoadingScreen();
+    }
+}, 3500);
 
 function qs(sel) { return document.querySelector(sel); }
 
@@ -93,6 +116,8 @@ async function initProfileForUser(user) {
         }
         isProfileInitialized = true;
         activeUserUid = requestedUid;
+        isCurrentProfilePublic = true;
+        isCurrentProfileOrganizer = false;
 
         // Automatically award scout quest if user is logged in and scouting a rival
         if (user && user.uid && user.uid !== requestedUid) {
@@ -124,6 +149,7 @@ async function initProfileForUser(user) {
 
     // Case 2: Own profile view (Requires authentication)
     if (!user) {
+        window.hideProfileLoadingScreen();
         if (typeof window.showWarningToast === 'function') {
             window.showWarningToast("Session Required", "Please log in to access your player dashboard.", 3000);
         }
@@ -134,10 +160,12 @@ async function initProfileForUser(user) {
     }
 
     if (isProfileInitialized && activeUserUid === user.uid) {
+        window.hideProfileLoadingScreen();
         return;
     }
     isProfileInitialized = true;
     activeUserUid = user.uid;
+    isCurrentProfilePublic = false;
 
     // Immediately paint optimistic user details
     renderOptimisticHeader(user);
@@ -241,12 +269,33 @@ const ACTIVE_BTN_CLASS = 'px-6 py-2.5 rounded-full bg-[#FFD700] hover:bg-[#FFE03
 const INACTIVE_BTN_CLASS = 'px-6 py-2.5 rounded-full bg-[#121116] hover:bg-[#1A1922] text-white border border-white/10 hover:border-white/20 font-heading font-extrabold text-xs uppercase tracking-wider transition-colors duration-150 cursor-pointer flex items-center justify-center gap-2.5 select-none shrink-0';
 
 window.switchProfileTab = function (tab) {
+    // If viewing another user's public profile, private tabs (rewards, organizer) are forbidden
+    if (isCurrentProfilePublic && (tab === 'rewards' || tab === 'organizer')) {
+        tab = 'player';
+    }
+
     TAB_IDS.forEach(t => {
         const btn = qs(`#tab-btn-${t}`);
         const pane = qs(`#tab-pane-${t}`);
+
+        // Check if tab is allowed for current profile view
+        let isTabAllowed = true;
+        if (t === 'rewards' && isCurrentProfilePublic) {
+            isTabAllowed = false;
+        } else if (t === 'organizer' && (!isCurrentProfileOrganizer || isCurrentProfilePublic)) {
+            isTabAllowed = false;
+        }
+
+        if (!isTabAllowed) {
+            if (btn) btn.classList.add('hidden');
+            if (pane) pane.classList.add('hidden');
+            return;
+        }
+
         const isActive = (t === tab);
 
         if (btn) {
+            btn.classList.remove('hidden');
             btn.className = isActive ? ACTIVE_BTN_CLASS : INACTIVE_BTN_CLASS;
 
             const icon = btn.querySelector('.tab-icon');
@@ -282,7 +331,14 @@ window.switchProfileTab = function (tab) {
 
     // Lazy-load sub-data when tab is opened
     if (tab === 'friends' && activeUserUid) loadFriendsList(activeUserUid);
-    if (tab === 'rewards' && activeUserUid) loadRewardsData(activeUserData);
+    if (tab === 'rewards' && !isCurrentProfilePublic && activeUserUid && !isRewardsDataLoaded) {
+        loadRewardsData(activeUserData).then(() => { isRewardsDataLoaded = true; }).catch(console.warn);
+    }
+    if (tab === 'organizer' && isCurrentProfileOrganizer && !isOrganizerStatsLoaded) {
+        calculateOrganizerStats(activeUserUid, auth.currentUser?.email, cachedAllTournaments || []).then(() => {
+            isOrganizerStatsLoaded = true;
+        }).catch(console.warn);
+    }
 };
 
 // 2. FETCH & DISPLAY PROFILE DATA WITH TOURNAMENT TROPHIES & EARNINGS
@@ -291,12 +347,14 @@ async function loadUserProfile(uid, email, isPublicView = false) {
         const docRef = doc(db, "users", uid);
         const tourneyQuery = collection(db, "tournaments");
 
-        // Fetch user data, tournaments, and friend count in parallel
-        const [docSnap, tourneySnap, friendCount] = await Promise.all([
-            getDoc(docRef),
-            getDocs(tourneyQuery).catch(() => ({ forEach: () => {} })),
-            countFriends(uid).catch(() => 0)
-        ]);
+        // Concurrently start tournaments & friend count in background without blocking initial DOM paint
+        const tourneyPromise = cachedTournamentsSnap
+            ? Promise.resolve(cachedTournamentsSnap)
+            : getDocs(tourneyQuery).catch(() => ({ forEach: () => {} }));
+        const friendCountPromise = countFriends(uid).catch(() => 0);
+
+        // Fetch user document (FAST single-doc lookup, ~100-150ms)
+        const docSnap = await getDoc(docRef);
 
         let userData = {};
         if (docSnap.exists && docSnap.exists()) {
@@ -305,6 +363,7 @@ async function loadUserProfile(uid, email, isPublicView = false) {
 
         const isMe = auth.currentUser && auth.currentUser.uid === uid;
         const actualIsPublic = isPublicView || !isMe;
+        isCurrentProfilePublic = actualIsPublic;
 
         const userEmail = isMe ? (userData.email || email || (auth.currentUser ? auth.currentUser.email : '')) : '';
         const userIgn = userData.ign || userData.displayName || userData.username || (isMe && auth.currentUser ? (auth.currentUser.displayName || auth.currentUser.email?.split('@')[0]) : '') || 'Champion';
@@ -325,6 +384,27 @@ async function loadUserProfile(uid, email, isPublicView = false) {
         const avatarUrl = userData.avatar || (isMe && auth.currentUser ? auth.currentUser.photoURL : null) || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(userIgn) + '&background=111116&color=FFD700');
         if (qs('#profile-avatar')) {
             qs('#profile-avatar').src = avatarUrl;
+        }
+
+        // Cache profile metadata immediately for instant 0ms HUD rendering on repeat visits
+        if (!actualIsPublic) {
+            try {
+                const existingCache = JSON.parse(localStorage.getItem('cz_profile_cache') || '{}');
+                localStorage.setItem('cz_profile_cache', JSON.stringify({
+                    ...existingCache,
+                    uid,
+                    ign: userIgn,
+                    email: userEmail,
+                    avatar: avatarUrl,
+                    rank: userData.rank || existingCache.rank || '',
+                    bio: userData.bio || existingCache.bio || '',
+                    valId: userData.valId || existingCache.valId || '',
+                    mlbbId: userData.mlbbId || existingCache.mlbbId || '',
+                    hokId: userData.hokId || existingCache.hokId || '',
+                    role: userData.role || existingCache.role || '',
+                    cachedAt: Date.now()
+                }));
+            } catch (e) {}
         }
 
         // Configure Public / Owner Action Buttons
@@ -686,15 +766,9 @@ async function loadUserProfile(uid, email, isPublicView = false) {
             }
         }
 
-        // 4. CALCULATE TOURNAMENTS & TROPHIES (Using already-fetched tournaments snap)
-        const allTourneys = [];
-        if (tourneySnap && typeof tourneySnap.forEach === 'function') {
-            tourneySnap.forEach(d => allTourneys.push({ id: d.id, ...d.data() }));
-        }
-        await calculateTournamentStats(uid, userIgn, allTourneys, friendCount);
-
-        // 5. CALCULATE ORGANIZER STATS (ONLY FOR TOURNAMENT ORGANIZERS)
+        // 4. TAB ROUTING & ORGANIZER TAB VISIBILITY
         const showOrganizerTab = isOrganizer && !actualIsPublic;
+        isCurrentProfileOrganizer = showOrganizerTab;
         const tabOrganizerBtn = qs('#tab-btn-organizer');
         if (showOrganizerTab) {
             if (tabOrganizerBtn) {
@@ -702,26 +776,55 @@ async function loadUserProfile(uid, email, isPublicView = false) {
                 const titleSpan = qs('#tab-organizer-title');
                 if (titleSpan) titleSpan.textContent = 'Organizer Command';
             }
-            await calculateOrganizerStats(uid, userEmail, allTourneys);
         } else {
             if (tabOrganizerBtn) tabOrganizerBtn.classList.add('hidden');
+            const paneOrg = qs('#tab-pane-organizer');
+            if (paneOrg) paneOrg.classList.add('hidden');
         }
 
-        // 6. INITIALIZE REWARDS DATA (ONLY FOR ACCOUNT OWNER)
+        // 5. REWARDS TAB VISIBILITY
+        const rewardsTabBtn = qs('#tab-btn-rewards');
+        const rewardsTabPane = qs('#tab-pane-rewards');
         if (!actualIsPublic) {
-            try {
-                await loadRewardsData(userData);
-            } catch (rewardErr) {
-                console.warn("Error initializing rewards data:", rewardErr);
-            }
+            if (rewardsTabBtn) rewardsTabBtn.classList.remove('hidden');
+        } else {
+            if (rewardsTabBtn) rewardsTabBtn.classList.add('hidden');
+            if (rewardsTabPane) rewardsTabPane.classList.add('hidden');
         }
 
-        // 7. TAB ROUTING
-        const initialTab = new URLSearchParams(window.location.search).get('tab') || 'player';
-        if (initialTab === 'organizer' && !showOrganizerTab) {
-            window.switchProfileTab('player');
-        } else if (TAB_IDS.includes(initialTab)) {
-            window.switchProfileTab(initialTab);
+        // 6. INITIAL TAB ACTIVATION (Instantaneous switch!)
+        let initialTab = new URLSearchParams(window.location.search).get('tab') || 'player';
+        if (actualIsPublic && (initialTab === 'rewards' || initialTab === 'organizer')) {
+            initialTab = 'player';
+        } else if (initialTab === 'organizer' && !showOrganizerTab) {
+            initialTab = 'player';
+        } else if (!TAB_IDS.includes(initialTab)) {
+            initialTab = 'player';
+        }
+        window.switchProfileTab(initialTab);
+
+        // 7. PROGRESSIVE HYDRATION IN BACKGROUND (Non-blocking: renders stats & honors as they arrive)
+        Promise.all([tourneyPromise, friendCountPromise]).then(async ([tourneySnap, friendCount]) => {
+            cachedTournamentsSnap = tourneySnap;
+            const allTourneys = [];
+            if (tourneySnap && typeof tourneySnap.forEach === 'function') {
+                tourneySnap.forEach(d => allTourneys.push({ id: d.id, ...d.data() }));
+            }
+            cachedAllTournaments = allTourneys;
+            await calculateTournamentStats(uid, userIgn, allTourneys, friendCount);
+
+            // Lazy-load organizer stats if landing directly on organizer tab
+            if (showOrganizerTab && initialTab === 'organizer' && !isOrganizerStatsLoaded) {
+                await calculateOrganizerStats(uid, userEmail, allTourneys);
+                isOrganizerStatsLoaded = true;
+            }
+        }).catch(err => {
+            console.warn("Background tournament hydration error:", err);
+        });
+
+        // Lazy-load rewards data only if landing directly on rewards tab
+        if (!actualIsPublic && initialTab === 'rewards' && !isRewardsDataLoaded) {
+            loadRewardsData(userData).then(() => { isRewardsDataLoaded = true; }).catch(console.warn);
         }
 
     } catch (error) {
@@ -729,6 +832,8 @@ async function loadUserProfile(uid, email, isPublicView = false) {
         if (window.showErrorToast) {
             window.showErrorToast("Error", "Failed to load profile data", 3000);
         }
+    } finally {
+        window.hideProfileLoadingScreen();
     }
 }
 
@@ -907,6 +1012,20 @@ async function calculateTournamentStats(uid, userIgn, allTourneys, friendCountVa
 async function calculateOrganizerStats(uid, email, allTourneys) {
     const orgDashboard = qs('#organizer-dashboard-section');
     if (!orgDashboard) return;
+
+    if ((!allTourneys || allTourneys.length === 0) && cachedAllTournaments) {
+        allTourneys = cachedAllTournaments;
+    } else if (!allTourneys || allTourneys.length === 0) {
+        try {
+            const snap = cachedTournamentsSnap || await getDocs(collection(db, "tournaments"));
+            cachedTournamentsSnap = snap;
+            allTourneys = [];
+            snap.forEach(d => allTourneys.push({ id: d.id, ...d.data() }));
+            cachedAllTournaments = allTourneys;
+        } catch (e) {
+            allTourneys = [];
+        }
+    }
 
     // Header labels strictly for Organizer Command
     const badgeLabel = qs('#org-badge-label');
@@ -2008,21 +2127,51 @@ async function loadFriendsList(uid) {
 
             const name = friendData.ign || friendData.displayName || friendData.username || 'Unknown Player';
             const avatar = friendData.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(name)}&background=111116&color=FFD700`;
+            const isSelf = auth.currentUser && auth.currentUser.uid === f.friendUid;
+            const subtitle = isCurrentProfilePublic
+                ? (friendData.rank ? `Rank: ${escapeHtml(friendData.rank)}` : 'Competitive Gamer')
+                : (friendData.email ? escapeHtml(friendData.email) : (friendData.rank ? `Rank: ${escapeHtml(friendData.rank)}` : 'Player'));
+
+            let actionsHtml = '';
+            if (isCurrentProfilePublic) {
+                // On someone else's public profile, NEVER show the Remove button!
+                if (!isSelf) {
+                    actionsHtml = `
+                        <button type="button" onclick="window.startDMWith('${escapeHtml(f.friendUid)}', '${escapeHtml(name)}')" class="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-[10px] font-heading font-bold uppercase rounded-lg border border-blue-500/30 transition-all cursor-pointer">
+                            Message
+                        </button>
+                        <a href="/profile.html?uid=${encodeURIComponent(f.friendUid)}" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 text-neutral-300 hover:text-white text-[10px] font-heading font-bold uppercase rounded-lg border border-white/10 transition-all">
+                            Profile
+                        </a>
+                    `;
+                } else {
+                    actionsHtml = `
+                        <span class="px-2.5 py-1 bg-[#FFD700]/10 text-[#FFD700] text-[10px] font-mono font-bold uppercase rounded-md border border-[#FFD700]/20">You</span>
+                    `;
+                }
+            } else {
+                // On owner's own profile: show Message and Remove button
+                actionsHtml = `
+                    <button type="button" onclick="window.startDMWith('${escapeHtml(f.friendUid)}', '${escapeHtml(name)}')" class="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-[10px] font-heading font-bold uppercase rounded-lg border border-blue-500/30 transition-all cursor-pointer">
+                        Message
+                    </button>
+                    <button type="button" onclick="window.removeFriend('${f.id}', '${escapeHtml(name)}')" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-heading font-bold uppercase rounded-lg border border-red-500/20 transition-all cursor-pointer">
+                        Remove
+                    </button>
+                `;
+            }
 
             return `
                 <div class="flex items-center gap-4 p-4 bg-white/5 hover:bg-white/8 border border-white/10 rounded-xl transition-all group">
-                    <img src="${escapeHtml(avatar)}" class="w-10 h-10 rounded-full border border-white/20 object-cover bg-black" alt="${escapeHtml(name)}">
+                    <a href="/profile.html?uid=${encodeURIComponent(f.friendUid)}" class="shrink-0">
+                        <img src="${escapeHtml(avatar)}" class="w-10 h-10 rounded-full border border-white/20 object-cover bg-black hover:scale-105 transition-transform" alt="${escapeHtml(name)}">
+                    </a>
                     <div class="flex-1 min-w-0">
-                        <p class="font-heading font-bold text-sm text-white uppercase tracking-tight truncate">${escapeHtml(name)}</p>
-                        <p class="text-[10px] text-neutral-500 font-mono">${escapeHtml(friendData.email || '')}</p>
+                        <a href="/profile.html?uid=${encodeURIComponent(f.friendUid)}" class="font-heading font-bold text-sm text-white hover:text-[#FFD700] uppercase tracking-tight truncate block transition-colors">${escapeHtml(name)}</a>
+                        <p class="text-[10px] text-neutral-500 font-mono">${subtitle}</p>
                     </div>
                     <div class="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onclick="window.startDMWith('${f.friendUid}', '${escapeHtml(name)}')" class="px-3 py-1.5 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 text-[10px] font-heading font-bold uppercase rounded-lg border border-blue-500/30 transition-all cursor-pointer">
-                            Message
-                        </button>
-                        <button onclick="window.removeFriend('${f.id}', '${escapeHtml(name)}')" class="px-3 py-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-[10px] font-heading font-bold uppercase rounded-lg border border-red-500/20 transition-all cursor-pointer">
-                            Remove
-                        </button>
+                        ${actionsHtml}
                     </div>
                 </div>
             `;
@@ -2037,14 +2186,20 @@ async function loadFriendsList(uid) {
 }
 
 window.removeFriend = async function (requestId, friendName) {
+    if (isCurrentProfilePublic || !auth.currentUser) {
+        if (window.showErrorToast) window.showErrorToast('Action Restricted', 'You can only remove friends from your own profile dashboard.');
+        return;
+    }
+
     if (!confirm(`Remove ${friendName} from your friends?`)) return;
     try {
         await deleteDoc(doc(db, "friend_requests", requestId));
         if (window.showSuccessToast) window.showSuccessToast('Friend Removed', `${friendName} has been removed from your friends.`);
-        if (activeUserUid) {
-            loadFriendsList(activeUserUid);
+        const targetUid = auth.currentUser ? auth.currentUser.uid : activeUserUid;
+        if (targetUid) {
+            loadFriendsList(targetUid);
             // Update count
-            const count = await countFriends(activeUserUid);
+            const count = await countFriends(targetUid);
             if (qs('#friends-count')) qs('#friends-count').textContent = count;
             if (qs('#friends-tab-count')) qs('#friends-tab-count').textContent = count;
         }
@@ -2092,8 +2247,9 @@ async function getOrCreateDM(uid1, uid2) {
 
 // Start a DM from the friends list -> opens floating Community Chat DM drawer
 window.startDMWith = async function (friendUid, friendName) {
-    if (!activeUserUid) return;
-    if (friendUid === activeUserUid) {
+    const myUid = auth.currentUser ? auth.currentUser.uid : activeUserUid;
+    if (!myUid) return;
+    if (friendUid === myUid) {
         if (window.showWarningToast) window.showWarningToast('Notice', 'You cannot message yourself.');
         return;
     }
@@ -2471,11 +2627,11 @@ async function loadRewardsData(userData) {
     if (referralsCountDisplay) referralsCountDisplay.textContent = referralCount;
     if (referralsPointsDisplay) referralsPointsDisplay.textContent = `+${referralCount * 100}`;
 
-    // 4. Dynamic Rewards Catalog Pricing
-    await loadRewardsCatalog();
-
-    // 5. Redemption Receipts History
-    await loadRedemptionHistory();
+    // 4. Dynamic Rewards Catalog Pricing & 5. Redemption Receipts History in parallel
+    await Promise.all([
+        loadRewardsCatalog(),
+        loadRedemptionHistory()
+    ]);
 }
 
 async function loadRewardsCatalog() {
@@ -2659,8 +2815,8 @@ async function loadRedemptionHistory() {
 }
 
 window.claimDailyCheckin = async function () {
-    if (!activeUserUid) {
-        if (window.showWarningToast) window.showWarningToast("Sign In Required", "Please log in to claim daily check-in rewards.");
+    if (isCurrentProfilePublic || !auth.currentUser) {
+        if (window.showWarningToast) window.showWarningToast("Action Restricted", "Daily check-in can only be claimed on your personal dashboard.");
         return;
     }
 
@@ -2698,7 +2854,7 @@ window.claimDailyCheckin = async function () {
     }
 
     try {
-        const userRef = doc(db, "users", activeUserUid);
+        const userRef = doc(db, "users", auth.currentUser.uid);
         await updateDoc(userRef, {
             czPoints: increment(pointsToAward),
             lifetimePoints: increment(pointsToAward),
@@ -2785,8 +2941,8 @@ window.openRedeemModalById = function (itemId) {
 };
 
 window.openRedeemModal = function (rewardId, title, cost, gameType) {
-    if (!activeUserUid) {
-        if (window.showWarningToast) window.showWarningToast("Sign In Required", "Please log in to redeem rewards.");
+    if (isCurrentProfilePublic || !auth.currentUser) {
+        if (window.showWarningToast) window.showWarningToast("Action Restricted", "Rewards can only be redeemed on your personal dashboard.");
         return;
     }
 
@@ -2861,7 +3017,8 @@ window.closeRedeemModal = function () {
 
 window.submitRewardRedeem = async function (e) {
     if (e && e.preventDefault) e.preventDefault();
-    if (!activeUserUid) return;
+    if (isCurrentProfilePublic || !auth.currentUser) return;
+    const currentUid = auth.currentUser.uid;
 
     const rewardId = qs('#modal-redeem-id')?.value;
     const title = qs('#modal-redeem-title')?.textContent || 'Reward';
@@ -2916,7 +3073,7 @@ window.submitRewardRedeem = async function (e) {
             console.warn("Could not check/update stock limit:", stockErr);
         }
 
-        const userRef = doc(db, "users", activeUserUid);
+        const userRef = doc(db, "users", currentUid);
         const updates = {
             czPoints: increment(-cost)
         };
@@ -2967,7 +3124,7 @@ window.submitRewardRedeem = async function (e) {
         const voucherCode = !isInstantCompleted ? `CZ-${(gameType || 'RW').toUpperCase()}-${Math.floor(10000 + Math.random() * 90000)}` : null;
 
         await addDoc(collection(db, "rewards_redemptions"), {
-            userId: activeUserUid,
+            userId: currentUid,
             userEmail: auth.currentUser?.email || '',
             userName: activeUserData.displayName || activeUserData.ign || 'Champion',
             rewardId: rewardId,
@@ -3174,7 +3331,8 @@ window.closeMysteryCrateModal = function () {
 };
 
 window.toggleCyberpunkTheme = async function () {
-    if (!activeUserUid) return;
+    if (isCurrentProfilePublic || !auth.currentUser) return;
+    const targetUid = auth.currentUser.uid;
     const currentTheme = activeUserData.profileTheme || 'default';
     const newTheme = (currentTheme === 'cyberpunk') ? 'default' : 'cyberpunk';
     
@@ -3184,7 +3342,7 @@ window.toggleCyberpunkTheme = async function () {
     if (label) label.textContent = newTheme === 'cyberpunk' ? 'Cyberpunk' : 'Default Dark';
 
     try {
-        await updateDoc(doc(db, "users", activeUserUid), { profileTheme: newTheme });
+        await updateDoc(doc(db, "users", targetUid), { profileTheme: newTheme });
         if (window.showSuccessToast) {
             window.showSuccessToast("HUD Theme Updated", `Profile style switched to ${newTheme === 'cyberpunk' ? 'Neon Cyberpunk HUD' : 'Default Dark'}.`);
         }
@@ -3238,7 +3396,8 @@ window.closeTitleSelectModal = function () {
 };
 
 window.equipTitle = async function (title) {
-    if (!activeUserUid) return;
+    if (isCurrentProfilePublic || !auth.currentUser) return;
+    const targetUid = auth.currentUser.uid;
     activeUserData.playerTitle = title || null;
     
     const titleBadgeEl = qs('#player-title-badge');
@@ -3255,7 +3414,7 @@ window.equipTitle = async function (title) {
     window.closeTitleSelectModal();
 
     try {
-        await updateDoc(doc(db, "users", activeUserUid), { playerTitle: title || null });
+        await updateDoc(doc(db, "users", targetUid), { playerTitle: title || null });
         if (window.showSuccessToast) {
             window.showSuccessToast("Title Updated", title ? `Equipped '${title}' title flair!` : "Player title unequipped.");
         }

@@ -1777,6 +1777,62 @@
         </div>
     </div>
 
+    <!-- Organizer Access Required Modal -->
+    <div id="organizerAccessModal"
+        class="fixed inset-0 bg-black/90 backdrop-blur-md hidden items-center justify-center z-[2600] p-4"
+        onclick="if(event.target.id === 'organizerAccessModal') closeOrganizerAccessModal()">
+        <div class="relative w-full max-w-md rounded-2xl bg-[#0E0E14] border border-[#FFD700]/40 p-6 sm:p-8 shadow-[0_20px_60px_rgba(0,0,0,0.9)] overflow-hidden text-center"
+            onclick="event.stopPropagation()">
+            <!-- Top Gradient Accent -->
+            <div class="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-[#FFD700] to-transparent"></div>
+            <div class="absolute -top-12 left-1/2 -translate-x-1/2 w-36 h-36 bg-[#FFD700]/10 rounded-full blur-2xl pointer-events-none"></div>
+
+            <!-- Shield Icon -->
+            <div class="w-14 h-14 mx-auto mb-4 rounded-2xl bg-[#FFD700]/10 border border-[#FFD700]/40 flex items-center justify-center text-[#FFD700] shadow-[0_0_20px_rgba(255,215,0,0.2)]">
+                <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+            </div>
+
+            <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[#FFD700] block mb-1">// ACCESS RESTRICTED</span>
+            <h3 class="text-xl font-heading font-black text-white uppercase tracking-wider mb-2">
+                Organizer Role Required
+            </h3>
+
+            <p class="text-xs text-neutral-300 mb-4 leading-relaxed">
+                Tournament creation and bracket hosting on ChampZero is exclusive to verified <strong class="text-white">Tournament Organizers</strong> and <strong class="text-white">Administrators</strong>.
+            </p>
+
+            <div class="p-3.5 rounded-xl bg-black/60 border border-white/10 mb-5 text-left space-y-2 font-mono-tag text-[11px] text-neutral-300">
+                <div class="flex items-center gap-2 text-white font-bold">
+                    <svg class="w-4 h-4 text-[#FFD700] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                    <span>Full single/double elimination bracket engines</span>
+                </div>
+                <div class="flex items-center gap-2 text-white font-bold">
+                    <svg class="w-4 h-4 text-[#FFD700] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                    <span>Prize pool escrow management &amp; dispute tooling</span>
+                </div>
+                <div class="flex items-center gap-2 text-white font-bold">
+                    <svg class="w-4 h-4 text-[#FFD700] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                    <span>Participant validation &amp; payout claim tracking</span>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="space-y-2">
+                <a href="/contact.html?subject=organizer"
+                    class="block w-full py-3 px-4 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-black text-xs uppercase tracking-wider transition-all shadow-[0_0_20px_rgba(255,215,0,0.2)] text-center">
+                    Request Organizer Role &rarr;
+                </a>
+
+                <button type="button" onclick="closeOrganizerAccessModal()"
+                    class="w-full py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 font-mono-tag text-xs font-bold transition-all cursor-pointer">
+                    Back to Tournaments Hub
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Edit Schedule Rundown Modal -->
     <div id="editScheduleModal"
         class="fixed inset-0 bg-black/90 backdrop-blur-md hidden items-center justify-center z-[2500] p-4"
@@ -3650,7 +3706,50 @@
             }
         }
 
+        function showOrganizerAccessModal() {
+            const modal = document.getElementById('organizerAccessModal');
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+        window.showOrganizerAccessModal = showOrganizerAccessModal;
+
+        function closeOrganizerAccessModal() {
+            const modal = document.getElementById('organizerAccessModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+        }
+        window.closeOrganizerAccessModal = closeOrganizerAccessModal;
+
         function openCreateModal() {
+            // 1. Authentication check
+            const user = (window.auth && window.auth.currentUser) || null;
+            if (!user) {
+                if (typeof window.showWarningToast === 'function') {
+                    window.showWarningToast("Login Required", "Please log in to host tournaments.");
+                } else {
+                    alert("Please log in to host tournaments.");
+                }
+                return;
+            }
+
+            // 2. Role permission check: Organizer or Admin only
+            const canCreate = typeof window.canUserCreateTournament === 'function'
+                ? window.canUserCreateTournament(user, window.currentUserRole)
+                : (function() {
+                    const cleanRole = String(sessionStorage.getItem('cz_user_role') || window.currentUserRole || '').toLowerCase();
+                    const adminEmails = ["admin@champzero.com", "owner@champzero.com"];
+                    return cleanRole === 'admin' || cleanRole === 'organizer' || cleanRole === 'host' || (user.email && adminEmails.includes(user.email.toLowerCase()));
+                })();
+
+            if (!canCreate) {
+                showOrganizerAccessModal();
+                return;
+            }
+
             const modal = document.getElementById('createModal');
             if (modal) {
                 const title = document.getElementById('createModalTitle');
@@ -3751,6 +3850,8 @@
         window.closeProofPreview = closeProofPreview;
         window.closeModal = closeModal;
         window.openCreateModal = openCreateModal;
+        window.showOrganizerAccessModal = showOrganizerAccessModal;
+        window.closeOrganizerAccessModal = closeOrganizerAccessModal;
         window.closeMatchChat = closeMatchChat;
         window.toggleTeamInput = toggleTeamInput;
         window.addMemberInput = addMemberInput;

@@ -35,7 +35,7 @@ window.openMobileMenu = function () {
     const mobileMenu = document.getElementById('mobile-menu');
     if (mobileMenu) {
         mobileMenu.classList.remove('hidden');
-        mobileMenu.classList.add('flex');
+        mobileMenu.classList.add('flex', 'cz-menu-open');
         document.body.style.overflow = 'hidden';
     }
 };
@@ -43,8 +43,13 @@ window.openMobileMenu = function () {
 window.closeMobileMenu = function () {
     const mobileMenu = document.getElementById('mobile-menu');
     if (mobileMenu) {
-        mobileMenu.classList.add('hidden');
-        mobileMenu.classList.remove('flex');
+        mobileMenu.classList.remove('cz-menu-open');
+        setTimeout(() => {
+            if (!mobileMenu.classList.contains('cz-menu-open')) {
+                mobileMenu.classList.add('hidden');
+                mobileMenu.classList.remove('flex');
+            }
+        }, 220);
         document.body.style.overflow = 'auto';
     }
 };
@@ -52,7 +57,7 @@ window.closeMobileMenu = function () {
 window.toggleMobileMenu = function () {
     const mobileMenu = document.getElementById('mobile-menu');
     if (mobileMenu) {
-        if (mobileMenu.classList.contains('hidden')) {
+        if (mobileMenu.classList.contains('hidden') || !mobileMenu.classList.contains('cz-menu-open')) {
             window.openMobileMenu();
         } else {
             window.closeMobileMenu();
@@ -141,6 +146,7 @@ function setupStaticListeners() {
     updateActiveNavLink();
     try { initLiveScores(); } catch(e) {}
     try { initCustomCursor(); } catch(e) {}
+    try { initSmoothNavbar(); } catch(e) {}
 
     // Instant Link Prefetching on Hover for Zero-Latency Navigation
     const prefetchedUrls = new Set();
@@ -156,6 +162,32 @@ function setupStaticListeners() {
             document.head.appendChild(prefetchTag);
         }, { once: true });
     });
+}
+
+// --- SMOOTH HARDWARE-ACCELERATED NAVBAR ---
+function initSmoothNavbar() {
+    const header = document.getElementById('main-header');
+    if (!header || window._czSmoothNavInit) return;
+    window._czSmoothNavInit = true;
+
+    let ticking = false;
+    const updateHeaderScroll = () => {
+        if (window.scrollY > 15) {
+            header.classList.add('cz-header-scrolled');
+        } else {
+            header.classList.remove('cz-header-scrolled');
+        }
+        ticking = false;
+    };
+
+    window.addEventListener('scroll', () => {
+        if (!ticking) {
+            window.requestAnimationFrame(updateHeaderScroll);
+            ticking = true;
+        }
+    }, { passive: true });
+
+    updateHeaderScroll();
 }
 
 if (document.readyState === 'loading') {
@@ -479,44 +511,15 @@ function initCustomCursor() {
     }
 }
 
-// --- LIVE SYSTEM ANNOUNCEMENT BANNER ---
-function initSystemAnnouncementBanner() {
-    try {
-        onSnapshot(doc(db, "system_settings", "banner"), (docSnap) => {
-            let bannerEl = document.getElementById('cz-system-banner');
-            if (!docSnap.exists() || !docSnap.data().active || !docSnap.data().text) {
-                if (bannerEl) bannerEl.remove();
-                return;
-            }
-            const data = docSnap.data();
-            const type = data.type || 'gold';
-            
-            let colorClasses = 'bg-[#FFD700]/15 border-b border-[#FFD700]/30 text-[#FFD700]';
-            if (type === 'amber') colorClasses = 'bg-amber-500/15 border-b border-amber-500/30 text-amber-300';
-            if (type === 'red') colorClasses = 'bg-red-500/20 border-b border-red-500/40 text-red-300';
-            if (type === 'emerald') colorClasses = 'bg-emerald-500/15 border-b border-emerald-500/30 text-emerald-300';
-
-            if (!bannerEl) {
-                bannerEl = document.createElement('div');
-                bannerEl.id = 'cz-system-banner';
-                document.body.insertBefore(bannerEl, document.body.firstChild);
-            }
-
-            bannerEl.className = `w-full py-2 px-4 text-center font-mono-tag text-xs font-bold tracking-wider z-[9999] flex items-center justify-center gap-2 ${colorClasses}`;
-            bannerEl.innerHTML = `
-                <span class="w-2 h-2 rounded-full bg-current animate-pulse"></span>
-                <span>${escapeHtml(data.text)}</span>
-            `;
-        }, (err) => {
-            // Gracefully handle without unhandled console error
-        });
-    } catch(e) {
-        console.warn("System banner warning:", e);
-    }
+// --- SYSTEM ANNOUNCEMENT BANNER PURGE ---
+function purgeSystemAnnouncementBanner() {
+    const bannerEl = document.getElementById('cz-system-banner');
+    if (bannerEl) bannerEl.remove();
 }
 
+purgeSystemAnnouncementBanner();
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSystemAnnouncementBanner);
+    document.addEventListener('DOMContentLoaded', purgeSystemAnnouncementBanner);
 } else {
-    initSystemAnnouncementBanner();
+    purgeSystemAnnouncementBanner();
 }

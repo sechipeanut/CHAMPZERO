@@ -64,11 +64,39 @@ window.showCustomConfirm = (title, message) => {
 };
 window.customConfirm = window.showCustomConfirm;
 
+// --- TOURNAMENT CREATOR PERMISSIONS HELPER ---
+export function canUserCreateTournament(user = auth.currentUser, role = window.currentUserRole) {
+    if (!user) return false;
+    const cleanRole = String(role || sessionStorage.getItem('cz_user_role') || '').toLowerCase();
+    const adminEmails = ["admin@champzero.com", "owner@champzero.com"];
+    const isAdmin = cleanRole === 'admin' || (user.email && adminEmails.includes(user.email.toLowerCase()));
+    const isOrganizer = cleanRole === 'organizer' || cleanRole === 'host';
+    return isAdmin || isOrganizer;
+}
+window.canUserCreateTournament = canUserCreateTournament;
+
+export function updateCreateTournamentUI() {
+    const user = auth.currentUser;
+    const canCreate = canUserCreateTournament(user, window.currentUserRole);
+    const hostBtn = document.querySelector('#quickHostBtnWrap button');
+    if (hostBtn) {
+        if (!user) {
+            hostBtn.title = "Log in to host tournaments";
+        } else if (canCreate) {
+            hostBtn.classList.remove('opacity-70');
+            hostBtn.title = "Create and host a new tournament";
+        } else {
+            hostBtn.title = "Organizer or Admin role required to host tournaments";
+        }
+    }
+}
+window.updateCreateTournamentUI = updateCreateTournamentUI;
+
 // --- TOURNAMENT STAFF & PERMISSIONS HELPER ---
 export function isTournamentStaff(t, user) {
     if (!t || !user) return false;
     const cachedRole = String(sessionStorage.getItem('cz_user_role') || window.currentUserRole || '').toLowerCase();
-    if (cachedRole === 'admin' || user.email === 'admin@champzero.com') return true;
+    if (cachedRole === 'admin' || user.email === 'admin@champzero.com' || user.email === 'owner@champzero.com') return true;
     if (t.createdBy === user.uid) return true;
     
     // Check co-organizers & marshals list
@@ -293,7 +321,7 @@ if (document.readyState === 'loading') {
 
 onAuthStateChanged(auth, async (user) => {
     if (user) { 
-        if (user.email === 'admin@champzero.com') {
+        if (user.email === 'admin@champzero.com' || user.email === 'owner@champzero.com') {
             window.currentUserRole = 'admin';
             try { sessionStorage.setItem('cz_user_role', 'admin'); } catch (e) {}
         }
@@ -318,6 +346,9 @@ onAuthStateChanged(auth, async (user) => {
             }
         }
     }
+    if (typeof window.updateCreateTournamentUI === 'function') {
+        window.updateCreateTournamentUI();
+    }
 });
 
 async function fetchUserTeamIds(user) {
@@ -341,21 +372,29 @@ async function fetchUserTeamIds(user) {
 async function checkCreatorPermissions(user) {
     if (!user) return;
     try {
-        if (user.email === 'admin@champzero.com') {
+        const adminEmails = ["admin@champzero.com", "owner@champzero.com"];
+        const isAdminEmail = user.email && adminEmails.includes(user.email.toLowerCase());
+        if (isAdminEmail) {
             window.currentUserRole = 'admin';
             try { sessionStorage.setItem('cz_user_role', 'admin'); } catch (e) {}
         }
         const userRef = doc(db, "users", user.uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
-            const role = userSnap.data().role || 'user';
-            window.currentUserRole = role;
-            try { sessionStorage.setItem('cz_user_role', role); } catch (e) {}
+            const role = userSnap.data().role || (isAdminEmail ? 'admin' : 'user');
+            window.currentUserRole = isAdminEmail ? 'admin' : role;
+            try { sessionStorage.setItem('cz_user_role', window.currentUserRole); } catch (e) {}
+        } else if (!isAdminEmail) {
+            window.currentUserRole = 'user';
+            try { sessionStorage.setItem('cz_user_role', 'user'); } catch (e) {}
         }
         const controls = qs('#creator-controls');
         if (controls) controls.classList.remove('hidden');
         if (window.currentEditingTournament && typeof window.updateOrganizerPermissions === 'function') {
             window.updateOrganizerPermissions(window.currentEditingTournament);
+        }
+        if (typeof window.updateCreateTournamentUI === 'function') {
+            window.updateCreateTournamentUI();
         }
     } catch (error) { console.error(error); }
 }
@@ -603,6 +642,26 @@ async function handleCreateTournament() {
             }
             isSubmittingTournament = false;
             return;
+        }
+
+        // --- ROLE VERIFICATION: ONLY ORGANIZERS AND ADMINS CAN CREATE TOURNAMENTS ---
+        if (!editId) {
+            const isAuthorized = canUserCreateTournament(user, window.currentUserRole);
+            if (!isAuthorized) {
+                if (typeof window.showOrganizerAccessModal === 'function') {
+                    window.showOrganizerAccessModal();
+                } else if (window.showErrorToast) {
+                    window.showErrorToast("Access Restricted", "Only users with Organizer or Admin roles have permission to create tournaments.");
+                } else {
+                    alert("Access Restricted: Only users with Organizer or Admin roles have permission to create tournaments.");
+                }
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = "Create Tournament";
+                }
+                isSubmittingTournament = false;
+                return;
+            }
         }
 
         const gameSelect = qs('#c-game-select').value;
@@ -1198,17 +1257,24 @@ function renderTournaments() {
     grid.innerHTML = '';
     if (filtered.length === 0) { 
         if (currentTournamentScope === 'hosted') {
+            const canCreate = canUserCreateTournament(auth.currentUser, window.currentUserRole);
             grid.innerHTML = `
                 <div class="col-span-full text-center text-neutral-400 py-16 font-mono-tag text-xs space-y-3 bg-[#0A0A0E] border border-white/10 rounded-2xl p-8">
                     <div class="w-12 h-12 rounded-full bg-[#FFD700]/10 border border-[#FFD700]/30 mx-auto flex items-center justify-center text-[#FFD700]">
                         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
                     </div>
                     <div class="font-heading font-bold text-sm text-white uppercase tracking-wider">No Hosted Tournaments Found</div>
-                    <p class="text-neutral-400 text-xs max-w-sm mx-auto">You haven't created or co-organized any tournaments matching this filter yet.</p>
+                    <p class="text-neutral-400 text-xs max-w-sm mx-auto">${canCreate ? "You haven't created or co-organized any tournaments matching this filter yet." : "Tournament hosting is reserved for verified Organizers and ChampZero Admins."}</p>
                     <div class="pt-2">
-                        <button type="button" onclick="openCreateModal()" class="px-5 py-2.5 bg-[#FFD700] text-black font-heading font-extrabold uppercase text-xs rounded-xl hover:bg-[#FFF099] transition-all shadow-[0_0_20px_rgba(255,215,0,0.3)] cursor-pointer">
-                            + Host A Tournament Now
-                        </button>
+                        ${canCreate ? `
+                            <button type="button" onclick="openCreateModal()" class="px-5 py-2.5 bg-[#FFD700] text-black font-heading font-extrabold uppercase text-xs rounded-xl hover:bg-[#FFF099] transition-all shadow-[0_0_20px_rgba(255,215,0,0.3)] cursor-pointer">
+                                + Host A Tournament Now
+                            </button>
+                        ` : `
+                            <button type="button" onclick="openCreateModal()" class="px-5 py-2.5 bg-[#FFD700]/10 text-[#FFD700] border border-[#FFD700]/30 hover:bg-[#FFD700]/20 font-heading font-extrabold uppercase text-xs rounded-xl transition-all cursor-pointer">
+                                Request Organizer Role &rarr;
+                            </button>
+                        `}
                     </div>
                 </div>
             `;
