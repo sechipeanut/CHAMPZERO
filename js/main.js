@@ -251,7 +251,7 @@ function renderAuthHeader(user, userData = {}) {
                     <img src="${userAvatar}" alt="${escapeHtml(displayName)}" class="w-8 h-8 rounded-full ${isSupporter ? (supporterTier === 'gold' ? 'border-2 border-[#FFD700] shadow-[0_0_8px_rgba(255,215,0,0.4)]' : 'border-2 border-slate-300') : 'border border-white/20'} object-cover shrink-0">
                     <span class="text-xs font-heading font-bold text-white group-hover:text-[#FFD700] transition-colors max-w-[85px] truncate hidden sm:inline-block">${escapeHtml(displayName)}</span>
                     ${verifiedIcon}
-                    <svg class="w-3.5 h-3.5 text-neutral-400 group-hover:text-white transition-transform duration-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <svg id="profile-dropdown-chevron" class="w-3.5 h-3.5 text-neutral-400 group-hover:text-white transition-transform duration-200 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path>
                     </svg>
                 </button>
@@ -324,7 +324,7 @@ function renderAuthHeader(user, userData = {}) {
             let isDropdownOpen = false;
             const toggleDropdown = (openState) => {
                 isDropdownOpen = (typeof openState === 'boolean') ? openState : !isDropdownOpen;
-                const chevron = dropdownBtn.querySelector('svg:last-child');
+                const chevron = document.getElementById('profile-dropdown-chevron') || dropdownBtn.querySelector(':scope > svg');
                 if (isDropdownOpen) {
                     dropdownMenu.classList.remove('cz-dropdown-closed');
                     dropdownMenu.classList.add('cz-dropdown-open');
