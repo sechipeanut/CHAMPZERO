@@ -1159,9 +1159,9 @@ function renderTournaments() {
         const isHost = currentUser && (
             t.createdBy === currentUser.uid ||
             (Array.isArray(t.coOrganizerUids) && t.coOrganizerUids.includes(currentUser.uid)) ||
-            (Array.isArray(t.marshals) && t.marshals.includes(currentUser.uid)) ||
-            isAdmin
+            (Array.isArray(t.coOrganizers) && t.coOrganizers.some(c => (c.uid && c.uid === currentUser.uid) || (c.email && c.email.toLowerCase() === currentUser.email?.toLowerCase())))
         );
+        const isStaff = isTournamentStaff(t, currentUser);
 
         const isParticipant = currentUser && (
             (Array.isArray(t.participants) && t.participants.some(p => {
@@ -1175,7 +1175,7 @@ function renderTournaments() {
             (Array.isArray(t.soloQueue) && t.soloQueue.some(s => s && (s.userId === currentUser.uid || s.uid === currentUser.uid || (s.email && s.email.toLowerCase() === currentUser.email?.toLowerCase()))))
         );
 
-        if (!isArchived || isHost) totalAll++;
+        if (!isArchived || isStaff) totalAll++;
         if (isHost) totalHosted++;
         if (isParticipant) totalJoined++;
     });
@@ -1198,9 +1198,9 @@ function renderTournaments() {
         const isHost = currentUser && (
             t.createdBy === currentUser.uid ||
             (Array.isArray(t.coOrganizerUids) && t.coOrganizerUids.includes(currentUser.uid)) ||
-            (Array.isArray(t.marshals) && t.marshals.includes(currentUser.uid)) ||
-            isAdmin
+            (Array.isArray(t.coOrganizers) && t.coOrganizers.some(c => (c.uid && c.uid === currentUser.uid) || (c.email && c.email.toLowerCase() === currentUser.email?.toLowerCase())))
         );
+        const isStaff = isTournamentStaff(t, currentUser);
 
         const isParticipant = currentUser && (
             (Array.isArray(t.participants) && t.participants.some(p => {
@@ -1221,7 +1221,7 @@ function renderTournaments() {
         // ARCHIVE PRIVACY ENFORCEMENT:
         // Once archived, ONLY organizers who host it or admins can view it
         if (isArchived) {
-            if (!isHost) return false;
+            if (!isStaff) return false;
             if (filterStatus === 'archived' || currentTournamentScope === 'hosted') {
                 return matchesName && matchesGame;
             }
@@ -1322,9 +1322,9 @@ function renderTournaments() {
             const isHost = currentUser && (
                 t.createdBy === currentUser.uid ||
                 (Array.isArray(t.coOrganizerUids) && t.coOrganizerUids.includes(currentUser.uid)) ||
-                (Array.isArray(t.marshals) && t.marshals.includes(currentUser.uid)) ||
-                isAdmin
+                (Array.isArray(t.coOrganizers) && t.coOrganizers.some(c => (c.uid && c.uid === currentUser.uid) || (c.email && c.email.toLowerCase() === currentUser.email?.toLowerCase())))
             );
+            const isStaff = isTournamentStaff(t, currentUser);
 
             const isParticipant = currentUser && (
                 (Array.isArray(t.participants) && t.participants.some(p => {
@@ -1367,7 +1367,7 @@ function renderTournaments() {
             const card = document.createElement('article');
             card.className = `gamer-tournament-card group relative flex flex-col justify-between h-[430px] w-full rounded-2xl bg-[#090A0F] border ${isHost ? 'border-[#FFD700]/40 shadow-[0_0_20px_rgba(255,215,0,0.1)]' : 'border-white/10'} hover:border-[#FFD700]/70 transition-all duration-300 overflow-hidden cursor-pointer shadow-[0_10px_30px_rgba(0,0,0,0.8)] hover:shadow-[0_0_30px_rgba(255,215,0,0.2)]`;
             
-            const actionBtnText = isHost ? "MANAGE TOURNAMENT" : "ENTER TOURNAMENT";
+            const actionBtnText = isHost ? "MANAGE TOURNAMENT" : (isAdmin ? "MANAGE (ADMIN)" : (isStaff ? "MANAGE (STAFF)" : "ENTER TOURNAMENT"));
             const actionBtnIcon = "&rarr;";
 
             card.innerHTML = `
