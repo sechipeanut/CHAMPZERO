@@ -3,6 +3,7 @@ import { collection, getDocs, doc, getDoc, updateDoc, addDoc, deleteDoc, arrayUn
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import { ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-storage.js";
 import { calculateStatus, escapeCssUrl } from './utils.js';
+import { checkEmailVerification, isEmailVerified } from './auth-guard.js';
 
 let allTournaments = [];
 let currentJoiningId = null;
@@ -595,6 +596,15 @@ async function handleCreateTournament() {
         const user = auth.currentUser;
         if (!user) throw new Error("You must be logged in.");
 
+        if (!await checkEmailVerification(editId ? "update a tournament" : "create and host a tournament")) {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = editId ? "Update Tournament" : "Create Tournament";
+            }
+            isSubmittingTournament = false;
+            return;
+        }
+
         const gameSelect = qs('#c-game-select').value;
         const gameOther = qs('#c-game-other').value;
         const finalGameTitle = (gameSelect === 'Others' && gameOther.trim() !== "")
@@ -696,6 +706,8 @@ async function handleCreateTournament() {
             ...(proofURL && { paymentProofURL: proofURL }),
             createdBy: user.uid,
             createdAt: serverTimestamp(),
+            organizerVerified: true,
+            isVerified: true,
             status: 'Open',
             isStarted: false,
             participants: [],
@@ -1320,6 +1332,11 @@ function renderTournaments() {
                             <span class="bg-white/10 backdrop-blur-md px-2 py-1 rounded-md text-[9px] font-mono-tag font-bold text-neutral-300 uppercase tracking-wider border border-white/10">
                                 ${escapeHtml(modePill)}
                             </span>
+                            ${(t.organizerVerified || t.isVerified) ? `
+                            <span class="bg-emerald-950/80 backdrop-blur-md px-2 py-1 rounded-md text-[9px] font-mono-tag font-bold text-emerald-400 border border-emerald-500/40 flex items-center gap-1 shadow-[0_0_8px_rgba(16,185,129,0.2)]" title="Verified Host">
+                                <svg class="w-2.5 h-2.5 text-emerald-400" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+                                VERIFIED HOST
+                            </span>` : ''}
                         </div>
                         ${roleBadgeHtml ? `<div>${roleBadgeHtml}</div>` : ''}
                     </div>
@@ -2685,6 +2702,15 @@ async function deleteTournament(id) {
 
     try {
         await deleteDoc(doc(db, "tournaments", id));
+
+        // Delete any notifications associated with this tournament
+        try {
+            const notifSnaps = await getDocs(query(collection(db, "notifications"), where("tournamentId", "==", id)));
+            notifSnaps.forEach(d => deleteDoc(d.ref).catch(() => {}));
+            const notifLinkSnaps = await getDocs(query(collection(db, "notifications"), where("link", "==", `/tournaments?id=${id}`)));
+            notifLinkSnaps.forEach(d => deleteDoc(d.ref).catch(() => {}));
+        } catch (_) {}
+
         if (window.showSuccessToast) window.showSuccessToast("Deleted", "Tournament successfully removed.");
         window.closeModal('detailsModal');
         window.history.replaceState({}, '', window.location.pathname);
@@ -4594,6 +4620,10 @@ async function openJoinForm(id, isEdit = false, specificAppId = null, forcedMode
         return; 
     }
 
+    if (!await checkEmailVerification(isEdit ? "edit tournament registration" : "register for this tournament")) {
+        return;
+    }
+
     const tournDoc = allTournaments.find(t => t.id === id) || currentEditingTournament;
 
     if (!isEdit) {
@@ -4919,7 +4949,14 @@ async function submitJoinRequest() {
     if (!currentJoiningId) return;
     const auth = getAuth();
     const user = auth.currentUser;
+    if (!user) {
+        if (window.showErrorToast) window.showErrorToast('Login Required', 'Please log in.');
+        return;
+    }
     const isEdit = qs('#joinForm').dataset.mode === 'edit';
+    if (!await checkEmailVerification(isEdit ? "edit tournament registration" : "register for this tournament")) {
+        return;
+    }
     const specificAppId = qs('#joinForm').dataset.appId;
     const activeMode = qs('#joinActiveMode')?.value || 'team';
 

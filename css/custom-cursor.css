@@ -315,3 +315,103 @@ dialog[open],
         opacity: 0;
     }
 }
+
+/* ==========================================================================
+   CHAMPZERO ULTRA-SMOOTH STYLISH DROPDOWNS ENGINE
+   ========================================================================== */
+
+/* 1. Global Select Styling (Esports Dark Theme with Gold Chevron) */
+select,
+select.form-select,
+.cz-dropdown-select {
+    appearance: none !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    background-color: #111116 !important;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23FFD700'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E") !important;
+    background-repeat: no-repeat !important;
+    background-position: right 0.75rem center !important;
+    background-size: 1rem 1rem !important;
+    padding-right: 2.5rem !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    border-radius: 0.75rem !important;
+    color: #EDEDF0 !important;
+    font-family: inherit !important;
+    font-size: 0.8125rem !important;
+    font-weight: 600 !important;
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4) !important;
+}
+
+select:hover,
+select.form-select:hover,
+.cz-dropdown-select:hover {
+    border-color: rgba(255, 215, 0, 0.35) !important;
+    background-color: #16161D !important;
+}
+
+select:focus,
+select.form-select:focus,
+.cz-dropdown-select:focus {
+    outline: none !important;
+    border-color: #FFD700 !important;
+    box-shadow: 0 0 0 2px rgba(255, 215, 0, 0.25), 0 8px 25px rgba(0, 0, 0, 0.6) !important;
+    background-color: #16161D !important;
+}
+
+select option {
+    background-color: #111116 !important;
+    color: #FFFFFF !important;
+    padding: 10px !important;
+}
+
+/* 2. Global Dropdown Menu Animations */
+.cz-smooth-dropdown {
+    transform-origin: top right;
+    transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+                visibility 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.cz-dropdown-open {
+    opacity: 1 !important;
+    transform: scale(1) translateY(0) !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+}
+
+.cz-dropdown-closed {
+    opacity: 0 !important;
+    transform: scale(0.95) translateY(-6px) !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+}
+
+/* 3. Dropdown Item Hover Polish */
+.cz-dropdown-item {
+    transition: all 0.18s cubic-bezier(0.16, 1, 0.3, 1) !important;
+    position: relative;
+    overflow: hidden;
+}
+
+.cz-dropdown-item:hover {
+    background: rgba(255, 215, 0, 0.08) !important;
+    color: #FFD700 !important;
+    padding-left: 1.25rem !important;
+}
+
+.cz-dropdown-item::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    background: #FFD700;
+    opacity: 0;
+    transition: opacity 0.18s ease;
+}
+
+.cz-dropdown-item:hover::before {
+    opacity: 1;
+}

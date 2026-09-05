@@ -30,6 +30,16 @@ service cloud.firestore {
       return isAdmin() || isSubscriber(); 
     }
 
+    function isEmailVerified() {
+      return isSignedIn() && (
+        (request.auth.token.email_verified == true) ||
+        (request.auth.token.firebase != null && request.auth.token.firebase.sign_in_provider == 'google.com') ||
+        isAdmin() ||
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.emailVerified == true)
+      );
+    }
+
     // --- 1. SPECIAL RULE FOR COLLECTION GROUP QUERIES ---
     match /{path=**}/applications/{appId} {
       allow read: if isSignedIn() && resource.data.applicantId == request.auth.uid;
@@ -39,7 +49,7 @@ service cloud.firestore {
 
     match /tournaments/{docId} {
       allow read: if true;
-      allow create: if isSignedIn();  // any logged-in user can create
+      allow create: if isEmailVerified();  // verified users or admin
       allow delete: if isAdmin() || (isSignedIn() && resource.data.createdBy == request.auth.uid);
       allow update: if isAdmin() || 
                       (isSignedIn() && (
@@ -80,7 +90,7 @@ service cloud.firestore {
           isAdmin() || 
           get(/databases/$(database)/documents/tournaments/$(docId)).data.createdBy == request.auth.uid
         );
-        allow create: if isSignedIn() && request.resource.data.registeredBy == request.auth.uid;
+        allow create: if isEmailVerified() && request.resource.data.registeredBy == request.auth.uid;
         allow update: if isSignedIn() && (
           (
             resource.data.registeredBy == request.auth.uid &&
@@ -162,7 +172,7 @@ service cloud.firestore {
     match /recruitment/{teamId} {
       allow read: if true;
       
-      allow create: if isSignedIn() && (
+      allow create: if isEmailVerified() && (
         request.resource.data.type == 'lft' || 
         request.resource.data.type == 'team' || 
         canPostListing()
@@ -217,8 +227,8 @@ service cloud.firestore {
       // Allow read on /scrims for all authenticated and unauthenticated users
       allow read: if true;
 
-      // Allow create if user is logged in and is the captain
-      allow create: if isSignedIn() && request.resource.data.captainId == request.auth.uid;
+      // Allow create if user is logged in, email is verified, and is the captain
+      allow create: if isEmailVerified() && request.resource.data.captainId == request.auth.uid;
 
       // Allow update if:
       // - Creator modifies or cancels their scrim (captainId == request.auth.uid)
@@ -273,8 +283,8 @@ service cloud.firestore {
 
     match /friend_requests/{requestId} {
       allow read: if isSignedIn();
-      // Prevent sending friend requests to oneself
-      allow create: if isSignedIn() && 
+      // Prevent sending friend requests to oneself and require verified email
+      allow create: if isEmailVerified() && 
                     request.resource.data.fromUid == request.auth.uid && 
                     request.resource.data.toUid != request.auth.uid;
       allow update: if isSignedIn() && (
@@ -291,13 +301,13 @@ service cloud.firestore {
 
     match /global_chat_messages/{messageId} {
       allow read: if true;
-      allow create: if isSignedIn() && request.resource.data.senderId == request.auth.uid;
+      allow create: if isEmailVerified() && request.resource.data.senderId == request.auth.uid;
       allow update, delete: if isAdmin() || (isSignedIn() && resource.data.senderId == request.auth.uid);
     }
 
     match /global_chat/{messageId} {
       allow read: if true;
-      allow create: if isSignedIn();
+      allow create: if isEmailVerified();
       allow update, delete: if isAdmin() || isSignedIn();
     }
 
@@ -410,7 +420,7 @@ service cloud.firestore {
       allow read: if isSignedIn() && (
         request.auth.uid in resource.data.participants || isAdmin()
       );
-      allow create: if isSignedIn() && (
+      allow create: if isEmailVerified() && (
         request.auth.uid in request.resource.data.participants
       );
       allow update: if isSignedIn() && (
@@ -421,9 +431,9 @@ service cloud.firestore {
         allow read: if isSignedIn() && (
           request.auth.uid in get(/databases/$(database)/documents/direct_messages/$(dmId)).data.participants || isAdmin()
         );
-        allow create: if isSignedIn() && (
+        allow create: if isEmailVerified() && (
           request.auth.uid in get(/databases/$(database)/documents/direct_messages/$(dmId)).data.participants &&
-          request.resource.data.senderId == request.auth.uid
+          (request.resource.data.senderId == request.auth.uid || request.resource.data.senderUid == request.auth.uid)
         );
         allow update, delete: if isAdmin();
       }

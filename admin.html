@@ -593,12 +593,13 @@
         </div>
 
         <div class="space-y-4">
-            <div class="hidden md:flex px-4 text-neutral-400 font-mono-tag text-xs uppercase tracking-wider">
-                <div class="flex-1">User Info</div>
-                <div class="w-1/5">Role</div>
-                <div class="w-1/5">Champ Coins</div>
-                <div class="w-1/6">Joined</div>
-                <div class="w-1/4 text-right">Actions</div>
+            <div class="hidden md:flex items-center gap-4 px-4 text-neutral-400 font-mono-tag text-xs uppercase tracking-wider">
+                <div class="flex-1 min-w-[200px]">User Info</div>
+                <div class="w-[120px] shrink-0">Verification</div>
+                <div class="w-[100px] shrink-0">Role</div>
+                <div class="w-[120px] shrink-0">Champ Coins</div>
+                <div class="w-[100px] shrink-0">Joined</div>
+                <div class="w-[180px] shrink-0 text-right">Actions</div>
             </div>
 
             <div id="users-list-view" class="space-y-3">
@@ -1628,6 +1629,7 @@
                     </label>
                     <select id="edit-reward-game" class="dark-select w-full p-3 rounded-xl text-xs font-mono-tag cursor-pointer">
                         <option value="platform">Platform Feature</option>
+                        <option value="merch">Physical Merch / Gear</option>
                         <option value="valorant">Valorant</option>
                         <option value="mlbb">Mobile Legends (MLBB)</option>
                         <option value="hok">Honor of Kings (HOK)</option>
@@ -1679,10 +1681,22 @@
                 <input type="checkbox" id="edit-reward-special" class="w-5 h-5 accent-[#FFD700] rounded cursor-pointer">
             </div>
 
+            <!-- UNAVAILABLE / TEASER TOGGLE -->
+            <div class="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-between font-mono-tag text-xs shadow-sm">
+                <div class="flex items-center gap-3">
+                    <span class="text-xl">🔒</span>
+                    <div>
+                        <span class="text-amber-400 font-bold block uppercase text-xs tracking-wider">Mark as Unavailable (Coming Soon Teaser)</span>
+                        <span class="text-neutral-400 text-[11px]">Displays item in user catalog with a padlock &amp; "Currently Unavailable" button</span>
+                    </div>
+                </div>
+                <input type="checkbox" id="edit-reward-unavailable" class="w-5 h-5 accent-amber-500 rounded cursor-pointer">
+            </div>
+
             <div class="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10 font-mono-tag text-xs">
                 <div>
                     <span class="text-white font-bold block">Reward Available for Redemption</span>
-                    <span class="text-neutral-400 text-[11px]">When disabled, players cannot redeem this item</span>
+                    <span class="text-neutral-400 text-[11px]">When disabled, players cannot see or redeem this item (Hidden)</span>
                 </div>
                 <input type="checkbox" id="edit-reward-active" class="w-5 h-5 accent-[#FFD700] rounded cursor-pointer" checked>
             </div>

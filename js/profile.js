@@ -1,6 +1,6 @@
 import { auth, db } from './firebase-config.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
-import { doc, getDoc, updateDoc, addDoc, collection, getDocs, query, orderBy, limit, where, onSnapshot, deleteDoc, setDoc, serverTimestamp, increment } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { doc, getDoc, updateDoc, addDoc, collection, getDocs, query, orderBy, limit, where, onSnapshot, deleteDoc, setDoc, serverTimestamp, increment, arrayUnion } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
 let activeUserUid = null;
 let activeUserData = {};
@@ -60,10 +60,69 @@ function renderOptimisticHeader(user) {
     } catch (e) {}
 }
 
-// 1. AUTH PROTECTION & INITIAL LOAD
+// 1. AUTH PROTECTION, PUBLIC PROFILE ROUTING & INITIAL LOAD
 let isProfileInitialized = false;
 
+window.copyCurrentProfileLink = function () {
+    const target = activeUserUid || (auth.currentUser ? auth.currentUser.uid : '');
+    if (!target) return;
+    const url = `${window.location.origin}/profile.html?uid=${encodeURIComponent(target)}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+            if (typeof window.showSuccessToast === 'function') {
+                window.showSuccessToast("Profile Link Copied", "Share this link with teammates and organizers!");
+            } else {
+                alert("Profile link copied to clipboard!");
+            }
+        }).catch(() => {
+            prompt("Copy profile link:", url);
+        });
+    } else {
+        prompt("Copy profile link:", url);
+    }
+};
+
 async function initProfileForUser(user) {
+    const urlParams = new URLSearchParams(window.location.search);
+    const requestedUid = urlParams.get('uid') || urlParams.get('id');
+
+    // Case 1: Public profile requested by URL parameter
+    if (requestedUid && (!user || user.uid !== requestedUid)) {
+        if (isProfileInitialized && activeUserUid === requestedUid) {
+            return;
+        }
+        isProfileInitialized = true;
+        activeUserUid = requestedUid;
+
+        // Automatically award scout quest if user is logged in and scouting a rival
+        if (user && user.uid && user.uid !== requestedUid) {
+            try {
+                const todayStr = getPHTDate();
+                const myRef = doc(db, "users", user.uid);
+                const mySnap = await getDoc(myRef);
+                if (mySnap.exists()) {
+                    const myData = mySnap.data() || {};
+                    if (myData.lastDailyScoutDate !== todayStr) {
+                        await updateDoc(myRef, {
+                            czPoints: increment(15),
+                            lifetimePoints: increment(15),
+                            lastDailyScoutDate: todayStr
+                        });
+                        if (typeof window.showSuccessToast === 'function') {
+                            window.showSuccessToast("Daily Quest Completed! 🔍", "+15 CZ Points awarded for scouting rival champions!");
+                        }
+                    }
+                }
+            } catch (scoutErr) {
+                console.warn("Could not process public scout quest:", scoutErr);
+            }
+        }
+
+        await loadUserProfile(requestedUid, null, true);
+        return;
+    }
+
+    // Case 2: Own profile view (Requires authentication)
     if (!user) {
         if (typeof window.showWarningToast === 'function') {
             window.showWarningToast("Session Required", "Please log in to access your player dashboard.", 3000);
@@ -94,11 +153,10 @@ async function initProfileForUser(user) {
         }
     }
     
-    // Load Profile Data from Firestore
-    await loadUserProfile(user.uid, user.email);
+    // Load Profile Data from Firestore (Owner view)
+    await loadUserProfile(user.uid, user.email, false);
 
     // Check for PayRex Cash-In Return Callbacks
-    const urlParams = new URLSearchParams(window.location.search);
     const cashinStatus = urlParams.get('cashin_status');
     const sessionId = urlParams.get('session_id');
     const amountVal = parseFloat(urlParams.get('amount')) || 0;
@@ -179,26 +237,56 @@ onAuthStateChanged(auth, (user) => {
 // 1. TAB NAVIGATION: PLAYER / FRIENDS / REWARDS / ORGANIZER
 // ==========================================
 const TAB_IDS = ['player', 'friends', 'rewards', 'organizer'];
-const ACTIVE_BTN = 'px-5 py-2.5 rounded-lg bg-[#FFD700] text-black font-black transition-all cursor-pointer shadow-md flex items-center gap-2';
-const INACTIVE_BTN = 'px-5 py-2.5 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 border border-white/10 transition-all cursor-pointer flex items-center gap-2';
+const ACTIVE_BTN_CLASS = 'px-6 py-2.5 rounded-full bg-[#FFD700] hover:bg-[#FFE033] text-black font-heading font-extrabold text-xs uppercase tracking-wider transition-colors duration-150 cursor-pointer shadow-[0_0_20px_rgba(255,215,0,0.35)] flex items-center justify-center gap-2.5 select-none border border-[#FFD700] shrink-0';
+const INACTIVE_BTN_CLASS = 'px-6 py-2.5 rounded-full bg-[#121116] hover:bg-[#1A1922] text-white border border-white/10 hover:border-white/20 font-heading font-extrabold text-xs uppercase tracking-wider transition-colors duration-150 cursor-pointer flex items-center justify-center gap-2.5 select-none shrink-0';
 
 window.switchProfileTab = function (tab) {
     TAB_IDS.forEach(t => {
         const btn = qs(`#tab-btn-${t}`);
         const pane = qs(`#tab-pane-${t}`);
-        if (btn) btn.className = (t === tab) ? ACTIVE_BTN : INACTIVE_BTN;
+        const isActive = (t === tab);
+
+        if (btn) {
+            btn.className = isActive ? ACTIVE_BTN_CLASS : INACTIVE_BTN_CLASS;
+
+            const icon = btn.querySelector('.tab-icon');
+            if (icon) {
+                icon.classList.remove('hidden');
+                if (t === 'player') {
+                    icon.setAttribute('class', `w-4 h-4 tab-icon shrink-0 ${isActive ? 'text-black' : 'text-neutral-300'}`);
+                } else if (t === 'friends') {
+                    icon.setAttribute('class', `w-4 h-4 tab-icon shrink-0 ${isActive ? 'text-black' : 'text-emerald-400'}`);
+                } else if (t === 'rewards') {
+                    icon.setAttribute('class', `w-4 h-4 tab-icon shrink-0 ${isActive ? 'text-black' : 'text-[#FFD700]'}`);
+                } else if (t === 'organizer') {
+                    icon.setAttribute('class', `w-4 h-4 tab-icon shrink-0 ${isActive ? 'text-black' : 'text-[#FFD700]'}`);
+                }
+            }
+
+            if (t === 'friends') {
+                const badge = qs('#friends-tab-count');
+                if (badge) {
+                    badge.classList.remove('hidden');
+                    badge.className = isActive
+                        ? 'text-[10px] bg-black/15 text-black px-1.5 py-0.5 rounded-full font-mono font-bold shrink-0'
+                        : 'text-[10px] bg-neutral-800 text-neutral-300 px-1.5 py-0.5 rounded-full font-mono font-bold shrink-0';
+                }
+            }
+        }
+
         if (pane) {
-            if (t === tab) pane.classList.remove('hidden');
+            if (isActive) pane.classList.remove('hidden');
             else pane.classList.add('hidden');
         }
     });
+
     // Lazy-load sub-data when tab is opened
     if (tab === 'friends' && activeUserUid) loadFriendsList(activeUserUid);
     if (tab === 'rewards' && activeUserUid) loadRewardsData(activeUserData);
 };
 
 // 2. FETCH & DISPLAY PROFILE DATA WITH TOURNAMENT TROPHIES & EARNINGS
-async function loadUserProfile(uid, email) {
+async function loadUserProfile(uid, email, isPublicView = false) {
     try {
         const docRef = doc(db, "users", uid);
         const tourneyQuery = collection(db, "tournaments");
@@ -215,17 +303,147 @@ async function loadUserProfile(uid, email) {
             userData = docSnap.data() || {};
         }
 
-        const userEmail = userData.email || email || (auth.currentUser ? auth.currentUser.email : '');
-        const userIgn = userData.ign || userData.displayName || userData.username || (auth.currentUser ? (auth.currentUser.displayName || auth.currentUser.email?.split('@')[0]) : '') || 'Champion';
+        const isMe = auth.currentUser && auth.currentUser.uid === uid;
+        const actualIsPublic = isPublicView || !isMe;
+
+        const userEmail = isMe ? (userData.email || email || (auth.currentUser ? auth.currentUser.email : '')) : '';
+        const userIgn = userData.ign || userData.displayName || userData.username || (isMe && auth.currentUser ? (auth.currentUser.displayName || auth.currentUser.email?.split('@')[0]) : '') || 'Champion';
         
         // Display Name, Email & Avatar
         if (qs('#display-name-header')) qs('#display-name-header').textContent = userIgn;
-        if (qs('#email-display')) qs('#email-display').textContent = userEmail;
-        if (qs('#account-email-display')) qs('#account-email-display').textContent = userEmail || '--';
+        if (qs('#email-display')) {
+            if (actualIsPublic) {
+                qs('#email-display').textContent = userData.discord ? `Discord: @${userData.discord}` : `Competitive Gamer // ${userData.rank || 'Player'}`;
+            } else {
+                qs('#email-display').textContent = userEmail || '--';
+            }
+        }
+        if (qs('#account-email-display')) {
+            qs('#account-email-display').textContent = isMe ? (userEmail || '--') : 'Protected';
+        }
         
-        const avatarUrl = userData.avatar || (auth.currentUser ? auth.currentUser.photoURL : null) || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(userIgn) + '&background=111116&color=FFD700');
+        const avatarUrl = userData.avatar || (isMe && auth.currentUser ? auth.currentUser.photoURL : null) || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(userIgn) + '&background=111116&color=FFD700');
         if (qs('#profile-avatar')) {
             qs('#profile-avatar').src = avatarUrl;
+        }
+
+        // Configure Public / Owner Action Buttons
+        const editProfileBtn = qs('#btn-edit-profile');
+        const publicActions = qs('#public-profile-actions');
+        const shareProfileText = qs('#btn-share-profile-text');
+
+        if (actualIsPublic) {
+            if (editProfileBtn) editProfileBtn.classList.add('hidden');
+            if (shareProfileText) shareProfileText.textContent = 'Copy Link';
+            
+            if (publicActions) {
+                publicActions.classList.remove('hidden');
+                if (auth.currentUser) {
+                    const currentUid = auth.currentUser.uid;
+                    const reqRef = collection(db, "friend_requests");
+                    const [qA, qB] = await Promise.all([
+                        getDocs(query(reqRef, where("fromUid", "==", currentUid), where("toUid", "==", uid))),
+                        getDocs(query(reqRef, where("fromUid", "==", uid), where("toUid", "==", currentUid)))
+                    ]);
+                    
+                    let friendStatus = 'none';
+                    let friendDocId = null;
+                    qA.forEach(d => {
+                        const dat = d.data();
+                        if (dat.status === 'accepted') friendStatus = 'friends';
+                        else if (dat.status === 'pending') { friendStatus = 'outgoing_pending'; friendDocId = d.id; }
+                    });
+                    qB.forEach(d => {
+                        const dat = d.data();
+                        if (dat.status === 'accepted') friendStatus = 'friends';
+                        else if (dat.status === 'pending') { friendStatus = 'incoming_pending'; friendDocId = d.id; }
+                    });
+
+                    if (friendStatus === 'friends') {
+                        publicActions.innerHTML = `
+                            <button type="button" onclick="if(window.czOpenDMWith){window.czOpenDMWith('${escapeHtml(uid)}', '${escapeHtml(userIgn)}', '${escapeHtml(avatarUrl)}');}else{if(window.showInfoToast)window.showInfoToast('Direct Messages', 'Open the chat drawer to message this player.');}"
+                                class="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-500 text-white font-heading font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-lg transition-all cursor-pointer shadow">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path></svg>
+                                <span>Message</span>
+                            </button>
+                        `;
+                    } else if (friendStatus === 'incoming_pending') {
+                        publicActions.innerHTML = `
+                            <button type="button" onclick="if(window.czRespondFriendRequest){window.czRespondFriendRequest('${friendDocId}', 'accepted', '${escapeHtml(userIgn)}'); setTimeout(()=>location.reload(), 800);}"
+                                class="inline-flex items-center gap-1.5 bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-lg transition-all cursor-pointer shadow">
+                                <span>Accept Friend</span>
+                            </button>
+                        `;
+                    } else if (friendStatus === 'outgoing_pending') {
+                        publicActions.innerHTML = `
+                            <span class="px-3 py-2 rounded-lg bg-amber-500/15 text-amber-400 border border-amber-500/30 text-xs font-mono font-bold uppercase">
+                                Request Sent
+                            </span>
+                        `;
+                    } else {
+                        publicActions.innerHTML = `
+                            <button type="button" onclick="if(window.czSendFriendRequest){window.czSendFriendRequest('${escapeHtml(uid)}', '${escapeHtml(userIgn)}', '${escapeHtml(avatarUrl)}'); this.textContent='Request Sent'; this.disabled=true;}else{if(window.showInfoToast)window.showInfoToast('Friend Request', 'Initializing friend request engine...');}"
+                                class="inline-flex items-center gap-1.5 bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-lg transition-all cursor-pointer shadow">
+                                <svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path d="M8 9a3 3 0 100-6 3 3 0 000 6zM8 11a6 6 0 016 6H2a6 6 0 016-6zM16 7a1 1 0 10-2 0v1h-1a1 1 0 100 2h1v1a1 1 0 102 0v-1h1a1 1 0 100-2h-1V7z"></path></svg>
+                                <span>Add Friend</span>
+                            </button>
+                        `;
+                    }
+                } else {
+                    publicActions.innerHTML = `
+                        <a href="/login" class="inline-flex items-center gap-1.5 bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-bold text-xs uppercase tracking-wider px-4 py-2.5 rounded-lg transition-all shadow">
+                            <span>Log In to Connect</span>
+                        </a>
+                    `;
+                }
+            }
+
+            // Public Dossier vs Account Owner Controls
+            const publicBanner = qs('#public-profile-banner');
+            const bannerUser = qs('#public-banner-username');
+            const accountInfoSection = qs('#account-information-section');
+            const publicCompetitorDossier = qs('#public-competitor-dossier');
+            const withdrawalMethodsSection = qs('#withdrawal-methods-section');
+            const supporterPerksSection = qs('#supporter-perks-section');
+            const themeSwitcher = qs('#btn-theme-switcher');
+            const rewardsTabBtn = qs('#tab-btn-rewards');
+            const supporterHubCta = qs('#supporter-hub-cta');
+
+            if (publicBanner) {
+                publicBanner.classList.remove('hidden');
+                if (bannerUser) bannerUser.textContent = userIgn;
+            }
+            if (accountInfoSection) accountInfoSection.classList.add('hidden');
+            if (publicCompetitorDossier) {
+                publicCompetitorDossier.classList.remove('hidden');
+                if (qs('#public-ign-display')) qs('#public-ign-display').textContent = userIgn;
+                if (qs('#public-discord-display')) qs('#public-discord-display').textContent = userData.discord ? `@${userData.discord}` : 'Not shared';
+                if (qs('#public-joined-display')) qs('#public-joined-display').textContent = formatDate(userData.joinedAt || userData.createdAt) || 'Recent';
+            }
+            if (withdrawalMethodsSection) withdrawalMethodsSection.classList.add('hidden');
+            if (supporterPerksSection) supporterPerksSection.classList.add('hidden');
+            if (themeSwitcher) themeSwitcher.classList.add('hidden');
+            if (rewardsTabBtn) rewardsTabBtn.classList.add('hidden');
+            if (supporterHubCta) supporterHubCta.classList.add('hidden');
+        } else {
+            const publicBanner = qs('#public-profile-banner');
+            const accountInfoSection = qs('#account-information-section');
+            const publicCompetitorDossier = qs('#public-competitor-dossier');
+            const withdrawalMethodsSection = qs('#withdrawal-methods-section');
+            const supporterPerksSection = qs('#supporter-perks-section');
+
+            if (publicBanner) publicBanner.classList.add('hidden');
+            if (accountInfoSection) accountInfoSection.classList.remove('hidden');
+            if (publicCompetitorDossier) publicCompetitorDossier.classList.add('hidden');
+            if (withdrawalMethodsSection) withdrawalMethodsSection.classList.remove('hidden');
+            if (supporterPerksSection) supporterPerksSection.classList.remove('hidden');
+            if (editProfileBtn) editProfileBtn.classList.remove('hidden');
+            if (publicActions) publicActions.classList.add('hidden');
+            if (shareProfileText) shareProfileText.textContent = 'Share Profile';
+            const rewardsTabBtn = qs('#tab-btn-rewards');
+            if (rewardsTabBtn) rewardsTabBtn.classList.remove('hidden');
+            const supporterHubCta = qs('#supporter-hub-cta');
+            if (supporterHubCta) supporterHubCta.classList.remove('hidden');
         }
 
         // Role Badge
@@ -233,17 +451,55 @@ async function loadUserProfile(uid, email) {
         const rawRole = String(userData.role || window.currentUserRole || '').toLowerCase();
         const isAdmin = (rawRole === 'admin' || rawRole === 'superadmin' || rawRole === 'administrator' || userEmail === 'admin@champzero.com' || (auth.currentUser && auth.currentUser.email === 'admin@champzero.com'));
         const isOrganizer = (rawRole === 'organizer' || rawRole === 'host');
+        const isModerator = (rawRole === 'moderator' || rawRole === 'mod');
+        const isSubscriber = (rawRole === 'subscriber' || rawRole === 'pro');
 
         if (roleBadge) {
             if (isAdmin) {
                 roleBadge.textContent = 'ADMIN';
-                roleBadge.className = 'inline-flex items-center px-3 py-1 rounded-full bg-red-500/10 text-red-400 text-xs font-bold border border-red-500/20';
+                roleBadge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full bg-red-500/15 text-red-400 text-[10px] font-mono-tag font-bold border border-red-500/30 uppercase';
             } else if (isOrganizer) {
                 roleBadge.textContent = 'ORGANIZER';
-                roleBadge.className = 'inline-flex items-center px-3 py-1 rounded-full bg-purple-500/10 text-purple-400 text-xs font-bold border border-purple-500/20';
+                roleBadge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 text-[10px] font-mono-tag font-bold border border-purple-500/30 uppercase';
+            } else if (isModerator) {
+                roleBadge.textContent = 'MODERATOR';
+                roleBadge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full bg-cyan-500/15 text-cyan-400 text-[10px] font-mono-tag font-bold border border-cyan-500/30 uppercase';
+            } else if (isSubscriber) {
+                roleBadge.textContent = 'PRO';
+                roleBadge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-300 text-[10px] font-mono-tag font-bold border border-amber-500/30 uppercase';
             } else {
                 roleBadge.textContent = 'MEMBER';
-                roleBadge.className = 'inline-flex items-center px-3 py-1 rounded-full bg-[var(--gold)]/10 text-[var(--gold)] text-xs font-bold border border-[var(--gold)]/20';
+                roleBadge.className = 'inline-flex items-center px-2.5 py-0.5 rounded-full bg-[var(--gold)]/10 text-[var(--gold)] text-[10px] font-mono-tag font-bold border border-[var(--gold)]/20 uppercase';
+            }
+        }
+
+        // Verified Player Badge Logic
+        const isTargetGoogle = userData.providerData?.some?.(p => p.providerId === 'google.com') || (userData.provider === 'google.com');
+        const isUserVerified = actualIsPublic ? Boolean(userData.emailVerified === true || isTargetGoogle) : Boolean(auth.currentUser?.emailVerified || isTargetGoogle || userData.emailVerified === true);
+        const verifiedBadgeEl = qs('#verified-badge');
+        const verifiedBadgeText = qs('#verified-badge-text');
+        const verifiedInlineCheck = qs('#verified-inline-check');
+
+        if (verifiedBadgeEl) {
+            verifiedBadgeEl.classList.remove('hidden');
+            if (isUserVerified) {
+                if (verifiedBadgeText) verifiedBadgeText.textContent = 'VERIFIED';
+                verifiedBadgeEl.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 text-[10px] font-mono-tag font-bold border border-emerald-500/30 shadow-[0_0_10px_rgba(52,211,153,0.15)] uppercase';
+                verifiedBadgeEl.title = 'Verified Email & Competitive Player';
+                verifiedBadgeEl.onclick = null;
+                if (verifiedInlineCheck) verifiedInlineCheck.classList.remove('hidden');
+            } else {
+                if (verifiedBadgeText) verifiedBadgeText.textContent = 'UNVERIFIED';
+                verifiedBadgeEl.className = 'inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-amber-500/15 text-amber-400 text-[10px] font-mono-tag font-bold border border-amber-500/30 hover:bg-amber-500/25 cursor-pointer uppercase transition-colors';
+                verifiedBadgeEl.title = 'Email not verified.';
+                if (!actualIsPublic && verifiedBadgeEl) {
+                    verifiedBadgeEl.onclick = async () => {
+                        if (window.checkEmailVerification) {
+                            await window.checkEmailVerification("verify your competitive account");
+                        }
+                    };
+                }
+                if (verifiedInlineCheck) verifiedInlineCheck.classList.add('hidden');
             }
         }
 
@@ -295,6 +551,33 @@ async function loadUserProfile(uid, email) {
                     avatarImg.classList.remove('border-2', 'border-[#FFD700]', 'border-slate-300', 'shadow-[0_0_20px_rgba(255,215,0,0.3)]', 'shadow-[0_0_15px_rgba(255,255,255,0.2)]');
                 }
             }
+        }
+
+        // Equipped Player Title Flair Badge
+        const titleBadgeEl = qs('#player-title-badge');
+        const titleTextEl = qs('#player-title-text');
+        if (titleBadgeEl) {
+            if (userData.playerTitle) {
+                titleBadgeEl.classList.remove('hidden');
+                if (titleTextEl) titleTextEl.textContent = userData.playerTitle;
+            } else {
+                titleBadgeEl.classList.add('hidden');
+            }
+        }
+
+        // Profile HUD Theme (Cyberpunk vs Default)
+        const themeSwitcherBtn = qs('#btn-theme-switcher');
+        const themeLabel = qs('#current-theme-label');
+        const hasCyberpunk = (userData.profileTheme === 'cyberpunk') || (Array.isArray(userData.unlockedThemes) && userData.unlockedThemes.includes('cyberpunk'));
+
+        if (hasCyberpunk) {
+            if (themeSwitcherBtn) themeSwitcherBtn.classList.remove('hidden');
+            const isCyberActive = (userData.profileTheme === 'cyberpunk');
+            document.body.classList.toggle('theme-cyberpunk', isCyberActive);
+            if (themeLabel) themeLabel.textContent = isCyberActive ? 'Cyberpunk' : 'Default Dark';
+        } else {
+            document.body.classList.remove('theme-cyberpunk');
+            if (themeSwitcherBtn) themeSwitcherBtn.classList.add('hidden');
         }
 
         // Supporter Card in Profile Tab
@@ -392,13 +675,15 @@ async function loadUserProfile(uid, email) {
         activeUserUid = uid;
         activeUserData = userData;
 
-        // 3. RENDER SAVED WITHDRAWAL / PAYOUT METHOD
-        try {
-            if (typeof renderWithdrawalMethodDisplay === 'function') {
-                renderWithdrawalMethodDisplay(userData.payoutMethod);
+        // 3. RENDER SAVED WITHDRAWAL / PAYOUT METHOD (Account Owner Only)
+        if (!actualIsPublic) {
+            try {
+                if (typeof renderWithdrawalMethodDisplay === 'function') {
+                    renderWithdrawalMethodDisplay(userData.payoutMethod);
+                }
+            } catch (e) {
+                console.warn("Error rendering withdrawal preview:", e);
             }
-        } catch (e) {
-            console.warn("Error rendering withdrawal preview:", e);
         }
 
         // 4. CALCULATE TOURNAMENTS & TROPHIES (Using already-fetched tournaments snap)
@@ -408,30 +693,32 @@ async function loadUserProfile(uid, email) {
         }
         await calculateTournamentStats(uid, userIgn, allTourneys, friendCount);
 
-        // 5. CALCULATE ORGANIZER STATS (IF ORGANIZER OR ADMIN)
-        const isOrganizerOrAdmin = isAdmin || isOrganizer;
+        // 5. CALCULATE ORGANIZER STATS (ONLY FOR TOURNAMENT ORGANIZERS)
+        const showOrganizerTab = isOrganizer && !actualIsPublic;
         const tabOrganizerBtn = qs('#tab-btn-organizer');
-        if (isOrganizerOrAdmin) {
+        if (showOrganizerTab) {
             if (tabOrganizerBtn) {
                 tabOrganizerBtn.classList.remove('hidden');
                 const titleSpan = qs('#tab-organizer-title');
-                if (titleSpan) titleSpan.textContent = isAdmin ? 'Admin Command' : 'Organizer Command';
+                if (titleSpan) titleSpan.textContent = 'Organizer Command';
             }
-            await calculateOrganizerStats(uid, userEmail, allTourneys, isAdmin);
+            await calculateOrganizerStats(uid, userEmail, allTourneys);
         } else {
             if (tabOrganizerBtn) tabOrganizerBtn.classList.add('hidden');
         }
 
-        // 6. INITIALIZE REWARDS DATA
-        try {
-            await loadRewardsData(userData);
-        } catch (rewardErr) {
-            console.warn("Error initializing rewards data:", rewardErr);
+        // 6. INITIALIZE REWARDS DATA (ONLY FOR ACCOUNT OWNER)
+        if (!actualIsPublic) {
+            try {
+                await loadRewardsData(userData);
+            } catch (rewardErr) {
+                console.warn("Error initializing rewards data:", rewardErr);
+            }
         }
 
         // 7. TAB ROUTING
         const initialTab = new URLSearchParams(window.location.search).get('tab') || 'player';
-        if (initialTab === 'organizer' && !isOrganizerOrAdmin) {
+        if (initialTab === 'organizer' && !showOrganizerTab) {
             window.switchProfileTab('player');
         } else if (TAB_IDS.includes(initialTab)) {
             window.switchProfileTab(initialTab);
@@ -617,24 +904,18 @@ async function calculateTournamentStats(uid, userIgn, allTourneys, friendCountVa
     }
 }
 
-async function calculateOrganizerStats(uid, email, allTourneys, isAdmin = false) {
+async function calculateOrganizerStats(uid, email, allTourneys) {
     const orgDashboard = qs('#organizer-dashboard-section');
     if (!orgDashboard) return;
 
-    // Update dynamic header labels based on whether user is Admin or Organizer
+    // Header labels strictly for Organizer Command
     const badgeLabel = qs('#org-badge-label');
     const titleLabel = qs('#org-title-label');
     const tableTitle = qs('#org-table-title');
 
-    if (isAdmin) {
-        if (badgeLabel) badgeLabel.textContent = 'ADMIN PLATFORM COMMAND';
-        if (titleLabel) titleLabel.textContent = 'Platform Tournaments & Financial Audits';
-        if (tableTitle) tableTitle.textContent = 'All Platform Tournaments';
-    } else {
-        if (badgeLabel) badgeLabel.textContent = 'ORGANIZER COMMAND';
-        if (titleLabel) titleLabel.textContent = 'Host Operations & Financials';
-        if (tableTitle) tableTitle.textContent = 'Your Hosted Tournaments';
-    }
+    if (badgeLabel) badgeLabel.textContent = 'ORGANIZER COMMAND';
+    if (titleLabel) titleLabel.textContent = 'Host Operations & Financials';
+    if (tableTitle) tableTitle.textContent = 'Your Hosted Tournaments';
 
     let hostedCount = 0;
     let totalParticipants = 0;
@@ -644,8 +925,8 @@ async function calculateOrganizerStats(uid, email, allTourneys, isAdmin = false)
     const hostedItems = [];
 
     allTourneys.forEach(t => {
-        // Admins see all platform tournaments; Organizers see their own
-        const isHostedByMe = isAdmin || t.createdBy === uid || (email === 'admin@champzero.com' && t.createdBy === uid);
+        // Organizers only see tournaments hosted/created by themselves
+        const isHostedByMe = (t.createdBy === uid || t.creatorId === uid || t.organizerId === uid || (email && t.creatorEmail === email));
         if (!isHostedByMe) return;
 
         hostedCount++;
@@ -704,7 +985,7 @@ async function calculateOrganizerStats(uid, email, allTourneys, isAdmin = false)
     const hostedListEl = qs('#org-hosted-tournaments-list');
     if (hostedListEl) {
         if (hostedItems.length === 0) {
-            hostedListEl.innerHTML = `<div class="text-center py-6 text-neutral-500 text-xs italic">${isAdmin ? 'No tournaments created on the platform yet.' : 'No tournaments hosted yet. Browse the Tournaments page to create an event.'}</div>`;
+            hostedListEl.innerHTML = `<div class="text-center py-6 text-neutral-500 text-xs italic">No tournaments hosted yet. Browse the Tournaments page to create an event.</div>`;
         } else {
             hostedListEl.innerHTML = hostedItems.map(item => {
                 let statusBadge = '<span class="px-2 py-0.5 rounded text-[9px] font-bold uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30">Upcoming</span>';
@@ -2055,7 +2336,6 @@ async function loadRewardsData(userData) {
     // 1. Vault Balance & Lifetime Points
     if (qs('#reward-points-balance')) qs('#reward-points-balance').textContent = czPoints.toLocaleString();
     if (qs('#reward-lifetime-points')) qs('#reward-lifetime-points').textContent = `${lifetimePoints.toLocaleString()} CZ`;
-    if (qs('#rewards-tab-points')) qs('#rewards-tab-points').textContent = `${czPoints.toLocaleString()} CZ`;
 
     // Tier badge
     const tierBadge = qs('#reward-tier-badge');
@@ -2097,6 +2377,51 @@ async function loadRewardsData(userData) {
             checkinBtn.className = 'px-5 py-2.5 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-bold text-xs uppercase tracking-wider transition-all shadow-md shrink-0 cursor-pointer';
         }
     }
+
+    const questLoginStatus = qs('#quest-login-status');
+    if (questLoginStatus) {
+        if (isCheckedInToday) {
+            questLoginStatus.innerHTML = '<span class="text-emerald-400 font-bold">Completed Today ✓</span>';
+        } else {
+            questLoginStatus.innerHTML = '<span class="text-amber-400 font-bold">Pending Check-In</span>';
+        }
+    }
+
+    // Quest 2: Scrim Battle
+    const questScrimStatus = qs('#quest-scrim-status');
+    const isScrimDone = (userData.lastDailyScrimDate === todayStr);
+    if (questScrimStatus) {
+        if (isScrimDone) {
+            questScrimStatus.innerHTML = '<span class="text-emerald-400 font-bold">Completed Today ✓ (+30 CZ)</span>';
+        } else {
+            questScrimStatus.innerHTML = '<span class="text-amber-400 font-semibold">Available Daily</span>';
+        }
+    }
+
+    // Quest 3: Global Chat
+    const questChatStatus = qs('#quest-chat-status');
+    const isChatDone = (userData.lastDailyChatDate === todayStr);
+    if (questChatStatus) {
+        if (isChatDone) {
+            questChatStatus.innerHTML = '<span class="text-emerald-400 font-bold">Completed Today ✓ (+15 CZ)</span>';
+        } else {
+            questChatStatus.innerHTML = '<span class="text-amber-400 font-semibold">Available Daily</span>';
+        }
+    }
+
+    // Quest 4: Scout Rivals
+    const questScoutStatus = qs('#quest-scout-status');
+    const isScoutDone = (userData.lastDailyScoutDate === todayStr);
+    if (questScoutStatus) {
+        if (isScoutDone) {
+            questScoutStatus.innerHTML = '<span class="text-emerald-400 font-bold">Completed Today ✓ (+15 CZ)</span>';
+        } else {
+            questScoutStatus.innerHTML = '<span class="text-amber-400 font-semibold">Available Daily</span>';
+        }
+    }
+
+    // Live Quest Countdown to 12:00 AM PHT
+    startQuestCountdown();
 
     const streakContainer = qs('#streak-days-container');
     if (streakContainer) {
@@ -2166,12 +2491,15 @@ async function loadRewardsCatalog() {
             if (items.length === 0) return;
 
             container.innerHTML = '';
+            window.rewardsCatalogCache = window.rewardsCatalogCache || {};
             items.forEach(item => {
+                window.rewardsCatalogCache[item.id] = item;
                 const cost = Number(item.cost) || 100;
-                const badgeClass = item.badgeClass || 'bg-[#FFD700]/15 text-[#FFD700] border-[#FFD700]/30';
+                const isUnavailable = Boolean(item.isUnavailable);
+                const badgeClass = item.badgeClass || (isUnavailable ? 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30' : 'bg-[#FFD700]/15 text-[#FFD700] border-[#FFD700]/30');
                 const gameType = item.gameType || 'platform';
                 const safeTitle = escapeHtml(item.title);
-                const safeBadge = escapeHtml(item.badgeText || (gameType === 'platform' ? 'Instant Unlock' : gameType.toUpperCase()));
+                const safeBadge = escapeHtml(item.badgeText || (isUnavailable ? 'Limited Merch' : (gameType === 'platform' ? 'Instant Unlock' : gameType.toUpperCase())));
                 const safeDesc = escapeHtml(item.description);
 
                 const isSpecial = Boolean(item.isSpecialDrop);
@@ -2184,10 +2512,14 @@ async function loadRewardsCatalog() {
                 let borderBgClass = 'bg-[#111116] border border-white/10 hover:border-[#FFD700]/40';
                 if (isSpecial) {
                     borderBgClass = 'bg-gradient-to-b from-[#FFD700]/15 via-[#13131A] to-[#0A0A0E] border-2 border-[#FFD700] ring-1 ring-[#FFD700]/50 shadow-[0_0_30px_rgba(255,215,0,0.22)]';
+                } else if (isUnavailable) {
+                    borderBgClass = 'bg-gradient-to-b from-amber-500/5 via-[#111116] to-[#0d0d12] border border-amber-500/25 hover:border-amber-500/40 relative';
                 }
 
                 let stockBadge = '';
-                if (isLimited) {
+                if (isUnavailable) {
+                    stockBadge = '<span class="px-2 py-0.5 rounded text-[8px] font-mono-tag font-bold uppercase bg-amber-500/15 text-amber-400 border border-amber-500/30 flex items-center gap-1">🔒 Locked Drop</span>';
+                } else if (isLimited) {
                     if (isSoldOut) {
                         stockBadge = '<span class="px-2 py-0.5 rounded text-[8px] font-mono-tag font-bold uppercase bg-red-500/20 text-red-400 border border-red-500/30">🚫 Sold Out</span>';
                     } else if (remaining <= 3) {
@@ -2203,21 +2535,41 @@ async function loadRewardsCatalog() {
                        </div>`
                     : '';
 
-                const buttonAction = isSoldOut
-                    ? `<button type="button" disabled class="w-full py-2.5 rounded-xl bg-white/5 text-neutral-500 font-heading font-bold text-xs uppercase tracking-wider border border-white/10 cursor-not-allowed">
-                        Sold Out (${stockLimit} Claimed)
-                       </button>`
-                    : `<button type="button" onclick="window.openRedeemModal('${escapeHtml(item.id)}', '${safeTitle.replace(/'/g, "\\'")}', ${cost}, '${escapeHtml(gameType)}')"
-                        class="w-full py-2.5 rounded-xl ${isSpecial ? 'bg-[#FFD700] hover:bg-[#FFF099] text-black shadow-[0_0_15px_rgba(255,215,0,0.35)]' : 'bg-white/5 hover:bg-[#FFD700] text-neutral-200 hover:text-black border border-white/10 hover:border-[#FFD700]'} font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-pointer">
-                        ${gameType === 'platform' ? `Redeem (${cost.toLocaleString()} CZ)` : `Claim (${cost.toLocaleString()} CZ)`}
-                       </button>`;
+                const unavailableRibbon = isUnavailable
+                    ? `<div class="absolute top-0 right-0 bg-gradient-to-l from-amber-500/30 to-amber-500/10 text-amber-300 font-heading font-black text-[9px] uppercase tracking-wider px-3 py-1 rounded-bl-xl border-l border-b border-amber-500/30 flex items-center gap-1">
+                        <span>🔒 COMING SOON</span>
+                       </div>`
+                    : '';
+
+                let buttonAction = '';
+                if (isUnavailable) {
+                    buttonAction = `
+                        <button type="button" disabled class="w-full py-2.5 rounded-xl bg-white/5 text-neutral-400 font-heading font-bold text-xs uppercase tracking-wider border border-white/10 cursor-not-allowed flex items-center justify-center gap-1.5 opacity-80 select-none">
+                            <svg class="w-3.5 h-3.5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            <span>Currently Unavailable</span>
+                        </button>
+                    `;
+                } else if (isSoldOut) {
+                    buttonAction = `
+                        <button type="button" disabled class="w-full py-2.5 rounded-xl bg-white/5 text-neutral-500 font-heading font-bold text-xs uppercase tracking-wider border border-white/10 cursor-not-allowed">
+                            Sold Out (${stockLimit} Claimed)
+                        </button>
+                    `;
+                } else {
+                    buttonAction = `
+                        <button type="button" onclick="window.openRedeemModalById('${escapeHtml(item.id)}')"
+                            class="w-full py-2.5 rounded-xl ${isSpecial ? 'bg-[#FFD700] hover:bg-[#FFF099] text-black shadow-[0_0_15px_rgba(255,215,0,0.35)]' : 'bg-white/5 hover:bg-[#FFD700] text-neutral-200 hover:text-black border border-white/10 hover:border-[#FFD700]'} font-heading font-bold text-xs uppercase tracking-wider transition-all cursor-pointer">
+                            ${gameType === 'platform' ? `Redeem (${cost.toLocaleString()} CZ)` : `Claim (${cost.toLocaleString()} CZ)`}
+                        </button>
+                    `;
+                }
 
                 const card = document.createElement('div');
                 card.className = `${borderBgClass} rounded-2xl p-5 sm:p-6 flex flex-col justify-between gap-4 transition-all relative overflow-hidden`;
                 card.innerHTML = `
-                    ${specialRibbon}
+                    ${specialRibbon || unavailableRibbon}
                     <div>
-                        <div class="flex items-center justify-between mb-3 ${isSpecial ? 'pt-2' : ''}">
+                        <div class="flex items-center justify-between mb-3 ${isSpecial || isUnavailable ? 'pt-2' : ''}">
                             <div class="flex items-center gap-1.5 flex-wrap">
                                 <span class="px-2 py-0.5 rounded text-[9px] font-mono-tag font-bold uppercase ${badgeClass} border">${safeBadge}</span>
                                 ${stockBadge}
@@ -2285,8 +2637,10 @@ async function loadRedemptionHistory() {
                         </div>
                         <div>
                             <div class="font-heading font-bold text-white uppercase text-sm">${escapeHtml(item.rewardTitle || 'Reward')}</div>
-                            <div class="text-[10px] text-neutral-400 mt-0.5 flex items-center gap-2">
+                            <div class="text-[10px] text-neutral-400 mt-0.5 flex items-center gap-2 flex-wrap">
                                 <span>${dateStr}</span>
+                                ${item.lootDrop ? `<span class="text-purple-300 font-bold">• Drop: ${escapeHtml(item.lootDrop)}</span>` : ''}
+                                ${item.voucherCode ? `<span class="text-neutral-300">• Code: <strong class="text-[#FFD700]">${escapeHtml(item.voucherCode)}</strong></span>` : ''}
                                 ${item.gameDetails?.gameId ? `<span>• ID: <strong class="text-neutral-200">${escapeHtml(item.gameDetails.gameId)}</strong></span>` : ''}
                             </div>
                         </div>
@@ -2411,9 +2765,33 @@ window.copyReferralCodeOnly = function () {
     }
 };
 
+const DEFAULT_REWARDS_META = {
+    'pro_badge': { id: 'pro_badge', title: '1-Month Golden PRO Badge', cost: 300, gameType: 'platform' },
+    'cz_mystery_crate': { id: 'cz_mystery_crate', title: 'CZ Mystery Esports Crate 🎁', cost: 250, gameType: 'platform' },
+    'animated_title_apex': { id: 'animated_title_apex', title: 'Player Title: Apex Striker', cost: 450, gameType: 'flair' },
+    'cyber_theme_hud': { id: 'cyber_theme_hud', title: 'Neon Cyberpunk Profile HUD', cost: 500, gameType: 'hud' },
+    'val_points_475': { id: 'val_points_475', title: '475 Valorant Points (VP)', cost: 1000, gameType: 'valorant' },
+    'mlbb_diamonds_100': { id: 'mlbb_diamonds_100', title: '100 MLBB Diamonds', cost: 800, gameType: 'mlbb' },
+    'hok_tokens_100': { id: 'hok_tokens_100', title: '100 HOK Tokens', cost: 800, gameType: 'hok' }
+};
+
+window.openRedeemModalById = function (itemId) {
+    const item = window.rewardsCatalogCache?.[itemId] || DEFAULT_REWARDS_META[itemId];
+    if (item) {
+        window.openRedeemModal(item.id, item.title, Number(item.cost) || 100, item.gameType || 'platform');
+    } else {
+        window.openRedeemModal(itemId, 'Reward', 100, 'platform');
+    }
+};
+
 window.openRedeemModal = function (rewardId, title, cost, gameType) {
     if (!activeUserUid) {
         if (window.showWarningToast) window.showWarningToast("Sign In Required", "Please log in to redeem rewards.");
+        return;
+    }
+
+    if (rewardId === 'cz_pro_jersey' || rewardId === 'logitech_gpro_drop') {
+        if (window.showWarningToast) window.showWarningToast("Currently Unavailable", "This reward is locked and coming soon in an upcoming rewards wave.");
         return;
     }
 
@@ -2544,6 +2922,11 @@ window.submitRewardRedeem = async function (e) {
         };
 
         const isInstantPro = (rewardId === 'pro_badge');
+        const isMysteryCrate = (rewardId === 'cz_mystery_crate');
+        const isApexTitle = (rewardId === 'animated_title_apex');
+        const isCyberTheme = (rewardId === 'cyber_theme_hud');
+        let mysteryLoot = null;
+
         if (isInstantPro) {
             const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
             updates.isSupporter = true;
@@ -2551,9 +2934,37 @@ window.submitRewardRedeem = async function (e) {
             updates.supporterBadge = 'PRO';
             updates.supporterSince = new Date().toISOString();
             updates.supporterExpiresAt = Date.now() + thirtyDaysMs;
+        } else if (isMysteryCrate) {
+            mysteryLoot = rollMysteryCrate();
+            if (mysteryLoot.type === 'points') {
+                updates.czPoints = increment(-cost + mysteryLoot.points);
+                updates.lifetimePoints = increment(mysteryLoot.points);
+            } else if (mysteryLoot.type === 'title') {
+                updates.playerTitle = mysteryLoot.titleName;
+                updates.unlockedTitles = arrayUnion(mysteryLoot.titleName);
+            } else if (mysteryLoot.type === 'supporter') {
+                const extraDays = (mysteryLoot.days || 14) * 24 * 60 * 60 * 1000;
+                const currentExpire = (activeUserData.supporterExpiresAt && activeUserData.supporterExpiresAt > Date.now()) ? activeUserData.supporterExpiresAt : Date.now();
+                updates.isSupporter = true;
+                updates.supporterTier = 'gold';
+                updates.supporterBadge = 'PRO';
+                updates.supporterExpiresAt = currentExpire + extraDays;
+            } else if (mysteryLoot.type === 'theme') {
+                updates.profileTheme = 'cyberpunk';
+                updates.unlockedThemes = arrayUnion('cyberpunk');
+            }
+        } else if (isApexTitle) {
+            updates.playerTitle = 'Apex Striker';
+            updates.unlockedTitles = arrayUnion('Apex Striker');
+        } else if (isCyberTheme) {
+            updates.profileTheme = 'cyberpunk';
+            updates.unlockedThemes = arrayUnion('cyberpunk');
         }
 
         await updateDoc(userRef, updates);
+
+        const isInstantCompleted = isInstantPro || isMysteryCrate || isApexTitle || isCyberTheme || rewardId === 'spotlight_48h' || rewardId === 'tournament_pass';
+        const voucherCode = !isInstantCompleted ? `CZ-${(gameType || 'RW').toUpperCase()}-${Math.floor(10000 + Math.random() * 90000)}` : null;
 
         await addDoc(collection(db, "rewards_redemptions"), {
             userId: activeUserUid,
@@ -2562,32 +2973,67 @@ window.submitRewardRedeem = async function (e) {
             rewardId: rewardId,
             rewardTitle: title,
             costPoints: cost,
+            lootDrop: mysteryLoot ? mysteryLoot.title : null,
+            voucherCode: voucherCode,
             gameType: gameType || null,
             gameDetails: {
                 gameId: gameId || null,
                 zoneId: zoneId || null
             },
-            status: isInstantPro || rewardId === 'spotlight_48h' || rewardId === 'tournament_pass' ? 'completed' : 'pending_delivery',
+            status: isInstantCompleted ? 'completed' : 'pending_delivery',
             createdAt: serverTimestamp()
         });
 
-        activeUserData.czPoints = currentPoints - cost;
+        // Optimistic local state update
+        if (isMysteryCrate && mysteryLoot && mysteryLoot.type === 'points') {
+            activeUserData.czPoints = currentPoints - cost + mysteryLoot.points;
+            activeUserData.lifetimePoints = (activeUserData.lifetimePoints || 0) + mysteryLoot.points;
+        } else {
+            activeUserData.czPoints = currentPoints - cost;
+        }
+
         if (isInstantPro) {
             activeUserData.isSupporter = true;
             activeUserData.supporterTier = 'gold';
             activeUserData.supporterBadge = 'PRO';
             activeUserData.supporterExpiresAt = Date.now() + 30 * 24 * 60 * 60 * 1000;
+        } else if (isMysteryCrate && mysteryLoot) {
+            if (mysteryLoot.type === 'title') {
+                activeUserData.playerTitle = mysteryLoot.titleName;
+                if (!activeUserData.unlockedTitles) activeUserData.unlockedTitles = [];
+                if (!activeUserData.unlockedTitles.includes(mysteryLoot.titleName)) activeUserData.unlockedTitles.push(mysteryLoot.titleName);
+            } else if (mysteryLoot.type === 'supporter') {
+                activeUserData.isSupporter = true;
+                activeUserData.supporterTier = 'gold';
+                activeUserData.supporterBadge = 'PRO';
+                activeUserData.supporterExpiresAt = Date.now() + 14 * 24 * 60 * 60 * 1000;
+            } else if (mysteryLoot.type === 'theme') {
+                activeUserData.profileTheme = 'cyberpunk';
+                if (!activeUserData.unlockedThemes) activeUserData.unlockedThemes = [];
+                if (!activeUserData.unlockedThemes.includes('cyberpunk')) activeUserData.unlockedThemes.push('cyberpunk');
+            }
+        } else if (isApexTitle) {
+            activeUserData.playerTitle = 'Apex Striker';
+            if (!activeUserData.unlockedTitles) activeUserData.unlockedTitles = [];
+            if (!activeUserData.unlockedTitles.includes('Apex Striker')) activeUserData.unlockedTitles.push('Apex Striker');
+        } else if (isCyberTheme) {
+            activeUserData.profileTheme = 'cyberpunk';
+            if (!activeUserData.unlockedThemes) activeUserData.unlockedThemes = [];
+            if (!activeUserData.unlockedThemes.includes('cyberpunk')) activeUserData.unlockedThemes.push('cyberpunk');
         }
 
         window.closeRedeemModal();
 
-        if (window.showSuccessToast) {
-            window.showSuccessToast(
-                "Reward Claimed! 🪙",
-                isInstantPro 
-                    ? "PRO Supporter status has been activated for 30 days on your profile!"
-                    : `Redemption receipt created for ${title}. Points deducted: ${cost} CZ.`
-            );
+        if (isMysteryCrate && mysteryLoot) {
+            window.showMysteryCrateOpening(mysteryLoot);
+        } else if (isApexTitle) {
+            if (window.showSuccessToast) window.showSuccessToast("Title Flair Equipped! ⚡", "Holographic 'Apex Striker' title is now live on your profile & chat!");
+        } else if (isCyberTheme) {
+            if (window.showSuccessToast) window.showSuccessToast("Cyberpunk HUD Activated! 🌐", "Futuristic neon theme equipped across your player dossier!");
+        } else if (isInstantPro) {
+            if (window.showSuccessToast) window.showSuccessToast("PRO Status Activated! 👑", "Golden PRO Supporter status active for 30 days on your profile!");
+        } else {
+            if (window.showSuccessToast) window.showSuccessToast("Reward Claimed! 🪙", `Receipt generated for ${title}. Voucher: ${voucherCode}`);
         }
 
         await loadUserProfile(activeUserUid, auth.currentUser?.email);
@@ -2603,5 +3049,291 @@ window.submitRewardRedeem = async function (e) {
         }
     }
 };
+
+// ----------------------------------------------------
+// 6. REWARDS HELPER ENGINES (MYSTERY CRATE, TITLE, THEME, QUEST COUNTDOWN)
+// ----------------------------------------------------
+
+function rollMysteryCrate() {
+    const roll = Math.floor(Math.random() * 100) + 1; // 1 to 100
+    if (roll <= 10) {
+        // 10%: JACKPOT
+        return {
+            type: 'points',
+            points: 500,
+            tier: 'LEGENDARY JACKPOT 🌟',
+            title: '+500 CZ Mega Jackpot!',
+            icon: '💎',
+            desc: 'Incredible luck! You hit the maximum jackpot drop of 500 CZ points added directly to your vault.'
+        };
+    } else if (roll <= 35) {
+        // 25%: BONUS POINTS
+        const bonusPts = roll <= 20 ? 300 : 200;
+        return {
+            type: 'points',
+            points: bonusPts,
+            tier: 'BONUS VAULT DROP 🪙',
+            title: `+${bonusPts} CZ Points Cache`,
+            icon: '🪙',
+            desc: `Lucky roll! A reward cache of ${bonusPts} CZ points has been deposited to your balance.`
+        };
+    } else if (roll <= 65) {
+        // 30%: EXCLUSIVE PLAYER TITLE
+        const titles = [
+            { name: "Shadow Assassin", desc: "Equipped the stealthy 'Shadow Assassin' holographic title badge." },
+            { name: "Phantom Carry", desc: "Equipped the prestigious 'Phantom Carry' holographic title badge." },
+            { name: "Cyber Samurai", desc: "Equipped the neon 'Cyber Samurai' holographic title badge." },
+            { name: "Void Walker", desc: "Equipped the cosmic 'Void Walker' holographic title badge." },
+            { name: "Relentless", desc: "Equipped the fearsome 'Relentless' holographic title badge." }
+        ];
+        const selected = titles[Math.floor(Math.random() * titles.length)];
+        return {
+            type: 'title',
+            titleName: selected.name,
+            tier: 'EXCLUSIVE TITLE FLAIR ⚡',
+            title: `Title: '${selected.name}'`,
+            icon: '⚡',
+            desc: selected.desc
+        };
+    } else if (roll <= 85) {
+        // 20%: 14-DAY PRO SUPPORTER PASS
+        return {
+            type: 'supporter',
+            days: 14,
+            tier: 'VIP SUPPORTER PASS 👑',
+            title: '14-Day Golden PRO Status',
+            icon: '👑',
+            desc: 'Activated 14 days of Golden PRO supporter status across tournament brackets, profile HUD, and chat!'
+        };
+    } else {
+        // 15%: CYBERPUNK HUD THEME
+        return {
+            type: 'theme',
+            themeName: 'cyberpunk',
+            tier: 'COSMETIC HUD UNLOCK 🌐',
+            title: 'Neon Cyberpunk Profile HUD',
+            icon: '🌐',
+            desc: 'Unlocked futuristic neon cyan & magenta visual aesthetics across your player dossier!'
+        };
+    }
+}
+
+function playVictoryChime() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+        const now = ctx.currentTime;
+        const notes = [440, 554.37, 659.25, 880];
+        notes.forEach((freq, idx) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(freq, now + idx * 0.12);
+            gain.gain.setValueAtTime(0.001, now + idx * 0.12);
+            gain.gain.exponentialRampToValueAtTime(0.22, now + idx * 0.12 + 0.02);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + idx * 0.12 + 0.4);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now + idx * 0.12);
+            osc.stop(now + idx * 0.12 + 0.45);
+        });
+    } catch (e) {}
+}
+
+window.showMysteryCrateOpening = function (loot) {
+    const modal = qs('#mysteryCrateModal');
+    const openingPhase = qs('#crate-opening-phase');
+    const revealPhase = qs('#crate-reveal-phase');
+    if (!modal) return;
+
+    if (openingPhase) openingPhase.classList.remove('hidden');
+    if (revealPhase) revealPhase.classList.add('hidden');
+    modal.classList.remove('hidden');
+
+    setTimeout(() => {
+        playVictoryChime();
+        if (openingPhase) openingPhase.classList.add('hidden');
+        if (revealPhase) revealPhase.classList.remove('hidden');
+
+        const tierEl = qs('#crate-reward-tier');
+        const titleEl = qs('#crate-reward-title');
+        const descEl = qs('#crate-reward-desc');
+        const iconEl = qs('#crate-reward-icon');
+
+        if (tierEl) tierEl.textContent = loot.tier || 'RARE DROP';
+        if (titleEl) titleEl.textContent = loot.title;
+        if (descEl) descEl.textContent = loot.desc;
+        if (iconEl) iconEl.textContent = loot.icon || '🎁';
+    }, 1400);
+};
+
+window.closeMysteryCrateModal = function () {
+    const modal = qs('#mysteryCrateModal');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.toggleCyberpunkTheme = async function () {
+    if (!activeUserUid) return;
+    const currentTheme = activeUserData.profileTheme || 'default';
+    const newTheme = (currentTheme === 'cyberpunk') ? 'default' : 'cyberpunk';
+    
+    activeUserData.profileTheme = newTheme;
+    document.body.classList.toggle('theme-cyberpunk', newTheme === 'cyberpunk');
+    const label = qs('#current-theme-label');
+    if (label) label.textContent = newTheme === 'cyberpunk' ? 'Cyberpunk' : 'Default Dark';
+
+    try {
+        await updateDoc(doc(db, "users", activeUserUid), { profileTheme: newTheme });
+        if (window.showSuccessToast) {
+            window.showSuccessToast("HUD Theme Updated", `Profile style switched to ${newTheme === 'cyberpunk' ? 'Neon Cyberpunk HUD' : 'Default Dark'}.`);
+        }
+    } catch (e) {
+        console.warn("Could not save theme preference:", e);
+    }
+};
+
+window.openTitleSelectModal = function () {
+    const modal = qs('#titleSelectorModal');
+    const container = qs('#unlocked-titles-list');
+    if (!modal || !container) return;
+
+    const titles = Array.isArray(activeUserData.unlockedTitles) ? [...activeUserData.unlockedTitles] : [];
+    if (activeUserData.playerTitle && !titles.includes(activeUserData.playerTitle)) {
+        titles.unshift(activeUserData.playerTitle);
+    }
+
+    if (titles.length === 0) {
+        container.innerHTML = `
+            <div class="text-center py-6 text-neutral-400 text-xs font-mono-tag">
+                No custom titles unlocked yet.<br>
+                <span class="text-neutral-500 text-[11px]">Redeem the Apex Striker title or unbox Mystery Crates in the Rewards Vault!</span>
+            </div>
+        `;
+    } else {
+        container.innerHTML = titles.map(t => {
+            const isEquipped = (activeUserData.playerTitle === t);
+            return `
+                <div class="flex items-center justify-between p-3 rounded-xl bg-white/5 border ${isEquipped ? 'border-indigo-500/60 bg-indigo-500/10' : 'border-white/10'} transition-all">
+                    <div class="flex items-center gap-2">
+                        <span class="text-indigo-400 text-sm">⚡</span>
+                        <span class="font-mono-tag font-bold text-xs text-white">${escapeHtml(t)}</span>
+                        ${isEquipped ? '<span class="text-[9px] font-mono-tag font-bold uppercase bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 px-1.5 py-0.2 rounded">Equipped</span>' : ''}
+                    </div>
+                    <button type="button" onclick="window.equipTitle('${escapeHtml(t).replace(/'/g, "\\'")}')"
+                        class="px-3 py-1 rounded-lg text-xs font-heading font-bold uppercase transition-all ${isEquipped ? 'bg-white/10 text-neutral-400 cursor-default' : 'bg-indigo-600 hover:bg-indigo-500 text-white cursor-pointer'}">
+                        ${isEquipped ? 'Active' : 'Equip'}
+                    </button>
+                </div>
+            `;
+        }).join('');
+    }
+
+    modal.classList.remove('hidden');
+};
+
+window.closeTitleSelectModal = function () {
+    const modal = qs('#titleSelectorModal');
+    if (modal) modal.classList.add('hidden');
+};
+
+window.equipTitle = async function (title) {
+    if (!activeUserUid) return;
+    activeUserData.playerTitle = title || null;
+    
+    const titleBadgeEl = qs('#player-title-badge');
+    const titleTextEl = qs('#player-title-text');
+    if (titleBadgeEl) {
+        if (title) {
+            titleBadgeEl.classList.remove('hidden');
+            if (titleTextEl) titleTextEl.textContent = title;
+        } else {
+            titleBadgeEl.classList.add('hidden');
+        }
+    }
+
+    window.closeTitleSelectModal();
+
+    try {
+        await updateDoc(doc(db, "users", activeUserUid), { playerTitle: title || null });
+        if (window.showSuccessToast) {
+            window.showSuccessToast("Title Updated", title ? `Equipped '${title}' title flair!` : "Player title unequipped.");
+        }
+    } catch (e) {
+        console.warn("Could not equip title:", e);
+    }
+};
+
+window.quickScoutRival = async function () {
+    if (!activeUserUid) {
+        if (window.showWarningToast) window.showWarningToast("Sign In Required", "Log in to complete the Scout Rivals quest.");
+        window.location.href = '/teams';
+        return;
+    }
+
+    const todayStr = getPHTDate();
+    let wasAlreadyDone = (activeUserData.lastDailyScoutDate === todayStr);
+
+    if (!wasAlreadyDone) {
+        try {
+            const userRef = doc(db, "users", activeUserUid);
+            await updateDoc(userRef, {
+                czPoints: increment(15),
+                lifetimePoints: increment(15),
+                lastDailyScoutDate: todayStr
+            });
+
+            activeUserData.czPoints = (activeUserData.czPoints || 0) + 15;
+            activeUserData.lifetimePoints = (activeUserData.lifetimePoints || 0) + 15;
+            activeUserData.lastDailyScoutDate = todayStr;
+
+            await loadRewardsData(activeUserData);
+
+            if (window.showSuccessToast) {
+                window.showSuccessToast("Daily Quest Completed! 🔍", "+15 CZ Points awarded for scouting contender squads! Opening Teams Hub...");
+            }
+        } catch (e) {
+            console.warn("Could not award scout quest:", e);
+        }
+    }
+
+    setTimeout(() => {
+        window.location.href = '/teams';
+    }, 600);
+};
+
+let questCountdownInterval = null;
+function startQuestCountdown() {
+    if (questCountdownInterval) clearInterval(questCountdownInterval);
+
+    function update() {
+        const el = qs('#quest-countdown');
+        if (!el) return;
+
+        // Current time in PHT (UTC+8)
+        const now = new Date();
+        const utc = now.getTime() + (now.getTimezoneOffset() * 60000);
+        const phtNow = new Date(utc + (3600000 * 8));
+
+        // Next midnight in PHT
+        const nextMidnight = new Date(phtNow);
+        nextMidnight.setHours(24, 0, 0, 0);
+
+        const diff = nextMidnight.getTime() - phtNow.getTime();
+        if (diff <= 0) {
+            el.textContent = 'Resetting...';
+            return;
+        }
+
+        const hours = Math.floor(diff / (1000 * 60 * 60));
+        const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+        const secs = Math.floor((diff % (1000 * 60)) / 1000);
+
+        el.textContent = `${hours}h ${mins}m ${secs}s`;
+    }
+
+    update();
+    questCountdownInterval = setInterval(update, 1000);
+}
 
 

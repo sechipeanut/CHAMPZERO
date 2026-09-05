@@ -361,6 +361,27 @@ window.deleteItem = async function (collectionName, docId) {
             return;
         }
 
+        if (collectionName === 'tournaments') {
+            try {
+                const notifSnaps = await getDocs(query(collection(db, "notifications"), where("tournamentId", "==", docId)));
+                notifSnaps.forEach(d => deleteDoc(d.ref).catch(() => {}));
+                const notifLinkSnaps = await getDocs(query(collection(db, "notifications"), where("link", "==", `/tournaments?id=${docId}`)));
+                notifLinkSnaps.forEach(d => deleteDoc(d.ref).catch(() => {}));
+            } catch (_) {}
+        } else if (collectionName === 'scrims') {
+            try {
+                const notifSnaps = await getDocs(query(collection(db, "notifications"), where("scrimId", "==", docId)));
+                notifSnaps.forEach(d => deleteDoc(d.ref).catch(() => {}));
+            } catch (_) {}
+        } else if (collectionName === 'events') {
+            try {
+                const notifSnaps = await getDocs(query(collection(db, "notifications"), where("eventId", "==", docId)));
+                notifSnaps.forEach(d => deleteDoc(d.ref).catch(() => {}));
+                const notifLinkSnaps = await getDocs(query(collection(db, "notifications"), where("link", "==", `/events?id=${docId}`)));
+                notifLinkSnaps.forEach(d => deleteDoc(d.ref).catch(() => {}));
+            } catch (_) {}
+        }
+
         await deleteDoc(doc(db, collectionName, docId));
         window.showSuccessToast("Deleted", "Item deleted successfully.", 2000);
         refreshAllLists();
@@ -619,7 +640,7 @@ function displayUsers() {
     filtered.forEach(user => {
         const createdDate = user.createdAt?.toDate?.() || (user.joinedAt ? new Date(user.joinedAt) : null);
         const dateStr = createdDate ? createdDate.toLocaleDateString() : 'Unknown';
-        const displayName = user.displayName || user.username || 'Unknown User';
+        const displayName = user.ign || user.displayName || user.username || (user.email ? user.email.split('@')[0] : 'Unknown User');
         const email = user.email || 'No email';
         const role = user.role || 'user';
         const profilePicture = user.avatar || user.photoURL || null;
@@ -635,32 +656,44 @@ function displayUsers() {
             roleIcon = '';
         }
 
+        const isEmailVerified = Boolean(user.emailVerified);
+
         const card = document.createElement('div');
         card.className = 'bg-[var(--dark-card)] p-4 rounded-xl border border-white/5 flex flex-col md:flex-row md:items-center gap-4 transition-all hover:border-[var(--gold)]/30';
 
         card.innerHTML = `
-            <div class="flex items-center gap-4 flex-1 overflow-hidden">
+            <div class="flex items-center gap-3.5 flex-1 min-w-[200px] overflow-hidden">
                 ${profilePicture ?
-                `<img src="${escapeHtml(profilePicture)}" alt="${escapeHtml(displayName)}" class="w-11 h-11 rounded-full object-cover border-2 border-white/10 shrink-0">` :
-                `<div class="w-11 h-11 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-orange-500/20 flex items-center justify-center text-base font-bold text-[var(--gold)] border-2 border-[var(--gold)]/30 shrink-0 font-heading">
+                `<img src="${escapeHtml(profilePicture)}" alt="${escapeHtml(displayName)}" class="w-10 h-10 rounded-full object-cover border-2 border-white/10 shrink-0">` :
+                `<div class="w-10 h-10 rounded-full bg-gradient-to-br from-[var(--gold)]/20 to-orange-500/20 flex items-center justify-center text-sm font-bold text-[var(--gold)] border-2 border-[var(--gold)]/30 shrink-0 font-heading">
                         ${escapeHtml(displayName.charAt(0).toUpperCase())}
                     </div>`
             }
-                <div class="min-w-0">
+                <div class="min-w-0 flex-1">
                     <div class="font-bold text-white truncate text-sm">${escapeHtml(displayName)}</div>
                     <div class="text-xs text-neutral-400 truncate font-mono-tag">${escapeHtml(email)}</div>
                     <div class="md:hidden mt-1 text-[10px] text-neutral-500 font-mono-tag">Joined: ${dateStr}</div>
                 </div>
             </div>
 
-            <div class="flex items-center justify-between md:justify-start md:w-1/5">
+            <div class="flex items-center justify-between md:justify-start w-full md:w-[120px] shrink-0">
+                <span class="md:hidden text-xs text-neutral-400 font-mono-tag">Verification</span>
+                <button type="button" onclick="window.toggleUserEmailVerification('${user.id}', ${isEmailVerified})"
+                    class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono-tag transition-all cursor-pointer ${isEmailVerified ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/30 hover:bg-amber-500/20'}"
+                    title="Click to toggle email verification status">
+                    <span class="w-1.5 h-1.5 rounded-full ${isEmailVerified ? 'bg-emerald-400' : 'bg-amber-400'}"></span>
+                    <span>${isEmailVerified ? 'Verified' : 'Pending'}</span>
+                </button>
+            </div>
+
+            <div class="flex items-center justify-between md:justify-start w-full md:w-[100px] shrink-0">
                 <span class="md:hidden text-xs text-neutral-400 font-mono-tag">Role</span>
                 <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider font-mono-tag ${roleBadgeClass}">
                     ${roleIcon} ${escapeHtml(role)}
                 </span>
             </div>
 
-            <div class="flex items-center justify-between md:justify-start md:w-1/5">
+            <div class="flex items-center justify-between md:justify-start w-full md:w-[120px] shrink-0">
                 <span class="md:hidden text-xs text-neutral-400 font-mono-tag">Coins</span>
                 <button type="button" onclick="window.openEditUserCoinsModal('${user.id}')" class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#FFD700]/10 hover:bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/30 font-mono-tag font-bold text-xs transition-all cursor-pointer shadow-sm group" title="Click to Edit Champ Coins">
                     <span>🪙 ${(user.czPoints !== undefined ? Number(user.czPoints) : 0).toLocaleString()} CZ</span>
@@ -668,11 +701,11 @@ function displayUsers() {
                 </button>
             </div>
 
-            <div class="hidden md:block w-1/6 text-xs text-neutral-400 font-mono-tag">
+            <div class="hidden md:block w-[100px] shrink-0 text-xs text-neutral-400 font-mono-tag">
                 ${dateStr}
             </div>
 
-            <div class="flex flex-col sm:flex-row gap-2 mt-2 md:mt-0 md:w-1/4 justify-end">
+            <div class="flex flex-col sm:flex-row gap-2 mt-2 md:mt-0 w-full md:w-[180px] shrink-0 justify-end">
                 <select onchange="window.changeUserRole('${user.id}', this.value)" class="dark-select w-full sm:w-auto text-xs py-1.5 px-2.5 rounded-lg border border-white/10 bg-black/40 text-white font-mono-tag focus:border-[var(--gold)] cursor-pointer">
                     ${roles.map(r =>
                 `<option value="${r}" ${role === r ? 'selected' : ''}>${r.charAt(0).toUpperCase() + r.slice(1)}</option>`
@@ -823,6 +856,33 @@ window.changeUserRole = async function (userId, newRole) {
     }
 }
 
+window.toggleUserEmailVerification = async function (userId, currentStatus) {
+    const newStatus = !currentStatus;
+    const confirmMsg = newStatus 
+        ? "Manually mark this user's email as VERIFIED? This will grant full tournament, scrim, and chat access." 
+        : "Set this user's email verification to UNVERIFIED?";
+    
+    const userConfirm = window.showCustomConfirm 
+        ? await window.showCustomConfirm("Email Verification", confirmMsg) 
+        : confirm(confirmMsg);
+    if (!userConfirm) return;
+
+    try {
+        await updateDoc(doc(db, "users", userId), {
+            emailVerified: newStatus
+        });
+        const userIndex = allUsers.findIndex(u => u.id === userId);
+        if (userIndex !== -1) allUsers[userIndex].emailVerified = newStatus;
+        displayUsers();
+        if (window.showSuccessToast) {
+            window.showSuccessToast("Status Updated", `User email is now ${newStatus ? 'Verified' : 'Pending verification'}.`);
+        }
+    } catch (err) {
+        console.error("Error updating user verification:", err);
+        if (window.showErrorToast) window.showErrorToast("Update Failed", err.message || "Failed to update verification status.");
+    }
+};
+
 window.deleteUserConfirm = async function (userId) {
     if (userId === currentUserId) return;
     const confirmed = await window.showCustomConfirm("Delete User?", "This cannot be undone.");
@@ -856,80 +916,156 @@ if (qs('#user-search')) {
 const DEFAULT_REWARDS_CATALOG = [
     {
         id: 'pro_badge',
-        title: '1-Month PRO Badge',
+        title: '1-Month Golden PRO Badge',
         cost: 300,
-        badgeText: 'Instant Unlock',
+        badgeText: 'PRO Status',
         badgeClass: 'bg-[#FFD700]/15 text-[#FFD700] border-[#FFD700]/30',
         description: 'Verified golden PRO badge across all tournament brackets, profile HUD, and recruitment cards.',
         gameType: 'platform',
         active: true,
         isSpecialDrop: false,
+        isUnavailable: false,
         stockLimit: 0,
         claimedCount: 0
     },
     {
-        id: 'tournament_pass',
-        title: 'Tournament Entry Pass',
-        cost: 400,
-        badgeText: 'Coupon Pass',
-        badgeClass: 'bg-purple-500/15 text-purple-400 border-purple-500/30',
-        description: '100% waiver ticket for any upcoming paid community tournament registration.',
+        id: 'cz_mystery_crate',
+        title: 'CZ Mystery Esports Crate 🎁',
+        cost: 250,
+        badgeText: 'Mystery Drop',
+        badgeClass: 'bg-purple-500/20 text-purple-300 border-purple-500/40',
+        description: 'Roll for randomized perks: bonus CZ points, rare profile glow borders, exclusive hidden player titles, or secret loot!',
+        gameType: 'platform',
+        active: true,
+        isSpecialDrop: true,
+        isUnavailable: false,
+        stockLimit: 100,
+        claimedCount: 0
+    },
+    {
+        id: 'animated_title_apex',
+        title: "Player Title: Apex Striker",
+        cost: 450,
+        badgeText: 'Title Flair',
+        badgeClass: 'bg-indigo-500/15 text-indigo-300 border-indigo-500/30',
+        description: 'Equip the glowing holographic "Apex Striker" title badge displayed on your public profile dossier & community chat cards.',
         gameType: 'platform',
         active: true,
         isSpecialDrop: false,
+        isUnavailable: false,
         stockLimit: 50,
         claimedCount: 0
     },
     {
-        id: 'spotlight_48h',
-        title: 'Recruitment 48h Spotlight',
+        id: 'cyber_theme_hud',
+        title: 'Neon Cyberpunk Profile HUD',
         cost: 500,
-        badgeText: 'Pin Spotlight',
-        badgeClass: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
-        description: 'Pin your squad or player LFT listing to the very top of the Recruitment Hub for 48 hours.',
+        badgeText: 'Cosmetic HUD',
+        badgeClass: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+        description: 'Equip a futuristic neon cyan & violet HUD visual aesthetic across your player profile dossier and match cards.',
         gameType: 'platform',
         active: true,
         isSpecialDrop: false,
-        stockLimit: 0,
+        isUnavailable: false,
+        stockLimit: 50,
         claimedCount: 0
     },
     {
         id: 'val_points_475',
         title: '475 Valorant Points (VP)',
-        cost: 600,
+        cost: 1000,
         badgeText: 'Valorant',
         badgeClass: 'bg-red-500/15 text-red-400 border-red-500/30',
-        description: 'Riot Games digital redeem code delivered directly to your verified account.',
+        description: 'Official Riot Games digital redeem code delivered directly to your verified player account.',
         gameType: 'valorant',
         active: true,
-        isSpecialDrop: true,
+        isSpecialDrop: false,
+        isUnavailable: false,
         stockLimit: 25,
         claimedCount: 0
     },
     {
         id: 'mlbb_diamonds_100',
         title: '100 MLBB Diamonds',
-        cost: 600,
+        cost: 800,
         badgeText: 'MLBB',
         badgeClass: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-        description: 'Direct in-game diamond top-up. Delivered within 24 hours to your MLBB User ID & Zone.',
+        description: 'Direct Mobile Legends in-game diamond top-up delivered to your MLBB User ID & Zone within 24 hours.',
         gameType: 'mlbb',
         active: true,
-        isSpecialDrop: true,
+        isSpecialDrop: false,
+        isUnavailable: false,
         stockLimit: 30,
         claimedCount: 0
     },
     {
         id: 'hok_tokens_100',
         title: '100 Honor of Kings Tokens',
-        cost: 600,
+        cost: 800,
         badgeText: 'Honor of Kings',
         badgeClass: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
         description: 'Direct Honor of Kings in-game token recharge delivered via player UID.',
         gameType: 'hok',
         active: true,
-        isSpecialDrop: true,
+        isSpecialDrop: false,
+        isUnavailable: false,
         stockLimit: 30,
+        claimedCount: 0
+    },
+    {
+        id: 'steam_wallet_250',
+        title: '₱250 Steam Wallet Code',
+        cost: 1200,
+        badgeText: 'Steam Drop',
+        badgeClass: 'bg-blue-500/15 text-blue-400 border-blue-500/30',
+        description: 'Digital Steam gift wallet code to unlock weapon skins, battle passes, or games directly on Steam.',
+        gameType: 'other',
+        active: false,
+        isSpecialDrop: false,
+        isUnavailable: false,
+        stockLimit: 15,
+        claimedCount: 0
+    },
+    {
+        id: 'global_broadcast',
+        title: 'Global Community Announcement',
+        cost: 600,
+        badgeText: 'Community Hype',
+        badgeClass: 'bg-pink-500/15 text-pink-400 border-pink-500/30',
+        description: 'Broadcast an official pinned shoutout message displayed across the ChampZero community dashboard & chat ticker.',
+        gameType: 'platform',
+        active: false,
+        isSpecialDrop: false,
+        isUnavailable: false,
+        stockLimit: 20,
+        claimedCount: 0
+    },
+    {
+        id: 'cz_pro_jersey',
+        title: 'Official CZ Pro Jersey 2026',
+        cost: 1500,
+        badgeText: 'Limited Merch',
+        badgeClass: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30',
+        description: 'Official custom-fitted esports jersey featuring personalized gamertag & ChampZero crest. Batch allocation unlocking in the next competitive rewards wave.',
+        gameType: 'merch',
+        active: true,
+        isUnavailable: true,
+        isSpecialDrop: false,
+        stockLimit: 25,
+        claimedCount: 0
+    },
+    {
+        id: 'logitech_gpro_drop',
+        title: 'Logitech G PRO Wireless Mouse Drop',
+        cost: 3500,
+        badgeText: 'Pro Hardware',
+        badgeClass: 'bg-[#FFD700]/15 text-[#FFD700] border-[#FFD700]/30',
+        description: 'Flagship esports-grade ultra-lightweight wireless sensor gaming mouse shipped directly to top seasonal leaderboard contenders.',
+        gameType: 'merch',
+        active: true,
+        isUnavailable: true,
+        isSpecialDrop: true,
+        stockLimit: 5,
         claimedCount: 0
     }
 ];
@@ -978,6 +1114,7 @@ function renderAdminRewardsCatalog() {
     currentCatalogItems.forEach(item => {
         const card = document.createElement('div');
         const isActive = item.active !== false;
+        const isUnavailable = Boolean(item.isUnavailable);
         const isSpecial = Boolean(item.isSpecialDrop);
         const stockLimit = Number(item.stockLimit) || 0;
         const claimedCount = Number(item.claimedCount) || 0;
@@ -991,6 +1128,9 @@ function renderAdminRewardsCatalog() {
             bgClass = 'bg-gradient-to-b from-[#FFD700]/10 via-[var(--dark-card)] to-[var(--dark-card)]';
         } else if (!isActive) {
             borderClass = 'border-red-500/20 opacity-60';
+        } else if (isUnavailable) {
+            borderClass = 'border-amber-500/30 hover:border-amber-500/50';
+            bgClass = 'bg-gradient-to-b from-amber-500/5 via-[var(--dark-card)] to-[var(--dark-card)]';
         }
 
         card.className = `${bgClass} border ${borderClass} rounded-2xl p-5 flex flex-col justify-between gap-4 transition-all shadow-lg relative overflow-hidden`;
@@ -1003,7 +1143,9 @@ function renderAdminRewardsCatalog() {
 
         const specialRibbon = isSpecial
             ? '<div class="absolute top-0 right-0 bg-[#FFD700] text-black font-heading font-black text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-bl-lg shadow-sm">✨ Special Drop</div>'
-            : '';
+            : (isUnavailable
+                ? '<div class="absolute top-0 right-0 bg-amber-500/20 border-b border-l border-amber-500/30 text-amber-300 font-heading font-black text-[8px] uppercase tracking-wider px-2 py-0.5 rounded-bl-lg">🔒 Coming Soon</div>'
+                : '');
 
         card.innerHTML = `
             ${specialRibbon}
@@ -1013,8 +1155,8 @@ function renderAdminRewardsCatalog() {
                         ${escapeHtml(item.badgeText || item.gameType || 'Perk')}
                     </span>
                     <div class="flex items-center gap-2">
-                        <span class="px-2 py-0.5 rounded text-[8px] font-mono-tag font-bold uppercase ${isActive ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30' : 'bg-red-500/15 text-red-400 border border-red-500/30'}">
-                            ${isActive ? 'Active' : 'Disabled'}
+                        <span class="px-2 py-0.5 rounded text-[8px] font-mono-tag font-bold uppercase ${!isActive ? 'bg-red-500/15 text-red-400 border border-red-500/30' : (isUnavailable ? 'bg-amber-500/15 text-amber-400 border border-amber-500/30' : 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30')}">
+                            ${!isActive ? 'Hidden' : (isUnavailable ? '🔒 Unavailable' : 'Live')}
                         </span>
                         <div class="font-heading font-extrabold text-base text-[#FFD700]">🪙 ${(Number(item.cost) || 0).toLocaleString()} CZ</div>
                     </div>
@@ -1034,12 +1176,17 @@ function renderAdminRewardsCatalog() {
                 <button type="button" onclick="window.openEditCatalogRewardModal('${escapeHtml(item.id)}')"
                     class="flex-1 py-2 rounded-xl bg-white/5 hover:bg-[#FFD700] text-neutral-200 hover:text-black font-heading font-bold text-xs uppercase tracking-wider transition-all border border-white/10 hover:border-[#FFD700] cursor-pointer flex items-center justify-center gap-1.5">
                     <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
-                    <span>Edit Item</span>
+                    <span>Edit</span>
+                </button>
+                <button type="button" onclick="window.toggleCatalogRewardUnavailable('${escapeHtml(item.id)}')"
+                    class="px-2.5 py-2 rounded-xl ${isUnavailable ? 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border-amber-500/35' : 'bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white border-white/10'} border text-[11px] font-mono-tag font-bold transition-all cursor-pointer"
+                    title="${isUnavailable ? 'Click to make Available for Redemption' : 'Click to mark as Unavailable / Coming Soon teaser'}">
+                    ${isUnavailable ? '🔒 Teaser' : '🔓 Live'}
                 </button>
                 <button type="button" onclick="window.toggleCatalogRewardActive('${escapeHtml(item.id)}')"
-                    class="px-3 py-2 rounded-xl ${isActive ? 'bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border-amber-500/30' : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'} border text-xs font-mono-tag font-bold transition-all cursor-pointer"
-                    title="${isActive ? 'Disable Reward' : 'Enable Reward'}">
-                    ${isActive ? 'Disable' : 'Enable'}
+                    class="px-2.5 py-2 rounded-xl ${isActive ? 'bg-red-500/10 hover:bg-red-500/20 text-red-400 border-red-500/30' : 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border-emerald-500/30'} border text-[11px] font-mono-tag font-bold transition-all cursor-pointer"
+                    title="${isActive ? 'Hide from Catalog' : 'Show in Catalog'}">
+                    ${isActive ? 'Hide' : 'Show'}
                 </button>
             </div>
         `;
@@ -1061,6 +1208,7 @@ window.openEditCatalogRewardModal = function (rewardId) {
     if (qs('#edit-reward-stock')) qs('#edit-reward-stock').value = item.stockLimit || 0;
     if (qs('#edit-reward-claimed')) qs('#edit-reward-claimed').value = item.claimedCount || 0;
     if (qs('#edit-reward-special')) qs('#edit-reward-special').checked = Boolean(item.isSpecialDrop);
+    if (qs('#edit-reward-unavailable')) qs('#edit-reward-unavailable').checked = Boolean(item.isUnavailable);
     if (qs('#edit-reward-active')) qs('#edit-reward-active').checked = (item.active !== false);
 
     openModal('editCatalogRewardModal');
@@ -1077,6 +1225,7 @@ window.openAddCatalogRewardModal = function () {
     if (qs('#edit-reward-stock')) qs('#edit-reward-stock').value = 0;
     if (qs('#edit-reward-claimed')) qs('#edit-reward-claimed').value = 0;
     if (qs('#edit-reward-special')) qs('#edit-reward-special').checked = false;
+    if (qs('#edit-reward-unavailable')) qs('#edit-reward-unavailable').checked = false;
     if (qs('#edit-reward-active')) qs('#edit-reward-active').checked = true;
 
     openModal('editCatalogRewardModal');
@@ -1094,6 +1243,7 @@ window.saveCatalogReward = async function (event) {
     const stockLimit = Math.max(0, parseInt(qs('#edit-reward-stock')?.value, 10) || 0);
     const claimedCount = Math.max(0, parseInt(qs('#edit-reward-claimed')?.value, 10) || 0);
     const isSpecialDrop = Boolean(qs('#edit-reward-special')?.checked);
+    const isUnavailable = Boolean(qs('#edit-reward-unavailable')?.checked);
     const active = qs('#edit-reward-active') ? qs('#edit-reward-active').checked : true;
 
     if (!rewardId || !title || isNaN(cost) || cost <= 0 || !description) {
@@ -1112,6 +1262,7 @@ window.saveCatalogReward = async function (event) {
         if (gameType === 'valorant') badgeClass = 'bg-red-500/15 text-red-400 border-red-500/30';
         else if (gameType === 'mlbb') badgeClass = 'bg-amber-500/15 text-amber-400 border-amber-500/30';
         else if (gameType === 'hok') badgeClass = 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30';
+        else if (gameType === 'merch') badgeClass = 'bg-cyan-500/15 text-cyan-400 border-cyan-500/30';
         else if (gameType === 'platform') badgeClass = 'bg-purple-500/15 text-purple-400 border-purple-500/30';
 
         const itemIdx = currentCatalogItems.findIndex(r => r.id === rewardId);
@@ -1126,6 +1277,7 @@ window.saveCatalogReward = async function (event) {
             stockLimit: stockLimit,
             claimedCount: claimedCount,
             isSpecialDrop: isSpecialDrop,
+            isUnavailable: isUnavailable,
             active: active
         };
 
@@ -1180,6 +1332,30 @@ window.toggleCatalogRewardActive = async function (rewardId) {
     } catch (err) {
         console.error("Error toggling reward status:", err);
         if (window.showErrorToast) window.showErrorToast("Update Failed", "Could not update reward status.");
+        window.fetchRewardsCatalog();
+    }
+};
+
+window.toggleCatalogRewardUnavailable = async function (rewardId) {
+    const item = currentCatalogItems.find(r => r.id === rewardId);
+    if (!item) return;
+
+    item.isUnavailable = !item.isUnavailable;
+    renderAdminRewardsCatalog();
+
+    try {
+        const docRef = doc(db, "site_config", "rewards_catalog");
+        await setDoc(docRef, {
+            items: currentCatalogItems,
+            updatedAt: serverTimestamp()
+        }, { merge: true });
+
+        if (window.showSuccessToast) {
+            window.showSuccessToast("Status Updated", `Reward "${item.title}" is now ${item.isUnavailable ? 'Unavailable (Teaser)' : 'Available for Claim'}.`, 2000);
+        }
+    } catch (err) {
+        console.error("Error toggling reward unavailable status:", err);
+        if (window.showErrorToast) window.showErrorToast("Update Failed", "Could not update status.");
         window.fetchRewardsCatalog();
     }
 };

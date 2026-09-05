@@ -162,6 +162,165 @@
             transform: translateY(0);
         }
     </style>
+    <script src="/js/env-config.js"></script>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-FDFF1NLL6L"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag() { dataLayer.push(arguments); }
+        gtag('js', new Date());
+        gtag('config', 'G-FDFF1NLL6L');
+    </script>
+
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5161743455178808"
+        crossorigin="anonymous"></script>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" type="image/png" href="/favicon.png">
+    <title>ChampZero — Elevate Your Game</title>
+
+    <meta name="description"
+        content="ChampZero is the complete esports ecosystem for competitive tournaments, rising talent scouting, team rosters, and community events.">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="ChampZero — Where Champions Rise">
+    <meta property="og:description" content="Compete in top-tier tournaments, get scouted, and build your squad.">
+    <meta property="og:image" content="https://champzero.com/pictures/cz_logo.png">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Bespoke Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Chakra+Petch:ital,wght@0,600;0,700;1,700;1,800&family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Space+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="css/custom-cursor.css">
+
+    <style>
+        :root {
+            --cz-gold: #FFD700;
+            --cz-gold-light: #FFF099;
+            --cz-gold-glow: rgba(255, 215, 0, 0.08);
+            --cz-bg: #000000;
+            --cz-surface: #0A0A0E;
+            --cz-card: #111116;
+            --cz-border: rgba(255, 255, 255, 0.08);
+            --cz-border-gold: rgba(255, 215, 0, 0.3);
+
+            /* Compatibility tokens */
+            --gold: #FFD700;
+            --gold-light: #FFF099;
+            --gold-darker: #C99700;
+            --dark-bg: #000000;
+            --dark-card: #111116;
+        }
+
+        html, body {
+            background-color: #000000 !important;
+            color: #FFFFFF;
+        }
+
+        body {
+            font-family: 'DM Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+            background-color: #000000 !important;
+            color: #FFFFFF;
+            overflow-x: hidden;
+        }
+
+        .font-heading {
+            font-family: 'Chakra Petch', sans-serif;
+            letter-spacing: -0.02em;
+        }
+
+        .font-mono-tag {
+            font-family: 'Space Mono', monospace;
+        }
+
+        .ambient-glow {
+            background: radial-gradient(circle at 50% -15%, rgba(255, 215, 0, 0.09) 0%, rgba(0, 0, 0, 0) 70%);
+        }
+
+        .hub-card {
+            background-color: var(--cz-surface);
+            border: 1px solid var(--cz-border);
+            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        .hub-card:hover {
+            border-color: var(--cz-border-gold);
+            background-color: var(--cz-card);
+            transform: translateY(-3px);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.9), 0 0 20px -8px var(--cz-gold-glow);
+        }
+
+        .hub-card:hover .card-arrow {
+            transform: translate(3px, -3px);
+            color: var(--cz-gold);
+        }
+
+        .hub-card:hover .card-badge {
+            background-color: var(--cz-gold);
+            color: #000000;
+            border-color: var(--cz-gold);
+        }
+
+        .event-card {
+            background-color: var(--cz-surface);
+            border: 1px solid var(--cz-border);
+            transition: all 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .event-card:hover {
+            border-color: var(--cz-border-gold);
+            transform: translateY(-3px);
+            box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.9);
+        }
+
+        .event-card:hover .event-img {
+            transform: scale(1.05);
+        }
+
+        .event-card:hover .event-title {
+            color: var(--cz-gold);
+        }
+
+        .nav-link {
+            position: relative;
+            transition: color 0.2s ease;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 1.5px;
+            bottom: -4px;
+            left: 0;
+            background-color: var(--cz-gold);
+            transform: scaleX(0);
+            transform-origin: center;
+            transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .nav-link:hover::after,
+        .nav-link.active::after {
+            transform: scaleX(1);
+        }
+
+        .reveal {
+            opacity: 0;
+            transform: translateY(16px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+            will-change: opacity, transform;
+        }
+
+        .reveal.is-visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
 </head>
 
 <body class="antialiased min-h-screen flex flex-col justify-between selection:bg-[#FFD700] selection:text-black">
@@ -169,10 +328,10 @@
     <!-- HEADER NAVIGATION -->
     <header id="main-header"
         class="sticky top-0 z-[1000] bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-18 flex justify-between items-center py-4">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 h-18 flex justify-between items-center py-4 relative">
 
             <!-- BRAND IDENTITY -->
-            <a href="/" class="flex items-center gap-2.5 group shrink-0">
+            <a href="/" class="flex items-center gap-2.5 group shrink-0 z-10">
                 <img src="pictures/cz_logo.png" alt="ChampZero Logo" class="w-7 h-7 object-contain">
                 <div class="flex items-center gap-1.5">
                     <span
@@ -186,7 +345,7 @@
 
             <!-- NAV LINKS -->
             <nav
-                class="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+                class="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 text-xs font-semibold uppercase tracking-wider text-neutral-400 md:absolute md:left-1/2 md:-translate-x-1/2">
                 <a href="/" class="nav-link text-white active">Home</a>
                 <a href="/tournaments" class="nav-link hover:text-white">Tournaments</a>
                 <a href="/events" class="nav-link hover:text-white">Events</a>
@@ -197,7 +356,7 @@
 
 
             <!-- AUTH CONTROLS -->
-            <div class="flex items-center gap-3 shrink-0">
+            <div class="flex items-center gap-3 shrink-0 z-10">
                 <div id="auth-controls-wrapper" class="flex items-center gap-2 shrink-0">
                     <div id="auth-controls" class="flex items-center gap-2 shrink-0"></div>
                     <script>
@@ -211,11 +370,10 @@
                                     if (u && (u.uid || u.displayName || u.email)) {
                                         var name = u.ign || u.displayName || (u.email ? u.email.split('@')[0] : 'Champion');
                                         var avatar = u.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=111116&color=FFD700');
-                                        var pts = typeof u.czPoints === 'number' ? u.czPoints : 0;
                                         var isSup = Boolean(u.isSupporter);
                                         var tier = String(u.supporterTier || 'bronze').toLowerCase();
-                                        var supBadge = isSup ? (tier === 'gold' ? '<span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/30 font-mono">PATRON</span>' : (tier === 'silver' ? '<span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-slate-400/20 text-slate-200 border border-slate-300/30 font-mono">ELITE</span>' : '<span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-amber-700/20 text-amber-400 border border-amber-600/30 font-mono">SCOUT</span>')) : '';
-                                        el.innerHTML = '<div class="relative profile-dropdown-container flex items-center"><button class="flex items-center gap-2 p-1 pr-2.5 rounded-full bg-[#111116]/90 hover:bg-[#181822] border border-white/15 hover:border-[#FFD700]/50 transition-all cursor-pointer group shadow-sm"><img src="' + avatar + '" class="w-7 h-7 rounded-full ' + (isSup ? (tier === 'gold' ? 'border border-[#FFD700]' : 'border border-slate-300') : 'border border-white/20') + ' object-cover shrink-0"><span class="text-xs font-heading font-bold text-white max-w-[90px] truncate hidden sm:inline-block">' + name + '</span><span class="text-[10px] font-mono-tag font-bold text-[#FFD700] bg-[#FFD700]/15 px-2 py-0.5 rounded-full hidden sm:inline-flex items-center gap-0.5"><span>' + pts + '</span><span class="text-[9px] text-[#FFD700]/80">CZ</span></span>' + supBadge + '<svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button></div>';
+                                        var verIcon = u.emailVerified ? '<span title="Verified User" class="text-emerald-400 inline-flex items-center"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></span>' : '';
+                                        el.innerHTML = '<div class="relative profile-dropdown-container flex items-center"><button class="flex items-center gap-2 p-1 pr-2.5 rounded-full bg-[#111116]/90 hover:bg-[#181822] border border-white/15 hover:border-[#FFD700]/50 transition-all cursor-pointer group shadow-sm"><img src="' + avatar + '" class="w-8 h-8 rounded-full ' + (isSup ? (tier === 'gold' ? 'border-2 border-[#FFD700]' : 'border-2 border-slate-300') : 'border border-white/20') + ' object-cover shrink-0"><span class="text-xs font-heading font-bold text-white max-w-[85px] truncate hidden sm:inline-block">' + name + '</span>' + verIcon + '<svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button></div>';
                                         return;
                                     }
                                 }

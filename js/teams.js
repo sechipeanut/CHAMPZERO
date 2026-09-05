@@ -1,4 +1,5 @@
 import { db, auth } from './firebase-config.js';
+import { checkEmailVerification, isEmailVerified } from './auth-guard.js';
 import {
     collection, getDocs, doc, addDoc, updateDoc, deleteDoc,
     serverTimestamp, arrayUnion, arrayRemove, getDoc, onSnapshot, query, orderBy, collectionGroup, where, setDoc, increment,
@@ -935,7 +936,9 @@ function renderTeamCard(post, isAuthor, isMember) {
     const isFull = memberCount >= maxMembers;
     const captain = post.members?.find(m => m.role === 'Captain') || { name: post.authorName || 'Captain' };
     const borderClass = "border-white/10 hover:border-[#FFD700]/50 hover:shadow-[0_0_20px_rgba(255,215,0,0.1)]";
-    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase shrink-0">PRO</span>` : '';
+    const isVerifiedPost = Boolean(post.isVerified || post.authorVerified || post.authorEmailVerified);
+    const verifiedBadge = isVerifiedPost ? `<span title="Verified Team / Captain" class="inline-flex items-center text-emerald-400 shrink-0"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></span>` : '';
+    const proBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase shrink-0">PRO</span>` : '';
     
     let gameDisplayName = 'Valorant';
     let gameLogoSrc = 'pictures/logo_valorant.png';
@@ -978,6 +981,7 @@ function renderTeamCard(post, isAuthor, isMember) {
                             <h3 class="font-heading font-bold text-base text-white truncate group-hover:text-[#FFD700] transition-colors flex items-center gap-1.5 leading-tight">
                                 <span class="truncate">${escapeHtml(post.name)}</span>
                                 ${verifiedBadge}
+                                ${proBadge}
                             </h3>
                             <p class="text-xs font-mono-tag text-neutral-400 mt-1 flex items-center gap-1.5">
                                 <svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
@@ -1031,7 +1035,9 @@ function renderTeamRow(post, isAuthor, isMember) {
     const maxMembers = post.maxMembers || 5;
     const isFull = memberCount >= maxMembers;
     const captain = post.members?.find(m => m.role === 'Captain') || { name: post.authorName || 'Captain' };
-    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase shrink-0">PRO</span>` : '';
+    const isVerifiedPost = Boolean(post.isVerified || post.authorVerified || post.authorEmailVerified);
+    const verifiedBadge = isVerifiedPost ? `<span title="Verified Team / Captain" class="inline-flex items-center text-emerald-400 shrink-0"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></span>` : '';
+    const proBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase shrink-0">PRO</span>` : '';
     
     let gameDisplayName = 'Valorant';
     let gameLogoSrc = 'pictures/logo_valorant.png';
@@ -1072,6 +1078,7 @@ function renderTeamRow(post, isAuthor, isMember) {
                     <div class="flex items-center gap-2">
                         <span class="font-heading font-bold text-white text-base truncate group-hover:text-[#FFD700] transition-colors">${escapeHtml(post.name)}</span>
                         ${verifiedBadge}
+                        ${proBadge}
                     </div>
                     <div class="flex items-center gap-2 text-xs text-neutral-400 font-mono-tag mt-0.5">
                         <span class="flex items-center gap-1.5"><svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="6" stroke-width="2"></rect><path d="M6 12h4m-2-2v4m10-2h.01m-3 0h.01" stroke-width="2" stroke-linecap="round"></path></svg> ${gameDisplayName}</span>
@@ -1330,7 +1337,9 @@ window.closePlayerDetailsModal = () => {
 
 function renderPlayerCard(post, isAuthor) {
     const borderClass = "border-white/10 hover:border-[#FFD700]/50 hover:shadow-[0_0_20px_rgba(255,215,0,0.1)]";
-    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase shrink-0">PRO</span>` : '';
+    const isVerifiedPlayer = Boolean(post.isVerified || post.authorVerified || post.authorEmailVerified);
+    const verifiedBadge = isVerifiedPlayer ? `<span title="Verified Player" class="inline-flex items-center text-emerald-400 shrink-0"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></span>` : '';
+    const proBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase shrink-0">PRO</span>` : '';
     const avatarUrl = post.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.ign || 'Player')}&background=111116&color=FFD700`;
     
     let gameDisplayName = 'Valorant';
@@ -1365,6 +1374,7 @@ function renderPlayerCard(post, isAuthor) {
                             <h3 class="font-heading font-bold text-base sm:text-lg text-white truncate group-hover:text-[#FFD700] transition-colors flex items-center gap-1.5 leading-tight">
                                 <span class="truncate">${escapeHtml(post.ign || 'Player')}</span>
                                 ${verifiedBadge}
+                                ${proBadge}
                             </h3>
                             <p class="text-xs font-mono-tag text-neutral-400 mt-1 flex items-center gap-1.5 truncate">
                                 <span>Role:</span>
@@ -1417,7 +1427,9 @@ function renderPlayerCard(post, isAuthor) {
 }
 
 function renderPlayerRow(post, isAuthor) {
-    const verifiedBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase shrink-0">PRO</span>` : '';
+    const isVerifiedPlayer = Boolean(post.isVerified || post.authorVerified || post.authorEmailVerified);
+    const verifiedBadge = isVerifiedPlayer ? `<span title="Verified Player" class="inline-flex items-center text-emerald-400 shrink-0"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></span>` : '';
+    const proBadge = post.isPremium ? `<span class="bg-[#FFD700] text-black text-[9px] font-mono-tag font-bold px-1.5 py-0.5 rounded uppercase shrink-0">PRO</span>` : '';
     const avatarUrl = post.image || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.ign || 'Player')}&background=111116&color=FFD700`;
     
     let gameDisplayName = 'Valorant';
@@ -1449,6 +1461,7 @@ function renderPlayerRow(post, isAuthor) {
                     <div class="flex items-center gap-2">
                         <span class="font-heading font-bold text-white text-base truncate group-hover:text-[#FFD700] transition-colors">${escapeHtml(post.ign || 'Player')}</span>
                         ${verifiedBadge}
+                        ${proBadge}
                     </div>
                     <div class="flex items-center gap-2 text-xs text-neutral-400 font-mono-tag mt-0.5">
                         <span class="text-[#FFD700] font-bold">${escapeHtml(gameDisplayName)}</span>
@@ -1780,6 +1793,7 @@ async function syncProfileToLftForm(selectedGame) {
 
 window.openCreateModal = async () => {
     if (!auth.currentUser) { window.showCustomAlert("Login Required", "Please log in to post a listing."); return; }
+    if (!await checkEmailVerification("post a team or LFT listing")) return;
 
     const isAdminOrSub = currentUserRole === 'admin' || currentUserRole === 'subscriber';
 
@@ -2028,7 +2042,15 @@ window.handleApp = async (appId, applicantId, applicantName, isAccept) => {
 window.deleteListing = async (docId) => {
     // Standard delete for LFT players
     if (!await window.showCustomConfirm("Delete Listing?", "Are you sure?")) return;
-    try { await deleteDoc(doc(db, "recruitment", docId)); await window.showCustomAlert("Deleted", "Listing removed."); renderTeams(); } catch (e) { console.error(e); }
+    try { 
+        await deleteDoc(doc(db, "recruitment", docId)); 
+        try {
+            const notifSnaps = await getDocs(query(collection(db, "notifications"), where("recruitmentId", "==", docId)));
+            notifSnaps.forEach(d => deleteDoc(d.ref).catch(() => {}));
+        } catch (_) {}
+        await window.showCustomAlert("Deleted", "Listing removed."); 
+        renderTeams(); 
+    } catch (e) { console.error(e); }
 };
 
 window.toggleApplications = () => {
@@ -2196,6 +2218,7 @@ window.disbandTeam = async () => {
 window.openApplicationModal = async (teamId, teamName) => {
     const user = auth.currentUser;
     if (!user) { window.showCustomAlert("Login Required", "Please log in to apply."); return; }
+    if (!await checkEmailVerification("apply to a squad")) return;
 
     let team = cachedRecruitmentPosts.find(p => p.id === teamId);
     if (!team) {
@@ -2402,6 +2425,11 @@ function setupForms() {
             e.preventDefault();
             const btn = createForm.querySelector('button[type="submit"]');
             btn.textContent = "Posting..."; btn.disabled = true;
+
+            if (!await checkEmailVerification("post a team or LFT listing")) {
+                btn.textContent = "Post Listing"; btn.disabled = false;
+                return;
+            }
             try {
                 const type = document.getElementById('create-type').value;
                 const isPremium = currentUserRole === 'admin' || currentUserRole === 'subscriber';
@@ -2418,6 +2446,8 @@ function setupForms() {
                     contactLink: document.getElementById('create-link') ? document.getElementById('create-link').value.trim() : null,
                     discord: document.getElementById('create-discord') ? document.getElementById('create-discord').value.trim() : null,
                     isPremium: isPremium,
+                    authorVerified: true,
+                    isVerified: true,
                     authorId: auth.currentUser.uid,
                     authorEmail: auth.currentUser.email,
                     createdAt: serverTimestamp(),
@@ -2518,6 +2548,11 @@ function setupForms() {
 
             const btn = appForm.querySelector('button[type="submit"]');
             btn.textContent = "Sending..."; btn.disabled = true;
+
+            if (!await checkEmailVerification("apply to this squad")) {
+                btn.textContent = "Submit Application"; btn.disabled = false;
+                return;
+            }
 
             try {
                 await addDoc(collection(db, "recruitment", teamId, "applications"), {
@@ -3161,8 +3196,9 @@ async function renderScrimsBoard() {
                 <!-- Main Team / Squad Title -->
                 <div class="mb-3">
                     <span class="text-[10px] font-mono-tag text-neutral-400 uppercase block">Host Squad</span>
-                    <h3 class="font-heading font-bold text-lg text-white group-hover:text-[#FFD700] transition-colors truncate">
-                        ${escapeHtml(scrim.teamName || 'Competitive Squad')}
+                    <h3 class="font-heading font-bold text-lg text-white group-hover:text-[#FFD700] transition-colors truncate flex items-center gap-1.5">
+                        <span class="truncate">${escapeHtml(scrim.teamName || 'Competitive Squad')}</span>
+                        ${(scrim.captainVerified || scrim.isVerified) ? `<span title="Verified Host Squad" class="inline-flex items-center text-emerald-400 shrink-0"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></span>` : ''}
                     </h3>
                 </div>
 
@@ -3316,6 +3352,8 @@ window.openPostScrimModal = async () => {
         setTimeout(() => { window.location.href = '/login'; }, 1200);
         return;
     }
+
+    if (!await checkEmailVerification("broadcast a daily scrim match")) return;
 
     const teamInput = document.getElementById('scrim-post-team');
     const contactInput = document.getElementById('scrim-post-contact');
@@ -3472,6 +3510,8 @@ window.handlePostScrimSubmit = async (e) => {
         return;
     }
 
+    if (!await checkEmailVerification("broadcast a daily scrim match")) return;
+
     const game = document.getElementById('scrim-post-game')?.value?.trim();
     const teamName = document.getElementById('scrim-post-team')?.value?.trim();
     const format = document.getElementById('scrim-post-format')?.value?.trim() || '5v5 BO3';
@@ -3505,6 +3545,8 @@ window.handlePostScrimSubmit = async (e) => {
             captainEmail: user.email || '',
             captainName: user.displayName || teamName,
             captainContact,
+            captainVerified: true,
+            isVerified: true,
             rankTier,
             matchDate: dateVal,
             matchTimeRaw: timeVal,
@@ -3518,19 +3560,21 @@ window.handlePostScrimSubmit = async (e) => {
             expiresAt: Timestamp.fromDate(expiresDate)
         });
 
-        // Award Scrim Action Points (+30 CZ)
+        // Award Scrim Action Points (+30 CZ) & Complete Daily Scrim Quest
         try {
+            const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
             const userRef = doc(db, "users", user.uid);
             await updateDoc(userRef, {
                 czPoints: increment(30),
-                lifetimePoints: increment(30)
+                lifetimePoints: increment(30),
+                lastDailyScrimDate: todayStr
             });
         } catch (ptsErr) {
             console.warn("Could not award scrim post points:", ptsErr);
         }
 
         if (typeof window.showSuccessToast === 'function') {
-            window.showSuccessToast("Scrim Broadcasted! 🪙", `Your ${game} scrim for ${matchTime} is live. (+30 CZ Points earned)`);
+            window.showSuccessToast("Daily Quest Completed! ⚔️", `Your ${game} scrim is live! (+30 CZ awarded for Daily Scrim Battle)`);
         }
 
         // Reset form
@@ -3577,6 +3621,8 @@ window.openAcceptScrimModal = async (scrimId) => {
         setTimeout(() => { window.location.href = '/login'; }, 1200);
         return;
     }
+
+    if (!await checkEmailVerification("accept a scrim match")) return;
 
     const scrim = activeScrimsList.find(s => s.id === scrimId);
     if (!scrim) {
@@ -3645,6 +3691,8 @@ window.handleAcceptScrimSubmit = async (e) => {
         return;
     }
 
+    if (!await checkEmailVerification("accept a scrim match")) return;
+
     const scrimId = document.getElementById('accept-scrim-id')?.value;
     const opponentTeamName = document.getElementById('accept-opponent-team')?.value?.trim();
     const opponentContact = document.getElementById('accept-opponent-contact')?.value?.trim();
@@ -3690,19 +3738,21 @@ window.handleAcceptScrimSubmit = async (e) => {
             });
         });
 
-        // Award Scrim Action Points (+30 CZ)
+        // Award Scrim Action Points (+30 CZ) & Complete Daily Scrim Quest
         try {
+            const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
             const userRef = doc(db, "users", user.uid);
             await updateDoc(userRef, {
                 czPoints: increment(30),
-                lifetimePoints: increment(30)
+                lifetimePoints: increment(30),
+                lastDailyScrimDate: todayStr
             });
         } catch (ptsErr) {
             console.warn("Could not award scrim accept points:", ptsErr);
         }
 
         if (typeof window.showSuccessToast === 'function') {
-            window.showSuccessToast("Scrim Challenge Accepted! 🪙", "Match confirmed! (+30 CZ Points earned) Opening direct lobby coordination...");
+            window.showSuccessToast("Daily Quest Completed! ⚔️", "Scrim accepted! (+30 CZ awarded for Daily Scrim Battle)");
         }
 
         window.closeAcceptScrimModal();
@@ -3861,6 +3911,11 @@ window.cancelScrim = async (scrimId) => {
             status: "cancelled",
             cancelledAt: serverTimestamp()
         });
+
+        try {
+            const notifSnaps = await getDocs(query(collection(db, "notifications"), where("scrimId", "==", scrimId)));
+            notifSnaps.forEach(d => deleteDoc(d.ref).catch(() => {}));
+        } catch (_) {}
 
         if (typeof window.showSuccessToast === 'function') {
             window.showSuccessToast("Scrim Cancelled", "Your listing has been removed.");

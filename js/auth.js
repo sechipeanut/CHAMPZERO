@@ -148,9 +148,10 @@ async function ensureUserProfile(user, customUsername = '', referralCodeUsed = '
         });
     } else {
         const existingData = userSnap.data();
+        const isGoogleUser = user.providerData && user.providerData.some(p => p.providerId === 'google.com');
         const updates = {
             lastSignInTime: serverTimestamp(),
-            emailVerified: user.emailVerified || false
+            emailVerified: (existingData.emailVerified === true) || Boolean(user.emailVerified) || Boolean(isGoogleUser)
         };
         // Preserve or fill IGN/displayName if missing
         if (!existingData.ign) updates.ign = existingData.displayName || resolvedName;
@@ -251,19 +252,18 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const creds = await signInWithEmailAndPassword(auth, email, password);
                 const user = creds.user;
                 
-                // Check if email is verified (skip for Google sign-ins as they're auto-verified)
-                const isGoogleUser = user.providerData && user.providerData.some(p => p.providerId === 'google.com');
-                if (!user.emailVerified && !isGoogleUser) {
-                    notifyToast('warning', "Email Verification Required", "Please verify your email address to unlock full tournament access.", 4000);
-                    setTimeout(() => {
-                        window.location.href = `/verify-email?email=${encodeURIComponent(user.email || '')}`;
-                    }, 1200);
-                    return;
-                }
-                
                 await ensureUserProfile(user);
-                
-                notifyToast('success', "Welcome Back!", "Login successful. Entering the arena...", 2000);
+
+                // Check verification status (Firebase Auth, Google OAuth, or Firestore admin-override)
+                const isGoogleUser = user.providerData && user.providerData.some(p => p.providerId === 'google.com');
+                const userDocSnap = await getDoc(doc(db, "users", user.uid));
+                const isDocVerified = userDocSnap.exists() && userDocSnap.data()?.emailVerified === true;
+
+                if (!user.emailVerified && !isGoogleUser && !isDocVerified) {
+                    notifyToast('warning', "Email Not Verified", "Welcome back! Please verify your email to unlock tournaments, scrims, and chat.", 4500);
+                } else {
+                    notifyToast('success', "Welcome Back!", "Login successful. Entering the arena...", 2000);
+                }
                 setTimeout(() => window.location.href = "/profile", 1000);
             } catch (error) {
                 console.error("Login error:", error);

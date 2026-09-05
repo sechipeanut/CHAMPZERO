@@ -1,5 +1,5 @@
 import { db } from './firebase-config.js'; 
-import { collection, query, orderBy, limit, onSnapshot, where, addDoc, serverTimestamp, doc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
+import { collection, query, orderBy, limit, onSnapshot, where, addDoc, serverTimestamp, doc, updateDoc, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 
 const auth = getAuth();
@@ -18,6 +18,64 @@ const feedData = {
 let personalUnsubscribes = [];
 let publicUnsubscribes = [];
 let lastReadTimestamp = localStorage.getItem('cz_notif_last_read') || 0;
+
+// Dynamic Entity & Cascade Deletion Tracking
+let activeTournamentIds = new Set();
+let activeScrimIds = new Set();
+let tournamentsLoaded = false;
+let scrimsLoaded = false;
+
+let firestorePersonalAlerts = [];
+let rootPersonalAlerts = [];
+let generatedTournamentAlerts = [];
+
+function extractTournamentId(link) {
+    if (!link || typeof link !== 'string') return null;
+    const match = link.match(/[?&]id=([^&#]+)/);
+    return match ? match[1] : null;
+}
+
+function isOrphanedTournamentAlert(alert) {
+    if (!tournamentsLoaded) return false;
+    const tourneyId = alert.tournamentId || extractTournamentId(alert.link);
+    if (tourneyId && !activeTournamentIds.has(tourneyId)) {
+        return true;
+    }
+    if (alert.id && (alert.id.startsWith('checkin_') || alert.id.startsWith('match_'))) {
+        const parts = alert.id.split('_');
+        const tid = parts[1];
+        if (tid && !activeTournamentIds.has(tid)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+function rebuildPersonalAlerts() {
+    const validFirestore = firestorePersonalAlerts.filter(a => !isOrphanedTournamentAlert(a));
+    const validRoot = rootPersonalAlerts.filter(a => !isOrphanedTournamentAlert(a));
+    const validGenerated = generatedTournamentAlerts.filter(a => !isOrphanedTournamentAlert(a));
+
+    const combined = [...validFirestore];
+    const existingIds = new Set(combined.map(a => a.id));
+
+    for (const alert of validRoot) {
+        if (!existingIds.has(alert.id)) {
+            combined.push(alert);
+            existingIds.add(alert.id);
+        }
+    }
+    for (const alert of validGenerated) {
+        if (!existingIds.has(alert.id)) {
+            combined.push(alert);
+            existingIds.add(alert.id);
+        }
+    }
+
+    combined.sort((a, b) => b.dateObj - a.dateObj);
+    feedData.personal = combined;
+    renderUnifiedFeed();
+}
 
 function escapeHtml(str) { 
     if (!str) return ''; 
@@ -267,6 +325,9 @@ function injectNotificationHTML() {
         } else {
             personalUnsubscribes.forEach(unsub => { try { if (typeof unsub === 'function') unsub(); } catch(e){} });
             personalUnsubscribes = [];
+            firestorePersonalAlerts = [];
+            rootPersonalAlerts = [];
+            generatedTournamentAlerts = [];
             feedData.personal = [];
             renderUnifiedFeed();
         }
@@ -344,6 +405,9 @@ function initPublicRealTimeListeners() {
     try {
         const publicTourneysQuery = query(collection(db, "tournaments"), limit(25));
         const unsubTourneys = onSnapshot(publicTourneysQuery, (snap) => {
+            activeTournamentIds = new Set(snap.docs.map(docSnap => docSnap.id));
+            tournamentsLoaded = true;
+
             const list = [];
             snap.forEach(docSnap => {
                 const d = docSnap.data();
@@ -354,6 +418,7 @@ function initPublicRealTimeListeners() {
                     category: 'announcements',
                     type: 'tournament',
                     tag: 'NEW TOURNAMENT',
+                    tournamentId: docSnap.id,
                     icon: ICONS.tournament,
                     title: `New Tournament: ${d.name || 'Tournament Announced'}`,
                     message: `${d.game ? d.game + ' • ' : ''}₱${Number(d.prize || 0).toLocaleString()} Prize Pool • ${d.format || d.venueType || 'Registration Open'}`,
@@ -364,6 +429,9 @@ function initPublicRealTimeListeners() {
             });
             list.sort((a, b) => b.dateObj - a.dateObj);
             feedData.tournaments = list.slice(0, 8);
+
+            // Dynamically refresh personal notifications to remove any that belonged to deleted tournaments
+            rebuildPersonalAlerts();
             renderUnifiedFeed();
         }, (err) => {
             console.warn("Public tournaments notif listener notice:", err);
@@ -377,6 +445,9 @@ function initPublicRealTimeListeners() {
     try {
         const scrimsQuery = query(collection(db, "scrims"), limit(30));
         const unsubScrims = onSnapshot(scrimsQuery, (snap) => {
+            activeScrimIds = new Set(snap.docs.map(docSnap => docSnap.id));
+            scrimsLoaded = true;
+
             const list = [];
             snap.forEach(docSnap => {
                 const d = docSnap.data();
@@ -388,6 +459,7 @@ function initPublicRealTimeListeners() {
                     category: 'announcements',
                     type: 'scrim',
                     tag: 'SCRIM AVAILABLE',
+                    scrimId: docSnap.id,
                     icon: ICONS.scrim,
                     title: 'A Scrim is Available!',
                     message: `${d.teamName || 'Competitive Squad'} is open for ${d.game || 'scrim'} (${d.format || '5v5'}) • Tier: ${d.rankTier || 'Any'} • ${d.matchTime || 'Tonight'}`,
@@ -488,14 +560,21 @@ function initPublicRealTimeListeners() {
         console.warn("Error setting up public events notif listener:", e);
     }
 
-    // 5. Global Admin Announcements (from root notifications collection where !userId or isGlobal)
+    // 5. Global Admin Announcements (from root notifications collection where isGlobal == true)
     try {
-        const globalNotifQuery = query(collection(db, "notifications"), limit(25));
+        const globalNotifQuery = query(collection(db, "notifications"), where("isGlobal", "==", true), limit(25));
         const unsubGlobal = onSnapshot(globalNotifQuery, (snap) => {
             const list = [];
             snap.forEach(docSnap => {
                 const d = docSnap.data();
                 if (d.userId || d.targetUserId) return;
+                
+                // If this notification references a tournament that has been deleted, drop it
+                const tourneyId = d.tournamentId || extractTournamentId(d.link);
+                if (tourneyId && tournamentsLoaded && !activeTournamentIds.has(tourneyId)) {
+                    return;
+                }
+
                 const dDate = getDate(d);
                 list.push({
                     id: `admin_ann_${docSnap.id}`,
@@ -527,25 +606,36 @@ function initPersonalRealTimeListeners(user) {
     try {
         const userNotifQuery = query(collection(db, "users", user.uid, "notifications"), limit(30));
         const unsubUserNotifs = onSnapshot(userNotifQuery, (snap) => {
-            feedData.personal = snap.docs.map(doc => {
-                const d = doc.data();
+            firestorePersonalAlerts = snap.docs.map(docSnap => {
+                const d = docSnap.data();
                 const dDate = getDate(d);
+                const tourneyId = d.tournamentId || extractTournamentId(d.link);
                 return {
-                    id: doc.id,
+                    id: docSnap.id,
                     category: 'personal',
                     type: d.type || 'player_alert',
                     tag: d.tag || 'ALERT',
                     icon: d.type === 'team' ? ICONS.team : d.type === 'checkIn' ? ICONS.checkIn : d.type === 'match' ? ICONS.matchReady : ICONS.tournament,
                     title: d.title || "Match Alert",
                     message: d.message || "",
+                    tournamentId: tourneyId,
                     link: d.link || (d.tournamentId ? `/tournaments?id=${d.tournamentId}` : (d.teamId ? `/teams?id=${d.teamId}` : '#')),
                     dateObj: dDate,
                     dateStr: timeAgo(dDate),
                     isRead: d.read === true
                 };
             });
-            feedData.personal.sort((a, b) => b.dateObj - a.dateObj);
-            renderUnifiedFeed();
+
+            // Automatically clean up deleted tournament alerts from user subcollection
+            if (tournamentsLoaded && activeTournamentIds.size > 0) {
+                firestorePersonalAlerts.forEach(item => {
+                    if (item.tournamentId && !activeTournamentIds.has(item.tournamentId)) {
+                        deleteDoc(doc(db, "users", user.uid, "notifications", item.id)).catch(() => {});
+                    }
+                });
+            }
+
+            rebuildPersonalAlerts();
         }, (err) => {
             console.warn("User personal notifications listener notice:", err);
         });
@@ -556,28 +646,37 @@ function initPersonalRealTimeListeners(user) {
     try {
         const rootUserNotifQuery = query(collection(db, "notifications"), where("userId", "==", user.uid), limit(25));
         const unsubRootNotifs = onSnapshot(rootUserNotifQuery, (snap) => {
-            const rootAlerts = snap.docs.map(doc => {
-                const d = doc.data();
+            rootPersonalAlerts = snap.docs.map(docSnap => {
+                const d = docSnap.data();
                 const dDate = getDate(d);
+                const tourneyId = d.tournamentId || extractTournamentId(d.link);
                 return {
-                    id: `root_${doc.id}`,
+                    id: `root_${docSnap.id}`,
+                    docId: docSnap.id,
                     category: 'personal',
                     type: d.type || 'player_alert',
                     tag: d.tag || 'ALERT',
                     icon: d.type === 'team' ? ICONS.team : d.type === 'checkIn' ? ICONS.checkIn : d.type === 'match' ? ICONS.matchReady : ICONS.tournament,
                     title: d.title || "Tournament Alert",
                     message: d.message || "",
+                    tournamentId: tourneyId,
                     link: d.link || (d.tournamentId ? `/tournaments?id=${d.tournamentId}` : '#'),
                     dateObj: dDate,
                     dateStr: timeAgo(dDate),
                     isRead: d.read === true
                 };
             });
-            const existingIds = new Set(feedData.personal.map(p => p.id));
-            const newAlerts = rootAlerts.filter(a => !existingIds.has(a.id));
-            feedData.personal = [...feedData.personal, ...newAlerts];
-            feedData.personal.sort((a, b) => b.dateObj - a.dateObj);
-            renderUnifiedFeed();
+
+            // Clean up deleted tournament root alerts from Firestore
+            if (tournamentsLoaded && activeTournamentIds.size > 0) {
+                rootPersonalAlerts.forEach(item => {
+                    if (item.tournamentId && !activeTournamentIds.has(item.tournamentId)) {
+                        deleteDoc(doc(db, "notifications", item.docId)).catch(() => {});
+                    }
+                });
+            }
+
+            rebuildPersonalAlerts();
         }, (err) => {});
         personalUnsubscribes.push(unsubRootNotifs);
     } catch(e) {}
@@ -586,7 +685,11 @@ function initPersonalRealTimeListeners(user) {
     try {
         const activeTournamentsQuery = query(collection(db, "tournaments"), limit(30));
         const unsubTournamentsMonitor = onSnapshot(activeTournamentsQuery, (snap) => {
-            const generatedPersonalAlerts = [];
+            const currentActiveIds = new Set(snap.docs.map(d => d.id));
+            activeTournamentIds = currentActiveIds;
+            tournamentsLoaded = true;
+
+            const generatedAlerts = [];
             const userEmailLower = (user.email || '').toLowerCase();
             const userNameLower = (user.displayName || '').toLowerCase();
 
@@ -623,11 +726,12 @@ function initPersonalRealTimeListeners(user) {
                 if (myParticipation || isSoloQueued) {
                     // Check-in Alert
                     if (t.checkInOpen && myParticipation && !myParticipation.checkedIn && !t.isStarted && t.status !== 'Cancelled') {
-                        generatedPersonalAlerts.push({
+                        generatedAlerts.push({
                             id: `checkin_${docSnap.id}`,
                             category: 'personal',
                             type: 'checkIn',
                             tag: 'CHECK-IN OPEN',
+                            tournamentId: docSnap.id,
                             icon: ICONS.checkIn,
                             title: `Ready Up: ${t.name}`,
                             message: `Check-in is now OPEN. Confirm your squad to secure your bracket seed.`,
@@ -648,11 +752,12 @@ function initPersonalRealTimeListeners(user) {
 
                             if (myLiveMatch) {
                                 const opponent = myLiveMatch.team1 === myTeamName ? myLiveMatch.team2 : myLiveMatch.team1;
-                                generatedPersonalAlerts.push({
+                                generatedAlerts.push({
                                     id: `match_${docSnap.id}_${myLiveMatch.id}`,
                                     category: 'personal',
                                     type: 'match',
                                     tag: 'MATCH READY',
+                                    tournamentId: docSnap.id,
                                     icon: ICONS.matchReady,
                                     title: `Match Scheduled vs ${opponent}`,
                                     message: `Your bracket match in ${t.name} is ready for score reporting.`,
@@ -667,12 +772,8 @@ function initPersonalRealTimeListeners(user) {
                 }
             });
 
-            // Merge generated alerts with personal notifications
-            const existingIds = new Set(feedData.personal.map(p => p.id));
-            const newAlerts = generatedPersonalAlerts.filter(a => !existingIds.has(a.id));
-            feedData.personal = [...newAlerts, ...feedData.personal];
-            feedData.personal.sort((a, b) => b.dateObj - a.dateObj);
-            renderUnifiedFeed();
+            generatedTournamentAlerts = generatedAlerts;
+            rebuildPersonalAlerts();
         }, (err) => {});
         personalUnsubscribes.push(unsubTournamentsMonitor);
     } catch(e) {}

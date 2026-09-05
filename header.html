@@ -1,9 +1,9 @@
 <header id="main-header"
     class="sticky top-0 z-[1000] bg-black/95 backdrop-blur-md border-b border-white/5 transition-all duration-300">
-    <div class="max-w-6xl mx-auto px-6 h-18 flex justify-between items-center py-4">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 h-18 flex justify-between items-center py-4 relative">
         
         <!-- BRAND IDENTITY -->
-        <a href="/" class="flex items-center gap-2.5 group">
+        <a href="/" class="flex items-center gap-2.5 group shrink-0 z-10">
             <img src="pictures/cz_logo.png" 
                  alt="ChampZero Logo" 
                  class="w-7 h-7 object-contain">
@@ -16,7 +16,7 @@
         </a>
 
         <!-- DESKTOP NAV -->
-        <nav class="hidden md:flex items-center gap-8 text-xs font-semibold uppercase tracking-wider text-neutral-400">
+        <nav class="hidden md:flex items-center gap-4 lg:gap-6 xl:gap-8 text-xs font-semibold uppercase tracking-wider text-neutral-400 md:absolute md:left-1/2 md:-translate-x-1/2">
             <a href="/"          class="nav-link hover:text-white transition-colors">Home</a>
             <a href="/tournaments" class="nav-link hover:text-white transition-colors">Tournaments</a>
             <a href="/events"    class="nav-link hover:text-white transition-colors">Events</a>
@@ -27,7 +27,7 @@
 
 
         <!-- AUTH CONTROLS -->
-        <div class="flex items-center gap-3">
+        <div class="flex items-center gap-3 shrink-0 z-10">
             <div id="auth-controls-wrapper" class="flex items-center gap-2 shrink-0">
                     <div id="auth-controls" class="flex items-center gap-2 shrink-0"></div>
                     <script>
@@ -41,11 +41,10 @@
                                     if (u && (u.uid || u.displayName || u.email)) {
                                         var name = u.ign || u.displayName || (u.email ? u.email.split('@')[0] : 'Champion');
                                         var avatar = u.avatar || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=111116&color=FFD700');
-                                        var pts = typeof u.czPoints === 'number' ? u.czPoints : 0;
                                         var isSup = Boolean(u.isSupporter);
                                         var tier = String(u.supporterTier || 'bronze').toLowerCase();
-                                        var supBadge = isSup ? (tier === 'gold' ? '<span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-[#FFD700]/20 text-[#FFD700] border border-[#FFD700]/30 font-mono">PATRON</span>' : (tier === 'silver' ? '<span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-slate-400/20 text-slate-200 border border-slate-300/30 font-mono">ELITE</span>' : '<span class="px-1.5 py-0.2 rounded text-[8px] font-bold uppercase bg-amber-700/20 text-amber-400 border border-amber-600/30 font-mono">SCOUT</span>')) : '';
-                                        el.innerHTML = '<div class="relative profile-dropdown-container flex items-center"><button class="flex items-center gap-2 p-1 pr-2.5 rounded-full bg-[#111116]/90 hover:bg-[#181822] border border-white/15 hover:border-[#FFD700]/50 transition-all cursor-pointer group shadow-sm"><img src="' + avatar + '" class="w-7 h-7 rounded-full ' + (isSup ? (tier === 'gold' ? 'border border-[#FFD700]' : 'border border-slate-300') : 'border border-white/20') + ' object-cover shrink-0"><span class="text-xs font-heading font-bold text-white max-w-[90px] truncate hidden sm:inline-block">' + name + '</span><span class="text-[10px] font-mono-tag font-bold text-[#FFD700] bg-[#FFD700]/15 px-2 py-0.5 rounded-full hidden sm:inline-flex items-center gap-0.5"><span>' + pts + '</span><span class="text-[9px] text-[#FFD700]/80">CZ</span></span>' + supBadge + '<svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button></div>';
+                                        var verIcon = u.emailVerified ? '<span title="Verified User" class="text-emerald-400 inline-flex items-center"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></span>' : '';
+                                        el.innerHTML = '<div class="relative profile-dropdown-container flex items-center"><button class="flex items-center gap-2 p-1 pr-2.5 rounded-full bg-[#111116]/90 hover:bg-[#181822] border border-white/15 hover:border-[#FFD700]/50 transition-all cursor-pointer group shadow-sm"><img src="' + avatar + '" class="w-8 h-8 rounded-full ' + (isSup ? (tier === 'gold' ? 'border-2 border-[#FFD700]' : 'border-2 border-slate-300') : 'border border-white/20') + ' object-cover shrink-0"><span class="text-xs font-heading font-bold text-white max-w-[85px] truncate hidden sm:inline-block">' + name + '</span>' + verIcon + '<svg class="w-3.5 h-3.5 text-neutral-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg></button></div>';
                                         return;
                                     }
                                 }

@@ -1,5 +1,6 @@
 // js/community-chat.js - ChampZero Real-Time Global Chat, Online Presence & Social Hub
 import { auth, db } from './firebase-config.js';
+import { checkEmailVerification } from './auth-guard.js';
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-auth.js";
 import {
     collection,
@@ -15,6 +16,7 @@ import {
     limit,
     onSnapshot,
     serverTimestamp,
+    increment,
     where
 } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-firestore.js";
 
@@ -375,7 +377,7 @@ function injectCommunityUI() {
 
         <!-- QUICK PLAYER MINI PROFILE MODAL -->
         <div id="cz-player-modal" class="hidden fixed inset-0 z-[10000] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
-            <div class="w-full max-w-sm rounded-2xl bg-[#0E0E14] border border-[#FFD700]/40 p-5 shadow-2xl relative animate-in fade-in zoom-in duration-200">
+            <div class="w-full max-w-md rounded-2xl bg-[#0E0E14] border border-[#FFD700]/40 p-5 shadow-2xl relative animate-in fade-in zoom-in duration-200">
                 <button type="button" onclick="window.czClosePlayerModal()"
                     class="absolute top-3 right-3 text-neutral-400 hover:text-white p-1 rounded-lg hover:bg-white/5 transition-colors cursor-pointer">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
@@ -479,6 +481,9 @@ function toggleGlobalChat(forceState) {
         card.classList.add('hidden');
     }
 }
+
+window.openGlobalChat = (forceState) => toggleGlobalChat(typeof forceState === 'boolean' ? forceState : true);
+window.openDMChat = (forceState) => toggleDMChat(typeof forceState === 'boolean' ? forceState : true);
 
 function toggleDMChat(forceState) {
     const card = document.getElementById('cz-dm-card');
@@ -593,6 +598,10 @@ async function sendChatMessage(text) {
         return;
     }
 
+    if (!await checkEmailVerification("send messages in global chat")) {
+        return;
+    }
+
     const senderName = currentProfile.ign || currentProfile.displayName || activeUser.displayName || activeUser.email?.split('@')[0] || 'Champion';
     const senderAvatar = currentProfile.avatar || activeUser.photoURL || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(senderName) + '&background=111116&color=FFD700');
     const now = Date.now();
@@ -609,8 +618,10 @@ async function sendChatMessage(text) {
         senderAvatar,
         senderRole,
         senderRank,
+        playerTitle: currentProfile.playerTitle || null,
         isSupporter,
         supporterTier,
+        isVerified: true,
         text,
         timestamp: Date.now(),
         sentAt: new Date().toISOString(),
@@ -619,6 +630,25 @@ async function sendChatMessage(text) {
 
     try {
         await addDoc(collection(db, "global_chat_messages"), msgPayload);
+
+        // Complete Daily Chat Mission (+15 CZ)
+        try {
+            const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+            if (currentProfile && currentProfile.lastDailyChatDate !== todayStr) {
+                currentProfile.lastDailyChatDate = todayStr;
+                const userRef = doc(db, "users", activeUser.uid);
+                await updateDoc(userRef, {
+                    czPoints: increment(15),
+                    lifetimePoints: increment(15),
+                    lastDailyChatDate: todayStr
+                });
+                if (typeof window.showSuccessToast === 'function') {
+                    window.showSuccessToast("Daily Quest Completed! 💬", "+15 CZ Points awarded for active Global Chat engagement!");
+                }
+            }
+        } catch (questErr) {
+            console.warn("Could not award chat quest points:", questErr);
+        }
     } catch (e) {
         console.warn("Primary global_chat_messages write failed, trying fallback:", e);
         try {
@@ -728,18 +758,23 @@ function renderChatMessages(messages) {
             roleBadge = '<span class="px-1.5 py-0.2 rounded bg-red-500/20 text-red-400 text-[8px] font-mono font-bold uppercase border border-red-500/30">ADMIN</span>';
         } else if (isOrganizer) {
             roleBadge = '<span class="px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-400 text-[8px] font-mono font-bold uppercase border border-purple-500/30">HOST</span>';
+        } else if (role === 'moderator' || role === 'mod') {
+            roleBadge = '<span class="px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-400 text-[8px] font-mono font-bold uppercase border border-cyan-500/30">MOD</span>';
         }
 
         let supporterBadge = '';
         if (isSupporter) {
             if (supporterTier === 'gold') {
-                supporterBadge = '<span class="px-1.5 py-0.2 rounded bg-[#FFD700]/20 text-[#FFD700] text-[8px] font-mono font-bold border border-[#FFD700]/40">GOLD</span>';
+                supporterBadge = '<span class="px-1.5 py-0.2 rounded bg-[#FFD700]/20 text-[#FFD700] text-[8px] font-mono font-bold border border-[#FFD700]/40 shadow-[0_0_8px_rgba(255,215,0,0.3)]">GOLD</span>';
             } else if (supporterTier === 'silver') {
                 supporterBadge = '<span class="px-1.5 py-0.2 rounded bg-slate-400/20 text-slate-200 text-[8px] font-mono font-bold border border-slate-300/40">SILVER</span>';
             } else {
                 supporterBadge = '<span class="px-1.5 py-0.2 rounded bg-amber-700/20 text-amber-400 text-[8px] font-mono font-bold border border-amber-600/40">BRONZE</span>';
             }
         }
+
+        const isSenderVerified = Boolean(msg.isVerified || msg.emailVerified || (allRegisteredUsers.find(u => u.id === msg.senderId)?.emailVerified));
+        const verifiedBadge = isSenderVerified ? `<span title="Verified Player" class="inline-flex items-center text-emerald-400 shrink-0"><svg class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg></span>` : '';
 
         return `
             <div class="flex items-start gap-2.5 ${isMine ? 'flex-row-reverse' : ''} group animate-in fade-in duration-150">
@@ -750,11 +785,13 @@ function renderChatMessages(messages) {
                 <div class="flex flex-col ${isMine ? 'items-end' : 'items-start'} max-w-[78%]">
                     <div class="flex items-center gap-1.5 mb-1 flex-wrap ${isMine ? 'justify-end' : ''}">
                         <button type="button" onclick="window.czOpenPlayerModal('${escapeHtml(msg.senderId)}')"
-                            class="font-heading font-bold text-white hover:text-[#FFD700] text-xs transition-colors cursor-pointer truncate max-w-[120px]">
-                            ${escapeHtml(name)}
+                            class="font-heading font-bold text-white hover:text-[#FFD700] text-xs transition-colors cursor-pointer truncate max-w-[130px] flex items-center gap-1">
+                            <span class="truncate">${escapeHtml(name)}</span>
+                            ${verifiedBadge}
                         </button>
                         ${roleBadge}
                         ${supporterBadge}
+                        ${msg.playerTitle ? `<span class="px-1.5 py-0.2 rounded bg-indigo-500/20 text-indigo-300 text-[8px] font-mono font-bold border border-indigo-500/40 shadow-[0_0_8px_rgba(99,102,241,0.25)]">⚡ ${escapeHtml(msg.playerTitle)}</span>` : ''}
                         <span class="text-[9px] text-neutral-500 font-mono">${timeStr}</span>
                     </div>
                     <div class="${isMine ? 'bg-[#FFD700]/15 border border-[#FFD700]/30 text-white rounded-2xl rounded-tr-sm' : 'bg-white/5 border border-white/10 text-neutral-200 rounded-2xl rounded-tl-sm'} px-3 py-2 text-xs break-words leading-relaxed shadow-sm">
@@ -1243,6 +1280,10 @@ window.czSendDMThreadMessage = async function (event) {
     const activeUser = currentUser || auth.currentUser;
     if (!activeUser) return;
 
+    if (!await checkEmailVerification("send direct messages")) {
+        return;
+    }
+
     const input = document.getElementById('cz-dm-thread-input');
     const text = input?.value?.trim();
     if (!text) return;
@@ -1278,6 +1319,10 @@ window.czSendFriendRequest = async function (targetUid, targetName, targetAvatar
     if (!activeUser) {
         if (window.showErrorToast) window.showErrorToast("Sign In Required", "Please log in to add friends!");
         else alert("Please log in to add friends!");
+        return;
+    }
+
+    if (!await checkEmailVerification("send friend requests")) {
         return;
     }
 
@@ -1608,14 +1653,75 @@ window.czChatWithFriend = function (friendUidOrName, name, avatar) {
 };
 
 // ----------------------------------------------------
-// 8. QUICK MINI PLAYER MODAL
+// 8. QUICK MINI PLAYER MODAL (WITH STATS & PROFILE LINK)
 // ----------------------------------------------------
+let _czTournamentsCache = null;
+let _czTournamentsCacheTime = 0;
+
+async function getTournamentsCached() {
+    const now = Date.now();
+    if (_czTournamentsCache && (now - _czTournamentsCacheTime < 60000)) {
+        return _czTournamentsCache;
+    }
+    try {
+        const snap = await getDocs(collection(db, "tournaments"));
+        const list = [];
+        snap.forEach(d => list.push({ id: d.id, ...d.data() }));
+        _czTournamentsCache = list;
+        _czTournamentsCacheTime = now;
+        return list;
+    } catch(e) {
+        return _czTournamentsCache || [];
+    }
+}
+
+async function countPlayerFriends(uid) {
+    try {
+        const friendsRef = collection(db, "friend_requests");
+        const q1 = query(friendsRef, where("fromUid", "==", uid), where("status", "==", "accepted"));
+        const q2 = query(friendsRef, where("toUid", "==", uid), where("status", "==", "accepted"));
+        const [snap1, snap2] = await Promise.all([getDocs(q1), getDocs(q2)]);
+        const seen = new Set();
+        snap1.forEach(d => { if (d.data().toUid) seen.add(d.data().toUid); });
+        snap2.forEach(d => { if (d.data().fromUid) seen.add(d.data().fromUid); });
+        return seen.size;
+    } catch (e) {
+        return 0;
+    }
+}
+
+window.czCopyProfileLink = function (uid) {
+    if (!uid) return;
+    const url = `${window.location.origin}/profile.html?uid=${encodeURIComponent(uid)}`;
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(url).then(() => {
+            if (typeof window.showSuccessToast === 'function') {
+                window.showSuccessToast("Profile Link Copied", "Share this link with teammates and organizers!");
+            } else {
+                alert("Profile link copied to clipboard!");
+            }
+        }).catch(() => {
+            prompt("Copy profile link:", url);
+        });
+    } else {
+        prompt("Copy profile link:", url);
+    }
+};
+
 window.czOpenPlayerModal = async function (uid) {
     const modal = document.getElementById('cz-player-modal');
     const content = document.getElementById('cz-player-modal-content');
     if (!modal || !content) return;
 
-    content.innerHTML = `<div class="py-8 text-neutral-400 text-xs italic">Loading Player Details...</div>`;
+    content.innerHTML = `
+        <div class="py-10 flex flex-col items-center justify-center gap-2">
+            <svg class="animate-spin h-6 w-6 text-[#FFD700]" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path>
+            </svg>
+            <span class="text-neutral-400 text-xs font-mono">Loading dossier...</span>
+        </div>
+    `;
     modal.classList.remove('hidden');
 
     try {
@@ -1630,6 +1736,12 @@ window.czOpenPlayerModal = async function (uid) {
             return;
         }
 
+        // Fetch Tournaments and Friends in parallel
+        const [tourneys, friendCount] = await Promise.all([
+            getTournamentsCached(),
+            countPlayerFriends(player.id)
+        ]);
+
         const name = player.ign || player.displayName || player.username || 'Champion';
         const avatar = player.avatar || player.photoURL || ('https://ui-avatars.com/api/?name=' + encodeURIComponent(name) + '&background=111116&color=FFD700');
         const role = (player.role || 'member').toLowerCase();
@@ -1642,96 +1754,250 @@ window.czOpenPlayerModal = async function (uid) {
         let supporterPill = '';
         if (isSupporter) {
             if (supporterTier === 'gold') {
-                supporterPill = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFD700]/20 text-[#FFD700] text-[9px] font-mono font-bold border border-[#FFD700]/40 mt-1">GOLD PATRON</span>';
+                supporterPill = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#FFD700]/20 text-[#FFD700] text-[9px] font-mono font-bold border border-[#FFD700]/40">GOLD PATRON</span>';
             } else if (supporterTier === 'silver') {
-                supporterPill = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-400/20 text-slate-200 text-[9px] font-mono font-bold border border-slate-300/40 mt-1">SILVER ELITE</span>';
+                supporterPill = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-slate-400/20 text-slate-200 text-[9px] font-mono font-bold border border-slate-300/40">SILVER ELITE</span>';
             } else {
-                supporterPill = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-700/20 text-amber-400 text-[9px] font-mono font-bold border border-amber-600/40 mt-1">BRONZE SCOUT</span>';
+                supporterPill = '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-700/20 text-amber-400 text-[9px] font-mono font-bold border border-amber-600/40">BRONZE SCOUT</span>';
             }
         }
 
+        let titlePill = '';
+        if (player.playerTitle) {
+            titlePill = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 text-[9px] font-mono font-bold border border-indigo-500/40 uppercase shadow-[0_0_8px_rgba(99,102,241,0.25)]">⚡ ${escapeHtml(player.playerTitle)}</span>`;
+        }
+
+        // Complete Scout Quest if current logged in player is scouting a rival dossier
+        if (currentUser && currentUser.uid !== player.id) {
+            try {
+                const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+                if (currentProfile && currentProfile.lastDailyScoutDate !== todayStr) {
+                    currentProfile.lastDailyScoutDate = todayStr;
+                    const myRef = doc(db, "users", currentUser.uid);
+                    await updateDoc(myRef, {
+                        czPoints: increment(15),
+                        lifetimePoints: increment(15),
+                        lastDailyScoutDate: todayStr
+                    });
+                    if (typeof window.showSuccessToast === 'function') {
+                        window.showSuccessToast("Daily Quest Completed! 🔍", "+15 CZ Points awarded for scouting rival champions!");
+                    }
+                }
+            } catch (scoutErr) {
+                console.warn("Could not process chat modal scout quest:", scoutErr);
+            }
+        }
+
+        const isPlayerVerified = Boolean(player.emailVerified || (player.providerData && player.providerData.some?.(p => p.providerId === 'google.com')));
+        const verifiedPill = isPlayerVerified ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[9px] font-mono font-bold border border-emerald-500/30 uppercase shadow-[0_0_8px_rgba(52,211,153,0.2)]"><svg class="w-2.5 h-2.5" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>VERIFIED</span>' : '';
+
+        // Calculate tournament career stats
+        let tourneysPlayed = 0;
+        let tourneysWon = 0;
+        let podiumCount = 0;
+        const normIgn = (name || '').trim().toLowerCase();
+        const normUid = player.id;
+
+        tourneys.forEach(t => {
+            const participants = t.participants || [];
+            const myTeam = participants.find(p => {
+                if (p.registeredBy === normUid) return true;
+                const pName = (typeof p === 'object' ? (p.name || p.teamName) : p || '').toLowerCase();
+                const pCaptain = (p.captain || '').toLowerCase();
+                const pMembers = (p.members || []).map(m => (typeof m === 'object' ? (m.ign || m.name) : m || '').toLowerCase());
+                return normIgn && (pName === normIgn || pCaptain === normIgn || pMembers.includes(normIgn));
+            });
+            if (!myTeam) return;
+            tourneysPlayed++;
+            const myTeamName = (typeof myTeam === 'object' ? (myTeam.name || myTeam.teamName) : myTeam) || '';
+            const normMyTeam = myTeamName.toLowerCase();
+
+            if (t.status === 'Completed') {
+                const matches = t.matches || [];
+                const grandFinalMatch = matches.find(m => m.id === 'GF-1' || (!m.nextMatchId && !m.isBronzeMatch && m.id !== 'M-3RD'));
+                const bronzeMatch = matches.find(m => m.id === 'M-3RD' || m.isBronzeMatch);
+                const champName = (t.winner || (grandFinalMatch ? grandFinalMatch.winner : '')) || '';
+                const runnerUpName = grandFinalMatch ? (grandFinalMatch.winner === grandFinalMatch.team1 ? grandFinalMatch.team2 : grandFinalMatch.team1) : '';
+                const thirdName = bronzeMatch ? bronzeMatch.winner : '';
+
+                if (champName && champName.toLowerCase() === normMyTeam) {
+                    tourneysWon++;
+                    podiumCount++;
+                } else if (runnerUpName && runnerUpName.toLowerCase() === normMyTeam) {
+                    podiumCount++;
+                } else if (thirdName && thirdName.toLowerCase() === normMyTeam) {
+                    podiumCount++;
+                }
+            }
+        });
+
+        // Member Since formatting
+        let joinedDateStr = '--';
+        const joinedRaw = player.joinedAt || player.createdAt;
+        if (joinedRaw) {
+            try {
+                const d = new Date(joinedRaw);
+                if (!isNaN(d.getTime())) {
+                    joinedDateStr = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+                }
+            } catch (e) {}
+        }
+
+        const avatarBorderClass = isSupporter
+            ? (supporterTier === 'gold' ? 'border-2 border-[#FFD700] shadow-[0_0_15px_rgba(255,215,0,0.35)]' : (supporterTier === 'silver' ? 'border-2 border-slate-300 shadow-[0_0_10px_rgba(255,255,255,0.25)]' : 'border-2 border-amber-600'))
+            : 'border border-white/20 shadow-lg';
+
         content.innerHTML = `
             <div class="flex flex-col items-center">
-                <div class="relative mb-3">
-                    <img src="${escapeHtml(avatar)}" class="w-16 h-16 rounded-2xl object-cover bg-black border-2 border-[#FFD700]/60 shadow-lg" alt="Avatar">
-                    <span class="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded bg-black/80 border border-white/20 text-[8px] font-mono font-bold text-[#FFD700] uppercase">${role}</span>
+                <!-- AVATAR & ROLE -->
+                <div class="relative mb-2.5">
+                    <img src="${escapeHtml(avatar)}" class="w-16 h-16 rounded-2xl object-cover bg-black ${avatarBorderClass}" alt="Avatar">
+                    <span class="absolute -bottom-1 -right-1 px-1.5 py-0.2 rounded bg-black/90 border border-white/20 text-[8px] font-mono font-bold text-[#FFD700] uppercase">${role}</span>
                 </div>
 
-                <h3 class="font-heading font-black text-base text-white uppercase tracking-tight">${escapeHtml(name)}</h3>
-                <div class="flex items-center gap-1.5 flex-wrap justify-center">
-                    <p class="text-xs text-blue-400 font-mono mt-0.5">${escapeHtml(rank)}</p>
+                <!-- NAME & VERIFICATION -->
+                <h3 class="font-heading font-black text-lg text-white uppercase tracking-tight flex items-center justify-center gap-1.5">
+                    <span>${escapeHtml(name)}</span>
+                    ${isPlayerVerified ? `<svg class="w-4 h-4 text-emerald-400 shrink-0 drop-shadow-[0_0_6px_rgba(52,211,153,0.5)]" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path></svg>` : ''}
+                </h3>
+
+                <!-- SUB-BADGES -->
+                <div class="flex items-center gap-1.5 flex-wrap justify-center mt-1">
+                    <span class="text-xs text-blue-400 font-mono font-bold bg-blue-500/10 border border-blue-500/20 px-2 py-0.5 rounded-full">${escapeHtml(rank)}</span>
                     ${supporterPill}
+                    ${titlePill}
+                    ${verifiedPill}
                 </div>
-                ${player.bio ? `<p class="text-xs text-neutral-400 italic mt-2 max-w-xs leading-snug">"${escapeHtml(player.bio)}"</p>` : ''}
+
+                ${player.bio ? `<p class="text-xs text-neutral-300 italic mt-2.5 max-w-sm leading-snug px-2">"${escapeHtml(player.bio)}"</p>` : ''}
+
+                <!-- DISCORD TAG (IF AVAILABLE) -->
+                ${player.discord ? `
+                    <div class="mt-2 inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#5865F2]/15 text-[#8891f2] border border-[#5865F2]/30 text-[10px] font-mono">
+                        <svg class="w-3 h-3 shrink-0" fill="currentColor" viewBox="0 0 24 24"><path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994.021-.041.001-.09-.041-.106a13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.929 1.793 8.18 1.793 12.061 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.894.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.028zM8.02 15.33c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.956-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.956 2.418-2.157 2.418zm7.975 0c-1.183 0-2.157-1.085-2.157-2.419 0-1.333.955-2.419 2.157-2.419 1.21 0 2.176 1.096 2.157 2.42 0 1.333-.946 2.418-2.157 2.418z"/></svg>
+                        <span>${escapeHtml(player.discord)}</span>
+                    </div>
+                ` : ''}
+
+                <!-- 4-METRIC COMPETITIVE DOSSIER -->
+                <div class="w-full grid grid-cols-4 gap-2 mt-4 text-center">
+                    <div class="bg-black/60 p-2.5 rounded-xl border border-[#FFD700]/30 shadow-sm flex flex-col justify-between">
+                        <div class="text-[9px] font-mono font-bold text-[#FFD700] uppercase tracking-wider flex items-center justify-center gap-1">
+                            <svg class="w-3 h-3 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 9H4.5a2.5 2.5 0 010-5H6M18 9h1.5a2.5 2.5 0 000-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0012 0V2z"></path></svg>
+                            <span>Wins</span>
+                        </div>
+                        <div class="text-base font-heading font-black text-[#FFD700] mt-1">${tourneysWon}</div>
+                    </div>
+                    <div class="bg-black/60 p-2.5 rounded-xl border border-white/10 shadow-sm flex flex-col justify-between">
+                        <div class="text-[9px] font-mono font-bold text-neutral-400 uppercase tracking-wider">Tourneys</div>
+                        <div class="text-base font-heading font-black text-white mt-1">${tourneysPlayed}</div>
+                    </div>
+                    <div class="bg-black/60 p-2.5 rounded-xl border border-white/10 shadow-sm flex flex-col justify-between">
+                        <div class="text-[9px] font-mono font-bold text-neutral-400 uppercase tracking-wider">Friends</div>
+                        <div class="text-base font-heading font-black text-emerald-400 mt-1">${friendCount}</div>
+                    </div>
+                    <div class="bg-black/60 p-2.5 rounded-xl border border-white/10 shadow-sm flex flex-col justify-between">
+                        <div class="text-[9px] font-mono font-bold text-neutral-400 uppercase tracking-wider">Joined</div>
+                        <div class="text-[10px] font-mono font-bold text-neutral-300 mt-1.5 truncate" title="${joinedDateStr}">${joinedDateStr}</div>
+                    </div>
+                </div>
 
                 <!-- GAME IDS PREVIEW -->
-                <div class="w-full grid grid-cols-3 gap-2 mt-4 text-[10px] font-mono text-left">
+                <div class="w-full grid grid-cols-3 gap-2 mt-3 text-[10px] font-mono text-left">
                     <div class="bg-black/50 p-2 rounded-lg border border-white/5">
-                        <span class="text-neutral-500 block uppercase text-[8px]">Valorant</span>
-                        <span class="text-white font-bold truncate block">${escapeHtml(player.valId || '--')}</span>
+                        <div class="flex items-center justify-between">
+                            <span class="text-neutral-500 block uppercase text-[8px] font-bold">Valorant</span>
+                            ${player.valRank ? `<span class="text-[8px] text-blue-400 font-bold">${escapeHtml(player.valRank)}</span>` : ''}
+                        </div>
+                        <span class="text-white font-bold truncate block mt-0.5">${escapeHtml(player.valId || '--')}</span>
                     </div>
                     <div class="bg-black/50 p-2 rounded-lg border border-white/5">
-                        <span class="text-neutral-500 block uppercase text-[8px]">MLBB</span>
-                        <span class="text-white font-bold truncate block">${escapeHtml(player.mlbbId || '--')}</span>
+                        <div class="flex items-center justify-between">
+                            <span class="text-neutral-500 block uppercase text-[8px] font-bold">MLBB</span>
+                            ${player.mlbbRank ? `<span class="text-[8px] text-blue-400 font-bold">${escapeHtml(player.mlbbRank)}</span>` : ''}
+                        </div>
+                        <span class="text-white font-bold truncate block mt-0.5">${escapeHtml(player.mlbbId || '--')}</span>
                     </div>
                     <div class="bg-black/50 p-2 rounded-lg border border-white/5">
-                        <span class="text-neutral-500 block uppercase text-[8px]">HoK</span>
-                        <span class="text-white font-bold truncate block">${escapeHtml(player.hokId || '--')}</span>
+                        <div class="flex items-center justify-between">
+                            <span class="text-neutral-500 block uppercase text-[8px] font-bold">HoK</span>
+                            ${player.hokRank ? `<span class="text-[8px] text-blue-400 font-bold">${escapeHtml(player.hokRank)}</span>` : ''}
+                        </div>
+                        <span class="text-white font-bold truncate block mt-0.5">${escapeHtml(player.hokId || '--')}</span>
                     </div>
                 </div>
 
-                <!-- ACTIONS -->
-                <div class="w-full flex items-center gap-2 mt-5">
+                <!-- ACTIONS ROW -->
+                <div class="w-full flex items-center gap-2 mt-4 pt-3 border-t border-white/10">
                     ${(() => {
                         if (isMe) {
-                            return `<a href="/profile.html" class="flex-1 py-2 rounded-xl bg-white/10 hover:bg-white/15 text-white font-heading font-black text-[11px] uppercase transition-colors text-center">My Profile</a>`;
+                            return `
+                                <a href="/profile.html" class="flex-1 py-2 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-black text-[11px] uppercase transition-all shadow text-center">
+                                    My Dashboard
+                                </a>
+                                <button type="button" onclick="window.czCopyProfileLink('${escapeHtml(player.id)}')"
+                                    class="py-2 px-3 rounded-xl bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 font-mono text-[10px] font-bold uppercase transition-colors cursor-pointer flex items-center gap-1" title="Copy My Profile Link">
+                                    <svg class="w-3.5 h-3.5 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                                    <span>Copy Link</span>
+                                </button>
+                            `;
                         }
 
                         const friendship = getFriendshipStatus(player.id);
                         const status = typeof friendship === 'object' ? friendship.status : friendship;
 
+                        let friendButtonHtml = '';
                         if (status === 'friends') {
-                            return `
+                            friendButtonHtml = `
                                 <button type="button" onclick="window.czOpenDMWith('${escapeHtml(player.id)}', '${escapeHtml(name)}', '${escapeHtml(avatar)}'); window.czClosePlayerModal();"
                                     class="flex-1 py-2 rounded-xl bg-blue-500 hover:bg-blue-400 text-white font-heading font-black text-[11px] uppercase transition-all shadow cursor-pointer">
                                     Message
                                 </button>
                                 <button type="button" onclick="window.czRemoveFriend('${escapeHtml(player.id)}', '${escapeHtml(name)}'); window.czClosePlayerModal();"
-                                    class="py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-400 text-[11px] font-bold uppercase border border-rose-500/20 transition-colors cursor-pointer">
+                                    class="py-2 px-2.5 rounded-xl bg-rose-500/10 hover:bg-rose-500 hover:text-white text-rose-400 text-[10px] font-bold uppercase border border-rose-500/20 transition-colors cursor-pointer" title="Remove Friend">
                                     Unfriend
                                 </button>
                             `;
-                        }
-
-                        if (status === 'incoming_pending') {
-                            return `
+                        } else if (status === 'incoming_pending') {
+                            friendButtonHtml = `
                                 <button type="button" onclick="window.czRespondFriendRequest('${friendship.reqId}', 'accepted', '${escapeHtml(name)}'); window.czClosePlayerModal();"
                                     class="flex-1 py-2 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-black text-[11px] uppercase transition-all shadow cursor-pointer">
                                     Accept Request
                                 </button>
                                 <button type="button" onclick="window.czRespondFriendRequest('${friendship.reqId}', 'declined', '${escapeHtml(name)}'); window.czClosePlayerModal();"
-                                    class="py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white text-[11px] font-bold uppercase transition-colors cursor-pointer">
+                                    class="py-2 px-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white text-[10px] font-bold uppercase transition-colors cursor-pointer">
                                     Decline
                                 </button>
                             `;
-                        }
-
-                        if (status === 'outgoing_pending') {
-                            return `
-                                <div class="flex-1 py-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[11px] font-bold uppercase text-center">
-                                    Request Pending
+                        } else if (status === 'outgoing_pending') {
+                            friendButtonHtml = `
+                                <div class="flex-1 py-2 rounded-xl bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[10px] font-bold uppercase text-center">
+                                    Pending
                                 </div>
                                 <button type="button" onclick="window.czCancelFriendRequest('${friendship.reqId}', '${escapeHtml(name)}'); window.czClosePlayerModal();"
-                                    class="py-2 px-3 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white text-[11px] font-bold uppercase transition-colors cursor-pointer">
+                                    class="py-2 px-2.5 rounded-xl bg-white/5 hover:bg-white/10 text-neutral-400 hover:text-white text-[10px] font-bold uppercase transition-colors cursor-pointer">
                                     Cancel
+                                </button>
+                            `;
+                        } else {
+                            friendButtonHtml = `
+                                <button type="button" onclick="window.czSendFriendRequest('${escapeHtml(player.id)}', '${escapeHtml(name)}', '${escapeHtml(avatar)}'); window.czClosePlayerModal();"
+                                    class="flex-1 py-2 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-black text-[11px] uppercase transition-all shadow cursor-pointer">
+                                    + Add Friend
                                 </button>
                             `;
                         }
 
                         return `
-                            <button type="button" onclick="window.czSendFriendRequest('${escapeHtml(player.id)}', '${escapeHtml(name)}', '${escapeHtml(avatar)}'); window.czClosePlayerModal();"
-                                class="flex-1 py-2 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-black text-[11px] uppercase transition-all shadow cursor-pointer">
-                                + Add Friend
+                            ${friendButtonHtml}
+                            <a href="/profile.html?uid=${encodeURIComponent(player.id)}" onclick="window.czClosePlayerModal()"
+                                class="py-2 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-heading font-bold text-[11px] uppercase tracking-wider transition-colors flex items-center justify-center gap-1.5 cursor-pointer shadow" title="View Full Career Profile">
+                                <span>Profile</span>
+                                <svg class="w-3.5 h-3.5 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path></svg>
+                            </a>
+                            <button type="button" onclick="window.czCopyProfileLink('${escapeHtml(player.id)}')"
+                                class="py-2 px-2.5 rounded-xl bg-white/5 hover:bg-white/15 text-neutral-300 hover:text-white border border-white/10 transition-colors cursor-pointer" title="Copy Profile Link">
+                                <svg class="w-3.5 h-3.5 text-[#FFD700]" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
                             </button>
                         `;
                     })()}
