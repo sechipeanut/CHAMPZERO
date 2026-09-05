@@ -410,6 +410,14 @@ document.addEventListener('DOMContentLoaded', async () => {
                     setTimeout(() => window.location.href = "/profile", 1000);
                 } catch (error) {
                     console.error("Google sign-in error:", error);
+                    if (error.code === 'auth/popup-blocked') {
+                        try {
+                            await signInWithRedirect(auth, provider);
+                            return;
+                        } catch (redirectErr) {
+                            console.error("Google redirect fallback error:", redirectErr);
+                        }
+                    }
                     googleBtn.disabled = false;
                     googleBtn.innerHTML = originalHTML;
                     if (error.code !== 'auth/popup-closed-by-user' && error.code !== 'auth/cancelled-popup-request') {
