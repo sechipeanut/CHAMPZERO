@@ -117,6 +117,31 @@ service cloud.firestore {
         );
         allow delete: if isSignedIn() && (resource.data.registeredBy == request.auth.uid || isAdmin());
       }
+
+      match /matchVetoes/{matchId} {
+        // Public read allows spectators, casters, and tournament participants to watch the live veto stream
+        allow read: if true;
+        // Creation and deletion restricted to tournament creator, verified organizers, and admins
+        allow create, delete: if isSignedIn() && (
+          isAdmin() || 
+          isOrganizer() || 
+          get(/databases/$(database)/documents/tournaments/$(docId)).data.createdBy == request.auth.uid
+        );
+        // Updates permitted to marshals/admins or active captains with immutable tournament configurations
+        allow update: if isSignedIn() && (
+          isAdmin() || 
+          isOrganizer() || 
+          get(/databases/$(database)/documents/tournaments/$(docId)).data.createdBy == request.auth.uid ||
+          (
+            resource.data.status in ['in_progress', 'paused'] &&
+            (
+              resource.data.currentTurnCaptainUid == request.auth.uid ||
+              request.auth.uid in [resource.data.team1.captainUid, resource.data.team2.captainUid]
+            ) &&
+            !request.resource.data.diff(resource.data).affectedKeys().hasAny(['format', 'mapPool', 'team1', 'team2', 'sequence'])
+          )
+        );
+      }
     }
 
     match /events/{docId} {

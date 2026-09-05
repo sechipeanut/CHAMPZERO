@@ -1888,49 +1888,119 @@
                 class="bg-[#0A0A0E]/95 backdrop-blur-md border-b border-white/10 px-6 py-4 flex justify-between items-center shrink-0">
                 <div>
                     <span class="text-[10px] font-bold font-mono-tag uppercase tracking-widest text-[#FFD700]">//
-                        BRACKET FORMAT RULES</span>
-                    <h3 class="text-lg font-heading font-bold text-white uppercase mt-0.5">Configure Round Rules</h3>
+                        TOURNAMENT RULES &amp; VETO CONFIG</span>
+                    <h3 class="text-lg font-heading font-bold text-white uppercase mt-0.5">Round Rules &amp; Map Pool</h3>
                 </div>
                 <button type="button" onclick="closeModal('editRoundFormatsModal')"
                     class="text-neutral-400 hover:text-white transition-colors text-2xl leading-none cursor-pointer">&times;</button>
             </div>
 
+            <!-- Tab Switcher -->
+            <div class="flex border-b border-white/10 bg-white/[0.02] px-6 pt-2 font-mono-tag text-xs shrink-0">
+                <button type="button" id="tabBtnRoundFormats" onclick="window.switchTournamentConfigTab('formats')"
+                    class="px-4 py-2 font-bold uppercase border-b-2 border-[#FFD700] text-[#FFD700] transition-colors cursor-pointer">
+                    Round Formats
+                </button>
+                <button type="button" id="tabBtnMapPool" onclick="window.switchTournamentConfigTab('mappool')"
+                    class="px-4 py-2 font-bold uppercase border-b-2 border-transparent text-neutral-400 hover:text-white transition-colors cursor-pointer">
+                    Active Map Pool
+                </button>
+            </div>
+
             <div class="p-6 overflow-y-auto custom-scrollbar flex-1 space-y-5 font-mono-tag text-xs">
-                <!-- Preset Quick Buttons -->
-                <div>
-                    <label class="block text-[10px] uppercase text-neutral-400 font-bold mb-2">Quick Presets</label>
-                    <div class="grid grid-cols-2 gap-2">
-                        <button type="button" onclick="window.applyRoundFormatPreset('standard')"
-                            class="p-2.5 rounded-lg bg-white/5 hover:bg-[#FFD700]/10 border border-white/10 hover:border-[#FFD700]/40 text-left transition-colors cursor-pointer group">
-                            <div class="font-heading font-bold text-[11px] text-white group-hover:text-[#FFD700] uppercase">Standard Esports</div>
-                            <div class="text-[9px] text-neutral-400">BO1 &rarr; Semis BO3 &rarr; Finals BO5</div>
-                        </button>
-                        <button type="button" onclick="window.applyRoundFormatPreset('all_bo3')"
-                            class="p-2.5 rounded-lg bg-white/5 hover:bg-[#FFD700]/10 border border-white/10 hover:border-[#FFD700]/40 text-left transition-colors cursor-pointer group">
-                            <div class="font-heading font-bold text-[11px] text-white group-hover:text-[#FFD700] uppercase">Competitive BO3</div>
-                            <div class="text-[9px] text-neutral-400">All BO3 &rarr; Finals BO5</div>
-                        </button>
-                        <button type="button" onclick="window.applyRoundFormatPreset('all_bo1')"
-                            class="p-2.5 rounded-lg bg-white/5 hover:bg-[#FFD700]/10 border border-white/10 hover:border-[#FFD700]/40 text-left transition-colors cursor-pointer group">
-                            <div class="font-heading font-bold text-[11px] text-white group-hover:text-[#FFD700] uppercase">Speed Run</div>
-                            <div class="text-[9px] text-neutral-400">All rounds Best of 1</div>
-                        </button>
-                        <button type="button" onclick="window.applyRoundFormatPreset('major_bo5')"
-                            class="p-2.5 rounded-lg bg-white/5 hover:bg-[#FFD700]/10 border border-white/10 hover:border-[#FFD700]/40 text-left transition-colors cursor-pointer group">
-                            <div class="font-heading font-bold text-[11px] text-white group-hover:text-[#FFD700] uppercase">Championship</div>
-                            <div class="text-[9px] text-neutral-400">All BO3 &rarr; Finals BO7</div>
-                        </button>
+                <!-- TAB 1: ROUND FORMATS -->
+                <div id="tabContentRoundFormats" class="space-y-5">
+                    <!-- Preset Quick Buttons -->
+                    <div>
+                        <label class="block text-[10px] uppercase text-neutral-400 font-bold mb-2">Quick Format Presets</label>
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" onclick="window.applyRoundFormatPreset('standard')"
+                                class="p-2.5 rounded-lg bg-white/5 hover:bg-[#FFD700]/10 border border-white/10 hover:border-[#FFD700]/40 text-left transition-colors cursor-pointer group">
+                                <div class="font-heading font-bold text-[11px] text-white group-hover:text-[#FFD700] uppercase">Standard Esports</div>
+                                <div class="text-[9px] text-neutral-400">BO1 &rarr; Semis BO3 &rarr; Finals BO5</div>
+                            </button>
+                            <button type="button" onclick="window.applyRoundFormatPreset('all_bo3')"
+                                class="p-2.5 rounded-lg bg-white/5 hover:bg-[#FFD700]/10 border border-white/10 hover:border-[#FFD700]/40 text-left transition-colors cursor-pointer group">
+                                <div class="font-heading font-bold text-[11px] text-white group-hover:text-[#FFD700] uppercase">Competitive BO3</div>
+                                <div class="text-[9px] text-neutral-400">All BO3 &rarr; Finals BO5</div>
+                            </button>
+                            <button type="button" onclick="window.applyRoundFormatPreset('all_bo1')"
+                                class="p-2.5 rounded-lg bg-white/5 hover:bg-[#FFD700]/10 border border-white/10 hover:border-[#FFD700]/40 text-left transition-colors cursor-pointer group">
+                                <div class="font-heading font-bold text-[11px] text-white group-hover:text-[#FFD700] uppercase">Speed Run</div>
+                                <div class="text-[9px] text-neutral-400">All rounds Best of 1</div>
+                            </button>
+                            <button type="button" onclick="window.applyRoundFormatPreset('major_bo5')"
+                                class="p-2.5 rounded-lg bg-white/5 hover:bg-[#FFD700]/10 border border-white/10 hover:border-[#FFD700]/40 text-left transition-colors cursor-pointer group">
+                                <div class="font-heading font-bold text-[11px] text-white group-hover:text-[#FFD700] uppercase">Championship</div>
+                                <div class="text-[9px] text-neutral-400">All BO3 &rarr; Finals BO7</div>
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Per-Round Custom Config List -->
+                    <div>
+                        <div class="flex items-center justify-between mb-2">
+                            <label class="block text-[10px] uppercase text-neutral-400 font-bold">Round-by-Round Formats</label>
+                            <span class="text-[9px] text-neutral-500">Auto-saved to bracket</span>
+                        </div>
+                        <div id="roundFormatsEditorList" class="space-y-2.5">
+                            <!-- Dynamically populated per round -->
+                        </div>
                     </div>
                 </div>
 
-                <!-- Per-Round Custom Config List -->
-                <div>
-                    <div class="flex items-center justify-between mb-2">
-                        <label class="block text-[10px] uppercase text-neutral-400 font-bold">Round-by-Round Formats</label>
-                        <span class="text-[9px] text-neutral-500">Auto-saved to bracket</span>
+                <!-- TAB 2: ACTIVE MAP POOL CONFIG -->
+                <div id="tabContentMapPool" class="hidden space-y-5">
+                    
+                    <!-- Lock Notice Banner (shown if veto has started) -->
+                    <div id="adminMapPoolLockedNotice" class="hidden p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-center gap-2.5">
+                        <span class="text-base">🔒</span>
+                        <span><strong>Map Pool Locked:</strong> Tournament matches have commenced or completed vetoes. Map pool modifications are locked to preserve tournament integrity.</span>
                     </div>
-                    <div id="roundFormatsEditorList" class="space-y-2.5">
-                        <!-- Dynamically populated per round -->
+
+                    <!-- Preset Quick Pool Buttons -->
+                    <div id="adminMapPoolControlsWrap" class="space-y-4">
+                        <div>
+                            <label class="block text-[10px] uppercase text-neutral-400 font-bold mb-2">Competitive Pool Presets</label>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <button type="button" onclick="window.applyMapPoolPreset('valorant_standard')"
+                                    class="p-2.5 rounded-lg bg-white/5 hover:bg-[#FFD700]/10 border border-white/10 hover:border-[#FFD700]/40 text-left transition-colors cursor-pointer group">
+                                    <div class="font-heading font-bold text-[11px] text-white group-hover:text-[#FFD700] uppercase">Valorant 7-Map Competitive</div>
+                                    <div class="text-[9px] text-neutral-400">Ascent, Bind, Haven, Lotus, Sunset, Abyss, Split</div>
+                                </button>
+                                <button type="button" onclick="window.clearMapPoolToEmpty()"
+                                    class="p-2.5 rounded-lg bg-white/5 hover:bg-rose-500/10 border border-white/10 hover:border-rose-500/40 text-left transition-colors cursor-pointer group">
+                                    <div class="font-heading font-bold text-[11px] text-neutral-300 group-hover:text-rose-400 uppercase">Clear Custom Pool</div>
+                                    <div class="text-[9px] text-neutral-400">Build custom list from scratch</div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Add Custom Map Input -->
+                        <div>
+                            <label class="block text-[10px] uppercase text-neutral-400 font-bold mb-1.5">Add Custom Map</label>
+                            <div class="flex gap-2">
+                                <input type="text" id="customMapInput" placeholder="Enter map name (e.g. Icebox, Breeze, Pearl)..."
+                                    class="flex-1 bg-black/60 border border-white/10 focus:border-[#FFD700] rounded-lg px-3 py-2 text-white text-xs outline-none font-mono-tag">
+                                <button type="button" onclick="window.addMapToAdminPool()"
+                                    class="px-4 py-2 rounded-lg bg-[#FFD700] text-black font-heading font-bold text-xs uppercase hover:bg-[#FFF099] transition-colors cursor-pointer">
+                                    + Add Map
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Active Maps List & Count -->
+                        <div>
+                            <div class="flex items-center justify-between mb-2">
+                                <label class="block text-[10px] uppercase text-neutral-400 font-bold">Active Pool Maps (Minimum 7 Required)</label>
+                                <span id="adminMapPoolCountBadge" class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold">
+                                    7 Maps
+                                </span>
+                            </div>
+                            <div id="adminMapPoolChips" class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                <!-- Populated dynamically -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1939,7 +2009,7 @@
                 <button type="button" onclick="closeModal('editRoundFormatsModal')"
                     class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-neutral-300 font-heading font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer">Cancel</button>
                 <button type="button" id="saveRoundFormatsBtn" onclick="window.saveTournamentRoundFormats()"
-                    class="px-5 py-2 rounded-lg bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm">Save Formats</button>
+                    class="px-5 py-2 rounded-lg bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-bold text-xs uppercase tracking-wider transition-colors cursor-pointer shadow-sm">Save Rules &amp; Map Pool</button>
             </div>
         </div>
     </div>
@@ -2591,92 +2661,159 @@
         </div>
     </div>
 
-    <!-- COIN TOSS & MAP VETO MODAL -->
+    <!-- FAULT-TOLERANT REAL-TIME CAPTAIN MAP VETO ARENA -->
     <div id="mapVetoModal"
-        class="fixed inset-0 bg-black/90 backdrop-blur-md hidden items-center justify-center z-[2500] p-4"
-        onclick="if(event.target.id==='mapVetoModal') window.closeModal('mapVetoModal')">
-        <div class="bg-[#0A0A0E] border border-[#FFD700]/40 rounded-2xl w-full max-w-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto custom-scrollbar"
+        class="fixed inset-0 bg-black/90 backdrop-blur-md hidden items-center justify-center z-[2500] p-3 sm:p-4"
+        onclick="if(event.target.id==='mapVetoModal') window.closeMapVetoModal()">
+        <div class="bg-[#0A0A0E] border border-[#FFD700]/40 rounded-2xl w-full max-w-4xl p-5 sm:p-6 shadow-2xl max-h-[92vh] flex flex-col overflow-hidden relative"
             onclick="event.stopPropagation()">
-            <div class="flex justify-between items-center border-b border-white/10 pb-3 mb-4">
+            
+            <!-- Modal Header -->
+            <div class="flex justify-between items-center border-b border-white/10 pb-3 mb-4 shrink-0">
                 <div>
-                    <span class="text-[9px] font-bold font-mono-tag uppercase tracking-widest text-[#FFD700]">//
-                        PRE-MATCH LOBBY</span>
-                    <h3 class="text-xl font-heading font-black text-white uppercase">Coin Toss &amp; Map Veto</h3>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[9px] font-bold font-mono-tag uppercase tracking-widest text-[#FFD700]">// TOURNAMENT ARENA</span>
+                        <span id="vetoFormatBadge" class="px-2 py-0.5 rounded bg-white/10 text-[9px] font-mono-tag font-bold text-neutral-300 uppercase">BO1 • 7-Map Pool</span>
+                    </div>
+                    <h3 class="text-xl sm:text-2xl font-heading font-black text-white uppercase tracking-wider">Captain Map Veto</h3>
                 </div>
-                <button type="button" onclick="window.closeModal('mapVetoModal')"
-                    class="text-neutral-400 hover:text-white text-2xl leading-none">&times;</button>
+                <button type="button" onclick="window.closeMapVetoModal()"
+                    class="text-neutral-400 hover:text-white transition-colors text-2xl leading-none cursor-pointer p-1">&times;</button>
             </div>
 
-            <!-- Matchup Teams Header -->
-            <div
-                class="grid grid-cols-3 items-center text-center p-3 rounded-xl bg-white/5 border border-white/10 mb-4 font-mono-tag text-xs">
-                <div class="text-left font-bold text-white truncate" id="vetoTeam1Name">Team 1</div>
-                <div class="text-[#FFD700] font-extrabold text-xs">VS</div>
-                <div class="text-right font-bold text-white truncate" id="vetoTeam2Name">Team 2</div>
-            </div>
-
-            <!-- Coin Toss Section -->
-            <div id="vetoCoinTossSection"
-                class="p-4 rounded-xl bg-gradient-to-b from-[#FFD700]/10 to-transparent border border-[#FFD700]/30 text-center space-y-3 mb-4 font-mono-tag">
-                <div
-                    class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#FFD700] text-black font-extrabold text-[10px] uppercase">
-                    Step 1: Coin Flip
+            <!-- Scrollable Content Area -->
+            <div class="overflow-y-auto custom-scrollbar flex-1 space-y-4 pr-1">
+                
+                <!-- Matchup Teams Header -->
+                <div class="grid grid-cols-3 items-center text-center p-3 rounded-xl bg-white/5 border border-white/10 font-mono-tag text-xs">
+                    <div class="text-left font-bold text-white truncate text-sm" id="vetoTeam1Name">Team 1</div>
+                    <div class="text-[#FFD700] font-extrabold text-xs tracking-widest">VS</div>
+                    <div class="text-right font-bold text-white truncate text-sm" id="vetoTeam2Name">Team 2</div>
                 </div>
-                <p class="text-xs text-neutral-300 font-sans">Flip the coin to determine who gets first ban advantage.
-                </p>
 
-                <div class="flex justify-center my-3">
-                    <div id="coinGraphic"
-                        class="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-600 via-[#FFD700] to-yellow-200 border-2 border-white shadow-[0_0_20px_rgba(255,215,0,0.4)] flex items-center justify-center font-heading font-black text-black text-xl select-none transition-transform duration-700">
-                        CZ
+                <!-- Coin Toss Phase Section -->
+                <div id="vetoCoinTossSection"
+                    class="p-5 rounded-xl bg-gradient-to-b from-[#FFD700]/10 via-amber-950/20 to-transparent border border-[#FFD700]/30 text-center space-y-3 font-mono-tag">
+                    <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#FFD700] text-black font-extrabold text-[10px] uppercase">
+                        Phase 1: Marshal Coin Toss
+                    </div>
+                    <p class="text-xs text-neutral-300 font-sans max-w-md mx-auto">
+                        A verified Tournament Marshal flips the coin to determine Team A (first ban priority) and Team B.
+                    </p>
+
+                    <div class="flex justify-center my-4">
+                        <div id="coinGraphic"
+                            class="w-20 h-20 rounded-full bg-gradient-to-tr from-amber-600 via-[#FFD700] to-yellow-200 border-2 border-white shadow-[0_0_25px_rgba(255,215,0,0.5)] flex items-center justify-center font-heading font-black text-black text-2xl select-none transition-transform duration-700">
+                            CZ
+                        </div>
+                    </div>
+
+                    <div id="coinResultDisplay" class="font-heading font-black text-sm text-[#FFD700] uppercase min-h-[20px]"></div>
+
+                    <div id="coinWaitingNotice" class="hidden"></div>
+
+                    <div class="flex justify-center gap-3 pt-2">
+                        <button type="button" id="flipCoinBtn"
+                            class="px-6 py-2.5 rounded-xl bg-[#FFD700] hover:bg-[#FFF099] text-black font-heading font-black text-xs uppercase tracking-wider transition-all shadow-lg hover:scale-105 cursor-pointer">
+                            Flip Coin as Marshal
+                        </button>
                     </div>
                 </div>
 
-                <div id="coinResultDisplay"
-                    class="font-heading font-black text-sm text-[#FFD700] uppercase min-h-[20px]"></div>
+                <!-- Live Veto Turn & Map Selection Section -->
+                <div id="vetoPickBanSection" class="hidden space-y-4">
+                    
+                    <!-- Sequence Step Breadcrumbs -->
+                    <div class="space-y-1.5">
+                        <div class="flex items-center justify-between">
+                            <span class="text-[10px] font-mono-tag uppercase text-neutral-400 font-bold tracking-wider">// Veto Progression</span>
+                            <span class="text-[10px] font-mono-tag text-neutral-500">Deterministic Sequence</span>
+                        </div>
+                        <div id="vetoStepBreadcrumbs" class="flex items-center gap-1.5 overflow-x-auto pb-1 custom-scrollbar">
+                            <!-- Populated dynamically -->
+                        </div>
+                    </div>
 
-                <div class="flex justify-center gap-3 font-heading text-xs uppercase">
-                    <button type="button" onclick="window.executeCoinToss()" id="flipCoinBtn"
-                        class="px-5 py-2.5 rounded-lg bg-[#FFD700] hover:bg-[#FFF099] text-black font-extrabold transition-all shadow cursor-pointer">
-                        Flip Coin
-                    </button>
+                    <!-- Turn & Countdown Header Grid -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-3 items-center">
+                        <div class="md:col-span-3">
+                            <div id="vetoTurnIndicatorBanner" class="transition-all">
+                                <!-- Populated dynamically (Active Captain vs Spectator Mode) -->
+                            </div>
+                        </div>
+
+                        <!-- Synchronized Countdown Timer Card -->
+                        <div class="p-3 rounded-xl bg-white/5 border border-white/10 flex items-center justify-between md:justify-center gap-3 font-mono-tag">
+                            <div class="text-left md:text-center">
+                                <span class="text-[9px] uppercase text-neutral-400 font-bold block">Turn Timer</span>
+                                <div id="vetoTimerCount" class="font-mono font-black text-lg text-emerald-400">30s</div>
+                            </div>
+                            <div class="relative w-9 h-9 shrink-0 flex items-center justify-center">
+                                <svg class="w-full h-full transform -rotate-90" viewBox="0 0 36 36">
+                                    <path class="text-white/10" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                    <path id="vetoTimerProgressCircle" class="text-[#FFD700] transition-all duration-300" stroke-dasharray="100, 100" stroke-dashoffset="0" stroke-linecap="round" stroke-width="3.5" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Map Pool Cards Grid -->
+                    <div id="vetoMapGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                        <!-- Populated dynamically with map artwork -->
+                    </div>
+
+                    <!-- Completed Summary Result View -->
+                    <div id="vetoCompletedSummaryWrap" class="hidden"></div>
+                </div>
+
+                <!-- Dedicated Side Selection Modal / Interlocking Overlay -->
+                <div id="vetoSideSelectionModal" class="hidden fixed inset-0 z-[2600] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div class="bg-[#0F0F14] border-2 border-[#FFD700] rounded-2xl w-full max-w-md p-6 shadow-2xl text-center space-y-4 font-mono-tag">
+                        <div class="inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full bg-[#FFD700]/20 text-[#FFD700] font-extrabold text-[10px] uppercase border border-[#FFD700]/40">
+                            Sub-Phase: Side Selection
+                        </div>
+                        <h3 id="vetoSideMapTitle" class="text-2xl font-heading font-black text-white uppercase tracking-wider">Ascent</h3>
+                        <p id="vetoSideNotice" class="text-xs text-neutral-300 font-sans">
+                            Opposing Captain selects whether they start on Attack or Defense.
+                        </p>
+                        <div id="vetoSideActionsWrap" class="flex gap-3 pt-2">
+                            <!-- Populated with Attack and Defense buttons -->
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Marshal Live Override Control Bar (Visible exclusively to Marshals & Admins) -->
+            <div id="vetoMarshalControlPanel" class="hidden shrink-0 mt-3 pt-3 border-t border-purple-500/30 bg-purple-950/20 p-3 rounded-xl">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                    <div class="flex items-center gap-2 text-purple-300 text-xs font-mono-tag font-bold">
+                        <span class="w-2 h-2 rounded-full bg-purple-400"></span>
+                        <span>MARSHAL OVERRIDE PANEL:</span>
+                    </div>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <button type="button" id="marshalPauseTimerBtn" onclick="window.marshalTogglePause()"
+                            class="px-3 py-1.5 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/40 hover:bg-amber-500/30 text-xs font-mono-tag font-bold uppercase transition-colors cursor-pointer">
+                            Pause Timer
+                        </button>
+                        <button type="button" onclick="window.marshalRollbackStep()"
+                            class="px-3 py-1.5 rounded-lg bg-blue-500/20 text-blue-300 border border-blue-500/40 hover:bg-blue-500/30 text-xs font-mono-tag font-bold uppercase transition-colors cursor-pointer">
+                            Step Rollback
+                        </button>
+                        <button type="button" onclick="window.marshalResetVeto()"
+                            class="px-3 py-1.5 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/40 hover:bg-rose-500/30 text-xs font-mono-tag font-bold uppercase transition-colors cursor-pointer">
+                            Reset Veto
+                        </button>
+                    </div>
                 </div>
             </div>
 
-            <!-- Map Ban/Pick Turn Section -->
-            <div id="vetoPickBanSection" class="hidden space-y-3">
-                <div class="flex items-center justify-between border-b border-white/5 pb-2">
-                    <div class="font-mono-tag text-xs">
-                        <span class="text-neutral-400">Current Turn: </span>
-                        <span id="vetoCurrentTurnText" class="font-bold text-[#FFD700] uppercase">Team 1 (BAN)</span>
-                    </div>
-                    <span id="vetoStepCount" class="text-[10px] font-mono-tag text-neutral-400">Step 1 of 5</span>
-                </div>
-
-                <!-- Map Grid Cards -->
-                <div id="vetoMapGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2.5 font-mono-tag"></div>
-
-                <!-- Decider / Side Selection -->
-                <div id="vetoSideSelectionWrap"
-                    class="hidden p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-center space-y-2 font-mono-tag text-xs">
-                    <div class="text-emerald-400 font-bold uppercase text-xs">Decider Map Finalized!</div>
-                    <div id="vetoFinalMapName" class="font-heading font-black text-lg text-white uppercase">Ascent</div>
-                    <p class="text-[11px] text-neutral-300 font-sans" id="vetoSidePickerNotice">Team 2 chooses starting
-                        side:</p>
-                    <div class="flex justify-center gap-3 pt-1">
-                        <button type="button" onclick="window.finalizeMapSide('Attack / First Pick')"
-                            class="px-4 py-1.5 rounded-lg bg-emerald-500 text-black font-heading font-bold uppercase text-xs hover:bg-emerald-400 transition-colors">Attack
-                            / First Pick</button>
-                        <button type="button" onclick="window.finalizeMapSide('Defense / Second Pick')"
-                            class="px-4 py-1.5 rounded-lg bg-blue-500 text-white font-heading font-bold uppercase text-xs hover:bg-blue-400 transition-colors">Defense
-                            / Second Pick</button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="flex justify-end gap-2 pt-4 border-t border-white/10 mt-4 font-heading text-xs uppercase">
-                <button type="button" onclick="window.closeModal('mapVetoModal')"
-                    class="px-4 py-2 bg-white/5 hover:bg-white/10 text-neutral-300 rounded-lg border border-white/10">Close</button>
+            <!-- Footer Bottom Close -->
+            <div class="flex justify-end gap-2 pt-3 border-t border-white/10 mt-3 shrink-0">
+                <button type="button" onclick="window.closeMapVetoModal()"
+                    class="px-4 py-2 bg-white/5 hover:bg-white/10 text-neutral-300 rounded-lg border border-white/10 text-xs font-mono-tag uppercase transition-colors cursor-pointer">
+                    Close Veto Lobby
+                </button>
             </div>
         </div>
     </div>

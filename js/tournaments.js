@@ -4,6 +4,7 @@ import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/
 import { ref as storageRef, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/11.1.0/firebase-storage.js";
 import { calculateStatus, escapeCssUrl } from './utils.js';
 import { checkEmailVerification, isEmailVerified } from './auth-guard.js';
+import { openLiveMapVeto, closeLiveMapVeto, DEFAULT_VALORANT_MAP_POOL } from './map-veto.js';
 
 let allTournaments = [];
 let currentJoiningId = null;
@@ -3443,10 +3444,145 @@ function openEditRoundFormatsModal() {
         listContainer.appendChild(row);
     });
 
+    initMapPoolAdminUI(t);
+    switchTournamentConfigTab('formats');
+
     modal.classList.remove('hidden');
     modal.classList.add('flex');
 }
 window.openEditRoundFormatsModal = openEditRoundFormatsModal;
+
+// ==========================================
+// TOURNAMENT ADMIN MAP POOL MANAGEMENT
+// ==========================================
+let adminWorkingMapPool = [];
+
+function isMapPoolLocked(tournament) {
+    if (!tournament?.matches) return false;
+    return tournament.matches.some(m => m.veto && (m.veto.map || m.veto.status === 'in_progress'));
+}
+
+export function switchTournamentConfigTab(tab) {
+    const tabFormats = document.getElementById('tabContentRoundFormats');
+    const tabMapPool = document.getElementById('tabContentMapPool');
+    const btnFormats = document.getElementById('tabBtnRoundFormats');
+    const btnMapPool = document.getElementById('tabBtnMapPool');
+
+    if (tab === 'mappool') {
+        if (tabFormats) tabFormats.classList.add('hidden');
+        if (tabMapPool) tabMapPool.classList.remove('hidden');
+        if (btnFormats) {
+            btnFormats.className = "px-4 py-2 font-bold uppercase border-b-2 border-transparent text-neutral-400 hover:text-white transition-colors cursor-pointer";
+        }
+        if (btnMapPool) {
+            btnMapPool.className = "px-4 py-2 font-bold uppercase border-b-2 border-[#FFD700] text-[#FFD700] transition-colors cursor-pointer";
+        }
+    } else {
+        if (tabFormats) tabFormats.classList.remove('hidden');
+        if (tabMapPool) tabMapPool.classList.add('hidden');
+        if (btnFormats) {
+            btnFormats.className = "px-4 py-2 font-bold uppercase border-b-2 border-[#FFD700] text-[#FFD700] transition-colors cursor-pointer";
+        }
+        if (btnMapPool) {
+            btnMapPool.className = "px-4 py-2 font-bold uppercase border-b-2 border-transparent text-neutral-400 hover:text-white transition-colors cursor-pointer";
+        }
+    }
+}
+window.switchTournamentConfigTab = switchTournamentConfigTab;
+
+export function initMapPoolAdminUI(tournament) {
+    const pool = (tournament.mapPool && Array.isArray(tournament.mapPool) && tournament.mapPool.length >= 7)
+        ? [...tournament.mapPool]
+        : [...DEFAULT_VALORANT_MAP_POOL];
+
+    adminWorkingMapPool = pool;
+    renderAdminMapPoolChips();
+}
+
+export function renderAdminMapPoolChips() {
+    const container = document.getElementById('adminMapPoolChips');
+    const countBadge = document.getElementById('adminMapPoolCountBadge');
+    const lockNotice = document.getElementById('adminMapPoolLockedNotice');
+    if (!container) return;
+
+    const locked = isMapPoolLocked(currentEditingTournament);
+    if (lockNotice) {
+        if (locked) lockNotice.classList.remove('hidden');
+        else lockNotice.classList.add('hidden');
+    }
+
+    if (countBadge) {
+        const count = adminWorkingMapPool.length;
+        countBadge.textContent = `${count} Maps`;
+        if (count >= 7) {
+            countBadge.className = "px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 text-[10px] font-bold";
+        } else {
+            countBadge.className = "px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/40 text-[10px] font-bold";
+        }
+    }
+
+    container.innerHTML = adminWorkingMapPool.map(mapName => `
+        <div class="flex items-center justify-between p-2.5 rounded-lg bg-white/5 border border-white/10 text-xs font-mono-tag">
+            <span class="text-white font-bold truncate">${escapeHtml(mapName)}</span>
+            ${!locked ? `
+                <button type="button" onclick="window.removeMapFromAdminPool('${escapeHtml(mapName)}')"
+                    class="text-neutral-400 hover:text-rose-400 transition-colors px-1.5 text-base leading-none cursor-pointer">
+                    &times;
+                </button>
+            ` : '<span class="text-[9px] text-neutral-500 uppercase font-bold">Locked</span>'}
+        </div>
+    `).join('');
+}
+
+window.applyMapPoolPreset = function(presetKey) {
+    if (isMapPoolLocked(currentEditingTournament)) {
+        if (window.showToast) window.showToast("Map pool is locked because vetoes have commenced.", "error");
+        return;
+    }
+    if (presetKey === 'valorant_standard') {
+        adminWorkingMapPool = [...DEFAULT_VALORANT_MAP_POOL];
+        renderAdminMapPoolChips();
+        if (window.showToast) window.showToast("Applied Valorant 7-map competitive pool preset.", "info");
+    }
+};
+
+window.clearMapPoolToEmpty = function() {
+    if (isMapPoolLocked(currentEditingTournament)) {
+        if (window.showToast) window.showToast("Map pool is locked.", "error");
+        return;
+    }
+    adminWorkingMapPool = [];
+    renderAdminMapPoolChips();
+};
+
+window.addMapToAdminPool = function() {
+    if (isMapPoolLocked(currentEditingTournament)) {
+        if (window.showToast) window.showToast("Map pool is locked.", "error");
+        return;
+    }
+    const input = document.getElementById('customMapInput');
+    if (!input) return;
+    const name = input.value.trim();
+    if (!name) return;
+
+    if (adminWorkingMapPool.some(m => m.toLowerCase() === name.toLowerCase())) {
+        if (window.showToast) window.showToast(`Map "${name}" is already in the pool.`, "error");
+        return;
+    }
+
+    adminWorkingMapPool.push(name);
+    input.value = '';
+    renderAdminMapPoolChips();
+};
+
+window.removeMapFromAdminPool = function(mapName) {
+    if (isMapPoolLocked(currentEditingTournament)) {
+        if (window.showToast) window.showToast("Map pool is locked.", "error");
+        return;
+    }
+    adminWorkingMapPool = adminWorkingMapPool.filter(m => m !== mapName);
+    renderAdminMapPoolChips();
+};
 
 function applyRoundFormatPreset(preset) {
     const list = document.getElementById('roundFormatsEditorList');
@@ -3474,7 +3610,7 @@ function applyRoundFormatPreset(preset) {
         }
     });
 
-    if (window.showToast) window.showToast(`Applied preset. Click "Save Formats" to confirm.`, 'info');
+    if (window.showToast) window.showToast(`Applied preset. Click "Save Rules & Map Pool" to confirm.`, 'info');
 }
 window.applyRoundFormatPreset = applyRoundFormatPreset;
 
@@ -3502,6 +3638,22 @@ async function saveTournamentRoundFormats() {
             }
         });
 
+        // Strict Pool Validation
+        const locked = isMapPoolLocked(t);
+        if (!locked) {
+            if (adminWorkingMapPool.length < 7) {
+                if (window.showToast) window.showToast("Map pool validation failed: Minimum 7 maps required for competitive BO1/BO3/BO5 veto.", "error");
+                else alert("Map pool validation failed: Minimum 7 maps required for competitive BO1/BO3/BO5 veto.");
+                return;
+            }
+            const unique = new Set(adminWorkingMapPool.map(m => m.trim().toLowerCase()));
+            if (unique.size !== adminWorkingMapPool.length) {
+                if (window.showToast) window.showToast("Map pool validation failed: Duplicate map names found.", "error");
+                else alert("Map pool validation failed: Duplicate map names found.");
+                return;
+            }
+        }
+
         let updatedMatches = t.matches ? JSON.parse(JSON.stringify(t.matches)) : null;
         if (updatedMatches && Array.isArray(updatedMatches)) {
             const maxDepth = t.matches.reduce((max, m) => Math.max(max, m.round || 1), 1);
@@ -3528,11 +3680,15 @@ async function saveTournamentRoundFormats() {
         }
 
         const payload = { roundFormats: updatedFormats };
+        if (!locked) {
+            payload.mapPool = adminWorkingMapPool;
+        }
         if (updatedMatches) payload.matches = updatedMatches;
 
         await updateDoc(doc(db, "tournaments", t.id), payload);
 
         t.roundFormats = updatedFormats;
+        if (!locked) t.mapPool = adminWorkingMapPool;
         if (updatedMatches) t.matches = updatedMatches;
         currentEditingTournament = t;
         window.currentEditingTournament = t;
@@ -3541,15 +3697,15 @@ async function saveTournamentRoundFormats() {
         closeModal('editRoundFormatsModal');
 
         if (window.showSuccessToast) {
-            window.showSuccessToast("Round Formats Saved", "Bracket rules updated for all rounds.");
+            window.showSuccessToast("Tournament Rules Saved", "Format rules and active map pool updated.");
         }
     } catch (e) {
         console.error("Save round formats error:", e);
-        alert("Failed to save round formats: " + e.message);
+        alert("Failed to save tournament rules: " + e.message);
     } finally {
         if (saveBtn) {
             saveBtn.disabled = false;
-            saveBtn.textContent = 'Save Formats';
+            saveBtn.textContent = 'Save Rules & Map Pool';
         }
     }
 }
@@ -7413,19 +7569,9 @@ window.removeTournamentStaff = async function (staffIdentifier) {
 };
 
 // ==========================================
-// FEATURE SUITE 2: COIN TOSS & MAP VETO
+// FEATURE SUITE 2: DISTRIBUTED REAL-TIME MAP VETO
 // ==========================================
-const GAME_MAP_POOLS = {
-    'Valorant': ['Ascent', 'Bind', 'Haven', 'Split', 'Sunset', 'Lotus', 'Abyss'],
-    'Mobile Legends: Bang Bang': ['Sanctum Island (Draft 1)', 'Sanctum Island (Draft 2)', 'Decider Match'],
-    'Honor of Kings': ['Gorge of Kings (Game 1)', 'Gorge of Kings (Game 2)', 'Decider Game'],
-    'League of Legends': ['Summoner\'s Rift (Game 1)', 'Summoner\'s Rift (Game 2)', 'Decider Game'],
-    'Dota 2': ['Standard Map (Game 1)', 'Standard Map (Game 2)', 'Decider Game'],
-    'Default': ['Map 1', 'Map 2', 'Map 3', 'Map 4', 'Map 5']
-};
-
 let currentVetoMatchId = null;
-let currentVetoState = null;
 
 window.openMapVetoFromScoreModal = function () {
     const matchId = document.getElementById('scoreMatchId')?.value;
@@ -7435,203 +7581,23 @@ window.openMapVetoFromScoreModal = function () {
 window.openMapVetoForMatch = function (matchId) {
     currentVetoMatchId = matchId;
     const t = currentEditingTournament;
+    if (!t) return;
     let match = t.matches?.find(m => m.id === matchId);
+    if (!match && t.brackets) {
+        for (const round of t.brackets) {
+            if (Array.isArray(round)) {
+                match = round.find(m => m.id === matchId);
+                if (match) break;
+            }
+        }
+    }
     if (!match) return;
 
-    const modal = document.getElementById('mapVetoModal');
-    if (!modal) return;
-
-    document.getElementById('vetoTeam1Name').textContent = match.team1;
-    document.getElementById('vetoTeam2Name').textContent = match.team2;
-
-    const coinSection = document.getElementById('vetoCoinTossSection');
-    const pickBanSection = document.getElementById('vetoPickBanSection');
-    const coinResultDisplay = document.getElementById('coinResultDisplay');
-    const coinGraphic = document.getElementById('coinGraphic');
-    const sideWrap = document.getElementById('vetoSideSelectionWrap');
-
-    if (sideWrap) sideWrap.classList.add('hidden');
-    if (coinResultDisplay) coinResultDisplay.textContent = '';
-    if (coinGraphic) coinGraphic.style.transform = '';
-
-    // If veto already completed
-    if (match.veto && match.veto.map) {
-        coinSection.classList.add('hidden');
-        pickBanSection.classList.remove('hidden');
-        if (sideWrap) {
-            sideWrap.classList.remove('hidden');
-            document.getElementById('vetoFinalMapName').textContent = `${match.veto.map} (${match.veto.side || 'Selected'})`;
-            document.getElementById('vetoSidePickerNotice').textContent = `Veto completed on ${match.team1} vs ${match.team2}.`;
-        }
-        renderCompletedVetoGrid(match.veto);
-    } else {
-        coinSection.classList.remove('hidden');
-        pickBanSection.classList.add('hidden');
-
-        const game = t.game || 'Valorant';
-        const maps = GAME_MAP_POOLS[game] || GAME_MAP_POOLS['Default'];
-
-        currentVetoState = {
-            team1: match.team1,
-            team2: match.team2,
-            maps: [...maps],
-            bans: [],
-            coinWinner: null,
-            firstBanTeam: null,
-            currentTurnTeam: null,
-            step: 1,
-            finalMap: null
-        };
-    }
-
-    modal.classList.remove('hidden');
-    modal.classList.add('flex');
+    openLiveMapVeto(t.id, matchId, t);
 };
 
-window.executeCoinToss = function () {
-    if (!currentVetoState) return;
-    const coinGraphic = document.getElementById('coinGraphic');
-    const flipBtn = document.getElementById('flipCoinBtn');
-    const coinResultDisplay = document.getElementById('coinResultDisplay');
-
-    if (flipBtn) flipBtn.disabled = true;
-    if (coinGraphic) {
-        coinGraphic.style.transition = 'transform 1s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
-        coinGraphic.style.transform = 'rotateY(1080deg) scale(1.2)';
-    }
-
-    setTimeout(() => {
-        const coinWinner = Math.random() < 0.5 ? currentVetoState.team1 : currentVetoState.team2;
-        currentVetoState.coinWinner = coinWinner;
-        currentVetoState.firstBanTeam = coinWinner;
-        currentVetoState.currentTurnTeam = coinWinner;
-
-        if (coinResultDisplay) {
-            coinResultDisplay.innerHTML = `<span class="text-white font-bold">${escapeHtml(coinWinner)}</span> won the coin flip and bans first!`;
-        }
-
-        setTimeout(() => {
-            document.getElementById('vetoCoinTossSection').classList.add('hidden');
-            document.getElementById('vetoPickBanSection').classList.remove('hidden');
-            renderMapVetoUI();
-            if (flipBtn) flipBtn.disabled = false;
-        }, 1200);
-    }, 1000);
-};
-
-function renderMapVetoUI() {
-    if (!currentVetoState) return;
-    const grid = document.getElementById('vetoMapGrid');
-    const turnText = document.getElementById('vetoCurrentTurnText');
-    const stepCount = document.getElementById('vetoStepCount');
-    const sideWrap = document.getElementById('vetoSideSelectionWrap');
-
-    const remainingMaps = currentVetoState.maps.filter(m => !currentVetoState.bans.includes(m));
-
-    if (turnText) {
-        turnText.innerHTML = `<span class="text-[#FFD700] font-black">${escapeHtml(currentVetoState.currentTurnTeam)}</span> (CLICK TO BAN)`;
-    }
-    if (stepCount) {
-        stepCount.textContent = `Ban Phase: ${remainingMaps.length} Maps Remaining`;
-    }
-
-    if (remainingMaps.length === 1) {
-        currentVetoState.finalMap = remainingMaps[0];
-        if (turnText) turnText.innerHTML = `<span class="text-emerald-400 font-black">VETO COMPLETE</span>`;
-        if (sideWrap) {
-            sideWrap.classList.remove('hidden');
-            document.getElementById('vetoFinalMapName').textContent = currentVetoState.finalMap;
-            const sidePickerTeam = (currentVetoState.currentTurnTeam === currentVetoState.team1) ? currentVetoState.team2 : currentVetoState.team1;
-            document.getElementById('vetoSidePickerNotice').textContent = `${sidePickerTeam} selects starting side:`;
-        }
-    } else {
-        if (sideWrap) sideWrap.classList.add('hidden');
-    }
-
-    if (grid) {
-        grid.innerHTML = currentVetoState.maps.map(mapName => {
-            const isBanned = currentVetoState.bans.includes(mapName);
-            const isFinal = (mapName === currentVetoState.finalMap);
-
-            let bgClass = "bg-black/50 border-white/10 hover:border-amber-400/50 text-white cursor-pointer";
-            let statusTag = `<span class="text-[9px] text-neutral-400 font-mono-tag uppercase">Available</span>`;
-
-            if (isBanned) {
-                bgClass = "bg-red-950/20 border-red-500/30 text-neutral-500 opacity-60 line-through cursor-not-allowed";
-                statusTag = `<span class="text-[9px] text-rose-400 font-mono-tag font-bold uppercase">Banned</span>`;
-            } else if (isFinal) {
-                bgClass = "bg-emerald-950/30 border-emerald-500 text-[#FFD700] shadow-[0_0_15px_rgba(16,185,129,0.3)]";
-                statusTag = `<span class="text-[9px] text-emerald-400 font-mono-tag font-extrabold uppercase">Decider Map</span>`;
-            }
-
-            return `
-                <div onclick="${!isBanned && remainingMaps.length > 1 ? `window.handleMapVetoAction('${escapeHtml(mapName)}')` : ''}"
-                    class="p-3 rounded-xl border ${bgClass} flex flex-col justify-between min-h-[70px] transition-all">
-                    <div class="flex items-center justify-between">
-                        <span class="text-neutral-400 text-[10px] uppercase font-bold">MAP:</span>
-                        ${statusTag}
-                    </div>
-                    <div class="font-heading font-black text-xs uppercase truncate mt-2">${escapeHtml(mapName)}</div>
-                </div>
-            `;
-        }).join('');
-    }
-}
-
-function renderCompletedVetoGrid(veto) {
-    const grid = document.getElementById('vetoMapGrid');
-    if (!grid) return;
-    const bans = veto.bannedMaps || [];
-    grid.innerHTML = bans.map(b => `
-        <div class="p-3 rounded-xl border bg-red-950/20 border-red-500/20 text-neutral-500 line-through text-xs font-mono-tag">
-            <span>${escapeHtml(b)} (Banned)</span>
-        </div>
-    `).join('') + `
-        <div class="p-3 rounded-xl border bg-emerald-950/30 border-emerald-500/40 text-emerald-300 text-xs font-heading font-bold uppercase">
-            <span>Decider: ${escapeHtml(veto.map)} (${escapeHtml(veto.side || 'Decider')})</span>
-        </div>
-    `;
-}
-
-window.handleMapVetoAction = function (mapName) {
-    if (!currentVetoState || currentVetoState.bans.includes(mapName)) return;
-    currentVetoState.bans.push(mapName);
-    currentVetoState.currentTurnTeam = (currentVetoState.currentTurnTeam === currentVetoState.team1) ? currentVetoState.team2 : currentVetoState.team1;
-    renderMapVetoUI();
-};
-
-window.finalizeMapSide = async function (sideChoice) {
-    if (!currentVetoMatchId || !currentVetoState || !currentVetoState.finalMap) return;
-
-    try {
-        const tourneyRef = doc(db, "tournaments", currentEditingTournament.id);
-        const tSnap = await getDoc(tourneyRef);
-        let matches = tSnap.data().matches || [];
-        let matchIndex = matches.findIndex(m => m.id === currentVetoMatchId);
-        if (matchIndex === -1) return;
-
-        matches[matchIndex].veto = {
-            map: currentVetoState.finalMap,
-            side: sideChoice,
-            bannedMaps: currentVetoState.bans,
-            coinWinner: currentVetoState.coinWinner,
-            completedAt: Date.now()
-        };
-
-        await updateDoc(tourneyRef, { matches: matches });
-        window.closeModal('mapVetoModal');
-
-        const vetoBadge = document.getElementById('scoreVetoResultBadge');
-        if (vetoBadge) {
-            vetoBadge.textContent = `${currentVetoState.finalMap} (${sideChoice})`;
-            vetoBadge.classList.remove('hidden');
-        }
-
-        if (window.showSuccessToast) window.showSuccessToast("Map Veto Saved", `Decider: ${currentVetoState.finalMap} (${sideChoice})`);
-    } catch (e) {
-        console.error(e);
-        alert("Failed to save map veto: " + e.message);
-    }
+window.closeMapVetoModal = function () {
+    closeLiveMapVeto();
 };
 
 // ==========================================
@@ -8436,6 +8402,9 @@ window.closeModal = (id) => {
     if (modal) {
         modal.classList.add('hidden');
         modal.classList.remove('flex');
+    }
+    if (id === 'mapVetoModal' && typeof window.closeMapVetoModal === 'function') {
+        window.closeMapVetoModal();
     }
     if (id === 'detailsModal') {
         const bracketSection = document.getElementById('bracketSection');
